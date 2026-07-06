@@ -20,7 +20,7 @@ A simple split-screen Markdown editor built with C++ and Qt6.
 ### Installing Qt6 on Debian/Ubuntu
 
 ```bash
-sudo apt install qt6-base-dev
+sudo apt install qt6-base-dev qt6-webengine-dev
 ```
 
 ## Building
@@ -43,7 +43,7 @@ make -j$(nproc)
 2. See live rendered preview on the right
 3. Use **File > Open** to load `.md` files
 4. Use **File > Save** to save your work
-5. Go to **Edit > Preferences** to configure CSS styling
+5. Go to **File > Preferences** to configure CSS styling
 
 ## Custom CSS
 

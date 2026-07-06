@@ -16,11 +16,13 @@
 #include <QStatusBar>
 #include <QSettings>
 #include <QColor>
+#include <QDir>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_parser(new MarkdownParser())
     , m_cssManager(new CssManager())
+    , m_cssWatcher(new QFileSystemWatcher(this))
 {
     setupUi();
     setupMenuBar();
@@ -32,6 +34,9 @@ MainWindow::MainWindow(QWidget *parent)
     timer->setInterval(150);
     connect(timer, &QTimer::timeout, this, &MainWindow::updatePreview);
     connect(m_editor, &QPlainTextEdit::textChanged, timer, qOverload<>(&QTimer::start));
+
+    connect(m_cssWatcher, &QFileSystemWatcher::fileChanged, this, &MainWindow::onCssFileChanged);
+    syncCssWatcher();
 
     /* Re-open last file if enabled */
     QSettings settings;
@@ -113,9 +118,16 @@ void MainWindow::updatePreview()
     QString html = m_parser->toHtml(markdown);
     QString css = m_cssManager->combinedCss();
 
+    QString baseTag;
+    QString docPath = m_preview->documentPath();
+    if (!docPath.isEmpty()) {
+        QUrl baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
+        baseTag = QString("<base href=\"%1\">").arg(baseUrl.toString());
+    }
+
     QString fullHtml = QString(
-        "<html><head><style>%1</style></head><body>%2</body></html>"
-    ).arg(css, html);
+        "<html><head>%1<style>%2</style></head><body>%3</body></html>"
+    ).arg(baseTag, css, html);
 
     m_preview->setHtmlContent(fullHtml);
 }
@@ -129,8 +141,40 @@ void MainWindow::showPreferences()
         int size = settings.value(Preferences::EditorFontSize, 14).toInt();
         QColor color(settings.value(Preferences::EditorFontColor, "#333333").toString());
         m_editor->applyFontSettings(family, size, color);
+        syncCssWatcher();
         updatePreview();
     }
+}
+
+void MainWindow::syncCssWatcher()
+{
+    QStringList dirs = m_cssWatcher->directories();
+    if (!dirs.isEmpty()) {
+        m_cssWatcher->removePaths(dirs);
+    }
+
+    QStringList files = m_cssWatcher->files();
+    if (!files.isEmpty()) {
+        m_cssWatcher->removePaths(files);
+    }
+
+    QString cssDir = m_cssManager->cssDirectory();
+    if (!cssDir.isEmpty()) {
+        m_cssWatcher->addPath(cssDir);
+    }
+
+    for (const QString &file : m_cssManager->enabledFiles()) {
+        QString path = QDir(cssDir).filePath(file);
+        if (QFile::exists(path)) {
+            m_cssWatcher->addPath(path);
+        }
+    }
+}
+
+void MainWindow::onCssFileChanged()
+{
+    updatePreview();
+    syncCssWatcher();
 }
 
 void MainWindow::loadFile(const QString &filePath)

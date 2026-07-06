@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebEngineWidgets)
 
 add_executable(scriba
     src/main.cpp
@@ -17,6 +17,8 @@ add_executable(scriba
     src/CssManager.cpp
     src/PreferencesDialog.cpp
     vendor/md4c/md4c.c
+    vendor/md4c/md4c-html.c
+    vendor/md4c/entity.c
     resources/scriba.qrc
 )
 
@@ -30,4 +32,5 @@ target_link_libraries(scriba PRIVATE
     Qt6::Gui
     Qt6::Widgets
     Qt6::Network
+    Qt6::WebEngineWidgets
 )
