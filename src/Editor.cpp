@@ -3,6 +3,7 @@
 #include <QKeyEvent>
 #include <QSettings>
 #include <QFont>
+#include <QTextBlock>
 
 Editor::Editor(QWidget *parent)
     : QPlainTextEdit(parent)
@@ -49,4 +50,9 @@ void Editor::keyPressEvent(QKeyEvent *event)
         return;
     }
     QPlainTextEdit::keyPressEvent(event);
+}
+
+int Editor::firstVisibleLineNumber() const
+{
+    return firstVisibleBlock().blockNumber() + 1;
 }
