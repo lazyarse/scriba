@@ -218,17 +218,14 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
     }
     case MD_SPAN_IMG: {
         auto *d = static_cast<MD_SPAN_IMG_DETAIL*>(detail);
-        QString src;
+        self->m_insideImg = true;
+        self->m_imgAlt.clear();
+        self->m_imgSrc.clear();
+        self->m_imgTitle.clear();
         if (d->src.text && d->src.size > 0)
-            src = QString::fromUtf8(d->src.text, d->src.size);
-        QString title;
+            self->m_imgSrc = QString::fromUtf8(d->src.text, d->src.size);
         if (d->title.text && d->title.size > 0)
-            title = QString::fromUtf8(d->title.text, d->title.size);
-        if (title.isEmpty())
-            self->writeHtml(QString("<img src=\"%1\" alt=\"\">").arg(escapeAttr(src)));
-        else
-            self->writeHtml(QString("<img src=\"%1\" title=\"%2\" alt=\"\">")
-                .arg(escapeAttr(src), escapeAttr(title)));
+            self->m_imgTitle = QString::fromUtf8(d->title.text, d->title.size);
         break;
     }
     case MD_SPAN_CODE:
@@ -241,6 +238,9 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
         self->writeHtml("<u>");
         break;
     default:
+        if (!self->m_insideImg)
+            break;
+        /* Suppress other spans inside image alt text */
         break;
     }
     return 0;
@@ -258,17 +258,28 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
         self->writeHtml("</strong>");
         break;
     case MD_SPAN_A:
+        if (self->m_insideImg) break;
         self->writeHtml("</a>");
         break;
     case MD_SPAN_IMG:
+        if (self->m_imgTitle.isEmpty())
+            self->writeHtml(QString("<img src=\"%1\" alt=\"%2\">")
+                .arg(escapeAttr(self->m_imgSrc), escapeAttr(self->m_imgAlt)));
+        else
+            self->writeHtml(QString("<img src=\"%1\" title=\"%2\" alt=\"%3\">")
+                .arg(escapeAttr(self->m_imgSrc), escapeAttr(self->m_imgTitle), escapeAttr(self->m_imgAlt)));
+        self->m_insideImg = false;
         break;
     case MD_SPAN_CODE:
+        if (self->m_insideImg) break;
         self->writeHtml("</code>");
         break;
     case MD_SPAN_DEL:
+        if (self->m_insideImg) break;
         self->writeHtml("</del>");
         break;
     case MD_SPAN_U:
+        if (self->m_insideImg) break;
         self->writeHtml("</u>");
         break;
     default:
@@ -287,25 +298,40 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
             if (text[i] == '\n')
                 self->m_currentLine++;
         }
-        self->writeHtml(QString::fromUtf8(text, size));
+        if (self->m_insideImg) {
+            self->m_imgAlt += QString::fromUtf8(text, size);
+        } else {
+            self->writeHtml(QString::fromUtf8(text, size));
+        }
         break;
     }
     case MD_TEXT_BR:
         self->m_currentLine++;
-        self->writeHtml("<br>");
+        if (!self->m_insideImg)
+            self->writeHtml("<br>");
         break;
     case MD_TEXT_SOFTBR:
         self->m_currentLine++;
-        self->writeHtml("\n");
+        if (!self->m_insideImg)
+            self->writeHtml("\n");
         break;
     case MD_TEXT_CODE:
-        self->writeHtml(escapeHtml(QString::fromUtf8(text, size)));
+        if (self->m_insideImg) {
+            self->m_imgAlt += QString::fromUtf8(text, size);
+        } else {
+            self->writeHtml(escapeHtml(QString::fromUtf8(text, size)));
+        }
         break;
     case MD_TEXT_HTML:
-        self->writeHtml(QString::fromUtf8(text, size));
+        if (!self->m_insideImg)
+            self->writeHtml(QString::fromUtf8(text, size));
         break;
     case MD_TEXT_ENTITY:
-        self->writeHtml(QString::fromUtf8(text, size));
+        if (self->m_insideImg) {
+            self->m_imgAlt += QString::fromUtf8(text, size);
+        } else {
+            self->writeHtml(QString::fromUtf8(text, size));
+        }
         break;
     default:
         break;

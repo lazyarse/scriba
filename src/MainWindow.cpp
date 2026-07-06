@@ -72,6 +72,7 @@ void MainWindow::setupMenuBar()
     connect(newAction, &QAction::triggered, this, [this]() {
         m_editor->clear();
         m_currentFile.clear();
+        m_preview->setDocumentPath(QString());
         setWindowTitle("Scriba - Untitled");
     });
 
@@ -120,18 +121,17 @@ void MainWindow::updatePreview()
     QString html = m_parser->toHtml(markdown);
     QString css = m_cssManager->combinedCss();
 
-    QString baseTag;
+    QUrl baseUrl;
     QString docPath = m_preview->documentPath();
     if (!docPath.isEmpty()) {
-        QUrl baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
-        baseTag = QString("<base href=\"%1\">").arg(baseUrl.toString());
+        baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
     }
 
     if (!m_previewInitialized) {
         QString fullHtml = QString(
-            "<html><head>%1<style id=\"user-css\">%2</style></head><body>%3</body></html>"
-        ).arg(baseTag, css, html);
-        m_preview->setHtml(fullHtml);
+            "<html><head><style id=\"user-css\">%1</style></head><body>%2</body></html>"
+        ).arg(css, html);
+        m_preview->setHtml(fullHtml, baseUrl);
         m_previewInitialized = true;
     } else {
         QString escapedCss = css;
@@ -148,9 +148,16 @@ void MainWindow::updatePreview()
         m_preview->page()->runJavaScript(js);
     }
 
-    /* Sync preview scroll to current editor line */
-    int line = m_editor->firstVisibleLineNumber();
-    m_preview->scrollToLine(line);
+    /* Sync preview scroll to editor percentage */
+    syncPreviewScroll();
+}
+
+void MainWindow::syncPreviewScroll()
+{
+    auto *sb = m_editor->verticalScrollBar();
+    double range = sb->maximum() - sb->minimum();
+    double pct = range > 0 ? static_cast<double>(sb->value() - sb->minimum()) / range : 0.0;
+    m_preview->scrollToPercent(pct);
 }
 
 void MainWindow::showPreferences()
@@ -202,8 +209,7 @@ void MainWindow::onCssFileChanged()
 
 void MainWindow::onEditorScroll()
 {
-    int line = m_editor->firstVisibleLineNumber();
-    m_preview->scrollToLine(line);
+    syncPreviewScroll();
 }
 
 void MainWindow::loadFile(const QString &filePath)

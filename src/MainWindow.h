@@ -17,6 +17,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow() = default;
+    void loadFile(const QString &filePath);
 
 private slots:
     void updatePreview();
@@ -27,8 +28,8 @@ private slots:
 private:
     void setupUi();
     void setupMenuBar();
-    void loadFile(const QString &filePath);
     void saveFile(const QString &filePath);
+    void syncPreviewScroll();
     void syncCssWatcher();
 
     QSplitter *m_splitter;
