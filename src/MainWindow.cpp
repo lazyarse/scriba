@@ -28,7 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupUi();
     setupMenuBar();
     setWindowTitle("Scriba");
-    showFullScreen();
+    showMaximized();
 
     QTimer *timer = new QTimer(this);
     timer->setSingleShot(true);
@@ -154,6 +154,9 @@ void MainWindow::updatePreview()
 
 void MainWindow::syncPreviewScroll()
 {
+    QSettings settings;
+    if (!settings.value(Preferences::SyncScroll, true).toBool())
+        return;
     auto *sb = m_editor->verticalScrollBar();
     double range = sb->maximum() - sb->minimum();
     double pct = range > 0 ? static_cast<double>(sb->value() - sb->minimum()) / range : 0.0;
@@ -168,7 +171,8 @@ void MainWindow::showPreferences()
         QString family = settings.value(Preferences::EditorFont, "Monospace").toString();
         int size = settings.value(Preferences::EditorFontSize, 14).toInt();
         QColor color(settings.value(Preferences::EditorFontColor, "#333333").toString());
-        m_editor->applyFontSettings(family, size, color);
+        QColor bgColor(settings.value(Preferences::EditorBgColor, "#ffffff").toString());
+        m_editor->applyFontSettings(family, size, color, bgColor);
         m_cssManager->invalidateCache();
         syncCssWatcher();
         updatePreview();

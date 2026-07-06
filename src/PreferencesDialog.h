@@ -24,6 +24,7 @@ private slots:
     void addCssFile();
     void removeCssFile();
     void pickFontColor();
+    void pickBgColor();
     void saveFontSettings();
 
 private:
@@ -38,8 +39,11 @@ private:
     QFontComboBox *m_fontCombo;
     QSpinBox *m_fontSizeSpin;
     QPushButton *m_colorBtn;
+    QPushButton *m_bgColorBtn;
     QColor m_fontColor;
+    QColor m_bgColor;
     QCheckBox *m_reopenCheck;
+    QCheckBox *m_syncCheck;
 };
 
 #endif
