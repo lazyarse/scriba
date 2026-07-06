@@ -17,6 +17,7 @@
 #include <QSettings>
 #include <QColor>
 #include <QDir>
+#include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -36,6 +37,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_editor, &QPlainTextEdit::textChanged, timer, qOverload<>(&QTimer::start));
 
     connect(m_cssWatcher, &QFileSystemWatcher::fileChanged, this, &MainWindow::onCssFileChanged);
+    connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged,
+            this, &MainWindow::onEditorScroll);
     syncCssWatcher();
 
     /* Re-open last file if enabled */
@@ -138,8 +141,10 @@ void MainWindow::updatePreview()
         escapedHtml.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
 
         QString js = QString(
+            "var _sy = window.scrollY;"
             "document.getElementById('user-css').textContent = '%1';"
             "document.body.innerHTML = '%2';"
+            "window.scrollTo(0, _sy);"
         ).arg(escapedCss, escapedHtml);
         m_preview->page()->runJavaScript(js);
     }
@@ -190,6 +195,22 @@ void MainWindow::onCssFileChanged()
     m_cssManager->invalidateCache();
     updatePreview();
     syncCssWatcher();
+}
+
+void MainWindow::onEditorScroll()
+{
+    if (m_syncingScroll || !m_previewInitialized) return;
+
+    QScrollBar *sb = m_editor->verticalScrollBar();
+    double pct = (sb->maximum() > 0) ? sb->value() / double(sb->maximum()) : 0.0;
+
+    QString js = QString(
+        "var h = document.documentElement.scrollHeight - window.innerHeight;"
+        "window.scrollTo(0, %1 * h);"
+    ).arg(pct, 0, 'f', 4);
+
+    m_syncingScroll = true;
+    m_preview->page()->runJavaScript(js, [this](const QVariant &) { m_syncingScroll = false; });
 }
 
 void MainWindow::loadFile(const QString &filePath)

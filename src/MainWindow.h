@@ -22,6 +22,7 @@ private slots:
     void updatePreview();
     void showPreferences();
     void onCssFileChanged();
+    void onEditorScroll();
 
 private:
     void setupUi();
@@ -38,6 +39,7 @@ private:
     QFileSystemWatcher *m_cssWatcher;
     QString m_currentFile;
     bool m_previewInitialized = false;
+    bool m_syncingScroll = false;
 };
 
 #endif
