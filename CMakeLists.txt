@@ -1,0 +1,33 @@
+cmake_minimum_required(VERSION 3.16)
+project(scriba VERSION 1.0.0 LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
+
+add_executable(scriba
+    src/main.cpp
+    src/MainWindow.cpp
+    src/Editor.cpp
+    src/Preview.cpp
+    src/MarkdownParser.cpp
+    src/CssManager.cpp
+    src/PreferencesDialog.cpp
+    vendor/md4c/md4c.c
+    resources/scriba.qrc
+)
+
+target_include_directories(scriba PRIVATE
+    ${CMAKE_SOURCE_DIR}/vendor/md4c
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(scriba PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Network
+)
