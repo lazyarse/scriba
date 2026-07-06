@@ -19,27 +19,31 @@ void Editor::loadSettings()
     QString family = settings.value(Preferences::EditorFont, "Monospace").toString();
     int size = settings.value(Preferences::EditorFontSize, 14).toInt();
     QColor color(settings.value(Preferences::EditorFontColor, "#333333").toString());
+    QColor bgColor(settings.value(Preferences::EditorBgColor, "#ffffff").toString());
 
     QFont font(family, size);
     setFont(font);
 
     QPalette pal = palette();
     pal.setColor(QPalette::Text, color);
+    pal.setColor(QPalette::Base, bgColor);
     setPalette(pal);
 }
 
-void Editor::applyFontSettings(const QString &family, int size, const QColor &color)
+void Editor::applyFontSettings(const QString &family, int size, const QColor &color, const QColor &bgColor)
 {
     QSettings settings;
     settings.setValue(Preferences::EditorFont, family);
     settings.setValue(Preferences::EditorFontSize, size);
     settings.setValue(Preferences::EditorFontColor, color.name());
+    settings.setValue(Preferences::EditorBgColor, bgColor.name());
 
     QFont font(family, size);
     setFont(font);
 
     QPalette pal = palette();
     pal.setColor(QPalette::Text, color);
+    pal.setColor(QPalette::Base, bgColor);
     setPalette(pal);
 }
 
