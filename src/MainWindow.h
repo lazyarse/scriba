@@ -37,6 +37,7 @@ private:
     CssManager *m_cssManager;
     QFileSystemWatcher *m_cssWatcher;
     QString m_currentFile;
+    bool m_previewInitialized = false;
 };
 
 #endif
