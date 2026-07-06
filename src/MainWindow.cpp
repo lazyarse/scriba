@@ -125,11 +125,24 @@ void MainWindow::updatePreview()
         baseTag = QString("<base href=\"%1\">").arg(baseUrl.toString());
     }
 
-    QString fullHtml = QString(
-        "<html><head>%1<style>%2</style></head><body>%3</body></html>"
-    ).arg(baseTag, css, html);
+    if (!m_previewInitialized) {
+        QString fullHtml = QString(
+            "<html><head>%1<style id=\"user-css\">%2</style></head><body>%3</body></html>"
+        ).arg(baseTag, css, html);
+        m_preview->setHtml(fullHtml);
+        m_previewInitialized = true;
+    } else {
+        QString escapedCss = css;
+        escapedCss.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+        QString escapedHtml = html;
+        escapedHtml.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
 
-    m_preview->setHtmlContent(fullHtml);
+        QString js = QString(
+            "document.getElementById('user-css').textContent = '%1';"
+            "document.body.innerHTML = '%2';"
+        ).arg(escapedCss, escapedHtml);
+        m_preview->page()->runJavaScript(js);
+    }
 }
 
 void MainWindow::showPreferences()
@@ -189,6 +202,7 @@ void MainWindow::loadFile(const QString &filePath)
     m_currentFile = filePath;
     setWindowTitle("Scriba - " + QFileInfo(filePath).fileName());
     m_preview->setDocumentPath(filePath);
+    m_previewInitialized = false;
 
     QSettings settings;
     settings.setValue(Preferences::LastOpenedFile, filePath);
