@@ -14,6 +14,7 @@ add_executable(scriba
     src/Editor.cpp
     src/Preview.cpp
     src/MarkdownParser.cpp
+    src/MdRenderer.cpp
     src/CssManager.cpp
     src/PreferencesDialog.cpp
     vendor/md4c/md4c.c

@@ -11,6 +11,7 @@ class Editor : public QPlainTextEdit
 public:
     explicit Editor(QWidget *parent = nullptr);
     void applyFontSettings(const QString &family, int size, const QColor &color);
+    int firstVisibleLineNumber() const;
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

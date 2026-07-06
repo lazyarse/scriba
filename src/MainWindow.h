@@ -39,7 +39,6 @@ private:
     QFileSystemWatcher *m_cssWatcher;
     QString m_currentFile;
     bool m_previewInitialized = false;
-    bool m_syncingScroll = false;
 };
 
 #endif

@@ -101,3 +101,22 @@ li {
 input[type="checkbox"] {
     margin-right: 0.5em;
 }
+
+.admonition {
+    margin: 1em 0;
+    padding: 0.5em 1em;
+    border-left: 4px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+.admonition-title {
+    font-weight: bold;
+    margin: 0 0 0.5em 0;
+}
+
+.admonition.note    { border-left-color: #4285f4; background-color: #e8f0fe; }
+.admonition.tip     { border-left-color: #34a853; background-color: #e6f4ea; }
+.admonition.important { border-left-color: #fbbc04; background-color: #fef7e0; }
+.admonition.warning { border-left-color: #ea4335; background-color: #fce8e6; }
+.admonition.caution { border-left-color: #ea4335; background-color: #fce8e6; }

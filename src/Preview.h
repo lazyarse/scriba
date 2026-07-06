@@ -12,6 +12,7 @@ public:
     void setHtmlContent(const QString &html);
     void setDocumentPath(const QString &path);
     QString documentPath() const;
+    void scrollToLine(int line);
 
 private:
     QString m_documentPath;
