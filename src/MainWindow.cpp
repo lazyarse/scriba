@@ -27,11 +27,11 @@ MainWindow::MainWindow(QWidget *parent)
     setupUi();
     setupMenuBar();
     setWindowTitle("Scriba");
-    resize(1200, 800);
+    showFullScreen();
 
     QTimer *timer = new QTimer(this);
     timer->setSingleShot(true);
-    timer->setInterval(150);
+    timer->setInterval(80);
     connect(timer, &QTimer::timeout, this, &MainWindow::updatePreview);
     connect(m_editor, &QPlainTextEdit::textChanged, timer, qOverload<>(&QTimer::start));
 
@@ -154,6 +154,7 @@ void MainWindow::showPreferences()
         int size = settings.value(Preferences::EditorFontSize, 14).toInt();
         QColor color(settings.value(Preferences::EditorFontColor, "#333333").toString());
         m_editor->applyFontSettings(family, size, color);
+        m_cssManager->invalidateCache();
         syncCssWatcher();
         updatePreview();
     }
@@ -186,6 +187,7 @@ void MainWindow::syncCssWatcher()
 
 void MainWindow::onCssFileChanged()
 {
+    m_cssManager->invalidateCache();
     updatePreview();
     syncCssWatcher();
 }
