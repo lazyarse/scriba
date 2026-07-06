@@ -1,10 +1,12 @@
 #include "Preview.h"
 #include <QFileInfo>
 #include <QUrl>
+#include <QWebEngineSettings>
 
 Preview::Preview(QWidget *parent)
     : QWebEngineView(parent)
 {
+    page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
 }
 
 void Preview::setHtmlContent(const QString &html)
@@ -39,5 +41,13 @@ void Preview::scrollToLine(int line)
         "  if (best) best.scrollIntoView({block: 'start', behavior: 'auto'});"
         "})();"
     ).arg(line);
+    page()->runJavaScript(js);
+}
+
+void Preview::scrollToPercent(double pct)
+{
+    QString js = QString(
+        "window.scrollTo(0, %1 * Math.max(1, document.body.scrollHeight - window.innerHeight));"
+    ).arg(pct, 0, 'f', 6);
     page()->runJavaScript(js);
 }

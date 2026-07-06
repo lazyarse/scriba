@@ -13,6 +13,7 @@ public:
     void setDocumentPath(const QString &path);
     QString documentPath() const;
     void scrollToLine(int line);
+    void scrollToPercent(double pct);
 
 private:
     QString m_documentPath;

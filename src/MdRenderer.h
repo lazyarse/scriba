@@ -25,6 +25,10 @@ private:
 
     QString m_output;
     int m_currentLine = 1;
+    bool m_insideImg = false;
+    QString m_imgAlt;
+    QString m_imgSrc;
+    QString m_imgTitle;
 };
 
 #endif
