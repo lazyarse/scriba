@@ -6,6 +6,7 @@ A simple split-screen Markdown editor built with C++ and Qt6.
 
 - Split-screen layout: editor on left, live preview on right
 - Full CommonMark + GFM support (tables, strikethrough, task lists)
+- Admonitions (note, tip, important, warning, caution)
 - Image rendering from local files and URLs
 - CSS-based preview styling
 - File menu: New, Open, Save, Save As
@@ -45,9 +46,38 @@ make -j$(nproc)
 4. Use **File > Save** to save your work
 5. Go to **File > Preferences** to configure CSS styling
 
+## Admonitions
+
+Use `> [!type]` syntax inside a blockquote:
+
+```markdown
+> [!note]
+> This is a note.
+
+> [!tip]
+> This is a tip.
+
+> [!warning]
+> This is a warning.
+```
+
+### Adding icons to admonition titles
+
+Use CSS `::before` to prepend an icon to `.admonition-title`:
+
+```css
+.admonition.note .admonition-title::before       { content: "\2139\00a0"; }
+.admonition.tip .admonition-title::before        { content: "\2714\00a0"; }
+.admonition.important .admonition-title::before  { content: "\26A0\00a0"; }
+.admonition.warning .admonition-title::before    { content: "\26A0\00a0"; }
+.admonition.caution .admonition-title::before    { content: "\2716\00a0"; }
+```
+
+These use Unicode characters (info, checkmark, warning, cross) and are purely CSS-based — no image files needed.
+
 ## Custom CSS
 
-1. Open **Edit > Preferences**
+1. Open **File > Preferences**
 2. Click **Browse** to select a directory containing `.css` files
 3. Click **Add** to enable custom stylesheets
 4. Click **Remove** to disable them
@@ -63,6 +93,7 @@ scriba/
 │   ├── Editor.cpp        — Text editor widget
 │   ├── Preview.cpp       — HTML preview widget
 │   ├── MarkdownParser.cpp — md4c-based markdown parser
+│   ├── MdRenderer.cpp    — Custom renderer with data-line attributes
 │   ├── CssManager.cpp    — CSS file management
 │   └── PreferencesDialog.cpp — Preferences UI
 ├── resources/
