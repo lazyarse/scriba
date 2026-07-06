@@ -1,11 +1,9 @@
 #ifndef PREVIEW_H
 #define PREVIEW_H
 
-#include <QTextBrowser>
-#include <QNetworkAccessManager>
-#include <QRegularExpression>
+#include <QWebEngineView>
 
-class Preview : public QTextBrowser
+class Preview : public QWebEngineView
 {
     Q_OBJECT
 
@@ -13,10 +11,10 @@ public:
     explicit Preview(QWidget *parent = nullptr);
     void setHtmlContent(const QString &html);
     void setDocumentPath(const QString &path);
+    QString documentPath() const;
 
 private:
-    void preloadRemoteImages(const QString &html);
-    QNetworkAccessManager *m_networkManager;
+    QString m_documentPath;
 };
 
 #endif

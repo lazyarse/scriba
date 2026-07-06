@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QSplitter>
+#include <QFileSystemWatcher>
 
 class Editor;
 class Preview;
@@ -20,18 +21,21 @@ public:
 private slots:
     void updatePreview();
     void showPreferences();
+    void onCssFileChanged();
 
 private:
     void setupUi();
     void setupMenuBar();
     void loadFile(const QString &filePath);
     void saveFile(const QString &filePath);
+    void syncCssWatcher();
 
     QSplitter *m_splitter;
     Editor *m_editor;
     Preview *m_preview;
     MarkdownParser *m_parser;
     CssManager *m_cssManager;
+    QFileSystemWatcher *m_cssWatcher;
     QString m_currentFile;
 };
 
