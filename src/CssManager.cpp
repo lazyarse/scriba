@@ -13,6 +13,10 @@ CssManager::CssManager()
 
 QString CssManager::combinedCss() const
 {
+    if (!m_cacheDirty) {
+        return m_combinedCache;
+    }
+
     QString css;
 
     QFile defaultFile(":/default.css");
@@ -29,12 +33,20 @@ QString CssManager::combinedCss() const
         css += "\n";
     }
 
+    m_combinedCache = css;
+    m_cacheDirty = false;
     return css;
+}
+
+void CssManager::invalidateCache()
+{
+    m_cacheDirty = true;
 }
 
 void CssManager::setCssDirectory(const QString &directory)
 {
     m_cssDirectory = directory;
+    invalidateCache();
     QSettings settings;
     settings.setValue(Preferences::CssDirectory, directory);
 }
@@ -47,6 +59,7 @@ QString CssManager::cssDirectory() const
 void CssManager::setEnabledFiles(const QStringList &files)
 {
     m_enabledFiles = files;
+    invalidateCache();
     QSettings settings;
     settings.setValue(Preferences::EnabledCssFiles, files);
 }
