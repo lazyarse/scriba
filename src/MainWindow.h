@@ -32,6 +32,7 @@ private:
     void saveFile(const QString &filePath);
     void syncPreviewScroll();
     void syncCssWatcher();
+    void applyTheme(bool dark);
 
     QSplitter *m_splitter;
     Editor *m_editor;
