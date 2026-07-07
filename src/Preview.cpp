@@ -7,6 +7,7 @@ Preview::Preview(QWidget *parent)
     : QWebEngineView(parent)
 {
     page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
+    page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, true);
 }
 
 void Preview::setHtmlContent(const QString &html)
