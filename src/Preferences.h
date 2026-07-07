@@ -2,8 +2,8 @@
 #define PREFERENCES_H
 
 namespace Preferences {
-    constexpr const char *CssDirectory = "cssDirectory";
-    constexpr const char *EnabledCssFiles = "enabledCssFiles";
+    constexpr const char *CssFiles = "cssFiles";
+    constexpr const char *ActiveCssFile = "activeCssFile";
     constexpr const char *EditorFont = "editorFont";
     constexpr const char *EditorFontSize = "editorFontSize";
     constexpr const char *EditorFontColor = "editorFontColor";

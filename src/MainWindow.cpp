@@ -4,6 +4,7 @@
 #include "MarkdownParser.h"
 #include "CssManager.h"
 #include "PreferencesDialog.h"
+#include "FindDialog.h"
 #include "Preferences.h"
 
 #include <QMenuBar>
@@ -16,8 +17,9 @@
 #include <QStatusBar>
 #include <QSettings>
 #include <QScrollBar>
+#include <QTextDocument>
 #include <QColor>
-#include <QDir>
+#include <QRegularExpression>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -106,6 +108,7 @@ void MainWindow::setupMenuBar()
     fileMenu->addSeparator();
 
     QAction *prefsAction = fileMenu->addAction("&Preferences...");
+    prefsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_P));
     connect(prefsAction, &QAction::triggered, this, &MainWindow::showPreferences);
 
     fileMenu->addSeparator();
@@ -113,6 +116,11 @@ void MainWindow::setupMenuBar()
     QAction *quitAction = fileMenu->addAction("&Quit");
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, this, &QWidget::close);
+
+    QAction *findAction = new QAction("&Find", this);
+    findAction->setShortcut(QKeySequence::Find);
+    connect(findAction, &QAction::triggered, this, &MainWindow::showFindDialog);
+    addAction(findAction);
 }
 
 void MainWindow::updatePreview()
@@ -166,6 +174,10 @@ void MainWindow::syncPreviewScroll()
 void MainWindow::showPreferences()
 {
     PreferencesDialog dlg(m_cssManager, m_editor, this);
+    connect(&dlg, &PreferencesDialog::stylesheetChanged, this, [this]() {
+        syncCssWatcher();
+        updatePreview();
+    });
     if (dlg.exec() == QDialog::Accepted) {
         QSettings settings;
         QString family = settings.value(Preferences::EditorFont, "Monospace").toString();
@@ -173,35 +185,38 @@ void MainWindow::showPreferences()
         QColor color(settings.value(Preferences::EditorFontColor, "#333333").toString());
         QColor bgColor(settings.value(Preferences::EditorBgColor, "#ffffff").toString());
         m_editor->applyFontSettings(family, size, color, bgColor);
-        m_cssManager->invalidateCache();
         syncCssWatcher();
         updatePreview();
     }
 }
 
+void MainWindow::showFindDialog()
+{
+    FindDialog dlg(m_editor);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString term = dlg.searchTerm();
+        if (term.isEmpty()) return;
+
+        QTextDocument::FindFlags flags;
+        if (dlg.caseSensitive())
+            flags |= QTextDocument::FindCaseSensitively;
+
+        if (dlg.regexEnabled())
+            m_editor->find(QRegularExpression(term), flags);
+        else
+            m_editor->find(term, flags);
+    }
+}
+
 void MainWindow::syncCssWatcher()
 {
-    QStringList dirs = m_cssWatcher->directories();
-    if (!dirs.isEmpty()) {
-        m_cssWatcher->removePaths(dirs);
-    }
+    QStringList watched = m_cssWatcher->files();
+    if (!watched.isEmpty())
+        m_cssWatcher->removePaths(watched);
 
-    QStringList files = m_cssWatcher->files();
-    if (!files.isEmpty()) {
-        m_cssWatcher->removePaths(files);
-    }
-
-    QString cssDir = m_cssManager->cssDirectory();
-    if (!cssDir.isEmpty()) {
-        m_cssWatcher->addPath(cssDir);
-    }
-
-    for (const QString &file : m_cssManager->enabledFiles()) {
-        QString path = QDir(cssDir).filePath(file);
-        if (QFile::exists(path)) {
-            m_cssWatcher->addPath(path);
-        }
-    }
+    QString active = m_cssManager->activeStylesheet();
+    if (!active.isEmpty() && QFile::exists(active))
+        m_cssWatcher->addPath(active);
 }
 
 void MainWindow::onCssFileChanged()
@@ -226,7 +241,7 @@ void MainWindow::loadFile(const QString &filePath)
 
     m_editor->setPlainText(QString::fromUtf8(file.readAll()));
     m_currentFile = filePath;
-    setWindowTitle("Scriba - " + QFileInfo(filePath).fileName());
+    setWindowTitle("Scriba - " + filePath);
     m_preview->setDocumentPath(filePath);
     m_previewInitialized = false;
 
@@ -244,7 +259,7 @@ void MainWindow::saveFile(const QString &filePath)
 
     file.write(m_editor->toPlainText().toUtf8());
     m_currentFile = filePath;
-    setWindowTitle("Scriba - " + QFileInfo(filePath).fileName());
+    setWindowTitle("Scriba - " + filePath);
     m_preview->setDocumentPath(filePath);
     statusBar()->showMessage("Saved", 2000);
 

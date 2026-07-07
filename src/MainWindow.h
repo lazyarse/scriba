@@ -22,6 +22,7 @@ public:
 private slots:
     void updatePreview();
     void showPreferences();
+    void showFindDialog();
     void onCssFileChanged();
     void onEditorScroll();
 

@@ -19,21 +19,24 @@ class PreferencesDialog : public QDialog
 public:
     explicit PreferencesDialog(CssManager *cssManager, Editor *editor, QWidget *parent = nullptr);
 
+signals:
+    void stylesheetChanged();
+
 private slots:
-    void selectDirectory();
-    void addCssFile();
-    void removeCssFile();
+    void addStylesheet();
+    void removeStylesheet();
+    void onItemChanged(QListWidgetItem *item);
     void pickFontColor();
     void pickBgColor();
     void saveFontSettings();
 
 private:
+    void populateStylesheetList();
     void setupUi();
 
     CssManager *m_cssManager;
     Editor *m_editor;
     QListWidget *m_listWidget;
-    QLabel *m_previewLabel;
     QPushButton *m_addButton;
     QPushButton *m_removeButton;
     QFontComboBox *m_fontCombo;
@@ -44,6 +47,7 @@ private:
     QColor m_bgColor;
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
+    bool m_updatingCheckState = false;
 };
 
 #endif
