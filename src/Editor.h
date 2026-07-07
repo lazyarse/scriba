@@ -10,14 +10,12 @@ class Editor : public QPlainTextEdit
 
 public:
     explicit Editor(QWidget *parent = nullptr);
-    void applyFontSettings(const QString &family, int size, const QColor &color, const QColor &bgColor);
+    void applyFontSettings(const QString &family, int size, const QColor &color);
+    void loadSettings();
     int firstVisibleLineNumber() const;
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
-
-private:
-    void loadSettings();
 };
 
 #endif

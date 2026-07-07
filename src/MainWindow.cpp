@@ -200,8 +200,7 @@ void MainWindow::showPreferences()
         QString family = settings.value(Preferences::EditorFont, "Monospace").toString();
         int size = settings.value(Preferences::EditorFontSize, 14).toInt();
         QColor color(settings.value(Preferences::EditorFontColor, "#333333").toString());
-        QColor bgColor(settings.value(Preferences::EditorBgColor, "#ffffff").toString());
-        m_editor->applyFontSettings(family, size, color, bgColor);
+        m_editor->applyFontSettings(family, size, color);
         syncCssWatcher();
         updatePreview();
     }
@@ -230,7 +229,7 @@ void MainWindow::applyTheme(bool dark)
     if (dark) {
         qApp->setStyleSheet(
             "QSplitter::handle { background-color: #333; }"
-            "QPlainTextEdit { border: none; }"
+            "QPlainTextEdit { border: none; background-color: #1e1e1e; color: #d4d4d4; }"
             "QMenuBar { background-color: #2b2b2b; color: #f0f0f0; }"
             "QMenuBar::item:selected { background-color: #3c3c3c; }"
             "QMenu { background-color: #2b2b2b; color: #f0f0f0; }"
@@ -246,6 +245,7 @@ void MainWindow::applyTheme(bool dark)
         );
     } else {
         qApp->setStyleSheet(QString());
+        m_editor->loadSettings();
     }
 }
 
