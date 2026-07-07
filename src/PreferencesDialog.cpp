@@ -44,17 +44,11 @@ void PreferencesDialog::setupUi()
     m_colorBtn->setFixedWidth(80);
     fontLayout->addWidget(m_colorBtn, 1, 1);
 
-    fontLayout->addWidget(new QLabel("Background:"), 1, 2);
-    m_bgColorBtn = new QPushButton();
-    m_bgColorBtn->setFixedWidth(80);
-    fontLayout->addWidget(m_bgColorBtn, 1, 3);
-
     /* Load current settings */
     QSettings settings;
     QString family = settings.value(Preferences::EditorFont, "Monospace").toString();
     int size = settings.value(Preferences::EditorFontSize, 14).toInt();
     m_fontColor = QColor(settings.value(Preferences::EditorFontColor, "#333333").toString());
-    m_bgColor = QColor(settings.value(Preferences::EditorBgColor, "#ffffff").toString());
 
     QFont currentFont(family, size);
     m_fontCombo->setCurrentFont(currentFont);
@@ -63,8 +57,6 @@ void PreferencesDialog::setupUi()
     /* Color button styling */
     m_colorBtn->setStyleSheet(QString("background-color: %1;").arg(m_fontColor.name()));
     connect(m_colorBtn, &QPushButton::clicked, this, &PreferencesDialog::pickFontColor);
-    m_bgColorBtn->setStyleSheet(QString("background-color: %1;").arg(m_bgColor.name()));
-    connect(m_bgColorBtn, &QPushButton::clicked, this, &PreferencesDialog::pickBgColor);
 
     mainLayout->addWidget(fontGroup);
 
@@ -202,22 +194,12 @@ void PreferencesDialog::pickFontColor()
     }
 }
 
-void PreferencesDialog::pickBgColor()
-{
-    QColor color = QColorDialog::getColor(m_bgColor, this, "Select Background Color");
-    if (color.isValid()) {
-        m_bgColor = color;
-        m_bgColorBtn->setStyleSheet(QString("background-color: %1;").arg(m_bgColor.name()));
-    }
-}
-
 void PreferencesDialog::saveFontSettings()
 {
     QSettings settings;
     settings.setValue(Preferences::EditorFont, m_fontCombo->currentFont().family());
     settings.setValue(Preferences::EditorFontSize, m_fontSizeSpin->value());
     settings.setValue(Preferences::EditorFontColor, m_fontColor.name());
-    settings.setValue(Preferences::EditorBgColor, m_bgColor.name());
     settings.setValue(Preferences::ReopenLastFile, m_reopenCheck->isChecked());
     settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
 }
