@@ -20,6 +20,7 @@
 #include <QTextDocument>
 #include <QColor>
 #include <QRegularExpression>
+#include <QApplication>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -29,6 +30,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     setupUi();
     setupMenuBar();
+
+    QSettings s;
+    applyTheme(s.value(Preferences::DarkMode, false).toBool());
+
     setWindowTitle("Scriba");
     showMaximized();
 
@@ -110,6 +115,18 @@ void MainWindow::setupMenuBar()
     QAction *prefsAction = fileMenu->addAction("&Preferences...");
     prefsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_P));
     connect(prefsAction, &QAction::triggered, this, &MainWindow::showPreferences);
+
+    fileMenu->addSeparator();
+
+    QAction *darkAction = fileMenu->addAction("Dark Mode");
+    darkAction->setCheckable(true);
+    QSettings settings;
+    darkAction->setChecked(settings.value(Preferences::DarkMode, false).toBool());
+    connect(darkAction, &QAction::toggled, this, [this](bool checked) {
+        QSettings s;
+        s.setValue(Preferences::DarkMode, checked);
+        applyTheme(checked);
+    });
 
     fileMenu->addSeparator();
 
@@ -205,6 +222,30 @@ void MainWindow::showFindDialog()
             m_editor->find(QRegularExpression(term), flags);
         else
             m_editor->find(term, flags);
+    }
+}
+
+void MainWindow::applyTheme(bool dark)
+{
+    if (dark) {
+        qApp->setStyleSheet(
+            "QSplitter::handle { background-color: #333; }"
+            "QPlainTextEdit { border: none; }"
+            "QMenuBar { background-color: #2b2b2b; color: #f0f0f0; }"
+            "QMenuBar::item:selected { background-color: #3c3c3c; }"
+            "QMenu { background-color: #2b2b2b; color: #f0f0f0; }"
+            "QMenu::item:selected { background-color: #3c3c3c; }"
+            "QScrollBar:vertical { background: #1e1e1e; width: 12px; }"
+            "QScrollBar::handle:vertical { background: #555; border-radius: 6px; min-height: 30px; }"
+            "QScrollBar::handle:vertical:hover { background: #777; }"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+            "QScrollBar:horizontal { background: #1e1e1e; height: 12px; }"
+            "QScrollBar::handle:horizontal { background: #555; border-radius: 6px; min-width: 30px; }"
+            "QScrollBar::handle:horizontal:hover { background: #777; }"
+            "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }"
+        );
+    } else {
+        qApp->setStyleSheet(QString());
     }
 }
 

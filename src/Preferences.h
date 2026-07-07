@@ -2,6 +2,7 @@
 #define PREFERENCES_H
 
 namespace Preferences {
+    constexpr const char *DarkMode = "darkMode";
     constexpr const char *CssFiles = "cssFiles";
     constexpr const char *ActiveCssFile = "activeCssFile";
     constexpr const char *EditorFont = "editorFont";
