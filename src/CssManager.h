@@ -11,16 +11,17 @@ public:
 
     QString combinedCss() const;
     void invalidateCache();
-    void setCssDirectory(const QString &directory);
-    QString cssDirectory() const;
-    void setEnabledFiles(const QStringList &files);
-    QStringList enabledFiles() const;
-    QStringList availableFiles() const;
+
+    void setStylesheets(const QStringList &paths);
+    QStringList stylesheets() const;
+
+    void setActiveStylesheet(const QString &path);
+    QString activeStylesheet() const;
 
 private:
     QString loadCssFile(const QString &filePath) const;
-    QString m_cssDirectory;
-    QStringList m_enabledFiles;
+    QStringList m_stylesheets;
+    QString m_activeStylesheet;
     mutable QString m_combinedCache;
     mutable bool m_cacheDirty = true;
 };

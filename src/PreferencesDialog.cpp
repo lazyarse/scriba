@@ -3,7 +3,6 @@
 #include "Preferences.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QLineEdit>
 #include <QPushButton>
 #include <QFileDialog>
 #include <QDialogButtonBox>
@@ -83,20 +82,9 @@ void PreferencesDialog::setupUi()
 
     mainLayout->addWidget(behaviorGroup);
 
-    /* --- CSS Group --- */
+    /* --- Stylesheets Group --- */
     QGroupBox *cssGroup = new QGroupBox("Stylesheets");
     QVBoxLayout *cssLayout = new QVBoxLayout(cssGroup);
-
-    QHBoxLayout *dirLayout = new QHBoxLayout();
-    QLabel *dirLabel = new QLabel("CSS Directory:");
-    QLineEdit *dirEdit = new QLineEdit(m_cssManager->cssDirectory());
-    QPushButton *browseBtn = new QPushButton("Browse...");
-    dirLayout->addWidget(dirLabel);
-    dirLayout->addWidget(dirEdit);
-    dirLayout->addWidget(browseBtn);
-    cssLayout->addLayout(dirLayout);
-
-    connect(browseBtn, &QPushButton::clicked, this, &PreferencesDialog::selectDirectory);
 
     QHBoxLayout *listLayout = new QHBoxLayout();
     m_listWidget = new QListWidget();
@@ -112,11 +100,11 @@ void PreferencesDialog::setupUi()
     listLayout->addLayout(btnLayout);
     cssLayout->addLayout(listLayout);
 
-    m_previewLabel = new QLabel();
-    cssLayout->addWidget(m_previewLabel);
+    connect(m_addButton, &QPushButton::clicked, this, &PreferencesDialog::addStylesheet);
+    connect(m_removeButton, &QPushButton::clicked, this, &PreferencesDialog::removeStylesheet);
+    connect(m_listWidget, &QListWidget::itemChanged, this, &PreferencesDialog::onItemChanged);
 
-    connect(m_addButton, &QPushButton::clicked, this, &PreferencesDialog::addCssFile);
-    connect(m_removeButton, &QPushButton::clicked, this, &PreferencesDialog::removeCssFile);
+    populateStylesheetList();
 
     mainLayout->addWidget(cssGroup);
 
@@ -126,10 +114,83 @@ void PreferencesDialog::setupUi()
     connect(buttonBox, &QDialogButtonBox::accepted, this, &PreferencesDialog::saveFontSettings);
     connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+}
 
-    for (const QString &file : m_cssManager->enabledFiles()) {
-        m_listWidget->addItem(file);
+void PreferencesDialog::populateStylesheetList()
+{
+    m_listWidget->clear();
+    QString active = m_cssManager->activeStylesheet();
+
+    for (const QString &path : m_cssManager->stylesheets()) {
+        QListWidgetItem *item = new QListWidgetItem(QFileInfo(path).fileName());
+        item->setData(Qt::UserRole, path);
+        item->setToolTip(path);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(path == active ? Qt::Checked : Qt::Unchecked);
+        m_listWidget->addItem(item);
     }
+}
+
+void PreferencesDialog::addStylesheet()
+{
+    QStringList files = QFileDialog::getOpenFileNames(this, "Select CSS Files", QString(), "CSS Files (*.css)");
+    if (files.isEmpty()) return;
+
+    QStringList existing = m_cssManager->stylesheets();
+    for (const QString &file : files) {
+        if (!existing.contains(file))
+            existing.append(file);
+    }
+    m_cssManager->setStylesheets(existing);
+    populateStylesheetList();
+    emit stylesheetChanged();
+}
+
+void PreferencesDialog::removeStylesheet()
+{
+    QListWidgetItem *item = m_listWidget->currentItem();
+    if (!item) return;
+
+    QString path = item->data(Qt::UserRole).toString();
+    QStringList existing = m_cssManager->stylesheets();
+    existing.removeAll(path);
+
+    if (path == m_cssManager->activeStylesheet())
+        m_cssManager->setActiveStylesheet(QString());
+
+    m_cssManager->setStylesheets(existing);
+    populateStylesheetList();
+    emit stylesheetChanged();
+}
+
+void PreferencesDialog::onItemChanged(QListWidgetItem *item)
+{
+    if (m_updatingCheckState) return;
+    m_updatingCheckState = true;
+
+    if (item->checkState() == Qt::Checked) {
+        for (int i = 0; i < m_listWidget->count(); i++) {
+            QListWidgetItem *other = m_listWidget->item(i);
+            if (other != item)
+                other->setCheckState(Qt::Unchecked);
+        }
+        m_cssManager->setActiveStylesheet(item->data(Qt::UserRole).toString());
+        emit stylesheetChanged();
+    } else {
+        bool anyChecked = false;
+        for (int i = 0; i < m_listWidget->count(); i++) {
+            if (m_listWidget->item(i)->checkState() == Qt::Checked) {
+                anyChecked = true;
+                break;
+            }
+        }
+        if (!anyChecked) {
+            m_cssManager->setActiveStylesheet(QString());
+            emit stylesheetChanged();
+        }
+    }
+
+    m_updatingCheckState = false;
 }
 
 void PreferencesDialog::pickFontColor()
@@ -159,44 +220,4 @@ void PreferencesDialog::saveFontSettings()
     settings.setValue(Preferences::EditorBgColor, m_bgColor.name());
     settings.setValue(Preferences::ReopenLastFile, m_reopenCheck->isChecked());
     settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
-}
-
-void PreferencesDialog::selectDirectory()
-{
-    QString dir = QFileDialog::getExistingDirectory(this, "Select CSS Directory", m_cssManager->cssDirectory());
-    if (!dir.isEmpty()) {
-        m_cssManager->setCssDirectory(dir);
-        m_listWidget->clear();
-        for (const QString &file : m_cssManager->enabledFiles()) {
-            m_listWidget->addItem(file);
-        }
-    }
-}
-
-void PreferencesDialog::addCssFile()
-{
-    QStringList files = QFileDialog::getOpenFileNames(this, "Select CSS Files", m_cssManager->cssDirectory(), "CSS Files (*.css)");
-    QStringList enabled = m_cssManager->enabledFiles();
-    for (const QString &file : files) {
-        QFileInfo info(file);
-        if (!enabled.contains(info.fileName())) {
-            enabled.append(info.fileName());
-        }
-    }
-    m_cssManager->setEnabledFiles(enabled);
-    m_listWidget->clear();
-    for (const QString &f : enabled) {
-        m_listWidget->addItem(f);
-    }
-}
-
-void PreferencesDialog::removeCssFile()
-{
-    QListWidgetItem *item = m_listWidget->currentItem();
-    if (!item) return;
-
-    QStringList enabled = m_cssManager->enabledFiles();
-    enabled.removeAll(item->text());
-    m_cssManager->setEnabledFiles(enabled);
-    delete m_listWidget->takeItem(m_listWidget->row(item));
 }

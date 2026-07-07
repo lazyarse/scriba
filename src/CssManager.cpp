@@ -1,21 +1,19 @@
 #include "CssManager.h"
 #include "Preferences.h"
 #include <QFile>
-#include <QDir>
 #include <QSettings>
 
 CssManager::CssManager()
 {
     QSettings settings;
-    m_cssDirectory = settings.value(Preferences::CssDirectory, "").toString();
-    m_enabledFiles = settings.value(Preferences::EnabledCssFiles, QStringList{"default.css"}).toStringList();
+    m_stylesheets = settings.value(Preferences::CssFiles, QStringList()).toStringList();
+    m_activeStylesheet = settings.value(Preferences::ActiveCssFile, "").toString();
 }
 
 QString CssManager::combinedCss() const
 {
-    if (!m_cacheDirty) {
+    if (!m_cacheDirty)
         return m_combinedCache;
-    }
 
     QString css;
 
@@ -25,11 +23,8 @@ QString CssManager::combinedCss() const
         css += "\n";
     }
 
-    QDir dir(m_cssDirectory);
-    for (const QString &file : m_enabledFiles) {
-        if (file == "default.css") continue;
-        QString path = dir.filePath(file);
-        css += loadCssFile(path);
+    if (!m_activeStylesheet.isEmpty()) {
+        css += loadCssFile(m_activeStylesheet);
         css += "\n";
     }
 
@@ -43,43 +38,36 @@ void CssManager::invalidateCache()
     m_cacheDirty = true;
 }
 
-void CssManager::setCssDirectory(const QString &directory)
+void CssManager::setStylesheets(const QStringList &paths)
 {
-    m_cssDirectory = directory;
+    m_stylesheets = paths;
     invalidateCache();
     QSettings settings;
-    settings.setValue(Preferences::CssDirectory, directory);
+    settings.setValue(Preferences::CssFiles, paths);
 }
 
-QString CssManager::cssDirectory() const
+QStringList CssManager::stylesheets() const
 {
-    return m_cssDirectory;
+    return m_stylesheets;
 }
 
-void CssManager::setEnabledFiles(const QStringList &files)
+void CssManager::setActiveStylesheet(const QString &path)
 {
-    m_enabledFiles = files;
+    m_activeStylesheet = path;
     invalidateCache();
     QSettings settings;
-    settings.setValue(Preferences::EnabledCssFiles, files);
+    settings.setValue(Preferences::ActiveCssFile, path);
 }
 
-QStringList CssManager::enabledFiles() const
+QString CssManager::activeStylesheet() const
 {
-    return m_enabledFiles;
-}
-
-QStringList CssManager::availableFiles() const
-{
-    QDir dir(m_cssDirectory);
-    return dir.entryList(QStringList() << "*.css", QDir::Files, QDir::Name);
+    return m_activeStylesheet;
 }
 
 QString CssManager::loadCssFile(const QString &filePath) const
 {
     QFile file(filePath);
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
         return QString::fromUtf8(file.readAll());
-    }
     return "";
 }

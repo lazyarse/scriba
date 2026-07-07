@@ -17,6 +17,7 @@ add_executable(scriba
     src/MdRenderer.cpp
     src/CssManager.cpp
     src/PreferencesDialog.cpp
+    src/FindDialog.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c
     vendor/md4c/entity.c
