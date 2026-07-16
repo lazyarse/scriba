@@ -88,32 +88,6 @@ void PreferencesDialog::setupUi()
     mainLayout->addLayout(baseBtnLayout);
     mainLayout->addWidget(cssGroup);
 
-    /* --- Print Stylesheets Group --- */
-    QGroupBox *printGroup = new QGroupBox("Print Stylesheets");
-    QVBoxLayout *printLayout = new QVBoxLayout(printGroup);
-
-    QHBoxLayout *printListLayout = new QHBoxLayout();
-    m_printListWidget = new QListWidget();
-    m_printAddBtn = new QPushButton("Add");
-    m_printRemoveBtn = new QPushButton("Remove");
-
-    QVBoxLayout *printBtnLayout = new QVBoxLayout();
-    printBtnLayout->addWidget(m_printAddBtn);
-    printBtnLayout->addWidget(m_printRemoveBtn);
-    printBtnLayout->addStretch();
-
-    printListLayout->addWidget(m_printListWidget);
-    printListLayout->addLayout(printBtnLayout);
-    printLayout->addLayout(printListLayout);
-
-    connect(m_printAddBtn, &QPushButton::clicked, this, &PreferencesDialog::addPrintStylesheet);
-    connect(m_printRemoveBtn, &QPushButton::clicked, this, &PreferencesDialog::removePrintStylesheet);
-    connect(m_printListWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onPrintCurrentItemChanged);
-
-    populatePrintStylesheetList();
-
-    mainLayout->addWidget(printGroup);
-
     /* --- Dialog Buttons --- */
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     for (auto *btn : buttonBox->buttons())
@@ -173,60 +147,6 @@ void PreferencesDialog::removeStylesheet()
 
     m_cssManager->setStylesheets(existing);
     populateStylesheetList();
-    emit stylesheetChanged();
-}
-
-void PreferencesDialog::populatePrintStylesheetList()
-{
-    m_printListWidget->clear();
-    QString active = m_cssManager->activePrintStylesheet();
-
-    for (const QString &path : m_cssManager->printStylesheets()) {
-        QListWidgetItem *item = new QListWidgetItem(QFileInfo(path).fileName());
-        item->setData(Qt::UserRole, path);
-        item->setToolTip(path);
-        m_printListWidget->addItem(item);
-        if (path == active)
-            m_printListWidget->setCurrentItem(item);
-    }
-}
-
-void PreferencesDialog::addPrintStylesheet()
-{
-    QStringList files = QFileDialog::getOpenFileNames(this, "Select Print CSS Files", QString(), "CSS Files (*.css)");
-    if (files.isEmpty()) return;
-
-    QStringList existing = m_cssManager->printStylesheets();
-    for (const QString &file : files) {
-        if (!existing.contains(file))
-            existing.append(file);
-    }
-    m_cssManager->setPrintStylesheets(existing);
-    populatePrintStylesheetList();
-    emit stylesheetChanged();
-}
-
-void PreferencesDialog::removePrintStylesheet()
-{
-    QListWidgetItem *item = m_printListWidget->currentItem();
-    if (!item) return;
-
-    QString path = item->data(Qt::UserRole).toString();
-    QStringList existing = m_cssManager->printStylesheets();
-    existing.removeAll(path);
-
-    if (path == m_cssManager->activePrintStylesheet())
-        m_cssManager->setActivePrintStylesheet(QString());
-
-    m_cssManager->setPrintStylesheets(existing);
-    populatePrintStylesheetList();
-    emit stylesheetChanged();
-}
-
-void PreferencesDialog::onPrintCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *)
-{
-    if (!current) return;
-    m_cssManager->setActivePrintStylesheet(current->data(Qt::UserRole).toString());
     emit stylesheetChanged();
 }
 

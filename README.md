@@ -28,9 +28,11 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 ```bash
 mkdir build && cd build
-cmake ..
+cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 ```
+
+**Note:** Always build in Release mode unless you specifically need Debug. The post-build step automatically removes cached stylesheets from `~/.config/Scriba/Scriba/` (editor-base.css, preview-base.css), so you don't need to manually clear them on rebuild.
 
 ## Running
 
