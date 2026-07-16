@@ -3,21 +3,16 @@
 
 #include <QDialog>
 #include <QListWidget>
-#include <QLabel>
 #include <QPushButton>
-#include <QFontComboBox>
-#include <QSpinBox>
 #include <QCheckBox>
 #include "CssManager.h"
-
-class Editor;
 
 class PreferencesDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit PreferencesDialog(CssManager *cssManager, Editor *editor, QWidget *parent = nullptr);
+    explicit PreferencesDialog(CssManager *cssManager, QWidget *parent = nullptr);
 
 signals:
     void stylesheetChanged();
@@ -25,26 +20,29 @@ signals:
 private slots:
     void addStylesheet();
     void removeStylesheet();
-    void onItemChanged(QListWidgetItem *item);
-    void pickFontColor();
-    void saveFontSettings();
+    void addPrintStylesheet();
+    void removePrintStylesheet();
+    void editEditorBaseCss();
+    void editPreviewBaseCss();
+    void onCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
+    void onPrintCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
 
 private:
     void populateStylesheetList();
+    void populatePrintStylesheetList();
     void setupUi();
 
     CssManager *m_cssManager;
-    Editor *m_editor;
     QListWidget *m_listWidget;
     QPushButton *m_addButton;
     QPushButton *m_removeButton;
-    QFontComboBox *m_fontCombo;
-    QSpinBox *m_fontSizeSpin;
-    QPushButton *m_colorBtn;
-    QColor m_fontColor;
+    QListWidget *m_printListWidget;
+    QPushButton *m_printAddBtn;
+    QPushButton *m_printRemoveBtn;
+    QPushButton *m_editEditorBtn;
+    QPushButton *m_editPreviewBtn;
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
-    bool m_updatingCheckState = false;
 };
 
 #endif

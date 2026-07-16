@@ -2,7 +2,6 @@
 #define EDITOR_H
 
 #include <QPlainTextEdit>
-#include <QColor>
 
 class Editor : public QPlainTextEdit
 {
@@ -10,12 +9,12 @@ class Editor : public QPlainTextEdit
 
 public:
     explicit Editor(QWidget *parent = nullptr);
-    void applyFontSettings(const QString &family, int size, const QColor &color);
-    void loadSettings();
-    int firstVisibleLineNumber() const;
+    void applyStylesheet(const QString &css);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
 };
+
+inline Editor* getEditorWidget() { return nullptr; } // placeholder
 
 #endif

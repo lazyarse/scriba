@@ -8,7 +8,7 @@ A simple split-screen Markdown editor built with C++ and Qt6.
 - Full CommonMark + GFM support (tables, strikethrough, task lists)
 - Admonitions (note, tip, important, warning, caution)
 - Image rendering from local files and URLs
-- CSS-based preview styling
+- CSS-based theming: editor, preview, and chrome all styled from one file
 - File menu: New, Open, Save, Save As
 - Preferences: manage CSS directory and custom stylesheets
 
@@ -75,12 +75,53 @@ Use CSS `::before` to prepend an icon to `.admonition-title`:
 
 These use Unicode characters (info, checkmark, warning, cross) and are purely CSS-based — no image files needed.
 
-## Custom CSS
+## Custom CSS / Themes
+
+Scriba uses a single CSS file to style both the **editor** (`#editor`) and the **preview** (`#preview`). Each pane picks up the rules that apply to it and ignores the rest.
+
+### Adding a theme
 
 1. Open **File > Preferences**
-2. Click **Browse** to select a directory containing `.css` files
-3. Click **Add** to enable custom stylesheets
-4. Click **Remove** to disable them
+2. Click **Add** to select `.css` files
+3. Click the checkbox next to a stylesheet to activate it
+4. Click **Remove** to remove it from the list
+
+### Writing a theme
+
+A theme CSS file controls the entire application appearance with three kinds of rules:
+
+| Selector | Target | Purpose |
+|---|---|---|
+| `#editor { ... }` | Text editor widget | `background-color`, `color` |
+| `QSplitter::handle`, `QMenuBar`, etc. | App chrome | Menus, scrollbars, splitter |
+| `body`, `h1`, `code`, etc. | Preview HTML | Rendered Markdown |
+
+Example:
+
+```css
+#editor {
+    background-color: #ffffff;
+    color: #333333;
+}
+
+QSplitter::handle {
+    background-color: #ccc;
+}
+QMenuBar {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+body {
+    font-family: Georgia, serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    color: #333;
+}
+```
+
+The active stylesheet is applied to the whole app — menus, scrollbars, and the splitter automatically match the theme.
 
 ## Project Structure
 

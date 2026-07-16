@@ -1,6 +1,6 @@
 #editor {
-    background-color: #ffffff;
-    color: #24292f;
+    background-color: #1a1b26;
+    color: #a9b1d6;
 }
 
 body {
@@ -10,53 +10,52 @@ body {
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
-    color: #24292f;
-    background-color: #ffffff;
+    color: #a9b1d6;
+    background-color: #1a1b26;
 }
 
 h1, h2, h3, h4, h5, h6 {
     margin-top: 1.5em;
     margin-bottom: 0.5em;
     font-weight: 600;
-    color: #1f2328;
+    color: #c0caf5;
 }
 
-h1 { font-size: 2em; border-bottom: 1px solid #d0d7de; padding-bottom: 0.3em; }
-h2 { font-size: 1.5em; border-bottom: 1px solid #d0d7de; padding-bottom: 0.3em; }
+h1 { font-size: 2em; border-bottom: 1px solid #334; padding-bottom: 0.3em; }
+h2 { font-size: 1.5em; border-bottom: 1px solid #334; padding-bottom: 0.3em; }
 h3 { font-size: 1.25em; }
 
 p { margin: 1em 0; }
 
 code {
-    background-color: #f6f8fa;
+    background-color: #1f2335;
     padding: 0.2em 0.4em;
     border-radius: 3px;
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.9em;
-    color: #24292f;
+    color: #f7768e;
 }
 
 pre {
-    background-color: #f6f8fa;
+    background-color: #1f2335;
     padding: 16px;
     border-radius: 6px;
     overflow-x: auto;
     line-height: 1.45;
-    border: 1px solid #d0d7de;
 }
 
 pre code {
     background: none;
     padding: 0;
-    color: inherit;
+    color: #a9b1d6;
 }
 
 blockquote {
     margin: 1em 0;
     padding: 0.5em 1em;
-    border-left: 4px solid #d0d7de;
-    color: #57606a;
-    background-color: #f6f8fa;
+    border-left: 4px solid #565f89;
+    color: #787c99;
+    background-color: #1f2335;
 }
 
 table {
@@ -66,18 +65,18 @@ table {
 }
 
 th, td {
-    border: 1px solid #d0d7de;
+    border: 1px solid #334;
     padding: 8px 12px;
     text-align: left;
 }
 
 th {
-    background-color: #f6f8fa;
+    background-color: #1f2335;
     font-weight: 600;
 }
 
 tr:nth-child(even) {
-    background-color: #f6f8fa;
+    background-color: #1f2335;
 }
 
 img {
@@ -86,7 +85,7 @@ img {
 }
 
 a {
-    color: #0969da;
+    color: #7aa2f7;
     text-decoration: none;
 }
 
@@ -96,7 +95,7 @@ a:hover {
 
 hr {
     border: none;
-    border-top: 1px solid #d0d7de;
+    border-top: 1px solid #334;
     margin: 2em 0;
 }
 
@@ -115,18 +114,20 @@ li {
 .admonition {
     margin: 1em 0;
     padding: 0.5em 1em;
-    border-left: 4px solid #d0d7de;
-    border-radius: 6px;
-    background-color: #f6f8fa;
+    border-left: 4px solid #565f89;
+    border-radius: 4px;
+    background-color: #1f2335;
 }
 
 .admonition-title {
     font-weight: 600;
     margin: 0 0 0.5em 0;
+    color: #c0caf5;
 }
 
-.admonition.note    { border-left-color: #0969da; background-color: #ddf4ff; }
-.admonition.tip     { border-left-color: #1a7f37; background-color: #dafbe1; }
-.admonition.important { border-left-color: #9a6700; background-color: #fff8c5; }
-.admonition.warning { border-left-color: #cf222e; background-color: #ffebe9; }
-.admonition.caution { border-left-color: #cf222e; background-color: #ffebe9; }
+.admonition.note    { border-left-color: #7aa2f7; background-color: #1f2335; }
+.admonition.tip     { border-left-color: #9ece6a; background-color: #1f2335; }
+.admonition.important { border-left-color: #e0af68; background-color: #1f2335; }
+.admonition.warning { border-left-color: #f7768e; background-color: #1f2335; }
+.admonition.caution { border-left-color: #f7768e; background-color: #1f2335; }
+

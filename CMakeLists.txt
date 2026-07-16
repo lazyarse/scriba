@@ -17,6 +17,7 @@ add_executable(scriba
     src/MdRenderer.cpp
     src/CssManager.cpp
     src/PreferencesDialog.cpp
+    src/CssEditorDialog.cpp
     src/FindDialog.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c
@@ -35,4 +36,11 @@ target_link_libraries(scriba PRIVATE
     Qt6::Widgets
     Qt6::Network
     Qt6::WebEngineWidgets
+)
+
+add_custom_command(TARGET scriba POST_BUILD
+    COMMENT "Removing cached stylesheets from config directory"
+    COMMAND ${CMAKE_COMMAND} -E rm -f
+        "$ENV{HOME}/.config/Scriba/Scriba/editor-base.css"
+        "$ENV{HOME}/.config/Scriba/Scriba/preview-base.css"
 )

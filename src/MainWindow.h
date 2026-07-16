@@ -30,10 +30,11 @@ private:
     void setupUi();
     void setupMenuBar();
     void saveFile(const QString &filePath);
+    void exportPdf();
     void syncPreviewScroll();
     void syncCssWatcher();
-    void applyTheme(bool dark);
-
+    void refreshPreviewCss();
+    QString deriveChromeCss(const QString &themeCss) const;
     QSplitter *m_splitter;
     Editor *m_editor;
     Preview *m_preview;
@@ -42,6 +43,10 @@ private:
     QFileSystemWatcher *m_cssWatcher;
     QString m_currentFile;
     bool m_previewInitialized = false;
+    QString m_cachedPreviewCss;
+    QString m_cachedFullCss;
+    QString m_cachedPreviewBaseCss;
+    bool m_chromeUpdateScheduled = false;
 };
 
 #endif

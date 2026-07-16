@@ -11,6 +11,7 @@
 #include <QMenu>
 #include <QAction>
 #include <QFileDialog>
+#include <QFile>
 #include <QMessageBox>
 #include <QFileInfo>
 #include <QTimer>
@@ -20,7 +21,16 @@
 #include <QTextDocument>
 #include <QColor>
 #include <QRegularExpression>
+#include <QPageLayout>
+#include <QPageSize>
 #include <QApplication>
+
+static QString escapeJsString(const QString &s)
+{
+    QString r = s;
+    r.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+    return r;
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -31,8 +41,8 @@ MainWindow::MainWindow(QWidget *parent)
     setupUi();
     setupMenuBar();
 
-    QSettings s;
-    applyTheme(s.value(Preferences::DarkMode, false).toBool());
+    refreshPreviewCss();
+    updatePreview();
 
     setWindowTitle("Scriba");
     showMaximized();
@@ -47,8 +57,17 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::onEditorScroll);
     syncCssWatcher();
 
-    /* Re-open last file if enabled */
     QSettings settings;
+    if (settings.value(Preferences::FirstRun, true).toBool()) {
+        settings.setValue(Preferences::FirstRun, false);
+        QFile sample(":/sample.md");
+        if (sample.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            m_editor->setPlainText(QString::fromUtf8(sample.readAll()));
+            m_currentFile.clear();
+            m_preview->setDocumentPath(QString());
+            setWindowTitle("Scriba - Sample");
+        }
+    }
     if (settings.value(Preferences::ReopenLastFile, true).toBool()) {
         QString lastFile = settings.value(Preferences::LastOpenedFile).toString();
         if (!lastFile.isEmpty()) {
@@ -67,6 +86,8 @@ void MainWindow::setupUi()
 
     m_splitter->addWidget(m_editor);
     m_splitter->addWidget(m_preview);
+    m_splitter->setChildrenCollapsible(false);
+    m_splitter->setHandleWidth(1);
     m_splitter->setSizes({600, 600});
 }
 
@@ -112,21 +133,15 @@ void MainWindow::setupMenuBar()
 
     fileMenu->addSeparator();
 
-    QAction *prefsAction = fileMenu->addAction("&Preferences...");
-    prefsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_P));
-    connect(prefsAction, &QAction::triggered, this, &MainWindow::showPreferences);
+    QAction *exportPdfAction = fileMenu->addAction("Export &PDF...");
+    exportPdfAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_P));
+    connect(exportPdfAction, &QAction::triggered, this, &MainWindow::exportPdf);
 
     fileMenu->addSeparator();
 
-    QAction *darkAction = fileMenu->addAction("Dark Mode");
-    darkAction->setCheckable(true);
-    QSettings settings;
-    darkAction->setChecked(settings.value(Preferences::DarkMode, false).toBool());
-    connect(darkAction, &QAction::toggled, this, [this](bool checked) {
-        QSettings s;
-        s.setValue(Preferences::DarkMode, checked);
-        applyTheme(checked);
-    });
+    QAction *prefsAction = fileMenu->addAction("&Preferences...");
+    prefsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_P));
+    connect(prefsAction, &QAction::triggered, this, &MainWindow::showPreferences);
 
     fileMenu->addSeparator();
 
@@ -140,11 +155,166 @@ void MainWindow::setupMenuBar()
     addAction(findAction);
 }
 
+QString MainWindow::deriveChromeCss(const QString &themeCss) const
+{
+    auto extractBg = [&](const QString &selector) {
+        QRegularExpression re(
+            R"(\b)" + selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
+        );
+        auto it = re.globalMatch(themeCss);
+        QString result;
+        while (it.hasNext())
+            result = it.next().captured(1).trimmed();
+        return result;
+    };
+
+    auto extractColor = [&](const QString &selector) {
+        QRegularExpression re(
+            R"(\b)" + selector + R"(\s*\{(?:[^}]*;\s*)?\bcolor\s*:\s*([^;\}]+))"
+        );
+        auto it = re.globalMatch(themeCss);
+        QString result;
+        while (it.hasNext())
+            result = it.next().captured(1).trimmed();
+        return result;
+    };
+
+    QString bgStr = extractBg("#editor");
+    if (bgStr.isEmpty())
+        bgStr = extractBg("body");
+
+    QString txtStr = extractColor("#editor");
+    if (txtStr.isEmpty())
+        txtStr = extractColor("body");
+
+    QColor bg(QStringLiteral("#ffffff"));
+    if (!bgStr.isEmpty()) {
+        QColor parsed(bgStr);
+        if (parsed.isValid())
+            bg = parsed;
+    }
+
+    bool dark = bg.lightness() < 128;
+    QColor track, thumb, hover, selBg, txt, selTxt;
+    if (dark) {
+        track = bg.lighter(160);
+        thumb = bg.lighter(220);
+        hover = bg.lighter(250);
+        selBg = hover;
+        txt = QColor(QStringLiteral("#f0f0f0"));
+        selTxt = QColor(QStringLiteral("#ffffff"));
+    } else {
+        track = bg.darker(115);
+        thumb = bg.darker(160);
+        hover = bg.darker(180);
+        selBg = hover;
+        txt = QColor(QStringLiteral("#333333"));
+        selTxt = QColor(QStringLiteral("#000000"));
+    }
+
+    return QStringLiteral(
+        "QDialog { background-color: %2; }\n"
+        "QGroupBox { color: %3; font-weight: bold; border: 1px solid %4; margin-top: 8px; }\n"
+        "QGroupBox::title { color: %3; font-weight: bold; }\n"
+        "QCheckBox { color: %3; spacing: 6px; }\n"
+        "QCheckBox::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; }\n"
+        "QCheckBox::indicator:checked { background-color: %5; border: 1px solid %5; image: url(:/checkbox-checked.svg); }\n"
+        "QListWidget { background-color: %2; color: %3; border: none; }\n"
+        "QListWidget::item:selected { background-color: %5; color: %6; }\n"
+        "QListWidget::item:hover { background-color: %1; }\n"
+        "QPushButton { background-color: %4; color: %3; border: 1px solid %4; padding: 4px 12px; }\n"
+        "QPushButton:hover { background-color: %5; }\n"
+        "QLabel { color: %3; }\n"
+        "#scriba-editor { padding: 0 !important; margin: 0 !important; border: none !important; background-color: %7 !important; color: %8 !important; }\n"
+        "QSplitter::handle { background-color: %4; width: 1px; }\n"
+        "QSplitter::handle:hover { background-color: %5; }\n"
+        "QScrollBar:vertical { background: %2; width: 12px; }\n"
+        "QScrollBar::handle:vertical { background: %4; border-radius: 6px; min-height: 30px; }\n"
+        "QScrollBar::handle:vertical:hover { background: %5; }\n"
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }\n"
+        "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }\n"
+        "QScrollBar:horizontal { background: %2; height: 12px; }\n"
+        "QScrollBar::handle:horizontal { background: %4; border-radius: 6px; min-width: 30px; }\n"
+        "QScrollBar::handle:horizontal:hover { background: %5; }\n"
+        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }\n"
+        "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }\n"
+        
+        "::-webkit-scrollbar { width: 12px; height: 12px; }\n"
+        "::-webkit-scrollbar-track { background: %2; }\n"
+        "::-webkit-scrollbar-thumb { background: %4; border-radius: 6px; }\n"
+        "::-webkit-scrollbar-thumb:hover { background: %5; }\n"
+    ).arg(
+        track.name(),   // %1 — splitter handle, hover bg
+        track.name(),   // %2 — dialog/bg, menus, scrollbar track
+        txt.name(),     // %3 — text color
+        thumb.name(),   // %4 — button bg, scrollbar handle
+        hover.name(),   // %5 — hover/selected bg
+        selTxt.name(),  // %6 — selected text color
+        bg.name(),       // %7 — editor background
+        txtStr.isEmpty() ? txt.name() : txtStr  // %8 — editor text color from theme
+    );
+}
+
+void MainWindow::refreshPreviewCss()
+{
+    QString rawThemeCss = m_cssManager->themeCss();
+    QString chromeCss = deriveChromeCss(rawThemeCss);
+    QString previewCss = chromeCss + rawThemeCss;
+    QString fullCss = chromeCss + m_cssManager->editorBaseCss();
+    QString previewBaseCss = m_cssManager->previewBaseCss();
+
+    bool needPreviewUpdate = (previewCss != m_cachedPreviewCss);
+    bool needChromeUpdate = (fullCss != m_cachedFullCss);
+    bool needBaseUpdate = (previewBaseCss != m_cachedPreviewBaseCss);
+
+    if (!needPreviewUpdate && !needChromeUpdate && !needBaseUpdate)
+        return;
+
+    if (needPreviewUpdate) {
+        m_cachedPreviewCss = previewCss;
+        if (m_previewInitialized) {
+            QString js = QString("document.getElementById('theme-css').textContent = '%1';")
+                .arg(escapeJsString(previewCss));
+            m_preview->page()->runJavaScript(js);
+        }
+    }
+
+    if (needBaseUpdate) {
+        m_cachedPreviewBaseCss = previewBaseCss;
+        if (m_previewInitialized) {
+            QString js = QString("document.getElementById('base-css').textContent = '%1';")
+                .arg(escapeJsString(previewBaseCss));
+            m_preview->page()->runJavaScript(js);
+        }
+    }
+
+    if (needChromeUpdate) {
+        m_cachedFullCss = fullCss;
+        m_editor->setStyleSheet(fullCss);
+        if (!m_chromeUpdateScheduled) {
+            m_chromeUpdateScheduled = true;
+            QTimer::singleShot(0, this, [this, fullCss]() {
+                m_chromeUpdateScheduled = false;
+                qApp->setStyleSheet(fullCss);
+            });
+        }
+    }
+}
+
 void MainWindow::updatePreview()
 {
     QString markdown = m_editor->toPlainText();
     QString html = m_parser->toHtml(markdown);
-    QString css = m_cssManager->combinedCss();
+
+    QString rawThemeCss = m_cssManager->themeCss();
+    QString baseCss = m_cssManager->previewBaseCss();
+    QString chromeCss = deriveChromeCss(rawThemeCss);
+    QString previewCss = chromeCss + rawThemeCss;
+
+    bool cssChanged = (previewCss != m_cachedPreviewCss);
+    if (cssChanged) {
+        m_cachedPreviewCss = previewCss;
+    }
 
     QUrl baseUrl;
     QString docPath = m_preview->documentPath();
@@ -152,28 +322,58 @@ void MainWindow::updatePreview()
         baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
     }
 
+    static const QString mermaidInitJs = QStringLiteral(
+        "function initMermaid(){"
+        "var els=document.querySelectorAll('code.language-mermaid');"
+        "if(!els.length)return;"
+        "els.forEach(function(el){"
+        "var div=document.createElement('div');"
+        "div.className='mermaid';"
+        "div.textContent=el.textContent;"
+        "el.parentElement.parentElement.replaceChild(div,el.parentElement);"
+        "});"
+        "mermaid.run({querySelector:'.mermaid'});"
+        "}"
+    );
+
     if (!m_previewInitialized) {
+        m_cachedPreviewBaseCss = baseCss;
+        QString printCss = m_cssManager->printCss();
         QString fullHtml = QString(
-            "<html><head><style id=\"user-css\">%1</style></head><body>%2</body></html>"
-        ).arg(css, html);
+            "<html><head>"
+            "<style id=\"base-css\">%1</style>"
+            "<style id=\"theme-css\">%2</style>"
+            "<style id=\"print-css\">@media print { %4 }</style>"
+            "<script src=\"qrc:///mermaid.min.js\"></script>"
+            "<script>" + mermaidInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();});</script>"
+            "</head><body id=\"preview\">%3</body></html>"
+        ).arg(baseCss, previewCss, html, printCss);
         m_preview->setHtml(fullHtml, baseUrl);
         m_previewInitialized = true;
     } else {
-        QString escapedCss = css;
-        escapedCss.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
-        QString escapedHtml = html;
-        escapedHtml.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+        QString escapedHtml = escapeJsString(html);
 
-        QString js = QString(
-            "var sy = window.scrollY;"
-            "document.getElementById('user-css').textContent = '%1';"
-            "document.body.innerHTML = '%2';"
-            "window.scrollTo(0, sy);"
-        ).arg(escapedCss, escapedHtml);
+        QString js;
+        if (cssChanged) {
+            QString escapedCss = escapeJsString(previewCss);
+            js = QString(
+                "var sy = window.scrollY;"
+                "document.getElementById('theme-css').textContent = '%1';"
+                "document.body.innerHTML = '%2';"
+                "initMermaid();"
+                "window.scrollTo(0, sy);"
+            ).arg(escapedCss, escapedHtml);
+        } else {
+            js = QString(
+                "var sy = window.scrollY;"
+                "document.body.innerHTML = '%1';"
+                "initMermaid();"
+                "window.scrollTo(0, sy);"
+            ).arg(escapedHtml);
+        }
         m_preview->page()->runJavaScript(js);
     }
 
-    /* Sync preview scroll to editor percentage */
     syncPreviewScroll();
 }
 
@@ -190,20 +390,21 @@ void MainWindow::syncPreviewScroll()
 
 void MainWindow::showPreferences()
 {
-    PreferencesDialog dlg(m_cssManager, m_editor, this);
-    connect(&dlg, &PreferencesDialog::stylesheetChanged, this, [this]() {
+    PreferencesDialog dlg(m_cssManager, this);
+    auto updateAll = [this]() {
         syncCssWatcher();
-        updatePreview();
-    });
-    if (dlg.exec() == QDialog::Accepted) {
-        QSettings settings;
-        QString family = settings.value(Preferences::EditorFont, "Monospace").toString();
-        int size = settings.value(Preferences::EditorFontSize, 14).toInt();
-        QColor color(settings.value(Preferences::EditorFontColor, "#333333").toString());
-        m_editor->applyFontSettings(family, size, color);
-        syncCssWatcher();
-        updatePreview();
-    }
+        refreshPreviewCss();
+        if (m_previewInitialized) {
+            QString printCss = m_cssManager->printCss();
+            QString js = QString(
+                "document.getElementById('print-css').textContent = '@media print { %1 }';"
+            ).arg(escapeJsString(printCss));
+            m_preview->page()->runJavaScript(js);
+        }
+    };
+    connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
+    dlg.exec();
+    updateAll();
 }
 
 void MainWindow::showFindDialog()
@@ -224,31 +425,6 @@ void MainWindow::showFindDialog()
     }
 }
 
-void MainWindow::applyTheme(bool dark)
-{
-    if (dark) {
-        qApp->setStyleSheet(
-            "QSplitter::handle { background-color: #333; }"
-            "QPlainTextEdit { border: none; background-color: #1e1e1e; color: #d4d4d4; }"
-            "QMenuBar { background-color: #2b2b2b; color: #f0f0f0; }"
-            "QMenuBar::item:selected { background-color: #3c3c3c; }"
-            "QMenu { background-color: #2b2b2b; color: #f0f0f0; }"
-            "QMenu::item:selected { background-color: #3c3c3c; }"
-            "QScrollBar:vertical { background: #1e1e1e; width: 12px; }"
-            "QScrollBar::handle:vertical { background: #555; border-radius: 6px; min-height: 30px; }"
-            "QScrollBar::handle:vertical:hover { background: #777; }"
-            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-            "QScrollBar:horizontal { background: #1e1e1e; height: 12px; }"
-            "QScrollBar::handle:horizontal { background: #555; border-radius: 6px; min-width: 30px; }"
-            "QScrollBar::handle:horizontal:hover { background: #777; }"
-            "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }"
-        );
-    } else {
-        qApp->setStyleSheet(QString());
-        m_editor->loadSettings();
-    }
-}
-
 void MainWindow::syncCssWatcher()
 {
     QStringList watched = m_cssWatcher->files();
@@ -263,7 +439,7 @@ void MainWindow::syncCssWatcher()
 void MainWindow::onCssFileChanged()
 {
     m_cssManager->invalidateCache();
-    updatePreview();
+    refreshPreviewCss();
     syncCssWatcher();
 }
 
@@ -306,4 +482,60 @@ void MainWindow::saveFile(const QString &filePath)
 
     QSettings settings;
     settings.setValue(Preferences::LastOpenedFile, filePath);
+}
+
+void MainWindow::exportPdf()
+{
+    QString defaultName = "Untitled.pdf";
+    if (!m_currentFile.isEmpty()) {
+        QFileInfo fi(m_currentFile);
+        defaultName = fi.absolutePath() + "/" + fi.completeBaseName() + ".pdf";
+    }
+
+    QString filePath = QFileDialog::getSaveFileName(
+        this, "Export PDF", defaultName, "PDF Files (*.pdf)");
+    if (filePath.isEmpty()) return;
+
+    QString printCss = m_cssManager->printCss();
+
+    // Save both base CSS and theme CSS, then swap in print styles
+    auto printWithCss = [this, filePath, printCss](const QString &origBase, const QString &origTheme) {
+        QString injectJs = QString(
+            "document.getElementById('base-css').textContent = '';"
+            "document.getElementById('theme-css').textContent = '%1';"
+        ).arg(escapeJsString(printCss));
+
+        m_preview->page()->runJavaScript(injectJs, [this, filePath, origBase, origTheme](const QVariant &) {
+            // Let Chromium recalculate styles before capturing
+            QTimer::singleShot(150, this, [this, filePath, origBase, origTheme]() {
+                QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
+                                   QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
+                m_preview->page()->printToPdf([this, filePath, origBase, origTheme](const QByteArray &data) {
+                    QFile f(filePath);
+                    if (f.open(QIODevice::WriteOnly)) {
+                        f.write(data);
+                        statusBar()->showMessage("Exported to " + filePath, 5000);
+                    }
+                    // Restore both CSS elements
+                    QString restore = QString(
+                        "document.getElementById('base-css').textContent = '%1';"
+                        "document.getElementById('theme-css').textContent = '%2';"
+                    ).arg(escapeJsString(origBase), escapeJsString(origTheme));
+                    m_preview->page()->runJavaScript(restore);
+                }, layout);
+            });
+        });
+    };
+
+    // Grab current CSS content from both style elements
+    m_preview->page()->runJavaScript(
+        "document.getElementById('base-css').textContent",
+        [this, printWithCss](const QVariant &baseResult) {
+            QString origBase = baseResult.toString();
+            m_preview->page()->runJavaScript(
+                "document.getElementById('theme-css').textContent",
+                [origBase, printWithCss](const QVariant &themeResult) {
+                    printWithCss(origBase, themeResult.toString());
+                });
+        });
 }

@@ -1,48 +1,30 @@
 #include "Editor.h"
-#include "Preferences.h"
 #include <QKeyEvent>
-#include <QSettings>
-#include <QFont>
-#include <QTextBlock>
+#include <QTextDocument>
+#include <QTextCursor>
+#include <QTextBlockFormat>
+#include <QScrollBar>
 
 Editor::Editor(QWidget *parent)
     : QPlainTextEdit(parent)
 {
+    setObjectName("scriba-editor");
     setPlaceholderText("Start writing markdown...");
     setTabStopDistance(40);
-    loadSettings();
+    setFrameShape(QFrame::NoFrame);
+
+    QTextBlockFormat fmt;
+    fmt.setLineHeight(190, QTextBlockFormat::ProportionalHeight);
+    QTextCursor cursor(document());
+    cursor.select(QTextCursor::Document);
+    cursor.mergeBlockFormat(fmt);
 }
 
-void Editor::loadSettings()
+void Editor::applyStylesheet(const QString &css)
 {
-    QSettings settings;
-    QString family = settings.value(Preferences::EditorFont, "Monospace").toString();
-    int size = settings.value(Preferences::EditorFontSize, 14).toInt();
-    QColor color(settings.value(Preferences::EditorFontColor, "#333333").toString());
-
-    QFont font(family, size);
-    setFont(font);
-
-    QPalette pal = palette();
-    pal.setColor(QPalette::Text, color);
-    pal.setColor(QPalette::Base, QColor("#ffffff"));
-    setPalette(pal);
-}
-
-void Editor::applyFontSettings(const QString &family, int size, const QColor &color)
-{
-    QSettings settings;
-    settings.setValue(Preferences::EditorFont, family);
-    settings.setValue(Preferences::EditorFontSize, size);
-    settings.setValue(Preferences::EditorFontColor, color.name());
-
-    QFont font(family, size);
-    setFont(font);
-
-    QPalette pal = palette();
-    pal.setColor(QPalette::Text, color);
-    pal.setColor(QPalette::Base, QColor("#ffffff"));
-    setPalette(pal);
+    setStyleSheet(css);
+    verticalScrollBar()->setFixedWidth(12);
+    horizontalScrollBar()->setFixedHeight(12);
 }
 
 void Editor::keyPressEvent(QKeyEvent *event)
@@ -52,9 +34,4 @@ void Editor::keyPressEvent(QKeyEvent *event)
         return;
     }
     QPlainTextEdit::keyPressEvent(event);
-}
-
-int Editor::firstVisibleLineNumber() const
-{
-    return firstVisibleBlock().blockNumber() + 1;
 }

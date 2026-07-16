@@ -59,9 +59,20 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     case MD_BLOCK_OL:
         self->writeHtml("<ol>");
         break;
-    case MD_BLOCK_LI:
-        self->writeHtml(QString("<li data-line=\"%1\">").arg(self->m_currentLine));
+    case MD_BLOCK_LI: {
+        auto *d = static_cast<MD_BLOCK_LI_DETAIL*>(detail);
+        if (d->is_task) {
+            self->writeHtml("<li class=\"task-list-item\" data-line=\"" +
+                            QString::number(self->m_currentLine) + "\">"
+                            "<input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled");
+            if (d->task_mark == 'x' || d->task_mark == 'X')
+                self->writeHtml(" checked");
+            self->writeHtml(">");
+        } else {
+            self->writeHtml(QString("<li data-line=\"%1\">").arg(self->m_currentLine));
+        }
         break;
+    }
     case MD_BLOCK_HR:
         self->writeHtml(QString("<hr data-line=\"%1\">").arg(self->m_currentLine));
         break;
@@ -75,7 +86,11 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         QString type;
         if (d->type.text && d->type.size > 0)
             type = QString::fromUtf8(d->type.text, d->type.size);
-        QString title = type.left(1).toUpper() + type.mid(1);
+        QString title;
+        if (d->title.text && d->title.size > 0)
+            title = QString::fromUtf8(d->title.text, d->title.size);
+        else
+            title = type.left(1).toUpper() + type.mid(1);
         self->writeHtml(QString("<div class=\"admonition %1\" data-line=\"%2\">"
             "<p class=\"admonition-title\">%3</p>")
             .arg(type, QString::number(self->m_currentLine), title));
