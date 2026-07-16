@@ -1,5 +1,6 @@
 #include "ExportPdfDialog.h"
 #include "CssManager.h"
+#include "Preferences.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QRadioButton>
@@ -130,12 +131,32 @@ void ExportPdfDialog::browseCustomCss()
 void ExportPdfDialog::loadPreview(const QString &printCss)
 {
     QString baseUrl = QUrl::fromLocalFile(QCoreApplication::applicationDirPath() + "/../").toString();
+    QSettings settings;
+    bool striping = settings.value(Preferences::TableStriping, true).toBool();
+    QString stripeCss = striping ? QString()
+        : QStringLiteral("tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}");
+    QString grayscaleHljs =
+        ".hljs{background:#fff;color:#1a1a1a}"
+        ".hljs-comment,.hljs-quote{color:#808080;font-style:italic}"
+        ".hljs-keyword,.hljs-selector-tag,.hljs-section,.hljs-title,.hljs-name{color:#333;font-weight:bold}"
+        ".hljs-string,.hljs-selector-attr,.hljs-selector-pseudo,.hljs-regexp{color:#555}"
+        ".hljs-literal,.hljs-symbol,.hljs-bullet,.hljs-meta,.hljs-number,.hljs-link{color:#444}"
+        ".hljs-doctag,.hljs-type,.hljs-attr,.hljs-built_in,.hljs-params{color:#2a2a2a}"
+        ".hljs-attribute,.hljs-subst{color:#1a1a1a}"
+        ".hljs-addition{background-color:#e0e0e0;color:#1a1a1a}"
+        ".hljs-deletion{background-color:#d0d0d0;color:#1a1a1a}"
+        ".hljs-strong{font-weight:bold}"
+        ".hljs-emphasis{font-style:italic}";
     QString fullHtml = QString(
         "<html><head>"
         "<style>%1</style>"
         "<style>%2</style>"
-        "</head><body>%3</body></html>"
-    ).arg(printCss, m_cssManager->previewBaseCss(), m_html);
+        "<style>%3</style>"
+        "<style>%4</style>"
+        "<script src=\"qrc:///highlight.min.js\"></script>"
+        "<script>document.addEventListener('DOMContentLoaded',function(){hljs.highlightAll();});</script>"
+        "</head><body>%5</body></html>"
+    ).arg(printCss, m_cssManager->previewBaseCss(), stripeCss, grayscaleHljs, m_html);
     m_preview->setHtml(fullHtml, QUrl(baseUrl));
 }
 
