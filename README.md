@@ -6,9 +6,12 @@ A simple split-screen Markdown editor built with C++ and Qt6.
 
 - Split-screen layout: editor on left, live preview on right
 - Full CommonMark + GFM support (tables, strikethrough, task lists)
+- Syntax highlighting for fenced code blocks (auto-detects language via highlight.js)
 - Admonitions (note, tip, important, warning, caution)
+- Mermaid diagram rendering (flowcharts, sequence, state, pie)
 - Image rendering from local files and URLs
 - CSS-based theming: editor, preview, and chrome all styled from one file
+- PDF export with print-specific CSS
 - File menu: New, Open, Save, Save As
 - Preferences: manage CSS directory and custom stylesheets
 
@@ -27,12 +30,10 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 ## Building
 
 ```bash
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
+mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
-**Note:** Always build in Release mode unless you specifically need Debug. The post-build step automatically removes cached stylesheets from `~/.config/Scriba/Scriba/` (editor-base.css, preview-base.css), so you don't need to manually clear them on rebuild.
+The post-build step automatically removes cached base stylesheets (`~/.config/Scriba/Scriba/*.css`), so no manual cleanup needed on rebuild.
 
 ## Running
 
@@ -77,41 +78,49 @@ Use CSS `::before` to prepend an icon to `.admonition-title`:
 
 These use Unicode characters (info, checkmark, warning, cross) and are purely CSS-based — no image files needed.
 
+## Mermaid Diagrams
+
+Render diagrams inside fenced code blocks with the `mermaid` language tag:
+
+```markdown
+\`\`\`mermaid
+flowchart LR
+  A[Write] --> B{Preview?}
+  B -->|Yes| C[Live render]
+  B -->|No| D[Keep typing]
+\`\`\`
+```
+
+Supports flowcharts, sequence diagrams, state diagrams, and pie charts. Diagrams render live as you type.
+
 ## Custom CSS / Themes
 
-Scriba uses a single CSS file to style both the **editor** (`#editor`) and the **preview** (`#preview`). Each pane picks up the rules that apply to it and ignores the rest.
+Scriba ships with 15 built-in themes (Catppuccin, Dracula, Nord, Tokyo Night, etc.) in `resources/themes/`. Each theme controls the editor background, preview typography, app chrome (menus, scrollbar, splitter), and syntax highlighting colors.
 
-### Adding a theme
+### Activating a theme
 
 1. Open **File > Preferences**
-2. Click **Add** to select `.css` files
-3. Click the checkbox next to a stylesheet to activate it
-4. Click **Remove** to remove it from the list
+2. Select a stylesheet from the list and click the checkbox to activate it
+3. The editor, preview, and chrome all update immediately
 
 ### Writing a theme
 
-A theme CSS file controls the entire application appearance with three kinds of rules:
+A theme CSS file targets three parts of the app:
 
 | Selector | Target | Purpose |
 |---|---|---|
-| `#editor { ... }` | Text editor widget | `background-color`, `color` |
-| `QSplitter::handle`, `QMenuBar`, etc. | App chrome | Menus, scrollbars, splitter |
+| `#editor` | Text editor widget | `background-color`, `color` |
 | `body`, `h1`, `code`, etc. | Preview HTML | Rendered Markdown |
+| `.hljs-*` | Code blocks | Syntax highlighting colors |
+
+App chrome (menus, scrollbars, splitter) is auto-derived from the `#editor` colors — themes only need to set `#editor { background-color; color; }`.
 
 Example:
 
 ```css
 #editor {
-    background-color: #ffffff;
-    color: #333333;
-}
-
-QSplitter::handle {
-    background-color: #ccc;
-}
-QMenuBar {
-    background-color: #f0f0f0;
-    color: #333;
+    background-color: #1e1e2e;
+    color: #cdd6f4;
 }
 
 body {
@@ -119,11 +128,14 @@ body {
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
-    color: #333;
+    color: #cdd6f4;
+    background-color: #1e1e2e;
 }
-```
 
-The active stylesheet is applied to the whole app — menus, scrollbars, and the splitter automatically match the theme.
+.hljs { color: #cdd6f4; }
+.hljs-keyword { color: #cba6f7; }
+.hljs-string { color: #a6e3a1; }
+```
 
 ## Project Structure
 
@@ -140,7 +152,7 @@ scriba/
 │   ├── CssManager.cpp    — CSS file management
 │   └── PreferencesDialog.cpp — Preferences UI
 ├── resources/
-│   ├── default.css       — Default preview stylesheet
+│   ├── themes/           — Built-in CSS themes (Catppuccin, Dracula, Nord, etc.)
 │   └── scriba.qrc        — Qt resource file
 └── vendor/
     └── md4c/             — Markdown parser library (MIT)

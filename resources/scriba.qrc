@@ -5,7 +5,6 @@
         <file>checkbox-checked.svg</file>
         <file>mermaid.min.js</file>
         <file>highlight.min.js</file>
-        <file>highlight-github.css</file>
         <file>print-base.css</file>
         <file>sample.md</file>
     </qresource>
