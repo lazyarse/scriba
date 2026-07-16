@@ -378,7 +378,6 @@ void MainWindow::updatePreview()
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"print-css\">@media print { %4 }</style>"
-            "<link rel=\"stylesheet\" href=\"qrc:///highlight-github.css\">"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
             "<script>" + mermaidInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();});</script>"
