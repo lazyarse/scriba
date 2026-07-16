@@ -388,20 +388,23 @@ void MainWindow::updatePreview()
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
         QString printCss = m_cssManager->printCss();
+        QSettings prefs;
+        bool striping = prefs.value(Preferences::TableStriping, true).toBool();
+        QString stripeInit = striping ? QString()
+            : QStringLiteral("tr:nth-child(even){background-color:transparent}");
         QString fullHtml = QString(
             "<html><head>"
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"print-css\">@media print { %4 }</style>"
-            "<style id=\"stripe-css\"></style>"
+            "<style id=\"stripe-css\">%5</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
             "<script>" + mermaidInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();});</script>"
             "</head><body id=\"preview\">%3</body></html>"
-        ).arg(baseCss, previewCss, html, printCss);
+        ).arg(baseCss, previewCss, html, printCss, stripeInit);
         m_preview->setHtml(fullHtml, baseUrl);
         m_previewInitialized = true;
-        applyStripeSetting();
     } else {
         QString escapedHtml = escapeJsString(html);
 
@@ -448,6 +451,7 @@ void MainWindow::showPreferences()
     auto updateAll = [this]() {
         syncCssWatcher();
         refreshPreviewCss();
+        applyStripeSetting();
     };
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
     dlg.exec();
