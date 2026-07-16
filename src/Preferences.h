@@ -11,6 +11,7 @@ namespace Preferences {
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *EditorOnLeft = "editorOnLeft";
+    constexpr const char *TableStriping = "tableStriping";
 }
 
 #endif

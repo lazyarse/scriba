@@ -335,6 +335,19 @@ void MainWindow::refreshPreviewCss()
     }
 }
 
+void MainWindow::applyStripeSetting()
+{
+    if (!m_previewInitialized)
+        return;
+    QSettings settings;
+    bool enabled = settings.value(Preferences::TableStriping, true).toBool();
+    QString css = enabled ? QString()
+        : QStringLiteral("tr:nth-child(even){background-color:transparent}");
+    QString js = QString("document.getElementById('stripe-css').textContent = '%1';")
+        .arg(escapeJsString(css));
+    m_preview->page()->runJavaScript(js);
+}
+
 void MainWindow::updatePreview()
 {
     QString markdown = m_editor->toPlainText();
@@ -378,6 +391,7 @@ void MainWindow::updatePreview()
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"print-css\">@media print { %4 }</style>"
+            "<style id=\"stripe-css\"></style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
             "<script>" + mermaidInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();});</script>"
@@ -385,6 +399,7 @@ void MainWindow::updatePreview()
         ).arg(baseCss, previewCss, html, printCss);
         m_preview->setHtml(fullHtml, baseUrl);
         m_previewInitialized = true;
+        applyStripeSetting();
     } else {
         QString escapedHtml = escapeJsString(html);
 
@@ -435,6 +450,7 @@ void MainWindow::showPreferences()
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
     dlg.exec();
     updateAll();
+    applyStripeSetting();
     {
         QSettings settings;
         bool editorOnLeft = settings.value(Preferences::EditorOnLeft, true).toBool();

@@ -75,6 +75,7 @@ void ExportPdfDialog::setupUi()
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
     splitter->setSizes({320, 780});
+    splitter->handle(1)->setEnabled(false);
 
     mainLayout->addWidget(splitter);
 

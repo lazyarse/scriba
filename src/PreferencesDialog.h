@@ -36,6 +36,7 @@ private:
     QPushButton *m_editPreviewBtn;
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
+    QCheckBox *m_stripeCheck;
     QComboBox *m_editorPositionCombo;
 };
 

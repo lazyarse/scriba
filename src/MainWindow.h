@@ -34,6 +34,7 @@ private:
     void syncPreviewScroll();
     void syncCssWatcher();
     void refreshPreviewCss();
+    void applyStripeSetting();
     QString deriveChromeCss(const QString &themeCss) const;
     QSplitter *m_splitter;
     Editor *m_editor;
