@@ -10,6 +10,7 @@
 #include <QSettings>
 #include <QGroupBox>
 #include <QLabel>
+#include <QComboBox>
 #include <QIcon>
 #include <QFile>
 
@@ -38,6 +39,15 @@ void PreferencesDialog::setupUi()
     m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
     m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
     behaviorLayout->addWidget(m_syncCheck);
+
+    QHBoxLayout *posLayout = new QHBoxLayout();
+    posLayout->addWidget(new QLabel("Editor position:"));
+    m_editorPositionCombo = new QComboBox();
+    m_editorPositionCombo->addItems({"Left", "Right"});
+    m_editorPositionCombo->setCurrentIndex(settings.value(Preferences::EditorOnLeft, true).toBool() ? 0 : 1);
+    posLayout->addWidget(m_editorPositionCombo);
+    posLayout->addStretch();
+    behaviorLayout->addLayout(posLayout);
 
     mainLayout->addWidget(behaviorGroup);
 
@@ -113,6 +123,7 @@ void PreferencesDialog::setupUi()
         QSettings settings;
         settings.setValue(Preferences::ReopenLastFile, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
+        settings.setValue(Preferences::EditorOnLeft, m_editorPositionCombo->currentIndex() == 0);
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

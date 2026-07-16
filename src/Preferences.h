@@ -10,6 +10,7 @@ namespace Preferences {
     constexpr const char *ReopenLastFile = "reopenLastFile";
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
+    constexpr const char *EditorOnLeft = "editorOnLeft";
 }
 
 #endif
