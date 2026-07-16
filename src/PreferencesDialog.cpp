@@ -40,6 +40,10 @@ void PreferencesDialog::setupUi()
     m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
     behaviorLayout->addWidget(m_syncCheck);
 
+    m_stripeCheck = new QCheckBox("Alternating table row colors");
+    m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
+    behaviorLayout->addWidget(m_stripeCheck);
+
     QHBoxLayout *posLayout = new QHBoxLayout();
     posLayout->addWidget(new QLabel("Editor position:"));
     m_editorPositionCombo = new QComboBox();
@@ -98,6 +102,7 @@ void PreferencesDialog::setupUi()
         settings.setValue(Preferences::ReopenLastFile, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
         settings.setValue(Preferences::EditorOnLeft, m_editorPositionCombo->currentIndex() == 0);
+        settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
