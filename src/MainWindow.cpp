@@ -343,8 +343,10 @@ void MainWindow::applyStripeSetting()
     bool enabled = settings.value(Preferences::TableStriping, true).toBool();
     QString css = enabled ? QString()
         : QStringLiteral("tr:nth-child(even){background-color:transparent}");
-    QString js = QString("document.getElementById('stripe-css').textContent = '%1';")
-        .arg(escapeJsString(css));
+    QString js = QString(
+        "var e=document.getElementById('stripe-css');"
+        "if(e)e.textContent='%1';"
+    ).arg(escapeJsString(css));
     m_preview->page()->runJavaScript(js);
 }
 
