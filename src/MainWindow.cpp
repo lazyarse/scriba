@@ -88,6 +88,12 @@ void MainWindow::setupUi()
     m_splitter->addWidget(m_preview);
     m_splitter->setChildrenCollapsible(false);
     m_splitter->setHandleWidth(1);
+    {
+        QSettings settings;
+        if (!settings.value(Preferences::EditorOnLeft, true).toBool()) {
+            m_splitter->insertWidget(0, m_preview);
+        }
+    }
     m_splitter->setSizes({600, 600});
 }
 
@@ -405,6 +411,16 @@ void MainWindow::showPreferences()
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
     dlg.exec();
     updateAll();
+    {
+        QSettings settings;
+        bool editorOnLeft = settings.value(Preferences::EditorOnLeft, true).toBool();
+        bool currentlyOnLeft = m_splitter->indexOf(m_editor) == 0;
+        if (editorOnLeft != currentlyOnLeft) {
+            QList<int> sizes = m_splitter->sizes();
+            m_splitter->insertWidget(editorOnLeft ? 0 : 1, m_editor);
+            m_splitter->setSizes(sizes);
+        }
+    }
 }
 
 void MainWindow::showFindDialog()

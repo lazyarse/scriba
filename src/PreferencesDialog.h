@@ -5,6 +5,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QCheckBox>
+#include <QComboBox>
 #include "CssManager.h"
 
 class PreferencesDialog : public QDialog
@@ -43,6 +44,7 @@ private:
     QPushButton *m_editPreviewBtn;
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
+    QComboBox *m_editorPositionCombo;
 };
 
 #endif
