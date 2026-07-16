@@ -50,6 +50,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - New source files must be added to both `src/` and the `add_executable()` list in `CMakeLists.txt`
 - New resource files must be added to both `resources/` and `resources/scriba.qrc`
 - Post-build step deletes `~/.config/Scriba/Scriba/{editor,preview}-base.css` — don't rely on those persisting across builds
+- QDialogButtonBox buttons must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`
 
 ## Gotchas
 
