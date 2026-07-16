@@ -1,0 +1,20 @@
+#ifndef CSSEDITORDIALOG_H
+#define CSSEDITORDIALOG_H
+
+#include <QDialog>
+#include <QPlainTextEdit>
+
+class CssEditorDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit CssEditorDialog(const QString &title, const QString &css, const QString &defaultCss, QWidget *parent = nullptr);
+    QString css() const;
+
+private:
+    QString m_defaultCss;
+    QPlainTextEdit *m_editor;
+};
+
+#endif
