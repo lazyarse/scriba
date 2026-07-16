@@ -378,8 +378,10 @@ void MainWindow::updatePreview()
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"print-css\">@media print { %4 }</style>"
+            "<link rel=\"stylesheet\" href=\"qrc:///highlight-github.css\">"
+            "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
-            "<script>" + mermaidInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();});</script>"
+            "<script>" + mermaidInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();});</script>"
             "</head><body id=\"preview\">%3</body></html>"
         ).arg(baseCss, previewCss, html, printCss);
         m_preview->setHtml(fullHtml, baseUrl);
@@ -395,6 +397,7 @@ void MainWindow::updatePreview()
                 "document.getElementById('theme-css').textContent = '%1';"
                 "document.body.innerHTML = '%2';"
                 "initMermaid();"
+                "hljs.highlightAll();"
                 "window.scrollTo(0, sy);"
             ).arg(escapedCss, escapedHtml);
         } else {
@@ -402,6 +405,7 @@ void MainWindow::updatePreview()
                 "var sy = window.scrollY;"
                 "document.body.innerHTML = '%1';"
                 "initMermaid();"
+                "hljs.highlightAll();"
                 "window.scrollTo(0, sy);"
             ).arg(escapedHtml);
         }

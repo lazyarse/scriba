@@ -16,8 +16,8 @@ h1, h2, h3, h4, h5, h6 {
     color: #e5c07b;
 }
 
-h1 { font-size: 2em; border-bottom: 1px solid #4b5263; padding-bottom: 0.3em; color: #abb2bf; }
-h2 { font-size: 1.5em; border-bottom: 1px solid #4b5263; padding-bottom: 0.3em; color: #abb2bf; }
+h1 { font-size: 2em; color: #abb2bf; }
+h2 { font-size: 1.5em; color: #abb2bf; }
 h3 { font-size: 1.25em; }
 
 p { margin: 1em 0; }
