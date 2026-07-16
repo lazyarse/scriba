@@ -18,6 +18,7 @@ add_executable(scriba
     src/CssManager.cpp
     src/PreferencesDialog.cpp
     src/CssEditorDialog.cpp
+    src/ExportPdfDialog.cpp
     src/FindDialog.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c

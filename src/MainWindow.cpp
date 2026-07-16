@@ -5,6 +5,7 @@
 #include "CssManager.h"
 #include "PreferencesDialog.h"
 #include "FindDialog.h"
+#include "ExportPdfDialog.h"
 #include "Preferences.h"
 
 #include <QMenuBar>
@@ -225,6 +226,9 @@ QString MainWindow::deriveChromeCss(const QString &themeCss) const
         "QCheckBox { color: %3; spacing: 6px; }\n"
         "QCheckBox::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; }\n"
         "QCheckBox::indicator:checked { background-color: %5; border: 1px solid %5; image: url(:/checkbox-checked.svg); }\n"
+        "QRadioButton { color: %3; spacing: 6px; }\n"
+        "QRadioButton::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; border-radius: 7px; }\n"
+        "QRadioButton::indicator:checked { background-color: %5; border: 1px solid %5; }\n"
         "QListWidget { background-color: %2; color: %3; border: none; }\n"
         "QListWidget::item:selected { background-color: %5; color: %6; }\n"
         "QListWidget::item:hover { background-color: %1; }\n"
@@ -400,13 +404,6 @@ void MainWindow::showPreferences()
     auto updateAll = [this]() {
         syncCssWatcher();
         refreshPreviewCss();
-        if (m_previewInitialized) {
-            QString printCss = m_cssManager->printCss();
-            QString js = QString(
-                "document.getElementById('print-css').textContent = '@media print { %1 }';"
-            ).arg(escapeJsString(printCss));
-            m_preview->page()->runJavaScript(js);
-        }
     };
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
     dlg.exec();
@@ -502,6 +499,15 @@ void MainWindow::saveFile(const QString &filePath)
 
 void MainWindow::exportPdf()
 {
+    QString markdown = m_editor->toPlainText();
+    QString html = m_parser->toHtml(markdown);
+
+    ExportPdfDialog dlg(html, m_cssManager, this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    QString printCss = dlg.selectedPrintCss();
+
     QString defaultName = "Untitled.pdf";
     if (!m_currentFile.isEmpty()) {
         QFileInfo fi(m_currentFile);
@@ -512,9 +518,6 @@ void MainWindow::exportPdf()
         this, "Export PDF", defaultName, "PDF Files (*.pdf)");
     if (filePath.isEmpty()) return;
 
-    QString printCss = m_cssManager->printCss();
-
-    // Save both base CSS and theme CSS, then swap in print styles
     auto printWithCss = [this, filePath, printCss](const QString &origBase, const QString &origTheme) {
         QString injectJs = QString(
             "document.getElementById('base-css').textContent = '';"
@@ -522,7 +525,6 @@ void MainWindow::exportPdf()
         ).arg(escapeJsString(printCss));
 
         m_preview->page()->runJavaScript(injectJs, [this, filePath, origBase, origTheme](const QVariant &) {
-            // Let Chromium recalculate styles before capturing
             QTimer::singleShot(150, this, [this, filePath, origBase, origTheme]() {
                 QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
                                    QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
@@ -532,7 +534,6 @@ void MainWindow::exportPdf()
                         f.write(data);
                         statusBar()->showMessage("Exported to " + filePath, 5000);
                     }
-                    // Restore both CSS elements
                     QString restore = QString(
                         "document.getElementById('base-css').textContent = '%1';"
                         "document.getElementById('theme-css').textContent = '%2';"
@@ -543,7 +544,6 @@ void MainWindow::exportPdf()
         });
     };
 
-    // Grab current CSS content from both style elements
     m_preview->page()->runJavaScript(
         "document.getElementById('base-css').textContent",
         [this, printWithCss](const QVariant &baseResult) {
