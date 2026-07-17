@@ -9,6 +9,7 @@
         <file>sample.md</file>
         <file>icons/fullscreen.svg</file>
         <file>icons/preview.svg</file>
+        <file>icons/chart.svg</file>
         <file>katex.min.js</file>
         <file>katex.min.css</file>
         <file>contrib/auto-render.min.js</file>
