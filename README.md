@@ -44,7 +44,8 @@ The post-build step automatically removes cached base stylesheets (`~/.config/Sc
 ## Running
 
 ```bash
-./scriba
+./scriba              # empty editor
+./scriba file.md      # open file
 ```
 
 ## Usage
