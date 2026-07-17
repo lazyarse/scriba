@@ -40,6 +40,8 @@ def hello():
 
 ## LaTeX Math
 
+See the [KaTeX docs](https://katex.org/) for supported functions and syntax.
+
 Inline math: $E = mc^2$, $\sum_{i=1}^{n} x_i$, $\int_0^\infty e^{-x} \, dx$
 
 Display math:
@@ -69,7 +71,12 @@ $$
 > [!caution]
 > This could have negative consequences.
 
+> [!warning HIGH VOLTAGE!]
+> Custom titles work too.
+
 ## Mermaid Diagrams
+
+See the [Mermaid docs](https://mermaid.js.org/intro/) for the full syntax reference.
 
 ### Flowchart
 
@@ -111,6 +118,8 @@ pie title Time spent
 ```
 
 ## Vega-Lite Charts
+
+See the [Vega-Lite docs](https://vega.github.io/vega-lite/) for the full spec reference and examples.
 
 ### Bar chart
 

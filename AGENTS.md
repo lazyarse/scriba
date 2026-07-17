@@ -2,7 +2,7 @@
 
 ## What
 
-C++17 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown parser (md4c). No tests, no CI, no linter.
+C++17 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown parser (md4c). Qt Test framework for tests.
 
 ## Build
 
@@ -30,14 +30,15 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 - `src/` — all application code (headers + cpp), flat layout
 - `vendor/md4c/` — vendored markdown parser (gitignored, must exist at build time)
-- `resources/` — Qt QRC resources: CSS themes, mermaid.js, sample.md, print styles
-- `resources/themes/` — bundled CSS themes (Catppuccin, Dracula, Nord, etc.)
+- `resources/` — Qt QRC resources: CSS themes, JS libraries (mermaid, KaTeX, highlight.js, vega), sample.md, print styles
+- `resources/themes/` — bundled CSS themes (15 themes: Catppuccin, Dracula, Nord, etc.)
+- `tests/` — Qt Test-based test suites
 
 ## Key files
 
 - `src/MainWindow.cpp` — app entry, file I/O, CSS management, scroll sync
 - `src/MarkdownParser.cpp` — wraps md4c, emits HTML with `data-line` attributes
-- `src/CssManager.cpp` — loads user/system CSS, writes base stylesheets to `~/.config/Scriba/Scriba/`
+- `src/CssLoader.cpp` — loads user/system CSS, writes base stylesheets to `~/.config/Scriba/Scriba/`
 - `resources/scriba.qrc` — Qt resource bundle (must list any new resource files)
 
 ## Conventions
@@ -58,6 +59,6 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 ## Gotchas
 
 - `vendor/` is gitignored. Clone with submodules or ensure `vendor/md4c/` exists before building.
-- No automated tests. Manual verification only — build and run the app.
+- Tests exist in `tests/` — run with `cd build && ctest --output-on-failure` after building with `-DBUILD_TESTS=ON`.
 - `Qt6::WebEngineWidgets` is a heavy dependency; headless/CI environments may need `xvfb-run`.
 - Admonition support is CSS-only (`::before` pseudo-elements), not markdown parser extensions.
