@@ -32,6 +32,7 @@
 #include <QScreen>
 #include <QHBoxLayout>
 #include <QToolButton>
+#include <QCloseEvent>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -73,6 +74,15 @@ MainWindow::MainWindow(QWidget *parent)
             QFile testFile(lastFile);
             if (testFile.exists()) {
                 loadFile(lastFile);
+
+                int block = settings.value(Preferences::LastCursorBlock, 0).toInt();
+                int column = settings.value(Preferences::LastCursorColumn, 0).toInt();
+                QTextCursor cursor = m_editor->textCursor();
+                cursor.movePosition(QTextCursor::Start, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, block);
+                cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, column);
+                m_editor->setTextCursor(cursor);
+                m_editor->centerCursor();
             } else {
                 showCenteredWarning("File Not Found",
                     "Could not find: " + lastFile,
@@ -607,4 +617,15 @@ void MainWindow::exportPdf()
                     printWithCss(origBase, themeResult.toString());
                 });
         });
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (!m_currentFile.isEmpty()) {
+        QTextCursor cursor = m_editor->textCursor();
+        QSettings settings;
+        settings.setValue(Preferences::LastCursorBlock, cursor.blockNumber());
+        settings.setValue(Preferences::LastCursorColumn, cursor.columnNumber());
+    }
+    QMainWindow::closeEvent(event);
 }
