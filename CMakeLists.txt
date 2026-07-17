@@ -22,6 +22,7 @@ add_executable(scriba
     src/CssEditorDialog.cpp
     src/ExportPdfDialog.cpp
     src/FindDialog.cpp
+    src/StaticHelpers.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c
     vendor/md4c/entity.c
