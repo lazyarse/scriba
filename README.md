@@ -1,25 +1,35 @@
 # Scriba
 
-A simple split-screen Markdown editor built with C++ and Qt6.
+A simple, no-nonsense split-screen Markdown editor for coders and other autistics. Built with C++ and Qt6.
 
 ## Features
 
-- Configurable split-screen layout: preview on right, left, or hidden (toggle via menu bar icon)
-- Full-screen mode (F11 or menu bar icon)
-- Full CommonMark + GFM support (tables, strikethrough, task lists)
-- Syntax highlighting for fenced code blocks (auto-detects language via highlight.js)
-- Word count and estimated reading time in the status bar
-- List item autocompletion (press Enter to continue a list)
-- Tab to indent, Shift+Tab to outdent list items
-- Admonitions (note, tip, important, warning, caution)
-- Mermaid diagram rendering (flowcharts, sequence, state, pie)
-- LaTeX math rendering (KaTeX, inline `$...$` and display `$$...$$`)
+A restricted feature-set; useful, not bloated.
+
+### The Basics
+
+- It's the 2000s again with full CommonMark + GFM support (tables, strikethrough, task lists)
+- An editor pane and preview pane with configurable split-screen layout: preview on right, left, or hidden (toggle via menu bar icon)
 - Image rendering from local files and URLs
 - CSS-based theming: editor, preview, and chrome all styled from one file
 - PDF export with print-specific CSS
-- Alternating table row striping (toggleable)
-- File menu: New, Open, Save, Save As
 - Preferences: manage CSS directory and custom stylesheets
+- Admonitions (note, tip, important, warning, caution)
+
+### Nice candy like:
+
+- Full-screen mode (F11 or menu bar icon)
+- Word count and estimated reading time in the status bar
+- List item autocompletion (press Enter to continue a list)
+- Tab to indent, Shift+Tab to outdent list items
+- Alternating table row striping (toggleable)
+
+### Standing on the shoulders of giants with external libraries:
+
+- Syntax highlighting for fenced code blocks (auto-detects language via highlight.js)
+- [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`)
+- Mermaid diagram rendering (flowcharts, sequence, state, pie)
+- Vega-Lite data visualization (bar, scatter, line, layered, interactive)
 
 ## Prerequisites
 
@@ -101,6 +111,47 @@ flowchart LR
 ```
 
 Supports flowcharts, sequence diagrams, state diagrams, and pie charts. Diagrams render live as you type.
+
+See the [Mermaid docs](https://mermaid.js.org/intro/) for the full syntax reference.
+
+## Vega-Lite Charts
+
+Render interactive data visualizations inside fenced code blocks with the `vl` language tag:
+
+```markdown
+\`\`\`vl
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": "container",
+  "data": {"values": [{"x":"A","y":28}, {"x":"B","y":55}]},
+  "mark": "bar",
+  "encoding": {
+    "x": {"field":"x", "type":"nominal"},
+    "y": {"field":"y", "type":"quantitative"}
+  }
+}
+\`\`\`
+```
+
+Supports any Vega-Lite spec: bar, scatter, line, area, layered, faceted, and interactive charts. Charts render live as you type and fill the available preview width.
+
+See the [Vega-Lite docs](https://vega.github.io/vega-lite/) for the full spec reference and examples.
+
+## LaTeX Math
+
+Render inline and display math using KaTeX. Wrap inline math in single dollar signs and display math in double dollar signs:
+
+```markdown
+The quadratic formula is $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$.
+
+$$
+\int_0^\infty e^{-x^2} \, dx = \frac{\sqrt{\pi}}{2}
+$$
+```
+
+Both inline and display math render live as you type.
+
+See the [KaTeX docs](https://katex.org/) for supported functions and syntax.
 
 ## Custom CSS / Themes
 

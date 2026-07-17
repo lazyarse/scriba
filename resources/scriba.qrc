@@ -32,5 +32,8 @@
         <file>fonts/KaTeX_Size3-Regular.woff2</file>
         <file>fonts/KaTeX_Size4-Regular.woff2</file>
         <file>fonts/KaTeX_Typewriter-Regular.woff2</file>
+        <file>vega.min.js</file>
+        <file>vega-lite.min.js</file>
+        <file>vega-embed.min.js</file>
     </qresource>
 </RCC>
