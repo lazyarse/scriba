@@ -50,3 +50,35 @@ TEST(ListContinuation, PlainTextReturnsEmpty) {
 TEST(ListContinuation, EmptyLineReturnsEmpty) {
     EXPECT_EQ(handleListReturn(""), QString());
 }
+
+TEST(IndentListLine, IndentsDash) {
+    EXPECT_EQ(indentListLine("- item"), "  - item");
+}
+
+TEST(IndentListLine, IndentsAlreadyIndented) {
+    EXPECT_EQ(indentListLine("  - item"), "    - item");
+}
+
+TEST(IndentListLine, IndentsOrdered) {
+    EXPECT_EQ(indentListLine("1. item"), "  1. item");
+}
+
+TEST(IndentListLine, NoChangeForPlainText) {
+    EXPECT_EQ(indentListLine("just text"), "just text");
+}
+
+TEST(OutdentListLine, OutdentsDoubleSpace) {
+    EXPECT_EQ(outdentListLine("  - item"), "- item");
+}
+
+TEST(OutdentListLine, OutdentsFourSpace) {
+    EXPECT_EQ(outdentListLine("    - item"), "  - item");
+}
+
+TEST(OutdentListLine, NoChangeForNoIndent) {
+    EXPECT_EQ(outdentListLine("- item"), "- item");
+}
+
+TEST(OutdentListLine, NoChangeForPlainText) {
+    EXPECT_EQ(outdentListLine("just text"), "just text");
+}

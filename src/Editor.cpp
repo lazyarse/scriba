@@ -6,6 +6,7 @@
 #include <QTextBlockFormat>
 #include <QScrollBar>
 #include <QTextBlock>
+#include <QRegularExpression>
 
 Editor::Editor(QWidget *parent)
     : QPlainTextEdit(parent)
@@ -24,9 +25,34 @@ Editor::Editor(QWidget *parent)
 
 void Editor::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Tab) {
-        insertPlainText("    ");
-        return;
+    if (event->key() == Qt::Key_Tab || event->key() == Qt::Key_Backtab) {
+        QTextCursor cursor = textCursor();
+        QString line = cursor.block().text();
+        auto matchUnordered = QRegularExpression(R"(^\s*[-*+]\s?)").match(line);
+        auto matchOrdered = QRegularExpression(R"(^\s*\d+\.\s?)").match(line);
+        bool isList = matchUnordered.hasMatch() || matchOrdered.hasMatch();
+
+        if (event->key() == Qt::Key_Backtab || (event->modifiers() & Qt::ShiftModifier)) {
+            if (isList) {
+                QString outdented = outdentListLine(line);
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+                cursor.insertText(outdented);
+                return;
+            }
+        } else {
+            if (isList) {
+                QString indented = indentListLine(line);
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+                cursor.insertText(indented);
+                return;
+            }
+            insertPlainText("    ");
+            return;
+        }
     }
 
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {

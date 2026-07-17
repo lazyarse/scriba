@@ -61,3 +61,36 @@ QString handleListReturn(const QString &line)
     }
     return {};
 }
+
+static int listIndentWidth(const QString &line)
+{
+    int spaces = 0;
+    for (QChar c : line) {
+        if (c == ' ') ++spaces;
+        else break;
+    }
+    return spaces;
+}
+
+QString indentListLine(const QString &line)
+{
+    auto match = listUnorderedRe().match(line);
+    if (!match.hasMatch())
+        match = listOrderedRe().match(line);
+    if (!match.hasMatch())
+        return line;
+    int indent = listIndentWidth(line);
+    return line.left(indent) + "  " + line.mid(indent);
+}
+
+QString outdentListLine(const QString &line)
+{
+    auto match = listUnorderedRe().match(line);
+    if (!match.hasMatch())
+        match = listOrderedRe().match(line);
+    if (!match.hasMatch())
+        return line;
+    int indent = listIndentWidth(line);
+    int remove = qMin(indent, 2);
+    return line.mid(remove);
+}
