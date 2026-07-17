@@ -6,8 +6,6 @@ I originally envisioned it'd just be a text-editor on the left and a simple HTML
 
 Built with C++ and Qt6.
 
-See the [sample.md](resources/sample.md) & [themes.md](themes.md)
-
 ## Features
 
 Designed with a restricted feature-set in mind; useful, not bloated.
@@ -18,7 +16,6 @@ Designed with a restricted feature-set in mind; useful, not bloated.
 - Editor and preview pane with configurable split-screen layout: have the preview on the right or if you're weird, the left, or just hidden
 - CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. Fair warning: Qt can't style application or dialogs titlebars
 - PDF export with print-specific CSS stylesheets
-- A sample `.md` file in resources with a quick overview of the features.
 
 ### Standing on the shoulders of giants:
 
@@ -33,7 +30,7 @@ Designed with a restricted feature-set in mind; useful, not bloated.
 - Sentence, word count, estimated reading time, and age level so you can suitably patronise
 - Ordered and Unordered list item autocompletion on a new line after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items
 - Optional alternating table row striping because let's be honest, it's annoying as hell
-- See [sample.md](resources/sample.md) for live examples of admonitions, math, diagrams, and charts
+- A [sample.md](sample.md) file in resources with a live examples of the features including admonitions, math, diagrams, and charts
 
 ## Prerequisites
 
