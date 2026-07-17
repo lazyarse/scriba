@@ -85,4 +85,8 @@ if(BUILD_TESTS)
     add_executable(test_static_helpers tests/test_static_helpers.cpp)
     target_link_libraries(test_static_helpers PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_static_helpers COMMAND test_static_helpers)
+
+    add_executable(test_editor_list_continuation tests/test_editor_list_continuation.cpp)
+    target_link_libraries(test_editor_list_continuation PRIVATE scriba_core GTest::gtest_main)
+    add_test(NAME test_editor_list_continuation COMMAND test_editor_list_continuation)
 endif()
