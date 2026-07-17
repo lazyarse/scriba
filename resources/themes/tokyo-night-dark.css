@@ -118,7 +118,7 @@ li {
     background-color: #1f2335;
 }
 
-.admonition-title {
+.admonition .admonition-title {
     font-weight: 600;
     color: #c0caf5;
 }
