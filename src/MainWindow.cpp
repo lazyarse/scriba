@@ -351,6 +351,18 @@ void MainWindow::updatePreview()
         "}"
     );
 
+    static const QString katexInitJs = QStringLiteral(
+        "function initKaTeX(){"
+        "if(typeof renderMathInElement==='function')"
+        "renderMathInElement(document.body,{"
+        "delimiters:["
+        "{left:'$$',right:'$$',display:true},"
+        "{left:'$',right:'$',display:false}"
+        "]"
+        "});"
+        "}"
+    );
+
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
         QString printCss = m_cssLoader->printCss();
@@ -359,14 +371,17 @@ void MainWindow::updatePreview()
         QString stripeInit = striping ? QString()
             : QLatin1String(Preferences::TableStripeCss);
         QString fullHtml = QString(
-            "<html><head>"
+            "<!DOCTYPE html><html><head>"
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"print-css\">@media print { %4 }</style>"
             "<style id=\"stripe-css\">%5</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();});</script>"
+            "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
+            "<script src=\"qrc:///katex.min.js\"></script>"
+            "<script src=\"qrc:///contrib/auto-render.min.js\"></script>"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();});</script>"
             "</head><body id=\"preview\">%3</body></html>"
         ).arg(baseCss, previewCss, html, printCss, stripeInit);
         m_preview->setHtml(fullHtml, baseUrl);
@@ -384,6 +399,7 @@ void MainWindow::updatePreview()
                 "document.getElementById('theme-css').textContent = '%1';"
                 "document.body.innerHTML = '%2';"
                 "initMermaid();"
+                "initKaTeX();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
@@ -396,6 +412,7 @@ void MainWindow::updatePreview()
                 "var sy = window.scrollY;"
                 "document.body.innerHTML = '%1';"
                 "initMermaid();"
+                "initKaTeX();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
                 "window.scrollTo(0, sy);"

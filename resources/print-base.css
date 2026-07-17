@@ -139,6 +139,14 @@ hr { border: none; border-top: 1px solid #ccc; }
     font-size: 9pt !important;
 }
 
+.katex-display {
+    page-break-inside: avoid;
+}
+
+.katex {
+    font-size: 1.1em !important;
+}
+
 .task-list-item-checkbox {
     width: 12pt;
     height: 12pt;
