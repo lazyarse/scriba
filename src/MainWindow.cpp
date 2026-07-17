@@ -30,6 +30,8 @@
 #include <QApplication>
 #include <QGuiApplication>
 #include <QScreen>
+#include <QHBoxLayout>
+#include <QToolButton>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -38,6 +40,9 @@ MainWindow::MainWindow(QWidget *parent)
     , m_cssLoader(new CssLoader(m_cssConfig))
     , m_cssWatcher(new QFileSystemWatcher(this))
 {
+    m_previewState = QSettings().value(Preferences::PreviewState, 1).toInt();
+    if (m_previewState < 0 || m_previewState > 2) m_previewState = 1;
+
     setupUi();
     setupMenuBar();
 
@@ -108,20 +113,47 @@ void MainWindow::setupUi()
     m_editor = new Editor();
     m_preview = new Preview();
 
-    m_splitter->addWidget(m_editor);
-    m_splitter->addWidget(m_preview);
     m_splitter->setChildrenCollapsible(false);
     m_splitter->setHandleWidth(1);
-    {
-        QSettings settings;
-        if (!settings.value(Preferences::EditorOnLeft, true).toBool()) {
-            m_splitter->insertWidget(0, m_preview);
-        }
+
+    if (m_previewState == 0) {
+        m_splitter->addWidget(m_editor);
+        m_preview->setVisible(false);
+    } else if (m_previewState == 1) {
+        m_splitter->addWidget(m_editor);
+        m_splitter->addWidget(m_preview);
+    } else {
+        m_splitter->addWidget(m_preview);
+        m_splitter->addWidget(m_editor);
     }
+
     m_splitter->setSizes({600, 600});
     m_splitter->setStretchFactor(0, 1);
     m_splitter->setStretchFactor(1, 1);
     m_splitter->handle(1)->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+
+    // Corner buttons in menu bar
+    m_fullscreenBtn = new QToolButton();
+    m_fullscreenBtn->setIcon(QIcon(":/icons/fullscreen.svg"));
+    m_fullscreenBtn->setToolTip("Toggle Fullscreen (F11)");
+    m_fullscreenBtn->setAutoRaise(true);
+    m_fullscreenBtn->setFixedSize(28, 28);
+    connect(m_fullscreenBtn, &QToolButton::clicked, this, &MainWindow::toggleFullscreen);
+
+    m_previewBtn = new QToolButton();
+    m_previewBtn->setIcon(QIcon(":/icons/preview.svg"));
+    m_previewBtn->setToolTip("Toggle Preview (hidden → right → left)");
+    m_previewBtn->setAutoRaise(true);
+    m_previewBtn->setFixedSize(28, 28);
+    connect(m_previewBtn, &QToolButton::clicked, this, &MainWindow::togglePreview);
+
+    QWidget *cornerWidget = new QWidget();
+    QHBoxLayout *cornerLayout = new QHBoxLayout(cornerWidget);
+    cornerLayout->setContentsMargins(0, 0, 4, 0);
+    cornerLayout->setSpacing(2);
+    cornerLayout->addWidget(m_previewBtn);
+    cornerLayout->addWidget(m_fullscreenBtn);
+    menuBar()->setCornerWidget(cornerWidget, Qt::TopRightCorner);
 }
 
 void MainWindow::setupMenuBar()
@@ -186,6 +218,11 @@ void MainWindow::setupMenuBar()
     findAction->setShortcut(QKeySequence::Find);
     connect(findAction, &QAction::triggered, this, &MainWindow::showFindDialog);
     addAction(findAction);
+
+    QAction *fullscreenAction = new QAction("Toggle &Fullscreen", this);
+    fullscreenAction->setShortcut(QKeySequence(Qt::Key_F11));
+    connect(fullscreenAction, &QAction::triggered, this, &MainWindow::toggleFullscreen);
+    addAction(fullscreenAction);
 }
 
 void MainWindow::refreshPreviewCss()
@@ -356,16 +393,6 @@ void MainWindow::showPreferences()
     dlg.exec();
     updateAll();
     applyStripeSetting();
-    {
-        QSettings settings;
-        bool editorOnLeft = settings.value(Preferences::EditorOnLeft, true).toBool();
-        bool currentlyOnLeft = m_splitter->indexOf(m_editor) == 0;
-        if (editorOnLeft != currentlyOnLeft) {
-            QList<int> sizes = m_splitter->sizes();
-            m_splitter->insertWidget(editorOnLeft ? 0 : 1, m_editor);
-            m_splitter->setSizes(sizes);
-        }
-    }
 }
 
 void MainWindow::showFindDialog()
@@ -407,6 +434,46 @@ void MainWindow::onCssFileChanged()
 void MainWindow::onEditorScroll()
 {
     syncPreviewScroll();
+}
+
+void MainWindow::toggleFullscreen()
+{
+    if (isFullScreen())
+        showMaximized();
+    else
+        showFullScreen();
+}
+
+void MainWindow::togglePreview()
+{
+    // Cycle: 0 (hidden) → 1 (right) → 2 (left) → 0
+    m_previewState = (m_previewState + 1) % 3;
+    QSettings().setValue(Preferences::PreviewState, m_previewState);
+
+    QList<int> sizes = m_splitter->sizes();
+
+    m_editor->setVisible(false);
+    m_preview->setVisible(false);
+    m_editor->setParent(nullptr);
+    m_preview->setParent(nullptr);
+
+    if (m_previewState == 0) {
+        m_splitter->addWidget(m_editor);
+        m_editor->setVisible(true);
+        m_preview->setVisible(false);
+    } else if (m_previewState == 1) {
+        m_splitter->addWidget(m_editor);
+        m_splitter->addWidget(m_preview);
+        m_editor->setVisible(true);
+        m_preview->setVisible(true);
+    } else {
+        m_splitter->addWidget(m_preview);
+        m_splitter->addWidget(m_editor);
+        m_preview->setVisible(true);
+        m_editor->setVisible(true);
+    }
+
+    m_splitter->setSizes(sizes);
 }
 
 void MainWindow::loadFile(const QString &filePath)
