@@ -113,7 +113,7 @@ input[type="checkbox"] {
     background-color: #3b4252;
 }
 
-.admonition-title {
+.admonition .admonition-title {
     font-weight: 600;
     color: #88c0d0;
 }

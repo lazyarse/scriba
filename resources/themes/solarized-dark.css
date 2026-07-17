@@ -119,7 +119,7 @@ li {
     background-color: #073642;
 }
 
-.admonition-title {
+.admonition .admonition-title {
     font-weight: bold;
 }
 
