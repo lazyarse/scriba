@@ -16,6 +16,7 @@ add_executable(scriba
     src/MarkdownParser.cpp
     src/MdRenderer.cpp
     src/CssManager.cpp
+    src/CssUtils.cpp
     src/PreferencesDialog.cpp
     src/CssEditorDialog.cpp
     src/ExportPdfDialog.cpp

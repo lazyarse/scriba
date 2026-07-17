@@ -20,13 +20,6 @@ Editor::Editor(QWidget *parent)
     cursor.mergeBlockFormat(fmt);
 }
 
-void Editor::applyStylesheet(const QString &css)
-{
-    setStyleSheet(css);
-    verticalScrollBar()->setFixedWidth(12);
-    horizontalScrollBar()->setFixedHeight(12);
-}
-
 void Editor::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Tab) {

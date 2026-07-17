@@ -27,7 +27,7 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, CssManager *cssManager, QW
     setupUi();
 
     QSettings settings;
-    m_customCssPath = settings.value("activePrintCssFile", "").toString();
+    m_customCssPath = settings.value(Preferences::ActivePrintCssFile, "").toString();
     if (!m_customCssPath.isEmpty() && QFile::exists(m_customCssPath)) {
         m_customRadio->setChecked(true);
     } else {
@@ -94,7 +94,7 @@ void ExportPdfDialog::setupUi()
     connect(buttonBox, &QDialogButtonBox::accepted, this, [this]() {
         if (!m_customCssPath.isEmpty()) {
             QSettings settings;
-            settings.setValue("activePrintCssFile", m_customCssPath);
+            settings.setValue(Preferences::ActivePrintCssFile, m_customCssPath);
         }
         accept();
     });
@@ -134,7 +134,7 @@ void ExportPdfDialog::loadPreview(const QString &printCss)
     QSettings settings;
     bool striping = settings.value(Preferences::TableStriping, true).toBool();
     QString stripeCss = striping ? QString()
-        : QStringLiteral("tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}");
+        : QLatin1String(Preferences::TableStripePdfCss);
     QString grayscaleHljs =
         ".hljs{background:#fff;color:#1a1a1a}"
         ".hljs-comment,.hljs-quote{color:#808080;font-style:italic}"

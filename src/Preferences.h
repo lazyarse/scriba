@@ -12,6 +12,9 @@ namespace Preferences {
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *EditorOnLeft = "editorOnLeft";
     constexpr const char *TableStriping = "tableStriping";
+
+    constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";
+    constexpr const char *TableStripePdfCss = "tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}";
 }
 
 #endif

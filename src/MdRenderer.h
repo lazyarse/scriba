@@ -12,6 +12,13 @@ public:
     QString render(const char *input, MD_SIZE size, unsigned parserFlags);
 
 private:
+    struct ImageState {
+        bool inside = false;
+        QString alt;
+        QString src;
+        QString title;
+    };
+
     static int enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata);
     static int leaveBlock(MD_BLOCKTYPE type, void *detail, void *userdata);
     static int enterSpan(MD_SPANTYPE type, void *detail, void *userdata);
@@ -22,13 +29,11 @@ private:
     void writeHtml(const QString &str);
     static QString escapeHtml(const QString &str);
     static QString escapeAttr(const QString &str);
+    static QString alignmentStyle(MD_ALIGN align);
 
     QString m_output;
     int m_currentLine = 1;
-    bool m_insideImg = false;
-    QString m_imgAlt;
-    QString m_imgSrc;
-    QString m_imgTitle;
+    ImageState m_img;
 };
 
 #endif

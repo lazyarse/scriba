@@ -3,6 +3,7 @@
 #include "Preview.h"
 #include "MarkdownParser.h"
 #include "CssManager.h"
+#include "CssUtils.h"
 #include "PreferencesDialog.h"
 #include "FindDialog.h"
 #include "ExportPdfDialog.h"
@@ -186,113 +187,10 @@ void MainWindow::setupMenuBar()
     addAction(findAction);
 }
 
-QString MainWindow::deriveChromeCss(const QString &themeCss) const
-{
-    auto extractBg = [&](const QString &selector) {
-        QRegularExpression re(
-            R"(\b)" + selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
-        );
-        auto it = re.globalMatch(themeCss);
-        QString result;
-        while (it.hasNext())
-            result = it.next().captured(1).trimmed();
-        return result;
-    };
-
-    auto extractColor = [&](const QString &selector) {
-        QRegularExpression re(
-            R"(\b)" + selector + R"(\s*\{(?:[^}]*;\s*)?\bcolor\s*:\s*([^;\}]+))"
-        );
-        auto it = re.globalMatch(themeCss);
-        QString result;
-        while (it.hasNext())
-            result = it.next().captured(1).trimmed();
-        return result;
-    };
-
-    QString bgStr = extractBg("#editor");
-    if (bgStr.isEmpty())
-        bgStr = extractBg("body");
-
-    QString txtStr = extractColor("#editor");
-    if (txtStr.isEmpty())
-        txtStr = extractColor("body");
-
-    QColor bg(QStringLiteral("#ffffff"));
-    if (!bgStr.isEmpty()) {
-        QColor parsed(bgStr);
-        if (parsed.isValid())
-            bg = parsed;
-    }
-
-    bool dark = bg.lightness() < 128;
-    QColor track, thumb, hover, selBg, txt, selTxt;
-    if (dark) {
-        track = bg.lighter(160);
-        thumb = bg.lighter(220);
-        hover = bg.lighter(250);
-        selBg = hover;
-        txt = QColor(QStringLiteral("#f0f0f0"));
-        selTxt = QColor(QStringLiteral("#ffffff"));
-    } else {
-        track = bg.darker(115);
-        thumb = bg.darker(160);
-        hover = bg.darker(180);
-        selBg = hover;
-        txt = QColor(QStringLiteral("#333333"));
-        selTxt = QColor(QStringLiteral("#000000"));
-    }
-
-    return QStringLiteral(
-        "QDialog { background-color: %2; }\n"
-        "QGroupBox { color: %3; font-weight: bold; border: 1px solid %4; margin-top: 8px; }\n"
-        "QGroupBox::title { color: %3; font-weight: bold; }\n"
-        "QCheckBox { color: %3; spacing: 6px; }\n"
-        "QCheckBox::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; }\n"
-        "QCheckBox::indicator:checked { background-color: %5; border: 1px solid %5; image: url(:/checkbox-checked.svg); }\n"
-        "QRadioButton { color: %3; spacing: 6px; }\n"
-        "QRadioButton::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; border-radius: 7px; }\n"
-        "QRadioButton::indicator:checked { background-color: %5; border: 1px solid %5; }\n"
-        "QListWidget { background-color: %2; color: %3; border: none; }\n"
-        "QListWidget::item:selected { background-color: %5; color: %6; }\n"
-        "QListWidget::item:hover { background-color: %1; }\n"
-        "QPushButton { background-color: %4; color: %3; border: 1px solid %4; padding: 4px 12px; }\n"
-        "QPushButton:hover { background-color: %5; }\n"
-        "QLabel { color: %3; }\n"
-        "#scriba-editor { padding: 0 !important; margin: 0 !important; border: none !important; background-color: %7 !important; color: %8 !important; }\n"
-        "QSplitter::handle { background-color: %4; width: 1px; }\n"
-        "QSplitter::handle:hover { background-color: %5; }\n"
-        "QScrollBar:vertical { background: %2; width: 12px; }\n"
-        "QScrollBar::handle:vertical { background: %4; border-radius: 6px; min-height: 30px; }\n"
-        "QScrollBar::handle:vertical:hover { background: %5; }\n"
-        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }\n"
-        "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }\n"
-        "QScrollBar:horizontal { background: %2; height: 12px; }\n"
-        "QScrollBar::handle:horizontal { background: %4; border-radius: 6px; min-width: 30px; }\n"
-        "QScrollBar::handle:horizontal:hover { background: %5; }\n"
-        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }\n"
-        "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }\n"
-        
-        "::-webkit-scrollbar { width: 12px; height: 12px; }\n"
-        "::-webkit-scrollbar-track { background: %2; }\n"
-        "::-webkit-scrollbar-thumb { background: %4; border-radius: 6px; }\n"
-        "::-webkit-scrollbar-thumb:hover { background: %5; }\n"
-    ).arg(
-        track.name(),   // %1 — splitter handle, hover bg
-        track.name(),   // %2 — dialog/bg, menus, scrollbar track
-        txt.name(),     // %3 — text color
-        thumb.name(),   // %4 — button bg, scrollbar handle
-        hover.name(),   // %5 — hover/selected bg
-        selTxt.name(),  // %6 — selected text color
-        bg.name(),       // %7 — editor background
-        txtStr.isEmpty() ? txt.name() : txtStr  // %8 — editor text color from theme
-    );
-}
-
 void MainWindow::refreshPreviewCss()
 {
     QString rawThemeCss = m_cssManager->themeCss();
-    QString chromeCss = deriveChromeCss(rawThemeCss);
+    QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss);
     QString previewCss = chromeCss + rawThemeCss;
     QString fullCss = chromeCss + m_cssManager->editorBaseCss();
     QString previewBaseCss = m_cssManager->previewBaseCss();
@@ -342,7 +240,7 @@ void MainWindow::applyStripeSetting()
     QSettings settings;
     bool enabled = settings.value(Preferences::TableStriping, true).toBool();
     QString css = enabled ? QString()
-        : QStringLiteral("tr:nth-child(even){background-color:transparent}");
+        : QLatin1String(Preferences::TableStripeCss);
     QString js = QString(
         "var e=document.getElementById('stripe-css');"
         "if(e)e.textContent='%1';"
@@ -357,7 +255,7 @@ void MainWindow::updatePreview()
 
     QString rawThemeCss = m_cssManager->themeCss();
     QString baseCss = m_cssManager->previewBaseCss();
-    QString chromeCss = deriveChromeCss(rawThemeCss);
+    QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss);
     QString previewCss = chromeCss + rawThemeCss;
 
     bool cssChanged = (previewCss != m_cachedPreviewCss);
@@ -391,7 +289,7 @@ void MainWindow::updatePreview()
         QSettings prefs;
         bool striping = prefs.value(Preferences::TableStriping, true).toBool();
         QString stripeInit = striping ? QString()
-            : QStringLiteral("tr:nth-child(even){background-color:transparent}");
+            : QLatin1String(Preferences::TableStripeCss);
         QString fullHtml = QString(
             "<html><head>"
             "<style id=\"base-css\">%1</style>"
@@ -587,7 +485,7 @@ void MainWindow::exportPdf()
                         "document.getElementById('base-css').textContent = '%1';"
                         "document.getElementById('theme-css').textContent = '%2';"
                     ).arg(escapeJsString(origBase), escapeJsString(origTheme));
-                    m_preview->page()->runJavaScript(restore);
+    m_preview->page()->runJavaScript(restore);
                 }, layout);
             });
         });

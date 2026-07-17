@@ -9,12 +9,9 @@ class Editor : public QPlainTextEdit
 
 public:
     explicit Editor(QWidget *parent = nullptr);
-    void applyStylesheet(const QString &css);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
 };
-
-inline Editor* getEditorWidget() { return nullptr; } // placeholder
 
 #endif

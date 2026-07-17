@@ -4,6 +4,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QDialogButtonBox>
+#include <QIcon>
 
 FindDialog::FindDialog(QWidget *parent)
     : QDialog(parent)
@@ -31,6 +32,8 @@ FindDialog::FindDialog(QWidget *parent)
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     buttons->button(QDialogButtonBox::Ok)->setText("Find");
+    for (auto *btn : buttons->buttons())
+        btn->setIcon(QIcon());
     layout->addWidget(buttons);
 
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
