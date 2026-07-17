@@ -2,7 +2,8 @@
 #include "Editor.h"
 #include "Preview.h"
 #include "MarkdownParser.h"
-#include "CssManager.h"
+#include "CssConfig.h"
+#include "CssLoader.h"
 #include "CssUtils.h"
 #include "PreferencesDialog.h"
 #include "FindDialog.h"
@@ -60,7 +61,8 @@ static int extractContentWidth(const QString &css)
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_parser(new MarkdownParser())
-    , m_cssManager(new CssManager())
+    , m_cssConfig(new CssConfig())
+    , m_cssLoader(new CssLoader(m_cssConfig))
     , m_cssWatcher(new QFileSystemWatcher(this))
 {
     setupUi();
@@ -215,11 +217,11 @@ void MainWindow::setupMenuBar()
 
 void MainWindow::refreshPreviewCss()
 {
-    QString rawThemeCss = m_cssManager->themeCss();
+    QString rawThemeCss = m_cssLoader->themeCss();
     QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss);
     QString previewCss = chromeCss + rawThemeCss;
-    QString fullCss = chromeCss + m_cssManager->editorBaseCss();
-    QString previewBaseCss = m_cssManager->previewBaseCss();
+    QString fullCss = chromeCss + m_cssLoader->editorBaseCss();
+    QString previewBaseCss = m_cssLoader->previewBaseCss();
 
     bool needPreviewUpdate = (previewCss != m_cachedPreviewCss);
     bool needChromeUpdate = (fullCss != m_cachedFullCss);
@@ -279,8 +281,8 @@ void MainWindow::updatePreview()
     QString markdown = m_editor->toPlainText();
     QString html = m_parser->toHtml(markdown);
 
-    QString rawThemeCss = m_cssManager->themeCss();
-    QString baseCss = m_cssManager->previewBaseCss();
+    QString rawThemeCss = m_cssLoader->themeCss();
+    QString baseCss = m_cssLoader->previewBaseCss();
     QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss);
     QString previewCss = chromeCss + rawThemeCss;
 
@@ -311,7 +313,7 @@ void MainWindow::updatePreview()
 
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
-        QString printCss = m_cssManager->printCss();
+        QString printCss = m_cssLoader->printCss();
         QSettings prefs;
         bool striping = prefs.value(Preferences::TableStriping, true).toBool();
         QString stripeInit = striping ? QString()
@@ -371,7 +373,7 @@ void MainWindow::syncPreviewScroll()
 
 void MainWindow::showPreferences()
 {
-    PreferencesDialog dlg(m_cssManager, this);
+    PreferencesDialog dlg(m_cssConfig, m_cssLoader, this);
     auto updateAll = [this]() {
         syncCssWatcher();
         refreshPreviewCss();
@@ -417,14 +419,14 @@ void MainWindow::syncCssWatcher()
     if (!watched.isEmpty())
         m_cssWatcher->removePaths(watched);
 
-    QString active = m_cssManager->activeStylesheet();
+    QString active = m_cssConfig->activeStylesheet();
     if (!active.isEmpty() && QFile::exists(active))
         m_cssWatcher->addPath(active);
 }
 
 void MainWindow::onCssFileChanged()
 {
-    m_cssManager->invalidateCache();
+    m_cssLoader->invalidateCache();
     refreshPreviewCss();
     syncCssWatcher();
 }
@@ -475,7 +477,7 @@ void MainWindow::exportPdf()
     QString markdown = m_editor->toPlainText();
     QString html = m_parser->toHtml(markdown);
 
-    ExportPdfDialog dlg(html, m_cssManager, this);
+    ExportPdfDialog dlg(html, m_cssLoader, this);
     if (dlg.exec() != QDialog::Accepted)
         return;
 

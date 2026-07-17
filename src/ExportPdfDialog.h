@@ -7,14 +7,14 @@ class QWebEngineView;
 class QRadioButton;
 class QPushButton;
 class QLabel;
-class CssManager;
+class CssLoader;
 
 class ExportPdfDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit ExportPdfDialog(const QString &html, CssManager *cssManager, QWidget *parent = nullptr);
+    explicit ExportPdfDialog(const QString &html, CssLoader *loader, QWidget *parent = nullptr);
     QString selectedPrintCss() const;
 
 private slots:
@@ -26,7 +26,7 @@ private:
     void loadPreview(const QString &printCss);
     QString loadCustomCss() const;
 
-    CssManager *m_cssManager;
+    CssLoader *m_loader;
     QString m_html;
     QWebEngineView *m_preview;
     QRadioButton *m_defaultRadio;

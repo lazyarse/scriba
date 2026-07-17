@@ -109,7 +109,6 @@ input[type="checkbox"] {
 
 .admonition {
     margin: 1em 0;
-    padding: 0.5em 1em;
     border-left: 4px solid #44475a;
     border-radius: 4px;
     background-color: #44475a;
@@ -117,7 +116,6 @@ input[type="checkbox"] {
 
 .admonition-title {
     font-weight: bold;
-    margin: 0 0 0.5em 0;
     color: #f8f8f2;
 }
 

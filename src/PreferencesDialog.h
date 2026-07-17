@@ -6,14 +6,16 @@
 #include <QPushButton>
 #include <QCheckBox>
 #include <QComboBox>
-#include "CssManager.h"
+
+class CssConfig;
+class CssLoader;
 
 class PreferencesDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit PreferencesDialog(CssManager *cssManager, QWidget *parent = nullptr);
+    explicit PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent = nullptr);
 
 signals:
     void stylesheetChanged();
@@ -28,7 +30,8 @@ private:
     void populateStylesheetList();
     void setupUi();
 
-    CssManager *m_cssManager;
+    CssConfig *m_config;
+    CssLoader *m_loader;
     QListWidget *m_listWidget;
     QPushButton *m_addButton;
     QPushButton *m_removeButton;

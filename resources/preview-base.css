@@ -119,8 +119,8 @@ li {
 }
 
 .admonition {
-    margin: 1em 0;
-    padding: 0.5em 1em;
+    margin: 16px 0;
+    padding: 8px 8px;
     border-left: 4px solid #ddd;
     border-radius: 4px;
     background-color: #f9f9f9;

@@ -39,40 +39,18 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->writeHtml(QString("<h%1 data-line=\"%2\">").arg(d->level).arg(self->m_currentLine));
         break;
     }
-    case MD_BLOCK_CODE: {
-        auto *d = static_cast<MD_BLOCK_CODE_DETAIL*>(detail);
-        QString lang;
-        if (d->lang.text && d->lang.size > 0)
-            lang = QString::fromUtf8(d->lang.text, d->lang.size);
-        if (d->fence_char) {
-            self->writeHtml(QString("<pre data-line=\"%1\"><code class=\"language-%2\">")
-                .arg(self->m_currentLine).arg(lang));
-        } else {
-            self->writeHtml(QString("<pre data-line=\"%1\"><code>")
-                .arg(self->m_currentLine));
-        }
+    case MD_BLOCK_CODE:
+        self->enterCodeBlock(detail);
         break;
-    }
     case MD_BLOCK_UL:
         self->writeHtml("<ul>");
         break;
     case MD_BLOCK_OL:
         self->writeHtml("<ol>");
         break;
-    case MD_BLOCK_LI: {
-        auto *d = static_cast<MD_BLOCK_LI_DETAIL*>(detail);
-        if (d->is_task) {
-            self->writeHtml("<li class=\"task-list-item\" data-line=\"" +
-                            QString::number(self->m_currentLine) + "\">"
-                            "<input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled");
-            if (d->task_mark == 'x' || d->task_mark == 'X')
-                self->writeHtml(" checked");
-            self->writeHtml(">");
-        } else {
-            self->writeHtml(QString("<li data-line=\"%1\">").arg(self->m_currentLine));
-        }
+    case MD_BLOCK_LI:
+        self->enterListItem(detail);
         break;
-    }
     case MD_BLOCK_HR:
         self->writeHtml(QString("<hr data-line=\"%1\">").arg(self->m_currentLine));
         break;
@@ -81,21 +59,9 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     case MD_BLOCK_QUOTE:
         self->writeHtml("<blockquote>");
         break;
-    case MD_BLOCK_ADMONITION: {
-        auto *d = static_cast<MD_BLOCK_ADMONITION_DETAIL*>(detail);
-        QString type;
-        if (d->type.text && d->type.size > 0)
-            type = QString::fromUtf8(d->type.text, d->type.size);
-        QString title;
-        if (d->title.text && d->title.size > 0)
-            title = QString::fromUtf8(d->title.text, d->title.size);
-        else
-            title = type.left(1).toUpper() + type.mid(1);
-        self->writeHtml(QString("<div class=\"admonition %1\" data-line=\"%2\">"
-            "<p class=\"admonition-title\">%3</p>")
-            .arg(type, QString::number(self->m_currentLine), title));
+    case MD_BLOCK_ADMONITION:
+        self->enterAdmonition(detail);
         break;
-    }
     case MD_BLOCK_TABLE:
         self->writeHtml("<table>");
         break;
@@ -108,24 +74,12 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     case MD_BLOCK_TR:
         self->writeHtml("<tr>");
         break;
-    case MD_BLOCK_TH: {
-        auto *d = static_cast<MD_BLOCK_TD_DETAIL*>(detail);
-        QString align = alignmentStyle(d->align);
-        if (align.isEmpty())
-            self->writeHtml("<th>");
-        else
-            self->writeHtml(QString("<th style=\"text-align: %1\">").arg(align));
+    case MD_BLOCK_TH:
+        self->enterAlignedCell(detail, "th");
         break;
-    }
-    case MD_BLOCK_TD: {
-        auto *d = static_cast<MD_BLOCK_TD_DETAIL*>(detail);
-        QString align = alignmentStyle(d->align);
-        if (align.isEmpty())
-            self->writeHtml("<td>");
-        else
-            self->writeHtml(QString("<td style=\"text-align: %1\">").arg(align));
+    case MD_BLOCK_TD:
+        self->enterAlignedCell(detail, "td");
         break;
-    }
     default:
         break;
     }
@@ -340,6 +294,61 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
         break;
     }
     return 0;
+}
+
+void MdRenderer::enterCodeBlock(void *detail)
+{
+    auto *d = static_cast<MD_BLOCK_CODE_DETAIL*>(detail);
+    QString lang;
+    if (d->lang.text && d->lang.size > 0)
+        lang = QString::fromUtf8(d->lang.text, d->lang.size);
+    if (d->fence_char) {
+        writeHtml(QString("<pre data-line=\"%1\"><code class=\"language-%2\">")
+            .arg(m_currentLine).arg(lang));
+    } else {
+        writeHtml(QString("<pre data-line=\"%1\"><code>").arg(m_currentLine));
+    }
+}
+
+void MdRenderer::enterListItem(void *detail)
+{
+    auto *d = static_cast<MD_BLOCK_LI_DETAIL*>(detail);
+    if (d->is_task) {
+        writeHtml("<li class=\"task-list-item\" data-line=\"" +
+                  QString::number(m_currentLine) + "\">"
+                  "<input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled");
+        if (d->task_mark == 'x' || d->task_mark == 'X')
+            writeHtml(" checked");
+        writeHtml(">");
+    } else {
+        writeHtml(QString("<li data-line=\"%1\">").arg(m_currentLine));
+    }
+}
+
+void MdRenderer::enterAdmonition(void *detail)
+{
+    auto *d = static_cast<MD_BLOCK_ADMONITION_DETAIL*>(detail);
+    QString type;
+    if (d->type.text && d->type.size > 0)
+        type = QString::fromUtf8(d->type.text, d->type.size);
+    QString title;
+    if (d->title.text && d->title.size > 0)
+        title = QString::fromUtf8(d->title.text, d->title.size);
+    else
+        title = type.left(1).toUpper() + type.mid(1);
+    writeHtml(QString("<div class=\"admonition %1\" data-line=\"%2\">"
+        "<p class=\"admonition-title\">%3</p>")
+        .arg(type, QString::number(m_currentLine), title));
+}
+
+void MdRenderer::enterAlignedCell(void *detail, const char *tag)
+{
+    auto *d = static_cast<MD_BLOCK_TD_DETAIL*>(detail);
+    QString align = alignmentStyle(d->align);
+    if (align.isEmpty())
+        writeHtml(QString("<%1>").arg(tag));
+    else
+        writeHtml(QString("<%1 style=\"text-align: %2\">").arg(tag, align));
 }
 
 void MdRenderer::writeHtml(const char *data, MD_SIZE size)
