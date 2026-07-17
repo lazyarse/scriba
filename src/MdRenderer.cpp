@@ -110,13 +110,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         break;
     case MD_BLOCK_TH: {
         auto *d = static_cast<MD_BLOCK_TD_DETAIL*>(detail);
-        QString align;
-        switch (d->align) {
-        case MD_ALIGN_LEFT:    align = "left"; break;
-        case MD_ALIGN_CENTER:  align = "center"; break;
-        case MD_ALIGN_RIGHT:   align = "right"; break;
-        default:               break;
-        }
+        QString align = alignmentStyle(d->align);
         if (align.isEmpty())
             self->writeHtml("<th>");
         else
@@ -125,13 +119,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     }
     case MD_BLOCK_TD: {
         auto *d = static_cast<MD_BLOCK_TD_DETAIL*>(detail);
-        QString align;
-        switch (d->align) {
-        case MD_ALIGN_LEFT:    align = "left"; break;
-        case MD_ALIGN_CENTER:  align = "center"; break;
-        case MD_ALIGN_RIGHT:   align = "right"; break;
-        default:               break;
-        }
+        QString align = alignmentStyle(d->align);
         if (align.isEmpty())
             self->writeHtml("<td>");
         else
@@ -233,14 +221,14 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
     }
     case MD_SPAN_IMG: {
         auto *d = static_cast<MD_SPAN_IMG_DETAIL*>(detail);
-        self->m_insideImg = true;
-        self->m_imgAlt.clear();
-        self->m_imgSrc.clear();
-        self->m_imgTitle.clear();
+        self->m_img.inside = true;
+        self->m_img.alt.clear();
+        self->m_img.src.clear();
+        self->m_img.title.clear();
         if (d->src.text && d->src.size > 0)
-            self->m_imgSrc = QString::fromUtf8(d->src.text, d->src.size);
+            self->m_img.src = QString::fromUtf8(d->src.text, d->src.size);
         if (d->title.text && d->title.size > 0)
-            self->m_imgTitle = QString::fromUtf8(d->title.text, d->title.size);
+            self->m_img.title = QString::fromUtf8(d->title.text, d->title.size);
         break;
     }
     case MD_SPAN_CODE:
@@ -253,7 +241,7 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
         self->writeHtml("<u>");
         break;
     default:
-        if (!self->m_insideImg)
+        if (!self->m_img.inside)
             break;
         /* Suppress other spans inside image alt text */
         break;
@@ -273,28 +261,28 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
         self->writeHtml("</strong>");
         break;
     case MD_SPAN_A:
-        if (self->m_insideImg) break;
+        if (self->m_img.inside) break;
         self->writeHtml("</a>");
         break;
     case MD_SPAN_IMG:
-        if (self->m_imgTitle.isEmpty())
+        if (self->m_img.title.isEmpty())
             self->writeHtml(QString("<img src=\"%1\" alt=\"%2\">")
-                .arg(escapeAttr(self->m_imgSrc), escapeAttr(self->m_imgAlt)));
+                .arg(escapeAttr(self->m_img.src), escapeAttr(self->m_img.alt)));
         else
             self->writeHtml(QString("<img src=\"%1\" title=\"%2\" alt=\"%3\">")
-                .arg(escapeAttr(self->m_imgSrc), escapeAttr(self->m_imgTitle), escapeAttr(self->m_imgAlt)));
-        self->m_insideImg = false;
+                .arg(escapeAttr(self->m_img.src), escapeAttr(self->m_img.title), escapeAttr(self->m_img.alt)));
+        self->m_img.inside = false;
         break;
     case MD_SPAN_CODE:
-        if (self->m_insideImg) break;
+        if (self->m_img.inside) break;
         self->writeHtml("</code>");
         break;
     case MD_SPAN_DEL:
-        if (self->m_insideImg) break;
+        if (self->m_img.inside) break;
         self->writeHtml("</del>");
         break;
     case MD_SPAN_U:
-        if (self->m_insideImg) break;
+        if (self->m_img.inside) break;
         self->writeHtml("</u>");
         break;
     default:
@@ -313,8 +301,8 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
             if (text[i] == '\n')
                 self->m_currentLine++;
         }
-        if (self->m_insideImg) {
-            self->m_imgAlt += QString::fromUtf8(text, size);
+        if (self->m_img.inside) {
+            self->m_img.alt += QString::fromUtf8(text, size);
         } else {
             self->writeHtml(QString::fromUtf8(text, size));
         }
@@ -322,28 +310,28 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
     }
     case MD_TEXT_BR:
         self->m_currentLine++;
-        if (!self->m_insideImg)
+        if (!self->m_img.inside)
             self->writeHtml("<br>");
         break;
     case MD_TEXT_SOFTBR:
         self->m_currentLine++;
-        if (!self->m_insideImg)
+        if (!self->m_img.inside)
             self->writeHtml("\n");
         break;
     case MD_TEXT_CODE:
-        if (self->m_insideImg) {
-            self->m_imgAlt += QString::fromUtf8(text, size);
+        if (self->m_img.inside) {
+            self->m_img.alt += QString::fromUtf8(text, size);
         } else {
             self->writeHtml(escapeHtml(QString::fromUtf8(text, size)));
         }
         break;
     case MD_TEXT_HTML:
-        if (!self->m_insideImg)
+        if (!self->m_img.inside)
             self->writeHtml(QString::fromUtf8(text, size));
         break;
     case MD_TEXT_ENTITY:
-        if (self->m_insideImg) {
-            self->m_imgAlt += QString::fromUtf8(text, size);
+        if (self->m_img.inside) {
+            self->m_img.alt += QString::fromUtf8(text, size);
         } else {
             self->writeHtml(QString::fromUtf8(text, size));
         }
@@ -376,10 +364,15 @@ QString MdRenderer::escapeHtml(const QString &str)
 
 QString MdRenderer::escapeAttr(const QString &str)
 {
-    QString result = str;
-    result.replace("&", "&amp;");
-    result.replace("\"", "&quot;");
-    result.replace("<", "&lt;");
-    result.replace(">", "&gt;");
-    return result;
+    return escapeHtml(str);
+}
+
+QString MdRenderer::alignmentStyle(MD_ALIGN align)
+{
+    switch (align) {
+    case MD_ALIGN_LEFT:    return "left";
+    case MD_ALIGN_CENTER:  return "center";
+    case MD_ALIGN_RIGHT:   return "right";
+    default:               return {};
+    }
 }

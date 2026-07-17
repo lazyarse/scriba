@@ -68,29 +68,6 @@ void CssManager::setPreviewBaseCss(const QString &css)
     invalidateCache();
 }
 
-QString CssManager::combinedCss() const
-{
-    if (!m_cacheDirty)
-        return m_combinedCache;
-
-    QString css;
-
-    QFile defaultFile(":/preview-base.css");
-    if (defaultFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        css += QString::fromUtf8(defaultFile.readAll());
-        css += "\n";
-    }
-
-    if (!m_activeStylesheet.isEmpty()) {
-        css += loadCssFile(m_activeStylesheet);
-        css += "\n";
-    }
-
-    m_combinedCache = css;
-    m_cacheDirty = false;
-    return css;
-}
-
 QString CssManager::themeCss() const
 {
     if (m_cacheDirty) {
@@ -177,5 +154,5 @@ QString CssManager::loadCssFile(const QString &filePath) const
     QFile file(filePath);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text))
         return QString::fromUtf8(file.readAll());
-    return "";
+    return {};
 }
