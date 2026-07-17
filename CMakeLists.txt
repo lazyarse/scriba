@@ -89,4 +89,8 @@ if(BUILD_TESTS)
     add_executable(test_editor_list_continuation tests/test_editor_list_continuation.cpp)
     target_link_libraries(test_editor_list_continuation PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_editor_list_continuation COMMAND test_editor_list_continuation)
+
+    add_executable(test_cursor_restore tests/test_cursor_restore.cpp)
+    target_link_libraries(test_cursor_restore PRIVATE scriba_core GTest::gtest_main)
+    add_test(NAME test_cursor_restore COMMAND test_cursor_restore)
 endif()

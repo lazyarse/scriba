@@ -94,3 +94,12 @@ QString outdentListLine(const QString &line)
     int remove = qMin(indent, 2);
     return line.mid(remove);
 }
+
+QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column)
+{
+    QTextCursor cursor(doc);
+    cursor.movePosition(QTextCursor::Start, QTextCursor::MoveAnchor);
+    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, block);
+    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, column);
+    return cursor;
+}
