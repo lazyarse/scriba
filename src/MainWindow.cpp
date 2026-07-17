@@ -225,6 +225,11 @@ void MainWindow::setupMenuBar()
     fullscreenAction->setShortcut(QKeySequence(Qt::Key_F11));
     connect(fullscreenAction, &QAction::triggered, this, &MainWindow::toggleFullscreen);
     addAction(fullscreenAction);
+
+    QAction *previewAction = new QAction("Toggle &Preview", this);
+    previewAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
+    connect(previewAction, &QAction::triggered, this, &MainWindow::togglePreview);
+    addAction(previewAction);
 }
 
 void MainWindow::refreshPreviewCss()
@@ -323,6 +328,16 @@ void MainWindow::updatePreview()
         "}"
     );
 
+    static const QString headingIdJs = QStringLiteral(
+        "function generateHeadingIds(){"
+        "document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h){"
+        "if(!h.id){"
+        "h.id=h.textContent.toLowerCase().replace(/[^\\w\\s-]/g,'').replace(/\\s+/g,'-').replace(/^-+|-+$/g,'');"
+        "}"
+        "});"
+        "}"
+    );
+
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
         QString printCss = m_cssLoader->printCss();
@@ -338,7 +353,7 @@ void MainWindow::updatePreview()
             "<style id=\"stripe-css\">%5</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
-            "<script>" + mermaidInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();});</script>"
+            "<script>" + mermaidInitJs + headingIdJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();});</script>"
             "</head><body id=\"preview\">%3</body></html>"
         ).arg(baseCss, previewCss, html, printCss, stripeInit);
         m_preview->setHtml(fullHtml, baseUrl);
@@ -355,6 +370,7 @@ void MainWindow::updatePreview()
                 "document.body.innerHTML = '%2';"
                 "initMermaid();"
                 "hljs.highlightAll();"
+                "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
             ).arg(escapedCss, escapedHtml);
         } else {
@@ -363,6 +379,7 @@ void MainWindow::updatePreview()
                 "document.body.innerHTML = '%1';"
                 "initMermaid();"
                 "hljs.highlightAll();"
+                "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
             ).arg(escapedHtml);
         }
@@ -453,9 +470,6 @@ void MainWindow::togglePreview()
     m_previewState = (m_previewState + 1) % 3;
     QSettings().setValue(Preferences::PreviewState, m_previewState);
 
-    bool wasVisible = (oldState != 0);
-    bool willBeVisible = (m_previewState != 0);
-
     if (m_previewState == 0) {
         m_preview->setVisible(false);
         m_editor->setVisible(true);
@@ -473,13 +487,9 @@ void MainWindow::togglePreview()
         m_editor->setVisible(true);
     }
 
-    if (wasVisible && willBeVisible) {
-        // Keep relative sizes when toggling left ↔ right
-    } else {
-        int w = m_splitter->width();
-        if (w <= 0) w = 1200;
-        m_splitter->setSizes({w / 2, w / 2});
-    }
+    int w = m_splitter->width();
+    if (w <= 0) w = 1200;
+    m_splitter->setSizes({w / 2, w / 2});
 }
 
 void MainWindow::loadFile(const QString &filePath)

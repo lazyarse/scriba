@@ -14,7 +14,7 @@ Editor::Editor(QWidget *parent)
     setFrameShape(QFrame::NoFrame);
 
     QTextBlockFormat fmt;
-    fmt.setLineHeight(190, QTextBlockFormat::ProportionalHeight);
+    fmt.setLineHeight(240, QTextBlockFormat::ProportionalHeight);
     QTextCursor cursor(document());
     cursor.select(QTextCursor::Document);
     cursor.mergeBlockFormat(fmt);
