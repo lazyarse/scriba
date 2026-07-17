@@ -12,6 +12,7 @@ h1, h2, h3, h4, h5, h6 {
     margin: 0 0 0.5em !important;
     padding: 0 !important;
     font-weight: bold;
+    scroll-margin-top: 10px;
 }
 
 h1 { font-size: 2em; }
@@ -30,7 +31,7 @@ code {
 
 pre {
     background-color: #f4f4f4;
-    padding: 16px;
+    padding: 10px;
     border-radius: 6px;
     overflow-x: auto;
     line-height: 1.45;
@@ -73,9 +74,6 @@ tr:nth-child(even) {
 #preview img {
     max-width: 100%;
     height: auto;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 a {
