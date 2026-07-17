@@ -44,7 +44,7 @@ QString deriveChromeCss(const QString &themeCss)
     }
 
     bool dark = bg.lightness() < 128;
-    QColor track, thumb, hover, selBg, txt, selTxt;
+    QColor track, thumb, hover, selBg, txt, selTxt, dim;
     if (dark) {
         track = bg.lighter(160);
         thumb = bg.lighter(220);
@@ -52,6 +52,7 @@ QString deriveChromeCss(const QString &themeCss)
         selBg = hover;
         txt = QColor(QStringLiteral("#f0f0f0"));
         selTxt = QColor(QStringLiteral("#ffffff"));
+        dim = QColor(QStringLiteral("#999999"));
     } else {
         track = bg.darker(115);
         thumb = bg.darker(160);
@@ -59,6 +60,7 @@ QString deriveChromeCss(const QString &themeCss)
         selBg = hover;
         txt = QColor(QStringLiteral("#333333"));
         selTxt = QColor(QStringLiteral("#000000"));
+        dim = QColor(QStringLiteral("#777777"));
     }
 
     return QStringLiteral(
@@ -77,6 +79,8 @@ QString deriveChromeCss(const QString &themeCss)
         "QPushButton { background-color: %4; color: %3; border: 1px solid %4; padding: 4px 12px; }\n"
         "QPushButton:hover { background-color: %5; }\n"
         "QLabel { color: %3; }\n"
+        "QStatusBar { background-color: %2; color: %3; }\n"
+        "#stats-label { color: %9; font-size: 14px; }\n"
         "QMenuBar { background-color: %2; color: %3; }\n"
         "QMenuBar::item:selected { background-color: %5; }\n"
         "#scriba-editor { padding: 0 !important; margin: 0 !important; border: none !important; background-color: %7 !important; color: %8 !important; }\n"
@@ -105,7 +109,8 @@ QString deriveChromeCss(const QString &themeCss)
         hover.name(),   // %5 — hover/selected bg
         selTxt.name(),  // %6 — selected text color
         bg.name(),       // %7 — editor background
-        txtStr.isEmpty() ? txt.name() : txtStr  // %8 — editor text color from theme
+        txtStr.isEmpty() ? txt.name() : txtStr, // %8 — editor text color from theme
+        dim.name()    // %9 — dim text for stats label
     );
 }
 
