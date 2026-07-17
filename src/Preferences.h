@@ -11,7 +11,6 @@ namespace Preferences {
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *PreviewState = "previewState";
-    constexpr const char *EditorOnLeft = "editorOnLeft";
     constexpr const char *TableStriping = "tableStriping";
 
     constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";

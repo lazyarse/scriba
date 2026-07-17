@@ -12,7 +12,6 @@
 #include <QSettings>
 #include <QGroupBox>
 #include <QLabel>
-#include <QComboBox>
 #include <QIcon>
 #include <QFile>
 
@@ -46,15 +45,6 @@ void PreferencesDialog::setupUi()
     m_stripeCheck = new QCheckBox("Alternating table row colors");
     m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
     behaviorLayout->addWidget(m_stripeCheck);
-
-    QHBoxLayout *posLayout = new QHBoxLayout();
-    posLayout->addWidget(new QLabel("Editor position:"));
-    m_editorPositionCombo = new QComboBox();
-    m_editorPositionCombo->addItems({"Left", "Right"});
-    m_editorPositionCombo->setCurrentIndex(settings.value(Preferences::EditorOnLeft, true).toBool() ? 0 : 1);
-    posLayout->addWidget(m_editorPositionCombo);
-    posLayout->addStretch();
-    behaviorLayout->addLayout(posLayout);
 
     mainLayout->addWidget(behaviorGroup);
 
@@ -104,7 +94,6 @@ void PreferencesDialog::setupUi()
         QSettings settings;
         settings.setValue(Preferences::ReopenLastFile, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
-        settings.setValue(Preferences::EditorOnLeft, m_editorPositionCombo->currentIndex() == 0);
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         accept();
     });

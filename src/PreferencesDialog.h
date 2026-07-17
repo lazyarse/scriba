@@ -5,7 +5,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QCheckBox>
-#include <QComboBox>
+
 
 class CssConfig;
 class CssLoader;
@@ -40,7 +40,6 @@ private:
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
     QCheckBox *m_stripeCheck;
-    QComboBox *m_editorPositionCombo;
 };
 
 #endif
