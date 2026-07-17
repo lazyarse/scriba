@@ -10,6 +10,7 @@
 #include "ExportPdfDialog.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
+#include "VegaLiteDialog.h"
 
 #include <QMenuBar>
 #include <QMenu>
@@ -155,10 +156,18 @@ void MainWindow::setupUi()
     m_previewBtn->setFixedSize(28, 28);
     connect(m_previewBtn, &QToolButton::clicked, this, &MainWindow::togglePreview);
 
+    m_chartBtn = new QToolButton();
+    m_chartBtn->setIcon(QIcon(":/icons/chart.svg"));
+    m_chartBtn->setToolTip("Chart Builder");
+    m_chartBtn->setAutoRaise(true);
+    m_chartBtn->setFixedSize(28, 28);
+    connect(m_chartBtn, &QToolButton::clicked, this, &MainWindow::showChartBuilder);
+
     QWidget *cornerWidget = new QWidget();
     QHBoxLayout *cornerLayout = new QHBoxLayout(cornerWidget);
     cornerLayout->setContentsMargins(0, 0, 4, 0);
     cornerLayout->setSpacing(2);
+    cornerLayout->addWidget(m_chartBtn);
     cornerLayout->addWidget(m_previewBtn);
     cornerLayout->addWidget(m_fullscreenBtn);
     menuBar()->setCornerWidget(cornerWidget, Qt::TopRightCorner);
@@ -476,6 +485,18 @@ void MainWindow::showPreferences()
     dlg.exec();
     updateAll();
     applyStripeSetting();
+}
+
+void MainWindow::showChartBuilder()
+{
+    VegaLiteDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString spec = dlg.generatedSpec();
+        if (!spec.isEmpty()) {
+            QString block = "\n```vl\n" + spec + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
 }
 
 void MainWindow::showFindDialog()

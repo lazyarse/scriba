@@ -12,6 +12,7 @@ class Preview;
 class MarkdownParser;
 class CssConfig;
 class CssLoader;
+class VegaLiteDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -31,6 +32,7 @@ private slots:
     void toggleFullscreen();
     void togglePreview();
     void updateStats();
+    void showChartBuilder();
 
 private:
     void setupUi();
@@ -56,6 +58,7 @@ private:
     QString m_cachedFullCss;
     QString m_cachedPreviewBaseCss;
     bool m_chromeUpdateScheduled = false;
+    QToolButton *m_chartBtn = nullptr;
     QToolButton *m_fullscreenBtn = nullptr;
     QToolButton *m_previewBtn = nullptr;
     QLabel *m_statsLabel = nullptr;
