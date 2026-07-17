@@ -60,6 +60,9 @@ private:
     QToolButton *m_previewBtn = nullptr;
     QLabel *m_statsLabel = nullptr;
     int m_previewState = 1;
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 };
 
 #endif
