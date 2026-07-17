@@ -190,6 +190,12 @@ void MainWindow::setupMenuBar()
         if (!file.isEmpty()) loadFile(file);
     });
 
+    QAction *reloadAction = fileMenu->addAction("&Reload");
+    reloadAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
+    connect(reloadAction, &QAction::triggered, this, [this]() {
+        if (!m_currentFile.isEmpty()) loadFile(m_currentFile);
+    });
+
     fileMenu->addSeparator();
 
     QAction *saveAction = fileMenu->addAction("&Save");
