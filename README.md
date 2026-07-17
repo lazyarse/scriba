@@ -4,14 +4,19 @@ A simple split-screen Markdown editor built with C++ and Qt6.
 
 ## Features
 
-- Split-screen layout: editor on left, live preview on right
+- Configurable split-screen layout: preview on right, left, or hidden (toggle via menu bar icon)
+- Full-screen mode (F11 or menu bar icon)
 - Full CommonMark + GFM support (tables, strikethrough, task lists)
 - Syntax highlighting for fenced code blocks (auto-detects language via highlight.js)
+- Word count and estimated reading time in the status bar
+- List item autocompletion (press Enter to continue a list)
+- Tab to indent, Shift+Tab to outdent list items
 - Admonitions (note, tip, important, warning, caution)
 - Mermaid diagram rendering (flowcharts, sequence, state, pie)
 - Image rendering from local files and URLs
 - CSS-based theming: editor, preview, and chrome all styled from one file
 - PDF export with print-specific CSS
+- Alternating table row striping (toggleable)
 - File menu: New, Open, Save, Save As
 - Preferences: manage CSS directory and custom stylesheets
 
@@ -43,11 +48,13 @@ The post-build step automatically removes cached base stylesheets (`~/.config/Sc
 
 ## Usage
 
-1. Type Markdown in the left pane
-2. See live rendered preview on the right
-3. Use **File > Open** to load `.md` files
-4. Use **File > Save** to save your work
-5. Go to **File > Preferences** to configure CSS styling
+1. Type Markdown in the editor pane
+2. See live rendered preview in the adjacent pane
+3. Click the **layout icon** in the menu bar to cycle: preview right → preview left → preview hidden
+4. Press **F11** or click the **full-screen icon** to toggle full-screen mode
+5. Use **File > Open** to load `.md` files
+6. Use **File > Save** to save your work
+7. Go to **File > Preferences** to configure CSS styling
 
 ## Admonitions
 
