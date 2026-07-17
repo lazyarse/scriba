@@ -1,9 +1,11 @@
 #include "Editor.h"
+#include "StaticHelpers.h"
 #include <QKeyEvent>
 #include <QTextDocument>
 #include <QTextCursor>
 #include <QTextBlockFormat>
 #include <QScrollBar>
+#include <QTextBlock>
 
 Editor::Editor(QWidget *parent)
     : QPlainTextEdit(parent)
@@ -26,5 +28,25 @@ void Editor::keyPressEvent(QKeyEvent *event)
         insertPlainText("    ");
         return;
     }
+
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+        QTextCursor cursor = textCursor();
+        QString line = cursor.block().text();
+        static const QChar clearSentinel(0x2412);
+        QString result = handleListReturn(line);
+        if (!result.isEmpty()) {
+            if (result == QString(clearSentinel)) {
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+                QPlainTextEdit::keyPressEvent(event);
+                return;
+            }
+            QPlainTextEdit::keyPressEvent(event);
+            insertPlainText(result);
+            return;
+        }
+    }
+
     QPlainTextEdit::keyPressEvent(event);
 }

@@ -28,3 +28,36 @@ int extractContentWidth(const QString &css)
 
     return maxW + 40;
 }
+
+static const QRegularExpression &listUnorderedRe()
+{
+    static QRegularExpression re(R"(^(\s*)([-*+])\s?)");
+    return re;
+}
+
+static const QRegularExpression &listOrderedRe()
+{
+    static QRegularExpression re(R"(^(\s*)(\d+)\.\s?)");
+    return re;
+}
+
+QString handleListReturn(const QString &line)
+{
+    static const QChar clearSentinel(0x2412);
+    auto match = listUnorderedRe().match(line);
+    if (match.hasMatch()) {
+        QString rest = line.mid(match.capturedEnd()).trimmed();
+        if (rest.isEmpty())
+            return QString(clearSentinel);
+        return match.captured(1) + match.captured(2) + " ";
+    }
+    match = listOrderedRe().match(line);
+    if (match.hasMatch()) {
+        QString rest = line.mid(match.capturedEnd()).trimmed();
+        if (rest.isEmpty())
+            return QString(clearSentinel);
+        int next = match.captured(2).toInt() + 1;
+        return match.captured(1) + QString::number(next) + ". ";
+    }
+    return {};
+}
