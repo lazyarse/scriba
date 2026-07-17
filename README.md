@@ -1,18 +1,18 @@
 # Scriba
 
-A configurable, no-nonsense split-screen Markdown editor for coders and other autistics. Built with C++ and Qt6.
+A configurable, no-nonsense split-screen Markdown editor for coders and other autistics. Built from the ground-up because all the others are shite. Built with C++ and Qt6.
 
 ## Features
 
-A restricted feature-set; useful, not bloated.
+Designed with a restricted feature-set in mind; useful, not bloated.
 
 ### The Basics
 
 - WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions (note, tip, important, warning, caution) with custom titles
-- Editor and preview pane with configurable split-screen layout: have the preview on the right, left, or hidden
-- CSS-based theming: editor, preview, and chrome all styled from one file, and included sample themes for you to moan about. Fair warning: Qt can't style titlebars (both application and dialogs)
+- Editor and preview pane with configurable split-screen layout: have the preview on the right or if you're weird, the left, or just hidden
+- CSS-based theming: editor, preview, and chrome all styled from one file. Also included sample themes for you to moan about. Fair warning: Qt can't style titlebars (both application and dialogs)
 - PDF export with print-specific CSS
-- Sample `md` file in resources with a quick overview of the features.
+- A sample `.md` file in resources with a quick overview of the features.
 
 ### Candy:
 
