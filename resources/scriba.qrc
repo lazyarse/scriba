@@ -7,5 +7,7 @@
         <file>highlight.min.js</file>
         <file>print-base.css</file>
         <file>sample.md</file>
+        <file>icons/fullscreen.svg</file>
+        <file>icons/preview.svg</file>
     </qresource>
 </RCC>

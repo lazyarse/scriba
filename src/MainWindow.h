@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QSplitter>
 #include <QFileSystemWatcher>
+#include <QToolButton>
 
 class Editor;
 class Preview;
@@ -26,6 +27,8 @@ private slots:
     void showFindDialog();
     void onCssFileChanged();
     void onEditorScroll();
+    void toggleFullscreen();
+    void togglePreview();
 
 private:
     void setupUi();
@@ -51,6 +54,9 @@ private:
     QString m_cachedFullCss;
     QString m_cachedPreviewBaseCss;
     bool m_chromeUpdateScheduled = false;
+    QToolButton *m_fullscreenBtn = nullptr;
+    QToolButton *m_previewBtn = nullptr;
+    int m_previewState = 1;
 };
 
 #endif
