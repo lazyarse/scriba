@@ -57,8 +57,8 @@ $$
 > [!note]
 > Useful information you shouldn't overlook.
 
-> [!tip]
-> A helpful suggestion for a better workflow.
+> [!tip Custom Title]
+> This admonition has a custom title instead of the default "Tip".
 
 > [!important]
 > Something critical to be aware of.

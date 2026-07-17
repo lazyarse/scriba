@@ -1,6 +1,6 @@
 # Scriba
 
-A simple, no-nonsense split-screen Markdown editor for coders and other autistics. Built with C++ and Qt6.
+A configurable, no-nonsense split-screen Markdown editor for coders and other autistics. Built with C++ and Qt6.
 
 ## Features
 
@@ -8,28 +8,25 @@ A restricted feature-set; useful, not bloated.
 
 ### The Basics
 
-- It's the 2000s again with full CommonMark + GFM support (tables, strikethrough, task lists)
-- An editor pane and preview pane with configurable split-screen layout: preview on right, left, or hidden (toggle via menu bar icon)
-- Image rendering from local files and URLs
-- CSS-based theming: editor, preview, and chrome all styled from one file
+- WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions (note, tip, important, warning, caution) with custom titles
+- Editor and preview pane with configurable split-screen layout: have the preview on the right, left, or hidden
+- CSS-based theming: editor, preview, and chrome all styled from one file, and included sample themes for you to moan about. Fair warning: Qt can't style titlebars (both application and dialogs)
 - PDF export with print-specific CSS
-- Preferences: manage CSS directory and custom stylesheets
-- Admonitions (note, tip, important, warning, caution)
+- Sample `md` file in resources with a quick overview of the features.
 
-### Nice candy like:
+### Candy:
 
 - Full-screen mode (F11 or menu bar icon)
-- Word count and estimated reading time in the status bar
-- List item autocompletion (press Enter to continue a list)
-- Tab to indent, Shift+Tab to outdent list items
-- Alternating table row striping (toggleable)
+- Word count and estimated reading time
+- Ordered and Unordered list item autocompletion and `Tab` to indent, `Shift+Tab` to outdent list items
+- Optional alternating table row striping because let's be honest, it's annoying as hell
 
-### Standing on the shoulders of giants with external libraries:
+### Standing on the shoulders of giants:
 
 - Syntax highlighting for fenced code blocks (auto-detects language via highlight.js)
 - [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`)
-- Mermaid diagram rendering (flowcharts, sequence, state, pie)
-- Vega-Lite data visualization (bar, scatter, line, layered, interactive)
+- [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie)
+- [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive)
 
 ## Prerequisites
 
@@ -62,11 +59,8 @@ The post-build step automatically removes cached base stylesheets (`~/.config/Sc
 
 1. Type Markdown in the editor pane
 2. See live rendered preview in the adjacent pane
-3. Click the **layout icon** in the menu bar to cycle: preview right → preview left → preview hidden
-4. Press **F11** or click the **full-screen icon** to toggle full-screen mode
-5. Use **File > Open** to load `.md` files
-6. Use **File > Save** to save your work
-7. Go to **File > Preferences** to configure CSS styling
+3. ???
+4. PROFIT!!1
 
 ## Admonitions
 
@@ -81,7 +75,12 @@ Use `> [!type]` syntax inside a blockquote:
 
 > [!warning]
 > This is a warning.
+
+> [!warning HIGH VOLTAGE!]
+> Shocking! This is a warning with a custom title.
+
 ```
+
 
 ### Adding icons to admonition titles
 
@@ -141,6 +140,12 @@ See the [Vega-Lite docs](https://vega.github.io/vega-lite/) for the full spec re
 
 Render inline and display math using KaTeX. Wrap inline math in single dollar signs and display math in double dollar signs:
 
+The quadratic formula is $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$.
+
+$$
+\int_0^\infty e^{-x^2} \, dx = \frac{\sqrt{\pi}}{2}
+$$
+
 ```markdown
 The quadratic formula is $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$.
 
@@ -149,6 +154,7 @@ $$
 $$
 ```
 
+
 Both inline and display math render live as you type.
 
 See the [KaTeX docs](https://katex.org/) for supported functions and syntax.
@@ -156,12 +162,6 @@ See the [KaTeX docs](https://katex.org/) for supported functions and syntax.
 ## Custom CSS / Themes
 
 Scriba ships with 15 built-in themes (Catppuccin, Dracula, Nord, Tokyo Night, etc.) in `resources/themes/`. Each theme controls the editor background, preview typography, app chrome (menus, scrollbar, splitter), and syntax highlighting colors.
-
-### Activating a theme
-
-1. Open **File > Preferences**
-2. Select a stylesheet from the list and click the checkbox to activate it
-3. The editor, preview, and chrome all update immediately
 
 ### Writing a theme
 
@@ -204,16 +204,46 @@ scriba/
 ├── CMakeLists.txt
 ├── src/
 │   ├── main.cpp
-│   ├── MainWindow.cpp    — Main window with splitter layout
-│   ├── Editor.cpp        — Text editor widget
-│   ├── Preview.cpp       — HTML preview widget
-│   ├── MarkdownParser.cpp — md4c-based markdown parser
-│   ├── MdRenderer.cpp    — Custom renderer with data-line attributes
-│   ├── CssManager.cpp    — CSS file management
-│   └── PreferencesDialog.cpp — Preferences UI
+│   ├── MainWindow.cpp          — Main window, file I/O, CSS management, scroll sync
+│   ├── Editor.cpp              — Text editor widget (tab/enter key handling)
+│   ├── Preview.cpp             — HTML preview widget (QWebEngineView)
+│   ├── MarkdownParser.cpp      — md4c-based markdown parser
+│   ├── MdRenderer.cpp          — Custom renderer with data-line attributes
+│   ├── CssConfig.cpp           — CSS config persistence
+│   ├── CssLoader.cpp           — Loads user/system CSS
+│   ├── CssUtils.cpp            — CSS derivation (chrome, themes)
+│   ├── CssEditorDialog.cpp     — Dialog for editing custom CSS
+│   ├── PreferencesDialog.cpp   — Preferences UI
+│   ├── FindDialog.cpp          — Find text dialog
+│   ├── ExportPdfDialog.cpp     — PDF export dialog
+│   ├── StaticHelpers.cpp       — List continuation, indent/outdent helpers
+│   └── Preferences.h           — Preferences struct (header-only)
 ├── resources/
-│   ├── themes/           — Built-in CSS themes (Catppuccin, Dracula, Nord, etc.)
-│   └── scriba.qrc        — Qt resource file
+│   ├── scriba.qrc              — Qt resource file
+│   ├── sample.md               — Sample document
+│   ├── default.css             — Default theme
+│   ├── editor-base.css         — Editor base styles
+│   ├── preview-base.css        — Preview base styles
+│   ├── print-base.css          — Print styles
+│   ├── highlight.min.js        — Syntax highlighting
+│   ├── mermaid.min.js          — Mermaid diagrams
+│   ├── katex.min.js            — LaTeX math
+│   ├── katex.min.css           — KaTeX styles
+│   ├── vega.min.js             — Vega (visualization)
+│   ├── vega-lite.min.js        — Vega-Lite (charts)
+│   ├── vega-embed.min.js       — Vega-Embed (renderer)
+│   ├── themes/                 — Built-in CSS themes (15 themes)
+│   ├── fonts/                  — KaTeX web fonts
+│   ├── icons/                  — Editor icons
+│   └── contrib/                — Third-party JS (auto-render)
+├── tests/
+│   ├── test_markdown_parser.cpp
+│   ├── test_md_renderer_helpers.cpp
+│   ├── test_css_utils.cpp
+│   ├── test_static_helpers.cpp
+│   ├── test_editor_list_continuation.cpp
+│   ├── test_cursor_restore.cpp
+│   └── test_katex_integration.cpp
 └── vendor/
-    └── md4c/             — Markdown parser library (MIT)
+    └── md4c/                   — Markdown parser library (MIT, gitignored)
 ```
