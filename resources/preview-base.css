@@ -136,7 +136,7 @@ li {
 
 .admonition p {
     margin: 0.2em 0;
-    padding-left: 2em;
+    padding-left: 0.3em;
 }
 
 .admonition-title::before {
