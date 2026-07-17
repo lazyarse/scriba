@@ -48,7 +48,7 @@ void Preview::scrollToLine(int line)
 void Preview::scrollToPercent(double pct)
 {
     QString js = QString(
-        "window.scrollTo(0, %1 * Math.max(1, document.body.scrollHeight - window.innerHeight));"
+        "if(document.body)window.scrollTo(0, %1 * Math.max(1, document.body.scrollHeight - window.innerHeight));"
     ).arg(pct, 0, 'f', 6);
     page()->runJavaScript(js);
 }
