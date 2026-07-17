@@ -31,6 +31,11 @@ private:
     static QString escapeAttr(const QString &str);
     static QString alignmentStyle(MD_ALIGN align);
 
+    void enterCodeBlock(void *detail);
+    void enterListItem(void *detail);
+    void enterAdmonition(void *detail);
+    void enterAlignedCell(void *detail, const char *tag);
+
     QString m_output;
     int m_currentLine = 1;
     ImageState m_img;

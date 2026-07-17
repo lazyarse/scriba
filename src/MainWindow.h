@@ -8,7 +8,8 @@
 class Editor;
 class Preview;
 class MarkdownParser;
-class CssManager;
+class CssConfig;
+class CssLoader;
 
 class MainWindow : public QMainWindow
 {
@@ -41,7 +42,8 @@ private:
     Editor *m_editor;
     Preview *m_preview;
     MarkdownParser *m_parser;
-    CssManager *m_cssManager;
+    CssConfig *m_cssConfig;
+    CssLoader *m_cssLoader;
     QFileSystemWatcher *m_cssWatcher;
     QString m_currentFile;
     bool m_previewInitialized = false;

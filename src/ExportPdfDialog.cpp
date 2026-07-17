@@ -1,5 +1,5 @@
 #include "ExportPdfDialog.h"
-#include "CssManager.h"
+#include "CssLoader.h"
 #include "Preferences.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -16,9 +16,9 @@
 #include <QDialogButtonBox>
 #include <QIcon>
 
-ExportPdfDialog::ExportPdfDialog(const QString &html, CssManager *cssManager, QWidget *parent)
+ExportPdfDialog::ExportPdfDialog(const QString &html, CssLoader *loader, QWidget *parent)
     : QDialog(parent)
-    , m_cssManager(cssManager)
+    , m_loader(loader)
     , m_html(html)
 {
     setWindowTitle("Export PDF");
@@ -108,7 +108,7 @@ void ExportPdfDialog::onCssModeChanged()
 
     QString printCss = loadCustomCss();
     if (printCss.isEmpty())
-        printCss = m_cssManager->printCss();
+        printCss = m_loader->printCss();
 
     if (custom && !m_customCssPath.isEmpty())
         m_pathLabel->setText(m_customCssPath);
@@ -156,14 +156,14 @@ void ExportPdfDialog::loadPreview(const QString &printCss)
         "<script src=\"qrc:///highlight.min.js\"></script>"
         "<script>document.addEventListener('DOMContentLoaded',function(){hljs.highlightAll();});</script>"
         "</head><body>%5</body></html>"
-    ).arg(printCss, m_cssManager->previewBaseCss(), stripeCss, grayscaleHljs, m_html);
+    ).arg(printCss, m_loader->previewBaseCss(), stripeCss, grayscaleHljs, m_html);
     m_preview->setHtml(fullHtml, QUrl(baseUrl));
 }
 
 QString ExportPdfDialog::selectedPrintCss() const
 {
     QString css = loadCustomCss();
-    return css.isEmpty() ? m_cssManager->printCss() : css;
+    return css.isEmpty() ? m_loader->printCss() : css;
 }
 
 QString ExportPdfDialog::loadCustomCss() const

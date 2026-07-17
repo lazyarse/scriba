@@ -113,7 +113,6 @@ li {
 
 .admonition {
     margin: 1em 0;
-    padding: 0.5em 1em;
     border-left: 4px solid #9ca0b0;
     border-radius: 4px;
     background-color: #e6e9ef;
@@ -121,7 +120,6 @@ li {
 
 .admonition-title {
     font-weight: 600;
-    margin: 0 0 0.5em 0;
     color: #4c4f69;
 }
 

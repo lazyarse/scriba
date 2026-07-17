@@ -1,4 +1,6 @@
 #include "PreferencesDialog.h"
+#include "CssConfig.h"
+#include "CssLoader.h"
 #include "CssEditorDialog.h"
 #include "Preferences.h"
 #include <QVBoxLayout>
@@ -14,9 +16,10 @@
 #include <QIcon>
 #include <QFile>
 
-PreferencesDialog::PreferencesDialog(CssManager *cssManager, QWidget *parent)
+PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent)
     : QDialog(parent)
-    , m_cssManager(cssManager)
+    , m_config(config)
+    , m_loader(loader)
 {
     setupUi();
     setWindowTitle("Preferences");
@@ -111,9 +114,9 @@ void PreferencesDialog::setupUi()
 void PreferencesDialog::populateStylesheetList()
 {
     m_listWidget->clear();
-    QString active = m_cssManager->activeStylesheet();
+    QString active = m_config->activeStylesheet();
 
-    for (const QString &path : m_cssManager->stylesheets()) {
+    for (const QString &path : m_config->stylesheets()) {
         QListWidgetItem *item = new QListWidgetItem(QFileInfo(path).fileName());
         item->setData(Qt::UserRole, path);
         item->setToolTip(path);
@@ -128,12 +131,12 @@ void PreferencesDialog::addStylesheet()
     QStringList files = QFileDialog::getOpenFileNames(this, "Select CSS Files", QString(), "CSS Files (*.css)");
     if (files.isEmpty()) return;
 
-    QStringList existing = m_cssManager->stylesheets();
+    QStringList existing = m_config->stylesheets();
     for (const QString &file : files) {
         if (!existing.contains(file))
             existing.append(file);
     }
-    m_cssManager->setStylesheets(existing);
+    m_config->setStylesheets(existing);
     populateStylesheetList();
     emit stylesheetChanged();
 }
@@ -144,13 +147,13 @@ void PreferencesDialog::removeStylesheet()
     if (!item) return;
 
     QString path = item->data(Qt::UserRole).toString();
-    QStringList existing = m_cssManager->stylesheets();
+    QStringList existing = m_config->stylesheets();
     existing.removeAll(path);
 
-    if (path == m_cssManager->activeStylesheet())
-        m_cssManager->setActiveStylesheet(QString());
+    if (path == m_config->activeStylesheet())
+        m_config->setActiveStylesheet(QString());
 
-    m_cssManager->setStylesheets(existing);
+    m_config->setStylesheets(existing);
     populateStylesheetList();
     emit stylesheetChanged();
 }
@@ -165,20 +168,20 @@ static QString loadResourceCss(const QString &path)
 
 void PreferencesDialog::editEditorBaseCss()
 {
-    CssEditorDialog dlg("Edit Editor Base CSS", m_cssManager->editorBaseCss(),
+    CssEditorDialog dlg("Edit Editor Base CSS", m_loader->editorBaseCss(),
         loadResourceCss(":/editor-base.css"), this);
     if (dlg.exec() == QDialog::Accepted) {
-        m_cssManager->setEditorBaseCss(dlg.css());
+        m_loader->setEditorBaseCss(dlg.css());
         emit stylesheetChanged();
     }
 }
 
 void PreferencesDialog::editPreviewBaseCss()
 {
-    CssEditorDialog dlg("Edit Preview Base CSS", m_cssManager->previewBaseCss(),
+    CssEditorDialog dlg("Edit Preview Base CSS", m_loader->previewBaseCss(),
         loadResourceCss(":/preview-base.css"), this);
     if (dlg.exec() == QDialog::Accepted) {
-        m_cssManager->setPreviewBaseCss(dlg.css());
+        m_loader->setPreviewBaseCss(dlg.css());
         emit stylesheetChanged();
     }
 }
@@ -186,6 +189,6 @@ void PreferencesDialog::editPreviewBaseCss()
 void PreferencesDialog::onCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *)
 {
     if (!current) return;
-    m_cssManager->setActiveStylesheet(current->data(Qt::UserRole).toString());
+    m_config->setActiveStylesheet(current->data(Qt::UserRole).toString());
     emit stylesheetChanged();
 }
