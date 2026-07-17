@@ -77,6 +77,8 @@ QString deriveChromeCss(const QString &themeCss)
         "QPushButton { background-color: %4; color: %3; border: 1px solid %4; padding: 4px 12px; }\n"
         "QPushButton:hover { background-color: %5; }\n"
         "QLabel { color: %3; }\n"
+        "QMenuBar { background-color: %2; color: %3; }\n"
+        "QMenuBar::item:selected { background-color: %5; }\n"
         "#scriba-editor { padding: 0 !important; margin: 0 !important; border: none !important; background-color: %7 !important; color: %8 !important; }\n"
         "QSplitter::handle { background-color: %4; width: 1px; }\n"
         "QSplitter::handle:hover { background-color: %5; }\n"
