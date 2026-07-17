@@ -26,6 +26,8 @@
 #include <QPageLayout>
 #include <QPageSize>
 #include <QApplication>
+#include <QGuiApplication>
+#include <QScreen>
 
 static QString escapeJsString(const QString &s)
 {
@@ -83,20 +85,44 @@ MainWindow::MainWindow(QWidget *parent)
     QSettings settings;
     if (settings.value(Preferences::FirstRun, true).toBool()) {
         settings.setValue(Preferences::FirstRun, false);
-        QFile sample(":/sample.md");
-        if (sample.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            m_editor->setPlainText(QString::fromUtf8(sample.readAll()));
-            m_currentFile.clear();
-            m_preview->setDocumentPath(QString());
-            setWindowTitle("Scriba - Sample");
-        }
+        loadSample();
     }
     if (settings.value(Preferences::ReopenLastFile, true).toBool()) {
         QString lastFile = settings.value(Preferences::LastOpenedFile).toString();
         if (!lastFile.isEmpty()) {
-            loadFile(lastFile);
+            QFile testFile(lastFile);
+            if (testFile.exists()) {
+                loadFile(lastFile);
+            } else {
+                showCenteredWarning("File Not Found",
+                    "Could not find: " + lastFile,
+                    "Loading default sample instead.");
+                loadSample();
+            }
         }
     }
+}
+
+void MainWindow::loadSample()
+{
+    QFile sample(":/sample.md");
+    if (sample.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        m_editor->setPlainText(QString::fromUtf8(sample.readAll()));
+        m_currentFile.clear();
+        m_preview->setDocumentPath(QString());
+        setWindowTitle("Scriba - Sample");
+    }
+}
+
+void MainWindow::showCenteredWarning(const QString &title, const QString &text, const QString &informative)
+{
+    QMessageBox msgBox(this);
+    msgBox.setIcon(QMessageBox::Warning);
+    msgBox.setWindowTitle(title);
+    msgBox.setText(text);
+    msgBox.setInformativeText(informative);
+    msgBox.move(QGuiApplication::primaryScreen()->geometry().center() - msgBox.rect().center());
+    msgBox.exec();
 }
 
 void MainWindow::setupUi()
