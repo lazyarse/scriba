@@ -372,6 +372,8 @@ void MainWindow::updatePreview()
         if (cssChanged) {
             QString escapedCss = escapeJsString(previewCss);
             js = QString(
+                "if(!document.body){}"
+                "else{"
                 "var sy = window.scrollY;"
                 "document.getElementById('theme-css').textContent = '%1';"
                 "document.body.innerHTML = '%2';"
@@ -379,21 +381,23 @@ void MainWindow::updatePreview()
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
+                "}"
             ).arg(escapedCss, escapedHtml);
         } else {
             js = QString(
+                "if(!document.body){}"
+                "else{"
                 "var sy = window.scrollY;"
                 "document.body.innerHTML = '%1';"
                 "initMermaid();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
+                "}"
             ).arg(escapedHtml);
         }
         m_preview->page()->runJavaScript(js);
     }
-
-    syncPreviewScroll();
 }
 
 void MainWindow::syncPreviewScroll()
