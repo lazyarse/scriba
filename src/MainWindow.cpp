@@ -156,6 +156,12 @@ void MainWindow::setupUi()
     cornerLayout->addWidget(m_previewBtn);
     cornerLayout->addWidget(m_fullscreenBtn);
     menuBar()->setCornerWidget(cornerWidget, Qt::TopRightCorner);
+
+    m_statsLabel = new QLabel();
+    m_statsLabel->setObjectName("stats-label");
+    m_statsLabel->setAlignment(Qt::AlignCenter);
+    m_statsLabel->setContentsMargins(0, 0, 0, 0);
+    statusBar()->addWidget(m_statsLabel, 1);
 }
 
 void MainWindow::setupMenuBar()
@@ -296,6 +302,7 @@ void MainWindow::applyStripeSetting()
 void MainWindow::updatePreview()
 {
     QString markdown = m_editor->toPlainText();
+    updateStats();
     QString html = m_parser->toHtml(markdown);
 
     QString rawThemeCss = m_cssLoader->themeCss();
@@ -490,6 +497,17 @@ void MainWindow::togglePreview()
     int w = m_splitter->width();
     if (w <= 0) w = 1200;
     m_splitter->setSizes({w / 2, w / 2});
+}
+
+void MainWindow::updateStats()
+{
+    QString text = m_editor->toPlainText().trimmed();
+    int words = 0;
+    if (!text.isEmpty())
+        words = text.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts).count();
+    int minutes = (words + 199) / 200;
+    m_statsLabel->setText(QStringLiteral("%1 word%2 · ~%3 min read")
+        .arg(words).arg(words == 1 ? "" : "s").arg(minutes));
 }
 
 void MainWindow::loadFile(const QString &filePath)

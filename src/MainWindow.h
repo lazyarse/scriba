@@ -5,6 +5,7 @@
 #include <QSplitter>
 #include <QFileSystemWatcher>
 #include <QToolButton>
+#include <QLabel>
 
 class Editor;
 class Preview;
@@ -29,6 +30,7 @@ private slots:
     void onEditorScroll();
     void toggleFullscreen();
     void togglePreview();
+    void updateStats();
 
 private:
     void setupUi();
@@ -56,6 +58,7 @@ private:
     bool m_chromeUpdateScheduled = false;
     QToolButton *m_fullscreenBtn = nullptr;
     QToolButton *m_previewBtn = nullptr;
+    QLabel *m_statsLabel = nullptr;
     int m_previewState = 1;
 };
 
