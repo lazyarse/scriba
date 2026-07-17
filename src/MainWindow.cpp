@@ -129,8 +129,10 @@ void MainWindow::setupUi()
 
     m_splitter->setSizes({600, 600});
     m_splitter->setStretchFactor(0, 1);
-    m_splitter->setStretchFactor(1, 1);
-    m_splitter->handle(1)->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    if (m_previewState != 0) {
+        m_splitter->setStretchFactor(1, 1);
+        m_splitter->handle(1)->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    }
 
     // Corner buttons in menu bar
     m_fullscreenBtn = new QToolButton();
@@ -447,33 +449,37 @@ void MainWindow::toggleFullscreen()
 void MainWindow::togglePreview()
 {
     // Cycle: 0 (hidden) → 1 (right) → 2 (left) → 0
+    int oldState = m_previewState;
     m_previewState = (m_previewState + 1) % 3;
     QSettings().setValue(Preferences::PreviewState, m_previewState);
 
-    QList<int> sizes = m_splitter->sizes();
-
-    m_editor->setVisible(false);
-    m_preview->setVisible(false);
-    m_editor->setParent(nullptr);
-    m_preview->setParent(nullptr);
+    bool wasVisible = (oldState != 0);
+    bool willBeVisible = (m_previewState != 0);
 
     if (m_previewState == 0) {
-        m_splitter->addWidget(m_editor);
-        m_editor->setVisible(true);
         m_preview->setVisible(false);
+        m_editor->setVisible(true);
     } else if (m_previewState == 1) {
-        m_splitter->addWidget(m_editor);
-        m_splitter->addWidget(m_preview);
+        // editor | preview
+        m_splitter->insertWidget(0, m_editor);
+        m_splitter->insertWidget(1, m_preview);
         m_editor->setVisible(true);
         m_preview->setVisible(true);
     } else {
-        m_splitter->addWidget(m_preview);
-        m_splitter->addWidget(m_editor);
+        // preview | editor
+        m_splitter->insertWidget(0, m_preview);
+        m_splitter->insertWidget(1, m_editor);
         m_preview->setVisible(true);
         m_editor->setVisible(true);
     }
 
-    m_splitter->setSizes(sizes);
+    if (wasVisible && willBeVisible) {
+        // Keep relative sizes when toggling left ↔ right
+    } else {
+        int w = m_splitter->width();
+        if (w <= 0) w = 1200;
+        m_splitter->setSizes({w / 2, w / 2});
+    }
 }
 
 void MainWindow::loadFile(const QString &filePath)
