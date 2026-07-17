@@ -77,11 +77,7 @@ MainWindow::MainWindow(QWidget *parent)
 
                 int block = settings.value(Preferences::LastCursorBlock, 0).toInt();
                 int column = settings.value(Preferences::LastCursorColumn, 0).toInt();
-                QTextCursor cursor = m_editor->textCursor();
-                cursor.movePosition(QTextCursor::Start, QTextCursor::MoveAnchor);
-                cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, block);
-                cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, column);
-                m_editor->setTextCursor(cursor);
+                m_editor->setTextCursor(restoreCursorPosition(m_editor->document(), block, column));
                 m_editor->centerCursor();
             } else {
                 showCenteredWarning("File Not Found",
