@@ -109,3 +109,93 @@ pie title Time spent
   "Bugs" : 30
   "Preview" : 5
 ```
+
+## Vega-Lite Charts
+
+### Bar chart
+
+```vl
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": "container",
+  "data": {
+    "values": [
+      {"category": "A", "value": 28},
+      {"category": "B", "value": 55},
+      {"category": "C", "value": 43},
+      {"category": "D", "value": 91},
+      {"category": "E", "value": 64}
+    ]
+  },
+  "mark": "bar",
+  "encoding": {
+    "x": {"field": "category", "type": "nominal", "axis": {"labelAngle": 0}},
+    "y": {"field": "value", "type": "quantitative"},
+    "color": {"field": "category", "type": "nominal"}
+  }
+}
+```
+
+### Scatter plot
+
+```vl
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": "container",
+  "data": {
+    "values": [
+      {"x": 10, "y": 8, "category": "Alpha"},
+      {"x": 14, "y": 12, "category": "Alpha"},
+      {"x": 22, "y": 18, "category": "Alpha"},
+      {"x": 8, "y": 22, "category": "Beta"},
+      {"x": 16, "y": 28, "category": "Beta"},
+      {"x": 30, "y": 20, "category": "Beta"},
+      {"x": 12, "y": 35, "category": "Gamma"},
+      {"x": 20, "y": 30, "category": "Gamma"},
+      {"x": 26, "y": 38, "category": "Gamma"}
+    ]
+  },
+  "mark": "point",
+  "encoding": {
+    "x": {"field": "x", "type": "quantitative", "title": "X Axis"},
+    "y": {"field": "y", "type": "quantitative", "title": "Y Axis"},
+    "color": {"field": "category", "type": "nominal"},
+    "size": {"field": "y", "type": "quantitative"}
+  }
+}
+```
+
+### Layered chart
+
+```vl
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": "container",
+  "data": {
+    "values": [
+      {"day": "Mon", "actual": 28, "forecast": 25},
+      {"day": "Tue", "actual": 32, "forecast": 30},
+      {"day": "Wed", "actual": 25, "forecast": 28},
+      {"day": "Thu", "actual": 38, "forecast": 33},
+      {"day": "Fri", "actual": 30, "forecast": 31}
+    ]
+  },
+  "encoding": {
+    "x": {"field": "day", "type": "ordinal", "title": "Day of Week"}
+  },
+  "layer": [
+    {
+      "mark": {"type": "line", "color": "#4c78a8"},
+      "encoding": {
+        "y": {"field": "forecast", "type": "quantitative", "title": "Temperature"}
+      }
+    },
+    {
+      "mark": {"type": "point", "color": "#e45756", "size": 80, "filled": true},
+      "encoding": {
+        "y": {"field": "actual", "type": "quantitative"}
+      }
+    }
+  ]
+}
+```

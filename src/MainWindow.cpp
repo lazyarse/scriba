@@ -363,6 +363,25 @@ void MainWindow::updatePreview()
         "}"
     );
 
+    static const QString vegaLiteInitJs = QStringLiteral(
+        "function initVegaLite(){"
+        "var els=document.querySelectorAll('code.language-vl');"
+        "if(!els.length)return;"
+        "els.forEach(function(el){"
+        "try{"
+        "var spec=JSON.parse(el.textContent);"
+        "var container=el.parentElement;"
+        "var div=document.createElement('div');"
+        "div.className='vega-lite-chart';"
+        "div.style.width='100%';"
+        "container.parentElement.replaceChild(div,container);"
+        "vegaEmbed(div,spec,{actions:false}).catch(function(e){console.error(e);});"
+        "}"
+        "catch(e){console.error('Vega-Lite parse error:',e);}"
+        "});"
+        "}"
+    );
+
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
         QString printCss = m_cssLoader->printCss();
@@ -381,7 +400,10 @@ void MainWindow::updatePreview()
             "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
             "<script src=\"qrc:///katex.min.js\"></script>"
             "<script src=\"qrc:///contrib/auto-render.min.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();});</script>"
+            "<script src=\"qrc:///vega.min.js\"></script>"
+            "<script src=\"qrc:///vega-lite.min.js\"></script>"
+            "<script src=\"qrc:///vega-embed.min.js\"></script>"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();});</script>"
             "</head><body id=\"preview\">%3</body></html>"
         ).arg(baseCss, previewCss, html, printCss, stripeInit);
         m_preview->setHtml(fullHtml, baseUrl);
@@ -400,6 +422,7 @@ void MainWindow::updatePreview()
                 "document.body.innerHTML = '%2';"
                 "initMermaid();"
                 "initKaTeX();"
+                "initVegaLite();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
@@ -413,6 +436,7 @@ void MainWindow::updatePreview()
                 "document.body.innerHTML = '%1';"
                 "initMermaid();"
                 "initKaTeX();"
+                "initVegaLite();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
