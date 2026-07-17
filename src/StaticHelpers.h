@@ -11,4 +11,8 @@ QString indentListLine(const QString &line);
 QString outdentListLine(const QString &line);
 QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column);
 
+int countSentences(const QString &text);
+int estimateSyllables(const QString &word);
+double fleschKincaidGrade(int words, int sentences, int syllables);
+
 #endif

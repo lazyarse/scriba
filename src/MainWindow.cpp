@@ -559,12 +559,23 @@ void MainWindow::togglePreview()
 void MainWindow::updateStats()
 {
     QString text = m_editor->toPlainText().trimmed();
-    int words = 0;
-    if (!text.isEmpty())
-        words = text.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts).count();
-    int minutes = (words + 199) / 200;
-    m_statsLabel->setText(QStringLiteral("%1 word%2 · ~%3 min read")
-        .arg(words).arg(words == 1 ? "" : "s").arg(minutes));
+    if (text.isEmpty()) {
+        m_statsLabel->clear();
+        return;
+    }
+    QStringList words = text.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+    int wordCount = words.size();
+    int sentences = countSentences(text);
+    int totalSyllables = 0;
+    for (const QString &w : words)
+        totalSyllables += estimateSyllables(w);
+    int minutes = (wordCount + 199) / 200;
+    double grade = fleschKincaidGrade(wordCount, sentences, totalSyllables);
+    int age = qMax(static_cast<int>(grade) + 5, 5);
+    m_statsLabel->setText(QStringLiteral("%1 sentence%2 · %3 word%4 · ~%5 min read · Age %6+")
+        .arg(sentences).arg(sentences == 1 ? "" : "s")
+        .arg(wordCount).arg(wordCount == 1 ? "" : "s")
+        .arg(minutes).arg(age));
 }
 
 void MainWindow::loadFile(const QString &filePath)

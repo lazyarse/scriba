@@ -98,4 +98,8 @@ if(BUILD_TESTS)
     target_compile_definitions(test_katex_integration PRIVATE RESOURCE_DIR="${CMAKE_SOURCE_DIR}/resources")
     target_link_libraries(test_katex_integration PRIVATE GTest::gtest_main Qt6::Core)
     add_test(NAME test_katex_integration COMMAND test_katex_integration)
+
+    add_executable(test_readability tests/test_readability.cpp)
+    target_link_libraries(test_readability PRIVATE scriba_core GTest::gtest_main)
+    add_test(NAME test_readability COMMAND test_readability)
 endif()
