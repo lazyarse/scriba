@@ -13,6 +13,7 @@ A simple split-screen Markdown editor built with C++ and Qt6.
 - Tab to indent, Shift+Tab to outdent list items
 - Admonitions (note, tip, important, warning, caution)
 - Mermaid diagram rendering (flowcharts, sequence, state, pie)
+- LaTeX math rendering (KaTeX, inline `$...$` and display `$$...$$`)
 - Image rendering from local files and URLs
 - CSS-based theming: editor, preview, and chrome all styled from one file
 - PDF export with print-specific CSS

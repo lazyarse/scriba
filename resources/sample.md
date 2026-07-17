@@ -38,6 +38,20 @@ def hello():
     print("Hello, Scriba!")
 ```
 
+## LaTeX Math
+
+Inline math: $E = mc^2$, $\sum_{i=1}^{n} x_i$, $\int_0^\infty e^{-x} \, dx$
+
+Display math:
+
+$$
+\frac{n!}{k!(n-k)!} = \binom{n}{k}
+$$
+
+$$
+\mathcal{L}(\theta) = \prod_{i=1}^{n} f(x_i \mid \theta)
+$$
+
 ## Admonitions
 
 > [!note]
