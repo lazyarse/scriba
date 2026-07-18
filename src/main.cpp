@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QIcon>
 #include <QLoggingCategory>
 #include <QStyleFactory>
 #include "MainWindow.h"
@@ -12,6 +13,7 @@ int main(int argc, char *argv[])
     app.setApplicationName("Scriba");
     app.setOrganizationName("Scriba");
     app.setApplicationVersion("1.0.0");
+    app.setWindowIcon(QIcon(":/icons/scriba.svg"));
 
     if (app.arguments().contains("--debug"))
         QLoggingCategory::setFilterRules("scriba.*=true");

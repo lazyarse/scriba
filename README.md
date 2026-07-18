@@ -2,7 +2,7 @@
 
 A configurable, no-nonsense split-screen Markdown editor for coders and other autistics with a pretentious Latin name. Built from the ground-up because all the others are well, crap.
 
-I originally envisioned it'd just be a text-editor on the left and a simple HTML preview on the right. My bad. 
+Originally envisioned to be simply a text-editor on the left and a simple HTML preview on the right but, my bad. 
 
 Built with C++ and Qt6.
 
@@ -13,7 +13,7 @@ Designed with a restricted feature-set in mind; useful, not bloated.
 ### The Basics
 
 - WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions (note, tip, important, warning, caution) with custom titles and icons
-- Editor and preview pane with configurable split-screen layout: have the preview on the right or if you're weird, the left, or just hidden
+- Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, or hidden, and basic search
 - CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. Fair warning: Qt can't style application or dialogs titlebars
 - PDF export with print-specific CSS stylesheets
 
@@ -59,15 +59,25 @@ The post-build step automatically removes cached base stylesheets (`~/.config/Sc
 ./scriba file.md      # open file
 ./scriba --debug      # enable JS console logging via Qt logging system
 ```
-
-## Usage
-
-1. Type Markdown in the editor pane
-2. See live rendered preview in the adjacent pane
-3. ???
-4. PROFIT!!1
-
 JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
+
+
+## We All Love Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| Ctrl+N | New |
+| Ctrl+O | Open |
+| Ctrl+S | Save |
+| Ctrl+Shift+S | Save As |
+| Ctrl+R | Reload |
+| Ctrl+P | Export PDF |
+| Ctrl+F | Find |
+| Ctrl+G | Vega-Lite Chart Builder |
+| Ctrl+B | Toggle Preview Pane |
+| Ctrl+Alt+P | Preferences |
+| F11 | Toggle Fullscreen |
+| Ctrl+Q | Quit |
 
 ## Custom CSS / Themes
 
