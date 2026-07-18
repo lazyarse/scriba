@@ -30,6 +30,7 @@ private:
     static QString escapeHtml(const QString &str);
     static QString escapeAttr(const QString &str);
     static QString alignmentStyle(MD_ALIGN align);
+    static void parseDimensions(const QString &src, QString &cleanSrc, int &width, int &height);
 
     void enterCodeBlock(void *detail);
     void enterListItem(void *detail);

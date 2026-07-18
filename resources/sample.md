@@ -8,7 +8,14 @@ A quick tour of what Scriba can do.
 
 > Blockquote with **inline** styling.
 
----
+## Images
+
+Resize with `#WIDTHxHEIGHT` suffix appended to the image URL:
+
+- Original:    `![](icons/scriba.svg)`
+- 200x100:     `![](icons/scriba.svg#200x100)`
+- Width only:  `![](icons/scriba.svg#200x)`
+- Height only: `![](icons/scriba.svg#x100)`
 
 ## Lists
 

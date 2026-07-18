@@ -1,10 +1,15 @@
 # Scriba
 
-A configurable, no-nonsense split-screen Markdown editor for coders and other autistics with a pretentious Latin name. Built from the ground-up because all the others are well, crap.
+<div style="">
+    <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
+A configurable, no-nonsense, split-screen Markdown editor for coders and other autistics with a pretentious Latin name. Built from the ground-up because all the others are well, terrible.
 
-Originally envisioned to be simply a text-editor on the left and a simple HTML preview on the right but, my bad. 
+Originally envisioned to be simple: a text-editor on the left and a simple HTML preview on the right but, my bad. 
 
 Built with C++ and Qt6.
+</div>
+
+![](docs/images/screenshot.png)
 
 ## Features
 
@@ -23,6 +28,7 @@ Designed with a restricted feature-set in mind; useful, not bloated.
 - [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`)
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie)
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive)
+- [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser, modified to accept image sizes (`#WIDTHxHEIGHT` suffix)
 
 ### Candy:
 
@@ -30,7 +36,7 @@ Designed with a restricted feature-set in mind; useful, not bloated.
 - Sentence, word count, estimated reading time, and age level so you can suitably patronise
 - Ordered and Unordered list item autocompletion on a new line after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items
 - Optional alternating table row striping because let's be honest, it's annoying as hell
-- A [sample.md](sample.md) file in resources with a live examples of the features including admonitions, math, diagrams, and charts
+- A [sample.md](sample.md) file in resources with a live examples of the features including admonitions, math, diagrams, charts, and images
 
 ## Prerequisites
 
