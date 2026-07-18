@@ -24,7 +24,7 @@ PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidg
 {
     setupUi();
     setWindowTitle("Preferences");
-    resize(650, 300);
+    resize(650, 400);
 }
 
 void PreferencesDialog::setupUi()
@@ -40,6 +40,10 @@ void PreferencesDialog::setupUi()
     m_categoryList->setMaximumWidth(150);
     m_categoryList->setMinimumWidth(120);
     m_categoryList->setFrameShape(QFrame::NoFrame);
+    QFont catFont = m_categoryList->font();
+    catFont.setPointSize(catFont.pointSize() + 3);
+    m_categoryList->setFont(catFont);
+    m_categoryList->setStyleSheet("QListWidget::item { padding: 8px 4px; }");
     contentLayout->addWidget(m_categoryList);
 
     m_pages = new QStackedWidget;
@@ -52,11 +56,12 @@ void PreferencesDialog::setupUi()
     {
         QWidget *page = new QWidget;
         QVBoxLayout *layout = new QVBoxLayout(page);
-        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
 
         QGroupBox *generalGroup = new QGroupBox("Startup & Navigation");
         QVBoxLayout *generalLayout = new QVBoxLayout(generalGroup);
+        generalLayout->addSpacing(8);
 
         m_reopenCheck = new QCheckBox("Re-open last edited file on startup");
         m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastFile, true).toBool());
@@ -77,12 +82,13 @@ void PreferencesDialog::setupUi()
     {
         QWidget *page = new QWidget;
         QVBoxLayout *layout = new QVBoxLayout(page);
-        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
 
         /* --- Appearance panel --- */
         QGroupBox *appearanceGroup = new QGroupBox("Appearance");
         QVBoxLayout *appearanceLayout = new QVBoxLayout(appearanceGroup);
+        appearanceLayout->addSpacing(8);
 
         m_stripeCheck = new QCheckBox("Alternating table row colors");
         m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
@@ -103,6 +109,7 @@ void PreferencesDialog::setupUi()
         /* --- Base CSS panel --- */
         QGroupBox *baseCssGroup = new QGroupBox("Base CSS");
         QVBoxLayout *baseCssLayout = new QVBoxLayout(baseCssGroup);
+        baseCssLayout->addSpacing(8);
 
         baseCssLayout->addWidget(new QLabel(
             "These stylesheets lay the foundation that all themes build upon."));
@@ -120,6 +127,7 @@ void PreferencesDialog::setupUi()
         /* --- Stylesheets panel --- */
         QGroupBox *cssGroup = new QGroupBox("Stylesheets");
         QVBoxLayout *cssLayout = new QVBoxLayout(cssGroup);
+        cssLayout->addSpacing(8);
 
         cssLayout->addWidget(new QLabel(
             "Additional stylesheets to override the visual appearance of the editor, "
