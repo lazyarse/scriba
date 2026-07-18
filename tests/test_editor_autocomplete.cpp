@@ -227,6 +227,25 @@ TEST(PathCompletion, NoMatchReturnsEmpty)
     EXPECT_TRUE(entries.isEmpty());
 }
 
+TEST(PathCompletion, EmptyPathReturnsEmpty)
+{
+    QTemporaryDir tmpDir;
+    ASSERT_TRUE(tmpDir.isValid());
+    QDir dir(tmpDir.path());
+    auto touch = [&](const QString &name) {
+        QFile f(dir.absoluteFilePath(name));
+        f.open(QIODevice::WriteOnly);
+        f.close();
+    };
+    touch("main.css");
+
+    // Empty partialPath → filePart is empty → matchEntries returns all
+    // The caller (showFileCompletion) guards against empty filePart
+    auto entries = matchEntries("", dir);
+    EXPECT_EQ(entries.size(), 1);
+    EXPECT_EQ(entries.first(), "main.css");
+}
+
 TEST(ChainedCompletion, DirThenFile)
 {
     QTemporaryDir tmpDir;

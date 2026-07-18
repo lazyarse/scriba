@@ -49,7 +49,6 @@ MainWindow::MainWindow(QWidget *parent)
     setupMenuBar();
 
     refreshPreviewCss();
-    updatePreview();
 
     setWindowTitle("Scriba");
     showMaximized();
@@ -59,6 +58,7 @@ MainWindow::MainWindow(QWidget *parent)
     timer->setInterval(80);
     connect(timer, &QTimer::timeout, this, &MainWindow::updatePreview);
     connect(m_editor, &QPlainTextEdit::textChanged, timer, qOverload<>(&QTimer::start));
+    timer->start();
 
     connect(m_cssWatcher, &QFileSystemWatcher::fileChanged, this, &MainWindow::onCssFileChanged);
     connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::onEditorScroll);
@@ -439,7 +439,7 @@ void MainWindow::updatePreview()
         if (cssChanged) {
             QString escapedCss = escapeJsString(previewCss);
             js = QString(
-                "if(!document.body){}"
+                "if(!document.body){false}"
                 "else{"
                 "var sy = window.scrollY;"
                 "document.getElementById('theme-css').textContent = '%1';"
@@ -450,11 +450,11 @@ void MainWindow::updatePreview()
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
-                "}"
+                "true}"
             ).arg(escapedCss, escapedHtml);
         } else {
             js = QString(
-                "if(!document.body){}"
+                "if(!document.body){false}"
                 "else{"
                 "var sy = window.scrollY;"
                 "document.body.innerHTML = '%1';"
@@ -464,10 +464,19 @@ void MainWindow::updatePreview()
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
                 "window.scrollTo(0, sy);"
-                "}"
+                "true}"
             ).arg(escapedHtml);
         }
-        m_preview->page()->runJavaScript(js);
+        m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
+            if (!m_previewReady) {
+                if (result.toBool()) {
+                    m_previewReady = true;
+                    syncPreviewScroll();
+                } else {
+                    QTimer::singleShot(50, this, &MainWindow::updatePreview);
+                }
+            }
+        });
     }
 }
 
@@ -546,6 +555,8 @@ void MainWindow::onCssFileChanged()
 
 void MainWindow::onEditorScroll()
 {
+    if (!m_previewReady)
+        return;
     syncPreviewScroll();
 }
 
