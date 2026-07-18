@@ -257,6 +257,11 @@ void MainWindow::setupMenuBar()
     previewAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
     connect(previewAction, &QAction::triggered, this, &MainWindow::togglePreview);
     addAction(previewAction);
+
+    QAction *chartAction = new QAction("Chart &Builder", this);
+    chartAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
+    connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
+    addAction(chartAction);
 }
 
 void MainWindow::refreshPreviewCss()
