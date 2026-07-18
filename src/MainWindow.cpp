@@ -290,11 +290,10 @@ void MainWindow::setupMenuBar()
     emojiAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
     connect(emojiAction, &QAction::triggered, this, [this]() {
         EmojiDialog dlg(this);
-        if (dlg.exec() == QDialog::Accepted) {
-            QString sc = dlg.selectedShortcode();
-            if (!sc.isEmpty())
-                m_editor->insertPlainText(":" + sc + ":");
-        }
+        connect(&dlg, &EmojiDialog::emojiChosen, this, [this](const QString &sc) {
+            m_editor->insertPlainText(":" + sc + ":");
+        });
+        dlg.exec();
     });
 }
 

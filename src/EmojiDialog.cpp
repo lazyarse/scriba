@@ -54,16 +54,21 @@ EmojiDialog::EmojiDialog(QWidget *parent)
     layout->addWidget(m_selectedLabel);
 
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel);
-    auto *insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
-    insertBtn->setEnabled(false);
+    m_insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
+    m_insertBtn->setEnabled(false);
     layout->addWidget(buttonBox);
 
     for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());
 
     connect(m_searchBox, &QLineEdit::textChanged, this, &EmojiDialog::filterEmoji);
     connect(m_list, &QListWidget::itemClicked, this, &EmojiDialog::onItemClicked);
-    connect(m_list, &QListWidget::itemDoubleClicked, this, &QDialog::accept);
-    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(m_list, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
+        onItemClicked(item);
+        if (!m_selected.isEmpty()) emit emojiChosen(m_selected);
+    });
+    connect(m_insertBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_selected.isEmpty()) emit emojiChosen(m_selected);
+    });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     m_colorMode = QSettings().value(Preferences::EmojiMode, "bw").toString() == "color";
@@ -145,25 +150,43 @@ void EmojiDialog::filterEmoji(const QString &text)
     int iconSize = 36;
     int fontSize = 10;
 
+    QColor bg = palette().window().color();
+    bool darkBg = bg.lightness() < 128;
+
     for (const auto &entry : m_all) {
         if (!filter.isEmpty() && !entry.shortcode.contains(filter))
             continue;
 
         QPixmap pix(iconSize, iconSize);
         pix.fill(Qt::transparent);
-        QPainter painter(&pix);
 
-        if (m_colorMode && QFile::exists(QString(":/twemoji/svg/%1.svg").arg(entry.codePoint))) {
-            QSvgRenderer renderer(QString(":/twemoji/svg/%1.svg").arg(entry.codePoint));
-            renderer.render(&painter, QRectF(0, 0, iconSize, iconSize));
+        if (m_colorMode) {
+            QString svgPath = QString(":/twemoji/svg/%1.svg").arg(entry.codePoint);
+            if (QFile::exists(svgPath)) {
+                QPainter painter(&pix);
+                QSvgRenderer renderer(svgPath);
+                renderer.render(&painter, QRectF(0, 0, iconSize, iconSize));
+            } else {
+                QPainter painter(&pix);
+                QFont f = painter.font();
+                f.setPixelSize(iconSize - 4);
+                painter.setFont(f);
+                painter.setPen(palette().windowText().color());
+                painter.drawText(QRect(0, 0, iconSize, iconSize), Qt::AlignCenter, entry.unicode);
+            }
         } else {
+            QPainter painter(&pix);
+            painter.setRenderHint(QPainter::Antialiasing);
+            QColor circle = darkBg ? QColor(220, 220, 220) : QColor(60, 60, 60);
+            painter.setBrush(circle);
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
             QFont f = painter.font();
-            f.setPixelSize(iconSize - 4);
+            f.setPixelSize(iconSize - 6);
             painter.setFont(f);
-            painter.setPen(palette().windowText().color());
+            painter.setPen(darkBg ? Qt::black : Qt::white);
             painter.drawText(QRect(0, 0, iconSize, iconSize), Qt::AlignCenter, entry.unicode);
         }
-        painter.end();
 
         auto *item = new QListWidgetItem(QIcon(pix), entry.shortcode);
         item->setData(Qt::UserRole, entry.shortcode);
@@ -180,4 +203,5 @@ void EmojiDialog::onItemClicked(QListWidgetItem *item)
     if (!item) return;
     m_selected = item->data(Qt::UserRole).toString();
     m_selectedLabel->setText(QString(":%1:").arg(m_selected));
+    m_insertBtn->setEnabled(true);
 }

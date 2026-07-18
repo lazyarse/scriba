@@ -9,6 +9,7 @@ class QLineEdit;
 class QListWidget;
 class QListWidgetItem;
 class QLabel;
+class QPushButton;
 
 class EmojiDialog : public QDialog
 {
@@ -17,6 +18,9 @@ class EmojiDialog : public QDialog
 public:
     explicit EmojiDialog(QWidget *parent = nullptr);
     QString selectedShortcode() const;
+
+signals:
+    void emojiChosen(const QString &shortcode);
 
 private slots:
     void filterEmoji(const QString &text);
@@ -38,6 +42,7 @@ private:
     QLineEdit *m_searchBox;
     QListWidget *m_list;
     QLabel *m_selectedLabel;
+    QPushButton *m_insertBtn = nullptr;
     QList<EmojiEntry> m_all;
     QString m_selected;
     bool m_colorMode = false;
