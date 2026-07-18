@@ -60,7 +60,6 @@ private:
     QString m_cachedFullCss;
     QString m_cachedPreviewBaseCss;
     bool m_chromeUpdateScheduled = false;
-    QToolButton *m_chartBtn = nullptr;
     QToolButton *m_fullscreenBtn = nullptr;
     QToolButton *m_previewBtn = nullptr;
     QLabel *m_statsLabel = nullptr;

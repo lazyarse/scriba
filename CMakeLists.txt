@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebEngineWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebEngineWidgets Svg)
 
 add_executable(scriba
     src/main.cpp
@@ -42,6 +42,7 @@ target_link_libraries(scriba PRIVATE
     Qt6::Widgets
     Qt6::Network
     Qt6::WebEngineWidgets
+    Qt6::Svg
 )
 
 add_custom_command(TARGET scriba POST_BUILD
@@ -127,7 +128,7 @@ if(BUILD_TESTS)
         src/FindDialog.cpp)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_scroll_sync PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Test)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
     add_test(NAME test_scroll_sync COMMAND test_scroll_sync)
 endif()
 
