@@ -37,6 +37,7 @@ Designed with a restricted feature-set in mind; useful, not bloated.
 - Ordered and Unordered list item autocompletion on a new line after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items
 - Optional alternating table row striping because let's be honest, it's annoying as hell
 - A [sample.md](sample.md) file in resources with a live examples of the features including admonitions, math, diagrams, charts, and images
+- File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` could autocomplete to `![](foo/bar.png)`
 
 ## Prerequisites
 

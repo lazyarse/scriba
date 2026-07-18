@@ -19,10 +19,10 @@ void PreviewPage::javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
     Q_UNUSED(sourceID);
     switch (level) {
     case InfoMessageLevel:
-        qCInfo(lcPreview) << message;
+        qCDebug(lcPreview) << message;
         break;
     case WarningMessageLevel:
-        qCWarning(lcPreview) << "line" << lineNumber << message;
+        qCDebug(lcPreview) << "line" << lineNumber << message;
         break;
     case ErrorMessageLevel:
         qCCritical(lcPreview) << "line" << lineNumber << message;
