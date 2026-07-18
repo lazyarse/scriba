@@ -1,4 +1,5 @@
 #include "MdRenderer.h"
+#include <QRegularExpression>
 
 MdRenderer::MdRenderer()
 {
@@ -218,15 +219,24 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
         if (self->m_img.inside) break;
         self->writeHtml("</a>");
         break;
-    case MD_SPAN_IMG:
-        if (self->m_img.title.isEmpty())
-            self->writeHtml(QString("<img src=\"%1\" alt=\"%2\">")
-                .arg(escapeAttr(self->m_img.src), escapeAttr(self->m_img.alt)));
-        else
-            self->writeHtml(QString("<img src=\"%1\" title=\"%2\" alt=\"%3\">")
-                .arg(escapeAttr(self->m_img.src), escapeAttr(self->m_img.title), escapeAttr(self->m_img.alt)));
+    case MD_SPAN_IMG: {
+        QString cleanSrc;
+        int width = -1, height = -1;
+        parseDimensions(self->m_img.src, cleanSrc, width, height);
+
+        QString tag = QString("<img src=\"%1\" alt=\"%2\"")
+            .arg(escapeAttr(cleanSrc), escapeAttr(self->m_img.alt));
+        if (!self->m_img.title.isEmpty())
+            tag += QString(" title=\"%1\"").arg(escapeAttr(self->m_img.title));
+        if (width >= 0)
+            tag += QString(" width=\"%1\"").arg(width);
+        if (height >= 0)
+            tag += QString(" height=\"%1\"").arg(height);
+        tag += ">";
+        self->writeHtml(tag);
         self->m_img.inside = false;
         break;
+    }
     case MD_SPAN_CODE:
         if (self->m_img.inside) break;
         self->writeHtml("</code>");
@@ -383,5 +393,22 @@ QString MdRenderer::alignmentStyle(MD_ALIGN align)
     case MD_ALIGN_CENTER:  return "center";
     case MD_ALIGN_RIGHT:   return "right";
     default:               return {};
+    }
+}
+
+void MdRenderer::parseDimensions(const QString &src, QString &cleanSrc, int &width, int &height)
+{
+    width = -1;
+    height = -1;
+    cleanSrc = src;
+
+    static const QRegularExpression re(QStringLiteral(R"(^(.*?)#(\d*)x(\d*)$)"));
+    auto match = re.match(src);
+    if (match.hasMatch()) {
+        cleanSrc = match.captured(1);
+        if (!match.captured(2).isEmpty())
+            width = match.captured(2).toInt();
+        if (!match.captured(3).isEmpty())
+            height = match.captured(3).toInt();
     }
 }
