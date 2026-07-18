@@ -177,14 +177,16 @@ void EmojiDialog::filterEmoji(const QString &text)
         } else {
             QPainter painter(&pix);
             painter.setRenderHint(QPainter::Antialiasing);
-            QColor circle = darkBg ? QColor(220, 220, 220) : QColor(60, 60, 60);
-            painter.setBrush(circle);
-            painter.setPen(Qt::NoPen);
-            painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
+            if (darkBg) {
+                QColor circle(220, 220, 220);
+                painter.setBrush(circle);
+                painter.setPen(Qt::NoPen);
+                painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
+            }
             QFont f = painter.font();
             f.setPixelSize(iconSize - 6);
             painter.setFont(f);
-            painter.setPen(darkBg ? Qt::black : Qt::white);
+            painter.setPen(darkBg ? Qt::black : Qt::darkGray);
             painter.drawText(QRect(0, 0, iconSize, iconSize), Qt::AlignCenter, entry.unicode);
         }
 
