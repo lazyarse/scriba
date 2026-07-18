@@ -11,6 +11,7 @@
 #include "Preferences.h"
 #include "StaticHelpers.h"
 #include "VegaLiteDialog.h"
+#include "EmojiDialog.h"
 
 #include <QMenuBar>
 #include <QMenu>
@@ -284,6 +285,17 @@ void MainWindow::setupMenuBar()
     QAction *chartAction = toolsMenu->addAction("Chart &Builder");
     chartAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
     connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
+
+    QAction *emojiAction = toolsMenu->addAction("&Emoji Picker...");
+    emojiAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
+    connect(emojiAction, &QAction::triggered, this, [this]() {
+        EmojiDialog dlg(this);
+        if (dlg.exec() == QDialog::Accepted) {
+            QString sc = dlg.selectedShortcode();
+            if (!sc.isEmpty())
+                m_editor->insertPlainText(":" + sc + ":");
+        }
+    });
 }
 
 void MainWindow::refreshPreviewCss()

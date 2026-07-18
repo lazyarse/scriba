@@ -23,6 +23,7 @@ add_executable(scriba
     src/ExportPdfDialog.cpp
     src/FindDialog.cpp
     src/VegaLiteDialog.cpp
+    src/EmojiDialog.cpp
     src/StaticHelpers.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c
@@ -125,6 +126,7 @@ if(BUILD_TESTS)
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
+        src/EmojiDialog.cpp
         src/FindDialog.cpp)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_scroll_sync PRIVATE
