@@ -117,4 +117,16 @@ if(BUILD_TESTS)
     target_include_directories(test_editor_completion_ui PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test scriba_core)
     add_test(NAME test_editor_completion_ui COMMAND test_editor_completion_ui)
+
+    add_executable(test_scroll_sync tests/test_scroll_sync.cpp
+        src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp
+        src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
+        src/FindDialog.cpp)
+    target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_scroll_sync PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Test)
+    add_test(NAME test_scroll_sync COMMAND test_scroll_sync)
 endif()
+

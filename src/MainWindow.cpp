@@ -48,7 +48,13 @@ MainWindow::MainWindow(QWidget *parent)
     setupUi();
     setupMenuBar();
 
+    connect(m_preview->page(), &QWebEnginePage::loadFinished, this, [this](bool ok) {
+        if (ok && m_previewInitialized)
+            syncPreviewScroll();
+    });
+
     refreshPreviewCss();
+    updatePreview();
 
     setWindowTitle("Scriba");
     showMaximized();
@@ -58,7 +64,6 @@ MainWindow::MainWindow(QWidget *parent)
     timer->setInterval(80);
     connect(timer, &QTimer::timeout, this, &MainWindow::updatePreview);
     connect(m_editor, &QPlainTextEdit::textChanged, timer, qOverload<>(&QTimer::start));
-    timer->start();
 
     connect(m_cssWatcher, &QFileSystemWatcher::fileChanged, this, &MainWindow::onCssFileChanged);
     connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::onEditorScroll);
@@ -79,7 +84,7 @@ MainWindow::MainWindow(QWidget *parent)
                 int block = settings.value(Preferences::LastCursorBlock, 0).toInt();
                 int column = settings.value(Preferences::LastCursorColumn, 0).toInt();
                 m_editor->setTextCursor(restoreCursorPosition(m_editor->document(), block, column));
-                m_editor->centerCursor();
+                QTimer::singleShot(0, m_editor, &QPlainTextEdit::centerCursor);
             } else {
                 showCenteredWarning("File Not Found",
                     "Could not find: " + lastFile,
@@ -468,14 +473,8 @@ void MainWindow::updatePreview()
             ).arg(escapedHtml);
         }
         m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
-            if (!m_previewReady) {
-                if (result.toBool()) {
-                    m_previewReady = true;
-                    syncPreviewScroll();
-                } else {
-                    QTimer::singleShot(50, this, &MainWindow::updatePreview);
-                }
-            }
+            if (result.toBool())
+                syncPreviewScroll();
         });
     }
 }
@@ -555,8 +554,6 @@ void MainWindow::onCssFileChanged()
 
 void MainWindow::onEditorScroll()
 {
-    if (!m_previewReady)
-        return;
     syncPreviewScroll();
 }
 

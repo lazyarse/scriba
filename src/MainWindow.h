@@ -22,6 +22,8 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow() = default;
     void loadFile(const QString &filePath);
+    Editor *editor() const { return m_editor; }
+    Preview *preview() const { return m_preview; }
 
 private slots:
     void updatePreview();
@@ -54,7 +56,6 @@ private:
     QFileSystemWatcher *m_cssWatcher;
     QString m_currentFile;
     bool m_previewInitialized = false;
-    bool m_previewReady = false;
     QString m_cachedPreviewCss;
     QString m_cachedFullCss;
     QString m_cachedPreviewBaseCss;
