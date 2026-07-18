@@ -2,7 +2,7 @@
 
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
-A configurable, no-nonsense, split-screen Markdown editor for coders and other autistics with a pretentious Latin name. Built from the ground-up because all the others are too bloated. Originally envisioned to be simple: a text-editor on the left and a HTML preview on the right but, my bad. 
+A configurable, no-nonsense, split-screen Markdown editor for coders and other autistics with a pretentious Latin name. Built from the ground-up because all the others are not fit for purpose. Originally envisioned to be simple text-editor on the left and a HTML preview on the right application, but, my bad. 
 
 <p align="center">
 :cucumber:
