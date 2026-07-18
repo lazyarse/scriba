@@ -104,7 +104,7 @@ if(BUILD_TESTS)
     target_link_libraries(test_readability PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_readability COMMAND test_readability)
 
-    add_executable(test_vegalite_dialog tests/test_vegalite_dialog.cpp src/VegaLiteDialog.cpp)
+    add_executable(test_vegalite_dialog tests/test_vegalite_dialog.cpp src/VegaLiteDialog.cpp src/Preview.cpp)
     target_link_libraries(test_vegalite_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
     add_test(NAME test_vegalite_dialog COMMAND test_vegalite_dialog)
 endif()
