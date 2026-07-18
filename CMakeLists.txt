@@ -107,4 +107,8 @@ if(BUILD_TESTS)
     add_executable(test_vegalite_dialog tests/test_vegalite_dialog.cpp src/VegaLiteDialog.cpp src/Preview.cpp)
     target_link_libraries(test_vegalite_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
     add_test(NAME test_vegalite_dialog COMMAND test_vegalite_dialog)
+
+    add_executable(test_editor_autocomplete tests/test_editor_autocomplete.cpp)
+    target_link_libraries(test_editor_autocomplete PRIVATE GTest::gtest_main Qt6::Core)
+    add_test(NAME test_editor_autocomplete COMMAND test_editor_autocomplete)
 endif()

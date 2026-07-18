@@ -96,6 +96,7 @@ void MainWindow::loadSample()
     if (sample.open(QIODevice::ReadOnly | QIODevice::Text)) {
         m_editor->setPlainText(QString::fromUtf8(sample.readAll()));
         m_currentFile.clear();
+        m_editor->setCurrentFile(QString());
         m_preview->setDocumentPath(QString());
         setWindowTitle("Scriba - Sample");
     }
@@ -188,6 +189,7 @@ void MainWindow::setupMenuBar()
     connect(newAction, &QAction::triggered, this, [this]() {
         m_editor->clear();
         m_currentFile.clear();
+        m_editor->setCurrentFile(QString());
         m_preview->setDocumentPath(QString());
         setWindowTitle("Scriba - Untitled");
     });
@@ -616,6 +618,7 @@ void MainWindow::loadFile(const QString &filePath)
 
     m_editor->setPlainText(QString::fromUtf8(file.readAll()));
     m_currentFile = filePath;
+    m_editor->setCurrentFile(filePath);
     setWindowTitle("Scriba - " + filePath);
     m_preview->setDocumentPath(filePath);
     m_previewInitialized = false;
@@ -634,6 +637,7 @@ void MainWindow::saveFile(const QString &filePath)
 
     file.write(m_editor->toPlainText().toUtf8());
     m_currentFile = filePath;
+    m_editor->setCurrentFile(filePath);
     setWindowTitle("Scriba - " + filePath);
     m_preview->setDocumentPath(filePath);
     statusBar()->showMessage("Saved", 2000);
