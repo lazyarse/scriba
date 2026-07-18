@@ -163,6 +163,9 @@ void Editor::showFileCompletion(const QString &partialPath)
     if (entries.isEmpty())
         return;
 
+    if (filePart.isEmpty())
+        return;
+
     if (entries.size() == 1) {
         acceptCompletion(entries.first());
         return;
@@ -170,6 +173,7 @@ void Editor::showFileCompletion(const QString &partialPath)
 
     if (!m_completer) {
         m_completer = new QCompleter(this);
+        m_completer->setWidget(this);
         m_completer->setCompletionMode(QCompleter::UnfilteredPopupCompletion);
         m_completer->setCaseSensitivity(Qt::CaseInsensitive);
         m_completer->setFilterMode(Qt::MatchStartsWith);
@@ -183,8 +187,11 @@ void Editor::showFileCompletion(const QString &partialPath)
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
 
     QRect cr = cursorRect();
-    cr.setWidth(m_completer->popup()->sizeHintForColumn(0)
-                + m_completer->popup()->verticalScrollBar()->sizeHint().width());
+    QFontMetrics fm(font());
+    int maxWidth = 0;
+    for (const QString &entry : entries)
+        maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
+    cr.setWidth(maxWidth + 30);
     m_completer->complete(cr);
 }
 
