@@ -28,6 +28,7 @@ add_executable(scriba
     vendor/md4c/md4c-html.c
     vendor/md4c/entity.c
     resources/scriba.qrc
+    resources/twemoji-svg.qrc
 )
 
 target_include_directories(scriba PRIVATE

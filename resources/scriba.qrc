@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
+        <file>emoji.js</file>
         <file>editor-base.css</file>
         <file>preview-base.css</file>
         <file>checkbox-checked.svg</file>
@@ -34,6 +35,7 @@
         <file>fonts/KaTeX_Size3-Regular.woff2</file>
         <file>fonts/KaTeX_Size4-Regular.woff2</file>
         <file>fonts/KaTeX_Typewriter-Regular.woff2</file>
+        <file>twemoji.min.js</file>
         <file>vega.min.js</file>
         <file>vega-lite.min.js</file>
         <file>vega-embed.min.js</file>
