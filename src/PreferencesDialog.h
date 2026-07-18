@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QListWidget>
+#include <QStackedWidget>
 #include <QPushButton>
 #include <QCheckBox>
 #include <QComboBox>
@@ -33,6 +34,8 @@ private:
 
     CssConfig *m_config;
     CssLoader *m_loader;
+    QListWidget *m_categoryList;
+    QStackedWidget *m_pages;
     QListWidget *m_listWidget;
     QPushButton *m_addButton;
     QPushButton *m_removeButton;
