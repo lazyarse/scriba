@@ -164,14 +164,26 @@ void EmojiDialog::filterEmoji(const QString &text)
             QString svgPath = QString(":/twemoji/svg/%1.svg").arg(entry.codePoint);
             if (QFile::exists(svgPath)) {
                 QPainter painter(&pix);
+                painter.setRenderHint(QPainter::Antialiasing);
+                if (darkBg) {
+                    painter.setBrush(QColor(220, 220, 220));
+                    painter.setPen(Qt::NoPen);
+                    painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
+                }
                 QSvgRenderer renderer(svgPath);
                 renderer.render(&painter, QRectF(0, 0, iconSize, iconSize));
             } else {
                 QPainter painter(&pix);
+                painter.setRenderHint(QPainter::Antialiasing);
+                if (darkBg) {
+                    painter.setBrush(QColor(220, 220, 220));
+                    painter.setPen(Qt::NoPen);
+                    painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
+                }
                 QFont f = painter.font();
-                f.setPixelSize(iconSize - 4);
+                f.setPixelSize(iconSize - 6);
                 painter.setFont(f);
-                painter.setPen(palette().windowText().color());
+                painter.setPen(darkBg ? Qt::black : Qt::darkGray);
                 painter.drawText(QRect(0, 0, iconSize, iconSize), Qt::AlignCenter, entry.unicode);
             }
         } else {
