@@ -1,4 +1,5 @@
 #include "VegaLiteDialog.h"
+#include "Preview.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -35,6 +36,10 @@ VegaLiteDialog::VegaLiteDialog(QWidget *parent)
     connect(m_previewTimer, &QTimer::timeout, this, &VegaLiteDialog::updatePreview);
 
     setupUi();
+    updateFieldComboBoxes();
+    if (m_fieldX->count() > 1) m_fieldX->setCurrentIndex(1);
+    if (m_fieldY->count() > 2) m_fieldY->setCurrentIndex(2);
+    else if (m_fieldY->count() > 1) m_fieldY->setCurrentIndex(1);
     onChartTypeChanged();
     updatePreview();
 }
@@ -49,6 +54,7 @@ void VegaLiteDialog::setupUi()
     setupLeftPanel(leftPanel);
 
     m_preview = new QWebEngineView(this);
+    m_preview->setPage(new PreviewPage(m_preview));
 
     splitter->addWidget(leftPanel);
     splitter->addWidget(m_preview);
@@ -110,6 +116,12 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
 
     m_table = new QTableWidget(3, 3, panel);
     m_table->setHorizontalHeaderLabels({"Column 1", "Column 2", "Column 3"});
+    m_table->setItem(0, 0, new QTableWidgetItem("A"));
+    m_table->setItem(0, 1, new QTableWidgetItem("28"));
+    m_table->setItem(1, 0, new QTableWidgetItem("B"));
+    m_table->setItem(1, 1, new QTableWidgetItem("55"));
+    m_table->setItem(2, 0, new QTableWidgetItem("C"));
+    m_table->setItem(2, 1, new QTableWidgetItem("43"));
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     m_table->verticalHeader()->setDefaultSectionSize(28);
     layout->addWidget(m_table);
@@ -416,13 +428,9 @@ void VegaLiteDialog::updateEncodingVisibility()
 {
     QString mark = m_chartTypeCombo->currentText();
 
-    bool showX = true, showY = true;
     bool showSize = false, showShape = false, showText = false;
 
-    if (mark == "geoshape") {
-        showX = false;
-        showY = false;
-    } else if (mark == "point" || mark == "circle" || mark == "square") {
+    if (mark == "point" || mark == "circle" || mark == "square") {
         showSize = true;
         showShape = true;
     } else if (mark == "text") {
@@ -431,8 +439,6 @@ void VegaLiteDialog::updateEncodingVisibility()
         showSize = true;
     }
 
-    m_fieldX->parentWidget()->parentWidget()->setVisible(showX);
-    m_fieldY->parentWidget()->parentWidget()->setVisible(showY);
     m_sizeGroup->setVisible(showSize);
     m_shapeGroup->setVisible(showShape);
     m_textGroup->setVisible(showText);
@@ -498,12 +504,8 @@ QString VegaLiteDialog::buildSpec() const
         encoding[name] = enc;
     };
 
-    if (m_fieldX->parentWidget()->parentWidget()->isVisible()) {
-        addEncoding("x", m_fieldX, m_typeX);
-    }
-    if (m_fieldY->parentWidget()->parentWidget()->isVisible()) {
-        addEncoding("y", m_fieldY, m_typeY);
-    }
+    addEncoding("x", m_fieldX, m_typeX);
+    addEncoding("y", m_fieldY, m_typeY);
     if (m_colorGroup->isVisible()) {
         addEncoding("color", m_fieldColor, m_typeColor);
     }

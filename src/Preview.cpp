@@ -1,11 +1,39 @@
 #include "Preview.h"
 #include <QFileInfo>
+#include <QLoggingCategory>
 #include <QUrl>
 #include <QWebEngineSettings>
+
+Q_LOGGING_CATEGORY(lcPreview, "scriba.preview")
+
+PreviewPage::PreviewPage(QObject *parent)
+    : QWebEnginePage(parent)
+{
+}
+
+void PreviewPage::javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
+                                           const QString &message,
+                                           int lineNumber,
+                                           const QString &sourceID)
+{
+    Q_UNUSED(sourceID);
+    switch (level) {
+    case InfoMessageLevel:
+        qCInfo(lcPreview) << message;
+        break;
+    case WarningMessageLevel:
+        qCWarning(lcPreview) << "line" << lineNumber << message;
+        break;
+    case ErrorMessageLevel:
+        qCCritical(lcPreview) << "line" << lineNumber << message;
+        break;
+    }
+}
 
 Preview::Preview(QWidget *parent)
     : QWebEngineView(parent)
 {
+    setPage(new PreviewPage(this));
     page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
     page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, true);
 }

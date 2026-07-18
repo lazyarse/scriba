@@ -1,5 +1,6 @@
 #include "ExportPdfDialog.h"
 #include "CssLoader.h"
+#include "Preview.h"
 #include "Preferences.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -70,6 +71,7 @@ void ExportPdfDialog::setupUi()
 
     // Right panel: preview
     m_preview = new QWebEngineView(this);
+    m_preview->setPage(new PreviewPage(m_preview));
 
     splitter->addWidget(leftPanel);
     splitter->addWidget(m_preview);

@@ -57,6 +57,7 @@ The post-build step automatically removes cached base stylesheets (`~/.config/Sc
 ```bash
 ./scriba              # empty editor
 ./scriba file.md      # open file
+./scriba --debug      # enable JS console logging via Qt logging system
 ```
 
 ## Usage
@@ -65,6 +66,8 @@ The post-build step automatically removes cached base stylesheets (`~/.config/Sc
 2. See live rendered preview in the adjacent pane
 3. ???
 4. PROFIT!!1
+
+JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
 
 ## Custom CSS / Themes
 

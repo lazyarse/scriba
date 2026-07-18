@@ -1,7 +1,22 @@
 #ifndef PREVIEW_H
 #define PREVIEW_H
 
+#include <QWebEnginePage>
 #include <QWebEngineView>
+
+class PreviewPage : public QWebEnginePage
+{
+    Q_OBJECT
+
+public:
+    explicit PreviewPage(QObject *parent = nullptr);
+
+protected:
+    void javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
+                                  const QString &message,
+                                  int lineNumber,
+                                  const QString &sourceID) override;
+};
 
 class Preview : public QWebEngineView
 {
