@@ -329,6 +329,9 @@ void MainWindow::refreshPreviewCss()
                 qApp->setStyleSheet(fullCss);
             });
         }
+        QColor iconColor = CssUtils::chromeTextColor(rawThemeCss);
+        m_fullscreenBtn->setIcon(themedIcon(":/icons/fullscreen.svg", iconColor));
+        m_previewBtn->setIcon(themedIcon(":/icons/preview.svg", iconColor));
     }
 }
 
