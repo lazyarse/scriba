@@ -411,6 +411,7 @@ void MainWindow::updatePreview()
         "}"
     );
 
+    QString emojiMode = QSettings().value(Preferences::EmojiMode, "bw").toString();
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
         QString printCss = m_cssLoader->printCss();
@@ -424,6 +425,7 @@ void MainWindow::updatePreview()
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"print-css\">@media print { %4 }</style>"
             "<style id=\"stripe-css\">%5</style>"
+            "<style>.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
             "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
@@ -432,7 +434,9 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega.min.js\"></script>"
             "<script src=\"qrc:///vega-lite.min.js\"></script>"
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + "document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();});</script>"
+            "<script src=\"qrc:///twemoji.min.js\"></script>"
+            "<script src=\"qrc:///emoji.js\"></script>"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
             "</head><body id=\"preview\">%3</body></html>"
         ).arg(baseCss, previewCss, html, printCss, stripeInit);
         m_preview->setHtml(fullHtml, baseUrl);
@@ -454,6 +458,8 @@ void MainWindow::updatePreview()
                 "initVegaLite();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
+                "replaceEmoji(document.body);"
+                "twemojiParse('" + emojiMode + "');"
                 "window.scrollTo(0, sy);"
                 "true}"
             ).arg(escapedCss, escapedHtml);
@@ -468,6 +474,8 @@ void MainWindow::updatePreview()
                 "initVegaLite();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
+                "replaceEmoji(document.body);"
+                "twemojiParse('" + emojiMode + "');"
                 "window.scrollTo(0, sy);"
                 "true}"
             ).arg(escapedHtml);
@@ -502,6 +510,8 @@ void MainWindow::showPreferences()
     dlg.exec();
     updateAll();
     applyStripeSetting();
+    m_previewInitialized = false;
+    updatePreview();
 }
 
 void MainWindow::showChartBuilder()

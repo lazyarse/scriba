@@ -4,7 +4,7 @@ A quick tour of what Scriba can do.
 
 ## Typography
 
-**Bold**, *italic*, ~~strikethrough~~, `inline code`, and a [link](#).
+**Bold**, *italic*, ~~strikethrough~~, `inline code`, and a [link](#). Emoji: :rocket: :heart: :sparkles: :smile: :tada:
 
 > Blockquote with **inline** styling.
 

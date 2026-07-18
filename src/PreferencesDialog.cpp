@@ -46,6 +46,18 @@ void PreferencesDialog::setupUi()
     m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
     behaviorLayout->addWidget(m_stripeCheck);
 
+    auto *emojiLabel = new QLabel("Emoji rendering:");
+    m_emojiCombo = new QComboBox();
+    m_emojiCombo->addItem("Black & White", "bw");
+    m_emojiCombo->addItem("Color (twemoji)", "color");
+    int emojiIdx = m_emojiCombo->findData(settings.value(Preferences::EmojiMode, "bw").toString());
+    m_emojiCombo->setCurrentIndex(emojiIdx >= 0 ? emojiIdx : 0);
+    auto *emojiRow = new QHBoxLayout();
+    emojiRow->addWidget(emojiLabel);
+    emojiRow->addWidget(m_emojiCombo);
+    emojiRow->addStretch();
+    behaviorLayout->addLayout(emojiRow);
+
     mainLayout->addWidget(behaviorGroup);
 
     /* --- Stylesheets Group --- */
@@ -95,6 +107,7 @@ void PreferencesDialog::setupUi()
         settings.setValue(Preferences::ReopenLastFile, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
+        settings.setValue(Preferences::EmojiMode, m_emojiCombo->currentData().toString());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
