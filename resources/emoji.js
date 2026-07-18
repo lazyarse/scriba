@@ -1986,10 +1986,26 @@
 
   function walk(node) {
     if (node.nodeType === Node.TEXT_NODE) {
-      node.nodeValue = node.nodeValue.replace(/:([a-z0-9_+\-]+):/gi, function(match, name) {
-        var lower = name.toLowerCase();
-        return emojiMap.hasOwnProperty(lower) ? emojiMap[lower] : match;
-      });
+      var text = node.nodeValue;
+      var parts = text.split(/:([a-z0-9_+\-]+):/i);
+      if (parts.length === 1) return;
+      var fragment = document.createDocumentFragment();
+      for (var i = 0; i < parts.length; i++) {
+        if (i % 2 === 0) {
+          if (parts[i].length > 0) fragment.appendChild(document.createTextNode(parts[i]));
+        } else {
+          var lower = parts[i].toLowerCase();
+          if (emojiMap.hasOwnProperty(lower)) {
+            var span = document.createElement('span');
+            span.className = 'emoji-char';
+            span.textContent = emojiMap[lower];
+            fragment.appendChild(span);
+          } else {
+            fragment.appendChild(document.createTextNode(':' + parts[i] + ':'));
+          }
+        }
+      }
+      node.parentNode.replaceChild(fragment, node);
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       var tag = node.tagName.toLowerCase();
       if (tag === 'script' || tag === 'style' || tag === 'code' || tag === 'pre' || tag === 'svg') return;

@@ -25,6 +25,9 @@
 #include <QScrollBar>
 #include <QTextDocument>
 #include <QColor>
+#include <QSvgRenderer>
+#include <QFontDatabase>
+#include <QPainter>
 #include <QRegularExpression>
 #include <QPageLayout>
 #include <QPageSize>
@@ -34,6 +37,22 @@
 #include <QHBoxLayout>
 #include <QToolButton>
 #include <QCloseEvent>
+
+static QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28)
+{
+    QFile f(svgPath);
+    if (!f.open(QIODevice::ReadOnly))
+        return QIcon(svgPath);
+    QString svg = QString::fromUtf8(f.readAll());
+    svg.replace("currentColor", color.name());
+    QSvgRenderer renderer(svg.toUtf8());
+    QPixmap pix(size, size);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    renderer.render(&painter);
+    painter.end();
+    return QIcon(pix);
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -47,6 +66,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupUi();
     setupMenuBar();
+
+    QFontDatabase::addApplicationFont(":/fonts/Symbola.ttf");
 
     connect(m_preview->page(), &QWebEnginePage::loadFinished, this, [this](bool ok) {
         if (ok && m_previewInitialized)
@@ -148,32 +169,25 @@ void MainWindow::setupUi()
     }
 
     // Corner buttons in menu bar
+    QColor iconColor = palette().color(QPalette::WindowText);
     m_fullscreenBtn = new QToolButton();
-    m_fullscreenBtn->setIcon(QIcon(":/icons/fullscreen.svg"));
+    m_fullscreenBtn->setIcon(themedIcon(":/icons/fullscreen.svg", iconColor));
     m_fullscreenBtn->setToolTip("Toggle Fullscreen (F11)");
     m_fullscreenBtn->setAutoRaise(true);
     m_fullscreenBtn->setFixedSize(28, 28);
     connect(m_fullscreenBtn, &QToolButton::clicked, this, &MainWindow::toggleFullscreen);
 
     m_previewBtn = new QToolButton();
-    m_previewBtn->setIcon(QIcon(":/icons/preview.svg"));
+    m_previewBtn->setIcon(themedIcon(":/icons/preview.svg", iconColor));
     m_previewBtn->setToolTip("Toggle Preview (hidden → right → left)");
     m_previewBtn->setAutoRaise(true);
     m_previewBtn->setFixedSize(28, 28);
     connect(m_previewBtn, &QToolButton::clicked, this, &MainWindow::togglePreview);
 
-    m_chartBtn = new QToolButton();
-    m_chartBtn->setIcon(QIcon(":/icons/chart.svg"));
-    m_chartBtn->setToolTip("Chart Builder");
-    m_chartBtn->setAutoRaise(true);
-    m_chartBtn->setFixedSize(28, 28);
-    connect(m_chartBtn, &QToolButton::clicked, this, &MainWindow::showChartBuilder);
-
     QWidget *cornerWidget = new QWidget();
     QHBoxLayout *cornerLayout = new QHBoxLayout(cornerWidget);
     cornerLayout->setContentsMargins(0, 0, 4, 0);
     cornerLayout->setSpacing(2);
-    cornerLayout->addWidget(m_chartBtn);
     cornerLayout->addWidget(m_previewBtn);
     cornerLayout->addWidget(m_fullscreenBtn);
     menuBar()->setCornerWidget(cornerWidget, Qt::TopRightCorner);
@@ -265,10 +279,11 @@ void MainWindow::setupMenuBar()
     connect(previewAction, &QAction::triggered, this, &MainWindow::togglePreview);
     addAction(previewAction);
 
-    QAction *chartAction = new QAction("Chart &Builder", this);
+    QMenu *toolsMenu = menuBar()->addMenu("&Tools");
+
+    QAction *chartAction = toolsMenu->addAction("Chart &Builder");
     chartAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
     connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
-    addAction(chartAction);
 }
 
 void MainWindow::refreshPreviewCss()
@@ -425,7 +440,7 @@ void MainWindow::updatePreview()
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"print-css\">@media print { %4 }</style>"
             "<style id=\"stripe-css\">%5</style>"
-            "<style>.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
+            "<style>#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
             "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
