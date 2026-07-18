@@ -5,6 +5,7 @@
 #include "Preferences.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QFormLayout>
 #include <QPushButton>
 #include <QFileDialog>
 #include <QDialogButtonBox>
@@ -14,6 +15,7 @@
 #include <QLabel>
 #include <QIcon>
 #include <QFile>
+#include <QStackedWidget>
 
 PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent)
     : QDialog(parent)
@@ -22,80 +24,140 @@ PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidg
 {
     setupUi();
     setWindowTitle("Preferences");
-    resize(500, 400);
+    resize(650, 300);
 }
 
 void PreferencesDialog::setupUi()
 {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setSpacing(8);
 
-    /* --- Behavior Group --- */
-    QGroupBox *behaviorGroup = new QGroupBox("Behavior");
-    QVBoxLayout *behaviorLayout = new QVBoxLayout(behaviorGroup);
+    /* --- Sidebar + Pages --- */
+    QHBoxLayout *contentLayout = new QHBoxLayout();
+    contentLayout->setSpacing(12);
+
+    m_categoryList = new QListWidget;
+    m_categoryList->setMaximumWidth(150);
+    m_categoryList->setMinimumWidth(120);
+    m_categoryList->setFrameShape(QFrame::NoFrame);
+    contentLayout->addWidget(m_categoryList);
+
+    m_pages = new QStackedWidget;
+    contentLayout->addWidget(m_pages, 1);
+    mainLayout->addLayout(contentLayout, 1);
 
     QSettings settings;
-    m_reopenCheck = new QCheckBox("Re-open last edited file on startup");
-    m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastFile, true).toBool());
-    behaviorLayout->addWidget(m_reopenCheck);
 
-    m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
-    m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
-    behaviorLayout->addWidget(m_syncCheck);
+    /* --- Page 0: General --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(8);
 
-    m_stripeCheck = new QCheckBox("Alternating table row colors");
-    m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
-    behaviorLayout->addWidget(m_stripeCheck);
+        QGroupBox *generalGroup = new QGroupBox("Startup & Navigation");
+        QVBoxLayout *generalLayout = new QVBoxLayout(generalGroup);
 
-    auto *emojiLabel = new QLabel("Emoji rendering:");
-    m_emojiCombo = new QComboBox();
-    m_emojiCombo->addItem("Black & White", "bw");
-    m_emojiCombo->addItem("Color (twemoji)", "color");
-    int emojiIdx = m_emojiCombo->findData(settings.value(Preferences::EmojiMode, "bw").toString());
-    m_emojiCombo->setCurrentIndex(emojiIdx >= 0 ? emojiIdx : 0);
-    auto *emojiRow = new QHBoxLayout();
-    emojiRow->addWidget(emojiLabel);
-    emojiRow->addWidget(m_emojiCombo);
-    emojiRow->addStretch();
-    behaviorLayout->addLayout(emojiRow);
+        m_reopenCheck = new QCheckBox("Re-open last edited file on startup");
+        m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastFile, true).toBool());
+        generalLayout->addWidget(m_reopenCheck);
 
-    mainLayout->addWidget(behaviorGroup);
+        m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
+        m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
+        generalLayout->addWidget(m_syncCheck);
 
-    /* --- Stylesheets Group --- */
-    QGroupBox *cssGroup = new QGroupBox("Stylesheets");
-    QVBoxLayout *cssLayout = new QVBoxLayout(cssGroup);
+        layout->addWidget(generalGroup);
+        layout->addStretch();
 
-    QHBoxLayout *listLayout = new QHBoxLayout();
-    m_listWidget = new QListWidget();
-    m_addButton = new QPushButton("Add");
-    m_removeButton = new QPushButton("Remove");
+        m_pages->addWidget(page);
+        m_categoryList->addItem("General");
+    }
 
-    QVBoxLayout *btnLayout = new QVBoxLayout();
-    btnLayout->addWidget(m_addButton);
-    btnLayout->addWidget(m_removeButton);
-    btnLayout->addStretch();
+    /* --- Page 1: Themes --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(8);
 
-    listLayout->addWidget(m_listWidget);
-    listLayout->addLayout(btnLayout);
-    cssLayout->addLayout(listLayout);
+        /* --- Appearance panel --- */
+        QGroupBox *appearanceGroup = new QGroupBox("Appearance");
+        QVBoxLayout *appearanceLayout = new QVBoxLayout(appearanceGroup);
 
-    m_editEditorBtn = new QPushButton("Edit Editor Base CSS...");
-    m_editPreviewBtn = new QPushButton("Edit Preview Base CSS...");
+        m_stripeCheck = new QCheckBox("Alternating table row colors");
+        m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
+        appearanceLayout->addWidget(m_stripeCheck);
 
+        m_emojiCombo = new QComboBox();
+        m_emojiCombo->addItem("Black & White", "bw");
+        m_emojiCombo->addItem("Color (twemoji)", "color");
+        int emojiIdx = m_emojiCombo->findData(settings.value(Preferences::EmojiMode, "bw").toString());
+        m_emojiCombo->setCurrentIndex(emojiIdx >= 0 ? emojiIdx : 0);
+
+        QFormLayout *emojiForm = new QFormLayout();
+        emojiForm->addRow("Emoji rendering:", m_emojiCombo);
+        appearanceLayout->addLayout(emojiForm);
+
+        layout->addWidget(appearanceGroup);
+
+        /* --- Base CSS panel --- */
+        QGroupBox *baseCssGroup = new QGroupBox("Base CSS");
+        QVBoxLayout *baseCssLayout = new QVBoxLayout(baseCssGroup);
+
+        baseCssLayout->addWidget(new QLabel(
+            "These stylesheets lay the foundation that all themes build upon."));
+
+        QHBoxLayout *baseBtnRow = new QHBoxLayout();
+        m_editEditorBtn = new QPushButton("Edit Editor Base CSS...");
+        m_editPreviewBtn = new QPushButton("Edit Preview Base CSS...");
+        baseBtnRow->addWidget(m_editEditorBtn);
+        baseBtnRow->addWidget(m_editPreviewBtn);
+        baseBtnRow->addStretch();
+        baseCssLayout->addLayout(baseBtnRow);
+
+        layout->addWidget(baseCssGroup);
+
+        /* --- Stylesheets panel --- */
+        QGroupBox *cssGroup = new QGroupBox("Stylesheets");
+        QVBoxLayout *cssLayout = new QVBoxLayout(cssGroup);
+
+        cssLayout->addWidget(new QLabel(
+            "Additional stylesheets to override the visual appearance of the editor, "
+            "preview, and chrome (toolbars, menus, etc.)."));
+
+        QHBoxLayout *listRow = new QHBoxLayout();
+        m_listWidget = new QListWidget();
+        m_listWidget->setFrameShape(QFrame::NoFrame);
+
+        QVBoxLayout *btnLayout = new QVBoxLayout();
+        m_addButton = new QPushButton("Add");
+        m_removeButton = new QPushButton("Remove");
+        btnLayout->addWidget(m_addButton);
+        btnLayout->addWidget(m_removeButton);
+        btnLayout->addStretch();
+
+        listRow->addWidget(m_listWidget);
+        listRow->addLayout(btnLayout);
+        cssLayout->addLayout(listRow);
+
+        layout->addWidget(cssGroup);
+
+        layout->addStretch();
+
+        m_pages->addWidget(page);
+        m_categoryList->addItem("Themes");
+    }
+
+    /* --- Connections --- */
     connect(m_addButton, &QPushButton::clicked, this, &PreferencesDialog::addStylesheet);
     connect(m_removeButton, &QPushButton::clicked, this, &PreferencesDialog::removeStylesheet);
     connect(m_editEditorBtn, &QPushButton::clicked, this, &PreferencesDialog::editEditorBaseCss);
     connect(m_editPreviewBtn, &QPushButton::clicked, this, &PreferencesDialog::editPreviewBaseCss);
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
+    connect(m_categoryList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
 
     populateStylesheetList();
-
-    QHBoxLayout *baseBtnLayout = new QHBoxLayout();
-    baseBtnLayout->addWidget(m_editEditorBtn);
-    baseBtnLayout->addWidget(m_editPreviewBtn);
-    baseBtnLayout->addStretch();
-
-    mainLayout->addLayout(baseBtnLayout);
-    mainLayout->addWidget(cssGroup);
+    m_categoryList->setCurrentRow(0);
 
     /* --- Dialog Buttons --- */
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
