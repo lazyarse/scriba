@@ -8,6 +8,7 @@ QString escapeJsString(const QString &s);
 int extractContentWidth(const QString &css);
 QString handleListReturn(const QString &line);
 QString handleTableReturn(const QString &line);
+int tableNavCell(const QString &line, int cursorPos, bool forward);
 QString indentListLine(const QString &line);
 QString outdentListLine(const QString &line);
 QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column);
