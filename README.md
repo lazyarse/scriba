@@ -43,7 +43,8 @@
 - Full-screen mode (F11 or menu bar icon)
 - Cursor restore on application start to pick up where you left off
 - Sentence, word count, estimated reading time, and age-level to suitably patronise
-- Table helper - either create a table with a header row in markdown format, or an HTML generated table when no header row is needed
+- Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed. 
+- Table auto-completion:: `Enter` auto creates a new row, `Enter` on blank row to end, `Tab` to next cell, `Shift+Tab` for previous cell
 - Ordered and Unordered list item autocompletion after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items. `Enter` again to stop autocomplete
 - Optional alternating table row striping
 - Emojis because all technical documentation now requires them
@@ -64,6 +65,7 @@
 | Ctrl+G | Vega-Lite Chart Builder |
 | Ctrl+B | Toggle Preview Pane |
 | Ctrl+E | Emoji :mag: |
+| Ctrl+T | Table Generator |
 | Ctrl+Alt+P | Preferences |
 | F11 | Toggle Fullscreen |
 | Ctrl+Q | Quit |

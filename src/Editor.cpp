@@ -70,8 +70,36 @@ void Editor::keyPressEvent(QKeyEvent *event)
 
         result = handleTableReturn(line);
         if (!result.isEmpty()) {
+            if (result == QString(clearSentinel)) {
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+                QPlainTextEdit::keyPressEvent(event);
+                return;
+            }
+
+            // Header row: skip to first data row below separator
+            QTextBlock nextBlock = cursor.block().next();
+            if (nextBlock.isValid() && nextBlock.text().contains("---")) {
+                QTextBlock block = nextBlock.next();
+                while (block.isValid()) {
+                    QString t = block.text();
+                    if (t.startsWith('|') && !t.contains("---")) {
+                        QTextCursor tc = textCursor();
+                        tc.setPosition(block.position() + 2, QTextCursor::MoveAnchor);
+                        setTextCursor(tc);
+                        return;
+                    }
+                    block = block.next();
+                }
+            }
+
             QPlainTextEdit::keyPressEvent(event);
             insertPlainText(result);
+            QTextCursor tc = textCursor();
+            tc.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            tc.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
+            setTextCursor(tc);
             return;
         }
     }
@@ -96,6 +124,50 @@ void Editor::keyPressEvent(QKeyEvent *event)
 
         QTextCursor cursor = textCursor();
         QString line = cursor.block().text();
+
+        // Table cell navigation
+        if (line.startsWith('|') && !line.contains("---")) {
+            int pos = cursor.positionInBlock();
+            int cellPos = tableNavCell(line, pos, !shift);
+            if (cellPos >= 0) {
+                cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
+                setTextCursor(cursor);
+                return;
+            }
+            if (!shift) {
+                QTextBlock block = cursor.block().next();
+                while (block.isValid()) {
+                    QString t = block.text();
+                    if (t.startsWith('|') && !t.contains("---")) {
+                        int p = t.indexOf('|', 1) + 1;
+                        if (p < t.size() && t[p] == ' ') ++p;
+                        cursor.setPosition(block.position() + p, QTextCursor::MoveAnchor);
+                        setTextCursor(cursor);
+                        return;
+                    }
+                    block = block.next();
+                }
+            } else {
+                QTextBlock block = cursor.block().previous();
+                while (block.isValid()) {
+                    QString t = block.text();
+                    if (t.startsWith('|') && !t.contains("---")) {
+                        QList<int> pipes;
+                        for (int i = 0; i < t.size(); ++i)
+                            if (t[i] == '|') pipes.append(i);
+                        if (pipes.size() >= 2) {
+                            int p = pipes[pipes.size() - 2] + 1;
+                            if (p < t.size() && t[p] == ' ') ++p;
+                            cursor.setPosition(block.position() + p, QTextCursor::MoveAnchor);
+                            setTextCursor(cursor);
+                            return;
+                        }
+                    }
+                    block = block.previous();
+                }
+            }
+        }
+
         auto matchUnordered = QRegularExpression(R"(^\s*[-*+]\s?)").match(line);
         auto matchOrdered = QRegularExpression(R"(^\s*\d+\.\s?)").match(line);
         bool isList = matchUnordered.hasMatch() || matchOrdered.hasMatch();

@@ -76,8 +76,27 @@ static int listIndentWidth(const QString &line)
 QString handleTableReturn(const QString &line)
 {
     if (line.startsWith('|')) {
+        // Separator row → no continuation
+        if (line.contains("---"))
+            return {};
+
         int cols = line.count('|') - 1;
         if (cols <= 0) return {};
+
+        // Check if all cells are empty (only whitespace between pipes)
+        QStringList cells = line.split('|');
+        bool allEmpty = true;
+        for (int i = 1; i < cells.size(); ++i) {
+            if (!cells[i].trimmed().isEmpty()) {
+                allEmpty = false;
+                break;
+            }
+        }
+        if (allEmpty) {
+            static const QChar clearSentinel(0x2412);
+            return QString(clearSentinel);
+        }
+
         QString result = "|";
         for (int c = 0; c < cols; ++c)
             result += "  |";
@@ -95,6 +114,45 @@ QString handleTableReturn(const QString &line)
     }
 
     return {};
+}
+
+/* Returns block-relative cursor position of next/previous cell in a markdown table row.
+   - forward=true:  find the next cell after cursorPos
+   - forward=false: find the previous cell before cursorPos
+   Returns -1 if at first cell (going backward) or last cell (going forward),
+   signaling the caller should navigate to another row. */
+int tableNavCell(const QString &line, int cursorPos, bool forward)
+{
+    QList<int> pipes;
+    for (int i = 0; i < line.size(); ++i)
+        if (line[i] == '|') pipes.append(i);
+
+    if (pipes.size() < 2)
+        return -1;
+
+    if (forward) {
+        int idx = -1;
+        for (int i = 0; i < pipes.size(); ++i) {
+            if (pipes[i] > cursorPos) { idx = i; break; }
+        }
+        if (idx == -1 || idx >= pipes.size() - 1)
+            return -1;  // at last cell
+        int cellPos = pipes[idx] + 1;
+        if (cellPos < line.size() && line[cellPos] == ' ')
+            ++cellPos;
+        return cellPos;
+    } else {
+        int idx = -1;
+        for (int i = pipes.size() - 1; i >= 0; --i) {
+            if (pipes[i] < cursorPos) { idx = i; break; }
+        }
+        if (idx <= 1)
+            return -1;  // at first cell
+        int cellPos = pipes[idx - 1] + 1;
+        if (cellPos < line.size() && line[cellPos] == ' ')
+            ++cellPos;
+        return cellPos;
+    }
 }
 
 QString indentListLine(const QString &line)

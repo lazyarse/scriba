@@ -83,36 +83,55 @@ TEST(OutdentListLine, NoChangeForPlainText) {
     EXPECT_EQ(outdentListLine("just text"), "just text");
 }
 
-TEST(TableReturn, ThreeColMarkdown) {
-    EXPECT_EQ(handleTableReturn("| a | b | c |"), "|  |  |  |");
+TEST(TableReturn, ContinuationReturnsRow) {
+    EXPECT_EQ(handleTableReturn("| a | b |"), "|  |  |");
 }
 
-TEST(TableReturn, TwoColMarkdown) {
-    EXPECT_EQ(handleTableReturn("| x | y |"), "|  |  |");
-}
-
-TEST(TableReturn, SeparatorRowMarkdown) {
-    EXPECT_EQ(handleTableReturn("|---|---|"), "|  |  |");
-}
-
-TEST(TableReturn, OneColMarkdown) {
+TEST(TableReturn, OneColReturnsRow) {
     EXPECT_EQ(handleTableReturn("| foo |"), "|  |");
 }
 
-TEST(TableReturn, ThreeColHtml) {
-    EXPECT_EQ(handleTableReturn("<tr><td>a</td><td>b</td><td>c</td></tr>"),
-              "<tr><td></td><td></td><td></td></tr>");
+TEST(TableReturn, SeparatorReturnsEmpty) {
+    EXPECT_EQ(handleTableReturn("|---|---|"), QString());
 }
 
-TEST(TableReturn, OneColHtml) {
-    EXPECT_EQ(handleTableReturn("<tr><td>foo</td></tr>"),
-              "<tr><td></td></tr>");
+TEST(TableReturn, BlankRowReturnsSentinel) {
+    EXPECT_EQ(handleTableReturn("|  |  |"), QString(clearSentinel));
 }
 
-TEST(TableReturn, EmptyForPlainText) {
-    EXPECT_EQ(handleTableReturn("just text"), QString());
+TEST(TableReturn, NonBlankReturnsRow) {
+    EXPECT_EQ(handleTableReturn("| a | b |"), "|  |  |");
 }
 
-TEST(TableReturn, EmptyForBlankLine) {
-    EXPECT_EQ(handleTableReturn(""), QString());
+TEST(TableReturn, PlainTextReturnsEmpty) {
+    EXPECT_EQ(handleTableReturn("hello"), QString());
+}
+
+TEST(TableReturn, HtmlReturnsRow) {
+    EXPECT_EQ(handleTableReturn("<tr><td>a</td><td>b</td></tr>"),
+              "<tr><td></td><td></td></tr>");
+}
+
+TEST(TableNav, ForwardWithinRow) {
+    EXPECT_EQ(tableNavCell("|  |  |  |", 1, true), 5);
+}
+
+TEST(TableNav, ForwardFromMiddle) {
+    EXPECT_EQ(tableNavCell("|  |  |  |", 4, true), 8);
+}
+
+TEST(TableNav, ForwardFromLastReturnsMinusOne) {
+    EXPECT_EQ(tableNavCell("|  |  |  |", 7, true), -1);
+}
+
+TEST(TableNav, BackwardWithinRow) {
+    EXPECT_EQ(tableNavCell("|  |  |  |", 7, false), 5);
+}
+
+TEST(TableNav, BackwardFromFirstReturnsMinusOne) {
+    EXPECT_EQ(tableNavCell("|  |  |  |", 1, false), -1);
+}
+
+TEST(TableNav, ForwardSingleCellRow) {
+    EXPECT_EQ(tableNavCell("|  |", 1, true), -1);
 }
