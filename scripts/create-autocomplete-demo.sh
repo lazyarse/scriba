@@ -16,7 +16,15 @@ if [ ! -f "$BUILD_DIR/scriba" ]; then
     cmake --build "$BUILD_DIR" -j"$(nproc)"
 fi
 
-touch "$PROJECT_DIR/.demo_marker.md"
+# Isolate config so the demo doesn't touch user's real QSettings
+rm -rf /tmp/scriba-demo-config
+mkdir -p /tmp/scriba-demo-config/Scriba
+# Prefer color emoji rendering in preview
+printf '[General]\nemojiMode=color\n' >> /tmp/scriba-demo-config/Scriba/Scriba.conf
+export XDG_CONFIG_HOME=/tmp/scriba-demo-config
+
+# Temp empty file in project dir — gives file completion correct relative root
+touch "$PROJECT_DIR/.demo-content.md"
 
 xvfb-run -a --server-args="-screen 0 1200x800x24" bash -c '
 BUILD_DIR="'"$BUILD_DIR"'"
@@ -38,7 +46,7 @@ pause_frames() {
     done
 }
 
-"$BUILD_DIR/scriba" "$PROJECT_DIR/.demo_marker.md" &
+"$BUILD_DIR/scriba" "$PROJECT_DIR/.demo-content.md" &
 PID=$!
 sleep 2
 
@@ -106,7 +114,6 @@ for CH in "r" "e" "s" "o" "u" "r"; do
     capture $F; F=$((F + 1))
 done
 # Popup frame
-xdotool key --window "$WID" "r"
 sleep 0.4
 capture $F; F=$((F + 1))
 
@@ -157,6 +164,7 @@ wait $PID 2>/dev/null
 
 convert -delay 20 -loop 0 "$FRAMES_DIR"/frame*.png "$OUTPUT"
 
-rm -f "$PROJECT_DIR/.demo_marker.md"
+rm -f "$PROJECT_DIR/.demo-content.md"
+
 NFRAMES=$(ls -1 "$FRAMES_DIR"/*.png 2>/dev/null | wc -l)
 echo "Created $OUTPUT ($NFRAMES frames)"
