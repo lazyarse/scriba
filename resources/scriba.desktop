@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Scriba
+Comment=Qt6-based Markdown editor
+Exec=scriba
+Icon=scriba
+Categories=Office;TextEditor;
+Terminal=false
