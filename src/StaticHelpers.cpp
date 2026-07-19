@@ -73,6 +73,30 @@ static int listIndentWidth(const QString &line)
     return spaces;
 }
 
+QString handleTableReturn(const QString &line)
+{
+    if (line.startsWith('|')) {
+        int cols = line.count('|') - 1;
+        if (cols <= 0) return {};
+        QString result = "|";
+        for (int c = 0; c < cols; ++c)
+            result += "  |";
+        return result;
+    }
+
+    if (line.contains("<tr>") && line.contains("<td>")) {
+        int cols = line.count("<td>");
+        if (cols <= 0) return {};
+        QString result = "<tr>";
+        for (int c = 0; c < cols; ++c)
+            result += "<td></td>";
+        result += "</tr>";
+        return result;
+    }
+
+    return {};
+}
+
 QString indentListLine(const QString &line)
 {
     auto match = listUnorderedRe().match(line);

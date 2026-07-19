@@ -22,6 +22,8 @@ add_executable(scriba
     src/CssEditorDialog.cpp
     src/ExportPdfDialog.cpp
     src/FindDialog.cpp
+        src/TableDialog.cpp
+    src/TableDialog.cpp
     src/VegaLiteDialog.cpp
     src/EmojiDialog.cpp
     src/StaticHelpers.cpp
@@ -128,6 +130,7 @@ if(BUILD_TESTS)
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp
         src/FindDialog.cpp
+        src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_scroll_sync PRIVATE

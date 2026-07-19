@@ -48,7 +48,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - C++17, Qt coding style, `CMAKE_AUTOMOC`/`CMAKE_AUTORCC` enabled
 - No header-only files — every `.h` has a `.cpp`
 - CSS theming: editor uses `#editor` selector, preview uses standard HTML selectors
-- New source files must be added to both `src/` and the `add_executable()` list in `CMakeLists.txt`
+- New source files must be added to both `src/` and the `add_executable(scriba ...)` list in `CMakeLists.txt`. If `MainWindow.cpp` uses the new class, also add it to the `test_scroll_sync` target (which compiles `MainWindow.cpp` directly)
 - New resource files must be added to both `resources/` and `resources/scriba.qrc`
 - Post-build step deletes `~/.config/Scriba/Scriba/{editor,preview}-base.css` — don't rely on those persisting across builds
 - QDialogButtonBox buttons must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`

@@ -82,3 +82,37 @@ TEST(OutdentListLine, NoChangeForNoIndent) {
 TEST(OutdentListLine, NoChangeForPlainText) {
     EXPECT_EQ(outdentListLine("just text"), "just text");
 }
+
+TEST(TableReturn, ThreeColMarkdown) {
+    EXPECT_EQ(handleTableReturn("| a | b | c |"), "|  |  |  |");
+}
+
+TEST(TableReturn, TwoColMarkdown) {
+    EXPECT_EQ(handleTableReturn("| x | y |"), "|  |  |");
+}
+
+TEST(TableReturn, SeparatorRowMarkdown) {
+    EXPECT_EQ(handleTableReturn("|---|---|"), "|  |  |");
+}
+
+TEST(TableReturn, OneColMarkdown) {
+    EXPECT_EQ(handleTableReturn("| foo |"), "|  |");
+}
+
+TEST(TableReturn, ThreeColHtml) {
+    EXPECT_EQ(handleTableReturn("<tr><td>a</td><td>b</td><td>c</td></tr>"),
+              "<tr><td></td><td></td><td></td></tr>");
+}
+
+TEST(TableReturn, OneColHtml) {
+    EXPECT_EQ(handleTableReturn("<tr><td>foo</td></tr>"),
+              "<tr><td></td></tr>");
+}
+
+TEST(TableReturn, EmptyForPlainText) {
+    EXPECT_EQ(handleTableReturn("just text"), QString());
+}
+
+TEST(TableReturn, EmptyForBlankLine) {
+    EXPECT_EQ(handleTableReturn(""), QString());
+}

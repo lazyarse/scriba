@@ -13,6 +13,7 @@ class MarkdownParser;
 class CssConfig;
 class CssLoader;
 class VegaLiteDialog;
+class TableDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -35,6 +36,7 @@ private slots:
     void togglePreview();
     void updateStats();
     void showChartBuilder();
+    void showTableInsert();
 
 private:
     void setupUi();

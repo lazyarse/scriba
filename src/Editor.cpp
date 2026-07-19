@@ -67,6 +67,13 @@ void Editor::keyPressEvent(QKeyEvent *event)
             insertPlainText(result);
             return;
         }
+
+        result = handleTableReturn(line);
+        if (!result.isEmpty()) {
+            QPlainTextEdit::keyPressEvent(event);
+            insertPlainText(result);
+            return;
+        }
     }
 
     if (event->key() == Qt::Key_Tab || event->key() == Qt::Key_Backtab) {
