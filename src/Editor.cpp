@@ -215,9 +215,32 @@ void Editor::keyPressEvent(QKeyEvent *event)
 
     QPlainTextEdit::keyPressEvent(event);
 
-    if (!event->text().isEmpty()) {
+    if (event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete) {
+        if (m_completer && m_completer->popup()->isVisible()) {
+            QString partialCode;
+            if (isInsideEmojiContext(textCursor(), partialCode)) {
+                if (partialCode.isEmpty())
+                    m_completer->popup()->hide();
+                else
+                    showEmojiCompletion(partialCode);
+            } else {
+                QString partialPath;
+                if (isInsideLinkContext(textCursor(), partialPath)) {
+                    if (partialPath.isEmpty())
+                        m_completer->popup()->hide();
+                    else
+                        showFileCompletion(partialPath);
+                } else {
+                    m_completer->popup()->hide();
+                }
+            }
+        }
+    } else if (!event->text().isEmpty()) {
         QChar c = event->text()[0];
         if (c.isLetterOrNumber() || c == '_' || c == ':') {
+            QString partialPath;
+            if (isInsideLinkContext(textCursor(), partialPath))
+                showFileCompletion(partialPath);
             QString partialCode;
             if (isInsideEmojiContext(textCursor(), partialCode))
                 showEmojiCompletion(partialCode);
@@ -277,6 +300,10 @@ void Editor::showFileCompletion(const QString &partialPath)
                 entries.append(entry);
         }
     }
+
+    constexpr int kMaxFileResults = 20;
+    if (entries.size() > kMaxFileResults)
+        entries = entries.mid(0, kMaxFileResults);
 
     if (entries.isEmpty() || filePart.isEmpty())
         return;
