@@ -68,7 +68,8 @@ void Editor::keyPressEvent(QKeyEvent *event)
             return;
         }
 
-        result = handleTableReturn(line);
+        QTextBlock prevBlock = cursor.block().previous();
+        result = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
         if (!result.isEmpty()) {
             if (result == QString(clearSentinel)) {
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
@@ -94,12 +95,11 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 }
             }
 
-            QPlainTextEdit::keyPressEvent(event);
-            insertPlainText(result);
-            QTextCursor tc = textCursor();
-            tc.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-            tc.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
-            setTextCursor(tc);
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+            cursor.insertText("\n" + result);
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
+            setTextCursor(cursor);
             return;
         }
     }

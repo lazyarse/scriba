@@ -27,8 +27,10 @@ Cursor is placed in the first cell.
 
 ### Enter (Row Continuation)
 
-- On a **data row** (cells have content): inserts a new data row below with the same column count, cursor lands in the first cell
-- On a **header row** (next line is a separator `|---|---|`): does not insert a row; instead, cursor jumps directly to the first cell of the first data row below the separator
+Enter anywhere in a table row (start, middle, or end of any cell) creates a new row — no cell content spills over.
+
+- On the **first row** of a new table (line above is not a table row): inserts a separator `|---|---|` and a data row `|  |  |`, cursor lands in the first cell of the data row
+- On a **data row** (line above is also a table row): inserts a new data row below with the same column count, cursor lands in the first cell
 - On a **separator row** (`|---|---|` or similar): behaves as normal Enter (inserts a blank line)
 - On a **blank row** (all cells empty): clears the row and exits table auto-completion (cursor moves to a new blank line)
 

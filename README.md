@@ -38,16 +38,16 @@
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive)
 - [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser, modified to accept image sizes (`#WIDTHxHEIGHT` suffix)
 
-### Eye-Candy:
+### Candy:
 
 - Full-screen mode (F11 or menu bar icon)
 - Cursor restore on application start to pick up where you left off
 - Sentence, word count, estimated reading time, and age-level to suitably patronise
 - Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed. 
-- Table auto-completion:: `Enter` auto creates a new row, `Enter` on blank row to end, `Tab` to next cell, `Shift+Tab` for previous cell
-- Ordered and Unordered list item autocompletion after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items. `Enter` again to stop autocomplete
+- Table auto-completion:: `Enter` auto creates a new row either in-cell or at end of the row, `Enter` on blank row ends autocomplete, `Tab` to next cell, `Shift+Tab` to previous cell
+- Ordered and Unordered list item autocompletion after a previous list item.`Tab` to indent, `Shift+Tab` to outdent list items. `Enter` again to stop autocomplete
 - Optional alternating table row striping
-- Emojis because all technical documentation now requires them
+- Emojis + search because all technical documentation now requires them
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar<tab>` could autocomplete to `![](foo/bar.png)`
 - A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 
@@ -120,3 +120,4 @@ Qt WebEngine requires a GPU context for rendering; tests that exercise the previ
 ./scriba --debug      # enable JS console logging via Qt logging system
 ```
 JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
+

@@ -73,7 +73,7 @@ static int listIndentWidth(const QString &line)
     return spaces;
 }
 
-QString handleTableReturn(const QString &line)
+QString handleTableReturn(const QString &line, const QString &prevLine)
 {
     if (line.startsWith('|')) {
         // Separator row → no continuation
@@ -83,7 +83,7 @@ QString handleTableReturn(const QString &line)
         int cols = line.count('|') - 1;
         if (cols <= 0) return {};
 
-        // Check if all cells are empty (only whitespace between pipes)
+        // Blank row → exit table
         QStringList cells = line.split('|');
         bool allEmpty = true;
         for (int i = 1; i < cells.size(); ++i) {
@@ -97,7 +97,19 @@ QString handleTableReturn(const QString &line)
             return QString(clearSentinel);
         }
 
+        // Previous line is also a table row → data row continuation
+        if (prevLine.startsWith('|')) {
+            QString result = "|";
+            for (int c = 0; c < cols; ++c)
+                result += "  |";
+            return result;
+        }
+
+        // First row of a new table → separator + data row
         QString result = "|";
+        for (int c = 0; c < cols; ++c)
+            result += "---|";
+        result += "\n|";
         for (int c = 0; c < cols; ++c)
             result += "  |";
         return result;
