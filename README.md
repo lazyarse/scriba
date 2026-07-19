@@ -98,6 +98,14 @@ mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build bui
 
 The post-build step automatically removes cached base stylesheets (`~/.config/Scriba/Scriba/*.css`), so no manual cleanup needed on rebuild.
 
+### Build .deb package
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB
+```
+
+Output: `build/scriba-1.0.0-Linux.deb`
+
 ### Build with tests
 
 ```bash

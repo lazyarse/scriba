@@ -55,6 +55,19 @@ add_custom_command(TARGET scriba POST_BUILD
         "$ENV{HOME}/.config/Scriba/Scriba/preview-base.css"
 )
 
+install(TARGETS scriba RUNTIME DESTINATION bin)
+install(FILES ${CMAKE_SOURCE_DIR}/resources/icons/scriba.svg
+    DESTINATION share/icons/hicolor/scalable/apps)
+install(FILES ${CMAKE_SOURCE_DIR}/resources/scriba.desktop
+    DESTINATION share/applications)
+
+set(CPACK_PACKAGE_NAME "scriba")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor")
+set(CPACK_PACKAGE_CONTACT "TODO <fixme@example.com>")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+include(CPack)
+
 option(BUILD_TESTS "Build unit tests" OFF)
 
 if(BUILD_TESTS)
