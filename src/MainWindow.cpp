@@ -10,6 +10,7 @@
 #include "ExportPdfDialog.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
+#include "TableDialog.h"
 #include "VegaLiteDialog.h"
 #include "EmojiDialog.h"
 
@@ -295,6 +296,10 @@ void MainWindow::setupMenuBar()
         });
         dlg.exec();
     });
+
+    QAction *tableAction = toolsMenu->addAction("&Table Insert...");
+    tableAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
+    connect(tableAction, &QAction::triggered, this, &MainWindow::showTableInsert);
 }
 
 void MainWindow::refreshPreviewCss()
@@ -552,6 +557,20 @@ void MainWindow::showChartBuilder()
             QString block = "\n```vl\n" + spec + "\n```\n";
             m_editor->insertPlainText(block);
         }
+    }
+}
+
+void MainWindow::showTableInsert()
+{
+    TableDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString table = dlg.generateTable();
+        QTextCursor cursor = m_editor->textCursor();
+        int insertPos = cursor.position();
+        cursor.insertText(table);
+        int offset = dlg.hasHeader() ? 2 : 16;
+        cursor.setPosition(insertPos + offset, QTextCursor::MoveAnchor);
+        m_editor->setTextCursor(cursor);
     }
 }
 

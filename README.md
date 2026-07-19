@@ -43,7 +43,8 @@
 - Full-screen mode (F11 or menu bar icon)
 - Cursor restore on application start to pick up where you left off
 - Sentence, word count, estimated reading time, and age-level to suitably patronise
-- Ordered and Unordered list item autocompletion after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items
+- Table helper - either create a table with a header row in markdown format, or an HTML generated table when no header row is needed
+- Ordered and Unordered list item autocompletion after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items. `Enter` again to stop autocomplete
 - Optional alternating table row striping
 - Emojis because all technical documentation now requires them
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar<tab>` could autocomplete to `![](foo/bar.png)`
@@ -90,6 +91,24 @@ mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build bui
 ```
 
 The post-build step automatically removes cached base stylesheets (`~/.config/Scriba/Scriba/*.css`), so no manual cleanup needed on rebuild.
+
+### Build with tests
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build build -j$(nproc)
+```
+
+### Run tests
+
+```bash
+# With a display server (X11/Wayland):
+cd build && ctest --output-on-failure
+
+# Headless/CI (requires xvfb):
+cd build && xvfb-run ctest --output-on-failure
+```
+
+Qt WebEngine requires a GPU context for rendering; tests that exercise the preview (`test_scroll_sync`) need `xvfb-run` in headless environments.
 
 ## Running
 
