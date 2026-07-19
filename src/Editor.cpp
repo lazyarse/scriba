@@ -278,16 +278,8 @@ void Editor::showFileCompletion(const QString &partialPath)
         }
     }
 
-    if (entries.isEmpty())
+    if (entries.isEmpty() || filePart.isEmpty())
         return;
-
-    if (filePart.isEmpty())
-        return;
-
-    if (entries.size() == 1) {
-        acceptCompletion(entries.first());
-        return;
-    }
 
     if (!m_completer) {
         m_completer = new QCompleter(this);
@@ -411,11 +403,6 @@ void Editor::showEmojiCompletion(const QString &partialCode)
 
     if (matches.isEmpty())
         return;
-
-    if (matches.size() == 1) {
-        acceptEmojiCompletion(matches.first());
-        return;
-    }
 
     if (!m_completer) {
         m_completer = new QCompleter(this);

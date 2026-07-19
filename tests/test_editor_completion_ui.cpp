@@ -88,6 +88,7 @@ TEST_F(EditorCompletionUITest, SingleMatchCompletes)
 {
     typeText("![](resou");
     pressTab();
+    pressEnter();
     EXPECT_EQ(editor->toPlainText(), "![](resources/");
 }
 
@@ -95,10 +96,12 @@ TEST_F(EditorCompletionUITest, ChainedCompletion)
 {
     typeText("![](resou");
     pressTab();
+    pressEnter();
     ASSERT_EQ(editor->toPlainText(), "![](resources/");
 
     typeText("ico");
     pressTab();
+    pressEnter();
     EXPECT_EQ(editor->toPlainText(), "![](resources/icons/");
 }
 
@@ -106,6 +109,7 @@ TEST_F(EditorCompletionUITest, ListLinkDoesNotIndent)
 {
     typeText("- [link](resou");
     pressTab();
+    pressEnter();
     EXPECT_EQ(editor->toPlainText(), "- [link](resources/");
 }
 
@@ -128,9 +132,11 @@ TEST_F(EditorCompletionUITest, PopupCyclesAndAccepts)
     EXPECT_EQ(editor->toPlainText(), "![](resources/");
 }
 
-TEST_F(EditorCompletionUITest, EmojiSingleMatchCompletes)
+TEST_F(EditorCompletionUITest, EmojiSingleMatchShowsPopupAndEnterAccepts)
 {
     typeText(":asto");
+    EXPECT_EQ(editor->toPlainText(), ":asto");
+    pressEnter();
     EXPECT_EQ(editor->toPlainText(), ":astonished:");
 }
 
