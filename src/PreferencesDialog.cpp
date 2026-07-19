@@ -72,6 +72,30 @@ void PreferencesDialog::setupUi()
         generalLayout->addWidget(m_syncCheck);
 
         layout->addWidget(generalGroup);
+
+        QGroupBox *autoSaveGroup = new QGroupBox("Auto Save");
+        QVBoxLayout *autoSaveLayout = new QVBoxLayout(autoSaveGroup);
+        autoSaveLayout->addSpacing(8);
+
+        m_autoSaveExitCheck = new QCheckBox("Auto-save on exit");
+        m_autoSaveExitCheck->setChecked(settings.value(Preferences::AutoSaveOnExit, false).toBool());
+        autoSaveLayout->addWidget(m_autoSaveExitCheck);
+
+        QHBoxLayout *intervalRow = new QHBoxLayout();
+        m_autoSaveCheck = new QCheckBox("Auto-save every");
+        m_autoSaveCheck->setChecked(settings.value(Preferences::AutoSaveInterval, 0).toInt() > 0);
+        m_autoSaveSpin = new QSpinBox();
+        m_autoSaveSpin->setRange(1, 60);
+        m_autoSaveSpin->setValue(settings.value(Preferences::AutoSaveInterval, 5).toInt());
+        m_autoSaveSpin->setSuffix(" minutes");
+        m_autoSaveSpin->setEnabled(m_autoSaveCheck->isChecked());
+        connect(m_autoSaveCheck, &QCheckBox::toggled, m_autoSaveSpin, &QSpinBox::setEnabled);
+        intervalRow->addWidget(m_autoSaveCheck);
+        intervalRow->addWidget(m_autoSaveSpin);
+        intervalRow->addStretch();
+        autoSaveLayout->addLayout(intervalRow);
+
+        layout->addWidget(autoSaveGroup);
         layout->addStretch();
 
         m_pages->addWidget(page);
@@ -178,6 +202,9 @@ void PreferencesDialog::setupUi()
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         settings.setValue(Preferences::EmojiMode, m_emojiCombo->currentData().toString());
+        settings.setValue(Preferences::AutoSaveOnExit, m_autoSaveExitCheck->isChecked());
+        int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
+        settings.setValue(Preferences::AutoSaveInterval, interval);
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
