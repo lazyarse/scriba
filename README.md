@@ -2,18 +2,18 @@
 
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
-A configurable, no-nonsense, split-screen Markdown editor for coders and other autistics with a pretentious Latin name. Built from the ground-up because all the others are not fit for purpose. Originally envisioned to be simple text-editor on the left and a HTML preview on the right application, but, my bad. 
+
+**A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** and other autistics with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right, but, my bad. 
 
 <p align="center">
 :cucumber:
-<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAuMTA1MDM5OTc4MDI3MzQiIGhlaWdodD0iMjQuNSIgdmlld0JveD0iMCAwIDE3MS41Nzg2Mjg1NDAwMzkwNiAzNSIgY2xhc3M9ImJhZGdlLXN2ZyIgZGF0YS12LTg2NTgzYWZkPSIiPjxkZWZzIGRhdGEtdi04NjU4M2FmZD0iIj48IS0tLS0+PCEtLS0tPjwhLS0tLT48L2RlZnM+PHBhdGggZGF0YS12LTg2NTgzYWZkPSIiIGQ9Ik0gOSAwIEwgNjkuNDU1MDg1NzU0Mzk0NTMgMCBMIDY5LjQ1NTA4NTc1NDM5NDUzIDM1IEwgOSAzNSBRIDAgMzUgMCAyNiBMIDAgOSBRIDAgMCA5IDAgWiIgZmlsbD0iIzMxQzRGMyIvPjwhLS1bLS0+PHBhdGggZGF0YS12LTg2NTgzYWZkPSIiIGQ9Ik0gNjkuNDU1MDg1NzU0Mzk0NTMgMCBMIDE2Mi41Nzg2Mjg1NDAwMzkwNiAwIFEgMTcxLjU3ODYyODU0MDAzOTA2IDAgMTcxLjU3ODYyODU0MDAzOTA2IDkgTCAxNzEuNTc4NjI4NTQwMDM5MDYgMjYgUSAxNzEuNTc4NjI4NTQwMDM5MDYgMzUgMTYyLjU3ODYyODU0MDAzOTA2IDM1IEwgNjkuNDU1MDg1NzU0Mzk0NTMgMzUgWiIgZmlsbD0iIzM4OUFENSIvPjwhLS1dLS0+PCEtLS0tPjx0ZXh0IHg9IjM0LjcyNzU0Mjg3NzE5NzI2NiIgeT0iMTcuNSIgZHk9IjAuMzVlbSIgZm9udC1zaXplPSIxMiIgZm9udC1mYW1pbHk9IlJvYm90bywgc2Fucy1zZXJpZiIgZmlsbD0iI0ZGRkZGRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgbGV0dGVyLXNwYWNpbmc9IjIiIGZvbnQtd2VpZ2h0PSI2MDAiIGZvbnQtc3R5bGU9Im5vcm1hbCIgdGV4dC1kZWNvcmF0aW9uPSJub25lIiBmaWxsLW9wYWNpdHk9IjEiIGZvbnQtdmFyaWFudD0ibm9ybWFsIiBzdHlsZT0idGV4dC10cmFuc2Zvcm06dXBwZXJjYXNlOyIgZGF0YS12LTg2NTgzYWZkPSIiPkFHRU5UPC90ZXh0PjwhLS0tLT48dGV4dCB4PSIxMjAuNTE2ODU3MTQ3MjE2OCIgeT0iMTcuNSIgZHk9IjAuMzVlbSIgZm9udC1zaXplPSIxMiIgZm9udC1mYW1pbHk9Ik1vbnRzZXJyYXQsIHNhbnMtc2VyaWYiIGZpbGw9IiNGRkZGRkYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtd2VpZ2h0PSI5MDAiIGxldHRlci1zcGFjaW5nPSIyIiBmb250LXN0eWxlPSJub3JtYWwiIHRleHQtZGVjb3JhdGlvbj0ibm9uZSIgZmlsbC1vcGFjaXR5PSIxIiBmb250LXZhcmlhbnQ9Im5vcm1hbCIgc3R5bGU9InRleHQtdHJhbnNmb3JtOnVwcGVyY2FzZTsiIGRhdGEtdi04NjU4M2FmZD0iIj5PUEVOQ09ERTwvdGV4dD48IS0tLS0+PC9zdmc+" /> 
+<img src="https://img.shields.io/badge/opencode-000000?style=for-the-badge&logo=opencode&logoColor=white" />
 :cucumber:
+<br />
   <img src="https://img.shields.io/badge/C%2B%2B-17-blue" alt="C++17">
-:cucumber:
-  <img src="https://img.shields.io/badge/Qt-6-green" alt="Qt 6">
-:cucumber:
+  <img src="https://img.shields.io/badge/Qt-6-orange" alt="Qt 6">
   <img src="https://img.shields.io/badge/tests-passing-brightgreen" alt="tests">
-:cucumber:
+  <img src="https://img.shields.io/badge/Worth it%3F-Totally-red" alt="Worth it?">
 </p>
 </div>
 
@@ -21,14 +21,13 @@ A configurable, no-nonsense, split-screen Markdown editor for coders and other a
 
 ## Features
 
-Designed with a restricted feature-set in mind; useful, not bloated.
-
 ### The Basics
 
 - WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions (note, tip, important, warning, caution) with custom titles and icons
-- Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, or hidden, and basic search
+- Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, or hidden
 - CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. Fair warning: Qt can't style application or dialogs titlebars
 - PDF export with print-specific CSS stylesheets
+- Content searching including regex search
 
 ### Standing on the shoulders of giants:
 
@@ -42,12 +41,13 @@ Designed with a restricted feature-set in mind; useful, not bloated.
 
 - Full-screen mode (F11 or menu bar icon)
 - Sentence, word count, estimated reading time, and age level to suitably patronise
-- Ordered and Unordered list item autocompletion on a new line after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items
-- Optional alternating table row striping because let's be honest, it's annoying
-- A [sample.md](sample.md) file in resources with a live examples of the features including admonitions, math, diagrams, charts, and images
+- Ordered and Unordered list item autocompletion after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items
+- Optional alternating table row striping
+- Emojis because all technical documentation now requires them
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar<tab>` could autocomplete to `![](foo/bar.png)`
+- A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 
-## We All Love Shortcuts
+## Shortcuts for Everything
 
 | Shortcut | Action |
 |---|---|
@@ -60,6 +60,7 @@ Designed with a restricted feature-set in mind; useful, not bloated.
 | Ctrl+F | Find |
 | Ctrl+G | Vega-Lite Chart Builder |
 | Ctrl+B | Toggle Preview Pane |
+| Ctrl+E | Emoji Search :mag: |
 | Ctrl+Alt+P | Preferences |
 | F11 | Toggle Fullscreen |
 | Ctrl+Q | Quit |

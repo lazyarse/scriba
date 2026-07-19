@@ -50,6 +50,23 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 return;
             }
         }
+
+        QTextCursor cursor = textCursor();
+        QString line = cursor.block().text();
+        static const QChar clearSentinel(0x2412);
+        QString result = handleListReturn(line);
+        if (!result.isEmpty()) {
+            if (result == QString(clearSentinel)) {
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+                QPlainTextEdit::keyPressEvent(event);
+                return;
+            }
+            QPlainTextEdit::keyPressEvent(event);
+            insertPlainText(result);
+            return;
+        }
     }
 
     if (event->key() == Qt::Key_Tab || event->key() == Qt::Key_Backtab) {
