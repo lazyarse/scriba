@@ -72,6 +72,19 @@ protected:
         QApplication::processEvents();
     }
 
+    void pressBackspace()
+    {
+        QTest::keyClick(editor, Qt::Key_Backspace);
+        QApplication::processEvents();
+    }
+
+    int popupRowCount() const
+    {
+        if (!editor->completer() || !editor->completer()->popup()->isVisible())
+            return -1;
+        return editor->completer()->completionModel()->rowCount();
+    }
+
     QTemporaryDir tmpDir;
     QString currentFilePath;
     Editor *editor = nullptr;
@@ -125,7 +138,6 @@ TEST_F(EditorCompletionUITest, ListWithoutLinkIndents)
 TEST_F(EditorCompletionUITest, PopupCyclesAndAccepts)
 {
     typeText("![](r");
-    pressTab();
 
     // Cycle to second item (resources/), then accept
     pressTab();
@@ -157,6 +169,53 @@ TEST_F(EditorCompletionUITest, EmojiEnterAcceptsTopItem)
     EXPECT_TRUE(result.startsWith(':'));
     EXPECT_TRUE(result.endsWith(':'));
     EXPECT_GT(result.length(), 3);
+}
+
+TEST_F(EditorCompletionUITest, FileCompletionLimitsResults)
+{
+    // Create 25 files matching prefix "zzfile"
+    for (int i = 0; i < 25; ++i) {
+        QFile f(tmpDir.path() + QString("/zzfile%1.md").arg(i, 2, 10, QChar('0')));
+        f.open(QIODevice::WriteOnly);
+        f.close();
+    }
+
+    typeText("![](zzfile");
+    QApplication::processEvents();
+
+    ASSERT_NE(editor->completer(), nullptr);
+    ASSERT_TRUE(editor->completer()->popup()->isVisible());
+    EXPECT_EQ(popupRowCount(), 20);
+}
+
+TEST_F(EditorCompletionUITest, EmojiBackspaceUpdatesPopup)
+{
+    typeText(":smi");
+    QApplication::processEvents();
+    int before = popupRowCount();
+    ASSERT_GT(before, 0);
+
+    pressBackspace();
+    int after = popupRowCount();
+    ASSERT_GT(after, 0) << "popup should remain visible after backspace";
+    EXPECT_GT(after, before) << "shorter prefix should produce more matches";
+    EXPECT_EQ(editor->toPlainText(), QString(":sm"));
+}
+
+TEST_F(EditorCompletionUITest, BackspaceOnClosingColonHidesPopup)
+{
+    typeText(":sm");
+    QApplication::processEvents();
+    ASSERT_GT(popupRowCount(), 0);
+
+    // Backspace to ':s' — popup should still be visible
+    pressBackspace();
+    ASSERT_GT(popupRowCount(), 0) << "popup visible after backspace to ':s'";
+
+    // Backspace to ':' — popup should hide (no partial code)
+    pressBackspace();
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden when only ':' remains";
+    EXPECT_EQ(editor->toPlainText(), QString(":"));
 }
 
 TEST_F(EditorCompletionUITest, EmojiPopupSitsBelowCursorLine)
