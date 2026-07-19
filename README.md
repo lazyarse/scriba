@@ -3,7 +3,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** and other autistics with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right, but, my bad. 
+**A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** and other autistics with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right with no other features, but, my bad. 
 
 <p align="center">
 :cucumber:
@@ -25,9 +25,10 @@
 
 - WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions (note, tip, important, warning, caution) with custom titles and icons
 - Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, or hidden
-- CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. Fair warning: Qt can't style application or dialogs titlebars
+- CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. (Fair warning: Qt can't style application or dialogs titlebars)
 - PDF export with print-specific CSS stylesheets
 - Content searching including regex search
+- An 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers
 
 ### Standing on the shoulders of giants:
 
@@ -40,7 +41,8 @@
 ### Eye-Candy:
 
 - Full-screen mode (F11 or menu bar icon)
-- Sentence, word count, estimated reading time, and age level to suitably patronise
+- Cursor restore on application start to pick up where you left off
+- Sentence, word count, estimated reading time, and age-level to suitably patronise
 - Ordered and Unordered list item autocompletion after a previous list item and `Tab` to indent, `Shift+Tab` to outdent list items
 - Optional alternating table row striping
 - Emojis because all technical documentation now requires them
@@ -60,7 +62,7 @@
 | Ctrl+F | Find |
 | Ctrl+G | Vega-Lite Chart Builder |
 | Ctrl+B | Toggle Preview Pane |
-| Ctrl+E | Emoji Search :mag: |
+| Ctrl+E | Emoji :mag: |
 | Ctrl+Alt+P | Preferences |
 | F11 | Toggle Fullscreen |
 | Ctrl+Q | Quit |

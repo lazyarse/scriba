@@ -25,7 +25,7 @@ void PreviewPage::javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
         qCDebug(lcPreview) << "line" << lineNumber << message;
         break;
     case ErrorMessageLevel:
-        qCCritical(lcPreview) << "line" << lineNumber << message;
+        qCDebug(lcPreview) << "line" << lineNumber << message;
         break;
     }
 }
