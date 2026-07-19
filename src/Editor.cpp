@@ -182,17 +182,17 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 return;
             }
         } else {
+            QString partialPath;
+            if (isInsideLinkContext(cursor, partialPath)) {
+                showFileCompletion(partialPath);
+                return;
+            }
             if (isList) {
                 QString indented = indentListLine(line);
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
                 cursor.insertText(indented);
-                return;
-            }
-            QString partialPath;
-            if (isInsideLinkContext(cursor, partialPath)) {
-                showFileCompletion(partialPath);
                 return;
             }
             insertPlainText("    ");

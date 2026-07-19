@@ -3,7 +3,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** and other autistics with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right with no other features, but, my bad. 
+**A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** and other autistics with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right with no other features, but, my bad.
 
 <p align="center">
 :cucumber:
@@ -64,7 +64,7 @@
 | Ctrl+F | Find |
 | Ctrl+G | Vega-Lite Chart Builder |
 | Ctrl+B | Toggle Preview Pane |
-| Ctrl+E | Emoji :mag: |
+| Ctrl+E | Emoji Search :eyes: :mag: |
 | Ctrl+T | Table Generator |
 | Ctrl+Alt+P | Preferences |
 | F11 | Toggle Fullscreen |

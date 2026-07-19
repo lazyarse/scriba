@@ -102,6 +102,20 @@ TEST_F(EditorCompletionUITest, ChainedCompletion)
     EXPECT_EQ(editor->toPlainText(), "![](resources/icons/");
 }
 
+TEST_F(EditorCompletionUITest, ListLinkDoesNotIndent)
+{
+    typeText("- [link](resou");
+    pressTab();
+    EXPECT_EQ(editor->toPlainText(), "- [link](resources/");
+}
+
+TEST_F(EditorCompletionUITest, ListWithoutLinkIndents)
+{
+    typeText("- item");
+    pressTab();
+    EXPECT_EQ(editor->toPlainText(), "  - item");
+}
+
 TEST_F(EditorCompletionUITest, PopupCyclesAndAccepts)
 {
     typeText("![](r");
