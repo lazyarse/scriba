@@ -301,6 +301,11 @@ void Editor::showFileCompletion(const QString &partialPath)
     for (const QString &entry : entries)
         maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
     cr.setWidth(maxWidth + 30);
+
+    QTextBlock block = textCursor().block();
+    int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
+    cr.moveTop(cr.y() + lineH + 18);
+
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
 }
@@ -424,6 +429,11 @@ void Editor::showEmojiCompletion(const QString &partialCode)
     for (const QString &m : matches)
         maxWidth = qMax(maxWidth, fm.horizontalAdvance(m));
     cr.setWidth(maxWidth + 30);
+
+    QTextBlock block = textCursor().block();
+    int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
+    cr.moveTop(cr.y() + lineH + 18);
+
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
 }
