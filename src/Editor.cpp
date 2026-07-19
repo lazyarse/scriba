@@ -3,6 +3,7 @@
 #include <QAbstractItemView>
 #include <QCompleter>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QKeyEvent>
 #include <QRegularExpression>
@@ -20,6 +21,8 @@ Editor::Editor(QWidget *parent)
     setPlaceholderText("Start writing markdown...");
     setTabStopDistance(40);
     setFrameShape(QFrame::NoFrame);
+
+    loadEmojiShortcodes();
 
     QTextBlockFormat fmt;
     fmt.setLineHeight(240, QTextBlockFormat::ProportionalHeight);
@@ -44,9 +47,12 @@ void Editor::keyPressEvent(QKeyEvent *event)
 
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
         if (m_completer && m_completer->popup()->isVisible()) {
+            QAbstractItemModel *model = m_completer->completionModel();
             QModelIndex idx = m_completer->popup()->currentIndex();
+            if (!idx.isValid() && model && model->rowCount() > 0)
+                idx = model->index(0, 0);
             if (idx.isValid()) {
-                acceptCompletion(m_completer->completionModel()->data(idx).toString());
+                acceptCompletion(model->data(idx).toString());
                 return;
             }
         }
@@ -187,6 +193,13 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 showFileCompletion(partialPath);
                 return;
             }
+            {
+                QString partialCode;
+                if (isInsideEmojiContext(cursor, partialCode)) {
+                    showEmojiCompletion(partialCode);
+                    return;
+                }
+            }
             if (isList) {
                 QString indented = indentListLine(line);
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
@@ -201,6 +214,15 @@ void Editor::keyPressEvent(QKeyEvent *event)
     }
 
     QPlainTextEdit::keyPressEvent(event);
+
+    if (!event->text().isEmpty()) {
+        QChar c = event->text()[0];
+        if (c.isLetterOrNumber() || c == '_' || c == ':') {
+            QString partialCode;
+            if (isInsideEmojiContext(textCursor(), partialCode))
+                showEmojiCompletion(partialCode);
+        }
+    }
 }
 
 bool Editor::isInsideLinkContext(const QTextCursor &cursor, QString &partialPath) const
@@ -280,7 +302,6 @@ void Editor::showFileCompletion(const QString &partialPath)
     QStringListModel *model = new QStringListModel(entries, m_completer);
     m_completer->setModel(model);
     m_completer->setCompletionPrefix(filePart);
-    m_completer->popup()->setCurrentIndex(model->index(0, 0));
 
     QRect cr = cursorRect();
     QFontMetrics fm(font());
@@ -289,12 +310,18 @@ void Editor::showFileCompletion(const QString &partialPath)
         maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
     cr.setWidth(maxWidth + 30);
     m_completer->complete(cr);
+    m_completer->popup()->setCurrentIndex(model->index(0, 0));
 }
 
 void Editor::acceptCompletion(const QString &completion)
 {
     if (m_completer)
         m_completer->popup()->hide();
+
+    if (completion.startsWith(':') && completion.endsWith(':')) {
+        acceptEmojiCompletion(completion);
+        return;
+    }
 
     QTextCursor cursor = textCursor();
     QString line = cursor.block().text();
@@ -316,6 +343,128 @@ void Editor::acceptCompletion(const QString &completion)
 
     int blockStart = cursor.block().position();
     cursor.setPosition(blockStart + replaceStart, QTextCursor::MoveAnchor);
+    cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
+    cursor.removeSelectedText();
+    cursor.insertText(completion);
+    setTextCursor(cursor);
+}
+
+void Editor::loadEmojiShortcodes()
+{
+    QFile file(":/emoji.js");
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+
+    QString content = QString::fromUtf8(file.readAll());
+    QRegularExpression re(R"('([^']+)'\s*:\s*'([^']+)')");
+    auto it = re.globalMatch(content);
+    while (it.hasNext()) {
+        auto match = it.next();
+        m_emojiShortcodes.append(match.captured(1));
+    }
+    m_emojiShortcodes.removeDuplicates();
+    m_emojiShortcodes.sort();
+}
+
+bool Editor::isInsideEmojiContext(const QTextCursor &cursor, QString &partialCode) const
+{
+    QString text = cursor.block().text();
+    int pos = cursor.positionInBlock();
+    if (pos < 1)
+        return false;
+
+    static const QRegularExpression linkRe(R"(\!?\[.*?\]\()");
+    QRegularExpressionMatchIterator it = linkRe.globalMatch(text.left(pos));
+    int parenPos = -1;
+    while (it.hasNext()) {
+        QRegularExpressionMatch m = it.next();
+        parenPos = m.capturedEnd();
+    }
+    if (parenPos >= 0) {
+        QString between = text.mid(parenPos, pos - parenPos);
+        if (!between.contains(')'))
+            return false;
+    }
+
+    for (int i = pos - 1; i >= 0; --i) {
+        QChar c = text[i];
+        if (c == ':') {
+            QString after = text.mid(i + 1, pos - i - 1);
+            if (after.contains(':') || after.isEmpty())
+                return false;
+            partialCode = after;
+            return true;
+        }
+        if (!c.isLetterOrNumber() && c != '_' && c != '-')
+            break;
+    }
+    return false;
+}
+
+void Editor::showEmojiCompletion(const QString &partialCode)
+{
+    QStringList matches;
+    for (const QString &sc : m_emojiShortcodes) {
+        if (sc.startsWith(partialCode, Qt::CaseInsensitive))
+            matches.append(QString(":%1:").arg(sc));
+    }
+
+    if (matches.isEmpty())
+        return;
+
+    if (matches.size() == 1) {
+        acceptEmojiCompletion(matches.first());
+        return;
+    }
+
+    if (!m_completer) {
+        m_completer = new QCompleter(this);
+        m_completer->setWidget(this);
+        m_completer->setCompletionMode(QCompleter::UnfilteredPopupCompletion);
+        m_completer->setCaseSensitivity(Qt::CaseInsensitive);
+        m_completer->setFilterMode(Qt::MatchStartsWith);
+        connect(m_completer, QOverload<const QString &>::of(&QCompleter::activated),
+                this, &Editor::acceptCompletion);
+    }
+
+    QStringListModel *model = new QStringListModel(matches, m_completer);
+    m_completer->setModel(model);
+    m_completer->setCompletionPrefix(partialCode);
+
+    QRect cr = cursorRect();
+    QFontMetrics fm(font());
+    int maxWidth = 0;
+    for (const QString &m : matches)
+        maxWidth = qMax(maxWidth, fm.horizontalAdvance(m));
+    cr.setWidth(maxWidth + 30);
+    m_completer->complete(cr);
+    m_completer->popup()->setCurrentIndex(model->index(0, 0));
+}
+
+void Editor::acceptEmojiCompletion(const QString &completion)
+{
+    if (m_completer)
+        m_completer->popup()->hide();
+
+    QTextCursor cursor = textCursor();
+    QString line = cursor.block().text();
+    int pos = cursor.positionInBlock();
+
+    int colonPos = -1;
+    for (int i = pos - 1; i >= 0; --i) {
+        QChar c = line[i];
+        if (c == ':') {
+            colonPos = i;
+            break;
+        }
+        if (!c.isLetterOrNumber() && c != '_' && c != '-')
+            break;
+    }
+    if (colonPos < 0)
+        return;
+
+    int blockStart = cursor.block().position();
+    cursor.setPosition(blockStart + colonPos, QTextCursor::MoveAnchor);
     cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
     cursor.removeSelectedText();
     cursor.insertText(completion);

@@ -2,6 +2,7 @@
 #define EDITOR_H
 
 #include <QPlainTextEdit>
+#include <QStringList>
 
 class QCompleter;
 
@@ -21,8 +22,14 @@ private:
     void showFileCompletion(const QString &partialPath);
     void acceptCompletion(const QString &completion);
 
+    void loadEmojiShortcodes();
+    bool isInsideEmojiContext(const QTextCursor &cursor, QString &partialCode) const;
+    void showEmojiCompletion(const QString &partialCode);
+    void acceptEmojiCompletion(const QString &completion);
+
     QString m_currentFile;
     QCompleter *m_completer = nullptr;
+    QStringList m_emojiShortcodes;
 };
 
 #endif

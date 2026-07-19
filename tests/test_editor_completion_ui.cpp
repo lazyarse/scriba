@@ -128,6 +128,29 @@ TEST_F(EditorCompletionUITest, PopupCyclesAndAccepts)
     EXPECT_EQ(editor->toPlainText(), "![](resources/");
 }
 
+TEST_F(EditorCompletionUITest, EmojiSingleMatchCompletes)
+{
+    typeText(":asto");
+    EXPECT_EQ(editor->toPlainText(), ":astonished:");
+}
+
+TEST_F(EditorCompletionUITest, EmojiMultiMatchThenEscape)
+{
+    typeText(":smil");
+    pressEscape();
+    EXPECT_EQ(editor->toPlainText(), ":smil");
+}
+
+TEST_F(EditorCompletionUITest, EmojiEnterAcceptsTopItem)
+{
+    typeText(":s");
+    pressEnter();
+    QString result = editor->toPlainText();
+    EXPECT_TRUE(result.startsWith(':'));
+    EXPECT_TRUE(result.endsWith(':'));
+    EXPECT_GT(result.length(), 3);
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
