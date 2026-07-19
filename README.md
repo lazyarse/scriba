@@ -20,6 +20,8 @@
 
 ![](docs/images/screenshot.png)
 
+![](docs/images/autocomplete-demo.gif)
+
 ## Features
 
 ### The Basics
