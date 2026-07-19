@@ -34,7 +34,9 @@ static void logMessageHandler(QtMsgType type, const QMessageLogContext &context,
         s_logWindowInstance->addEntry(lvl, src, msg);
     }
 
-    if (s_originalHandler)
+    QString cat = QString::fromLatin1(context.category);
+    bool isScriba = cat.startsWith("scriba");
+    if (!isScriba && s_originalHandler)
         s_originalHandler(type, context, msg);
 }
 
