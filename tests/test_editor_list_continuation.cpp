@@ -84,31 +84,31 @@ TEST(OutdentListLine, NoChangeForPlainText) {
 }
 
 TEST(TableReturn, ContinuationReturnsRow) {
-    EXPECT_EQ(handleTableReturn("| a | b |"), "|  |  |");
+    EXPECT_EQ(handleTableReturn("| a | b |", "| x | y |"), "|  |  |");
 }
 
 TEST(TableReturn, OneColReturnsRow) {
-    EXPECT_EQ(handleTableReturn("| foo |"), "|  |");
+    EXPECT_EQ(handleTableReturn("| foo |", "| z |"), "|  |");
+}
+
+TEST(TableReturn, FirstRowCreatesSeparator) {
+    EXPECT_EQ(handleTableReturn("| a | b |", "not a table"), "|---|---|\n|  |  |");
 }
 
 TEST(TableReturn, SeparatorReturnsEmpty) {
-    EXPECT_EQ(handleTableReturn("|---|---|"), QString());
+    EXPECT_EQ(handleTableReturn("|---|---|", ""), QString());
 }
 
 TEST(TableReturn, BlankRowReturnsSentinel) {
-    EXPECT_EQ(handleTableReturn("|  |  |"), QString(clearSentinel));
-}
-
-TEST(TableReturn, NonBlankReturnsRow) {
-    EXPECT_EQ(handleTableReturn("| a | b |"), "|  |  |");
+    EXPECT_EQ(handleTableReturn("|  |  |", ""), QString(clearSentinel));
 }
 
 TEST(TableReturn, PlainTextReturnsEmpty) {
-    EXPECT_EQ(handleTableReturn("hello"), QString());
+    EXPECT_EQ(handleTableReturn("hello", ""), QString());
 }
 
 TEST(TableReturn, HtmlReturnsRow) {
-    EXPECT_EQ(handleTableReturn("<tr><td>a</td><td>b</td></tr>"),
+    EXPECT_EQ(handleTableReturn("<tr><td>a</td><td>b</td></tr>", ""),
               "<tr><td></td><td></td></tr>");
 }
 
