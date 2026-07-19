@@ -22,10 +22,10 @@ void PreviewPage::javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
         qCDebug(lcPreview) << message;
         break;
     case WarningMessageLevel:
-        qCDebug(lcPreview) << "line" << lineNumber << message;
+        qCWarning(lcPreview) << "line" << lineNumber << message;
         break;
     case ErrorMessageLevel:
-        qCDebug(lcPreview) << "line" << lineNumber << message;
+        qCCritical(lcPreview) << "line" << lineNumber << message;
         break;
     }
 }
