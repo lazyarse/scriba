@@ -267,7 +267,7 @@ static QString loadResourceCss(const QString &path)
 
 void PreferencesDialog::editEditorBaseCss()
 {
-    CssEditorDialog dlg("Edit Editor Base CSS", m_loader->editorBaseCss(),
+    CssEditorDialog dlg("Edit Editor Base CSS", CssEditorDialog::EditorBase, m_loader->editorBaseCss(),
         loadResourceCss(":/editor-base.css"), this);
     if (dlg.exec() == QDialog::Accepted) {
         m_loader->setEditorBaseCss(dlg.css());
@@ -277,7 +277,7 @@ void PreferencesDialog::editEditorBaseCss()
 
 void PreferencesDialog::editPreviewBaseCss()
 {
-    CssEditorDialog dlg("Edit Preview Base CSS", m_loader->previewBaseCss(),
+    CssEditorDialog dlg("Edit Preview Base CSS", CssEditorDialog::PreviewBase, m_loader->previewBaseCss(),
         loadResourceCss(":/preview-base.css"), this);
     if (dlg.exec() == QDialog::Accepted) {
         m_loader->setPreviewBaseCss(dlg.css());

@@ -6,10 +6,11 @@
 **A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** and other autistics with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right with no other features, but, my bad.
 
 <p align="center">
-:cucumber:
-<img src="https://img.shields.io/badge/opencode-000000?style=for-the-badge&logo=opencode&logoColor=white" />
-:cucumber:
-<br />
+  :cucumber:
+  <img src="https://img.shields.io/badge/opencode-000000?style=for-the-badge&logo=opencode&logoColor=white" />
+  :cucumber:
+  <br />
+
   <img src="https://img.shields.io/badge/C%2B%2B-17-blue" alt="C++17">
   <img src="https://img.shields.io/badge/Qt-6-orange" alt="Qt 6">
   <img src="https://img.shields.io/badge/tests-passing-brightgreen" alt="tests">
@@ -49,6 +50,7 @@
 - Optional alternating table row striping
 - Emojis + search because all technical documentation now requires them
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar<tab>` could autocomplete to `![](foo/bar.png)`
+- A debug log window output to see rendering errors
 - A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 
 ## Shortcuts for Everything
