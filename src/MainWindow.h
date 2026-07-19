@@ -6,6 +6,7 @@
 #include <QFileSystemWatcher>
 #include <QToolButton>
 #include <QLabel>
+#include <QTimer>
 
 class Editor;
 class Preview;
@@ -40,6 +41,9 @@ private slots:
     void showTableInsert();
     void showLogWindow();
 
+public:
+    void autoSave();
+
 private:
     void setupUi();
     void setupMenuBar();
@@ -68,6 +72,7 @@ private:
     QToolButton *m_previewBtn = nullptr;
     QLabel *m_statsLabel = nullptr;
     LogWindow *m_logWindow = nullptr;
+    QTimer *m_autoSaveTimer = nullptr;
     int m_previewState = 1;
 
 protected:

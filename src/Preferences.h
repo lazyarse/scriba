@@ -16,6 +16,9 @@ namespace Preferences {
     constexpr const char *TableStriping = "tableStriping";
     constexpr const char *EmojiMode = "emojiMode";
 
+    constexpr const char *AutoSaveOnExit = "autoSaveOnExit";
+    constexpr const char *AutoSaveInterval = "autoSaveInterval";
+
     constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";
     constexpr const char *TableStripePdfCss = "tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}";
 }

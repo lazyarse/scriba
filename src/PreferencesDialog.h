@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QSpinBox>
 
 
 class CssConfig;
@@ -44,6 +45,9 @@ private:
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
     QCheckBox *m_stripeCheck;
+    QCheckBox *m_autoSaveExitCheck;
+    QCheckBox *m_autoSaveCheck;
+    QSpinBox *m_autoSaveSpin;
     QComboBox *m_emojiCombo;
 };
 

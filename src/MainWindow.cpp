@@ -94,6 +94,13 @@ MainWindow::MainWindow(QWidget *parent)
     syncCssWatcher();
 
     QSettings settings;
+
+    m_autoSaveTimer = new QTimer(this);
+    connect(m_autoSaveTimer, &QTimer::timeout, this, &MainWindow::autoSave);
+    int asInterval = settings.value(Preferences::AutoSaveInterval, 0).toInt();
+    if (asInterval > 0)
+        m_autoSaveTimer->start(asInterval * 60000);
+
     if (settings.value(Preferences::FirstRun, true).toBool()) {
         settings.setValue(Preferences::FirstRun, false);
         loadSample();
@@ -553,6 +560,13 @@ void MainWindow::showPreferences()
     applyStripeSetting();
     m_previewInitialized = false;
     updatePreview();
+
+    QSettings s;
+    int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
+    if (interval > 0)
+        m_autoSaveTimer->start(interval * 60000);
+    else
+        m_autoSaveTimer->stop();
 }
 
 void MainWindow::showChartBuilder()
@@ -730,6 +744,15 @@ void MainWindow::saveFile(const QString &filePath)
     settings.setValue(Preferences::LastOpenedFile, filePath);
 }
 
+void MainWindow::autoSave()
+{
+    if (m_currentFile.isEmpty())
+        return;
+    QFile file(m_currentFile);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text))
+        file.write(m_editor->toPlainText().toUtf8());
+}
+
 void MainWindow::exportPdf()
 {
     QString markdown = m_editor->toPlainText();
@@ -791,11 +814,13 @@ void MainWindow::exportPdf()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    QSettings s;
     if (!m_currentFile.isEmpty()) {
+        if (s.value(Preferences::AutoSaveOnExit, false).toBool())
+            autoSave();
         QTextCursor cursor = m_editor->textCursor();
-        QSettings settings;
-        settings.setValue(Preferences::LastCursorBlock, cursor.blockNumber());
-        settings.setValue(Preferences::LastCursorColumn, cursor.columnNumber());
+        s.setValue(Preferences::LastCursorBlock, cursor.blockNumber());
+        s.setValue(Preferences::LastCursorColumn, cursor.columnNumber());
     }
     QMainWindow::closeEvent(event);
 }
