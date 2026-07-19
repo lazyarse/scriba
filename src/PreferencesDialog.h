@@ -48,6 +48,7 @@ private:
     QCheckBox *m_autoSaveExitCheck;
     QCheckBox *m_autoSaveCheck;
     QSpinBox *m_autoSaveSpin;
+    QSpinBox *m_fileCompletionSpin;
     QComboBox *m_emojiCombo;
 };
 

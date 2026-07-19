@@ -71,6 +71,15 @@ void PreferencesDialog::setupUi()
         m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
         generalLayout->addWidget(m_syncCheck);
 
+        QHBoxLayout *compRow = new QHBoxLayout();
+        compRow->addWidget(new QLabel("File autocomplete limit:"));
+        m_fileCompletionSpin = new QSpinBox();
+        m_fileCompletionSpin->setRange(2, 100);
+        m_fileCompletionSpin->setValue(settings.value(Preferences::FileCompletionLimit, 20).toInt());
+        compRow->addWidget(m_fileCompletionSpin);
+        compRow->addStretch();
+        generalLayout->addLayout(compRow);
+
         layout->addWidget(generalGroup);
 
         QGroupBox *autoSaveGroup = new QGroupBox("Auto Save");
@@ -205,6 +214,7 @@ void PreferencesDialog::setupUi()
         settings.setValue(Preferences::AutoSaveOnExit, m_autoSaveExitCheck->isChecked());
         int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
         settings.setValue(Preferences::AutoSaveInterval, interval);
+        settings.setValue(Preferences::FileCompletionLimit, m_fileCompletionSpin->value());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
