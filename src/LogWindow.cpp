@@ -48,13 +48,11 @@ LogWindow::LogWindow(QWidget *parent)
 
     m_output = new QTextEdit(this);
     m_output->setReadOnly(true);
-    m_output->setStyleSheet(
-        "QTextEdit { font-family: 'monospace'; font-size: 12pt;"
-        " background: #1e1e1e; color: #d4d4d4; }");
+    m_output->setStyleSheet("font-family: 'monospace'; font-size: 12pt;");
     layout->addWidget(m_output);
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
-    QPushButton *clearBtn = buttons->addButton("Clear", QDialogButtonBox::ActionRole);
+    QPushButton *clearBtn = buttons->addButton("C&lear", QDialogButtonBox::ActionRole);
     connect(clearBtn, &QPushButton::clicked, m_output, &QTextEdit::clear);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::hide);
     for (auto *btn : buttons->buttons())
@@ -79,16 +77,17 @@ void LogWindow::addEntry(Level level, const QString &source, const QString &mess
     QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
     QString levelTag, levelColor;
     switch (level) {
-    case Info:    levelTag = "INFO";  levelColor = "#4ec9b0"; break;
-    case Warning: levelTag = "WARN";  levelColor = "#dcdcaa"; break;
-    case Error:   levelTag = "ERR ";  levelColor = "#f44747"; break;
+    case Info:    levelTag = "INFO";  levelColor = "#26a269"; break;
+    case Warning: levelTag = "WARN";  levelColor = "#b58900"; break;
+    case Error:   levelTag = "ERR ";  levelColor = "#c01c28"; break;
     }
 
     QString html = QString(
+        "<div style='padding-bottom:4px'>"
         "<span style='color:#808080'>%1</span> "
         "<b style='color:%2'>[%3]</b> "
-        "<span style='color:#569cd6'>%4</span> "
-        "<span>%5</span><br>"
+        "<span style='color:#2d7ee9'>%4</span> "
+        "<span>%5</span><br><br></div>"
     ).arg(ts, levelColor, levelTag, source, message.toHtmlEscaped());
 
     m_output->moveCursor(QTextCursor::End);
