@@ -1,6 +1,5 @@
 #include "CssUtils.h"
 #include <QRegularExpression>
-#include <QColor>
 
 namespace CssUtils {
 

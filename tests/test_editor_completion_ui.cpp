@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <QApplication>
+#include <QCompleter>
+#include <QAbstractItemView>
 #include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
@@ -155,6 +157,24 @@ TEST_F(EditorCompletionUITest, EmojiEnterAcceptsTopItem)
     EXPECT_TRUE(result.startsWith(':'));
     EXPECT_TRUE(result.endsWith(':'));
     EXPECT_GT(result.length(), 3);
+}
+
+TEST_F(EditorCompletionUITest, EmojiPopupSitsBelowCursorLine)
+{
+    typeText(":s");
+    QApplication::processEvents();
+
+    ASSERT_NE(editor->completer(), nullptr);
+    QAbstractItemView *popup = editor->completer()->popup();
+    ASSERT_NE(popup, nullptr);
+    ASSERT_TRUE(popup->isVisible());
+
+    QRect cursor = editor->cursorRect();
+    QPoint cursorBottomGlobal = editor->viewport()->mapToGlobal(
+        QPoint(cursor.x(), cursor.y() + cursor.height()));
+
+    EXPECT_GE(popup->geometry().y(), cursorBottomGlobal.y())
+        << "popup top should be at or below the bottom of the cursor line";
 }
 
 int main(int argc, char **argv)

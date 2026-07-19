@@ -2,6 +2,7 @@
 #define EDITOR_H
 
 #include <QPlainTextEdit>
+#include <QPoint>
 #include <QStringList>
 
 class QCompleter;
@@ -13,6 +14,7 @@ class Editor : public QPlainTextEdit
 public:
     explicit Editor(QWidget *parent = nullptr);
     void setCurrentFile(const QString &path);
+    QCompleter *completer() const { return m_completer; }
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -26,6 +28,8 @@ private:
     bool isInsideEmojiContext(const QTextCursor &cursor, QString &partialCode) const;
     void showEmojiCompletion(const QString &partialCode);
     void acceptEmojiCompletion(const QString &completion);
+
+    void repositionPopup();
 
     QString m_currentFile;
     QCompleter *m_completer = nullptr;
