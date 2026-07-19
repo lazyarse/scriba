@@ -127,7 +127,8 @@ if(BUILD_TESTS)
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp
-        src/FindDialog.cpp)
+        src/FindDialog.cpp
+        resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_scroll_sync PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
