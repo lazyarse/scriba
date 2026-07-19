@@ -78,6 +78,11 @@
 
 See [themes.md](themes.md) for how to write themes, customize admonition icons, and understand the selector structure.
 
+## Security
+
+Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root` incase you inadvertedly run crafted HTML code.
+
+
 ## Prerequisites
 
 - CMake 3.16+
