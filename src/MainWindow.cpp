@@ -104,6 +104,29 @@ MainWindow::MainWindow(QWidget *parent)
     if (settings.value(Preferences::FirstRun, true).toBool()) {
         settings.setValue(Preferences::FirstRun, false);
         loadSample();
+
+        QStringList bundled = {
+            ":/themes/catppuccin-latte.css",
+            ":/themes/catppuccin-mocha.css",
+            ":/themes/dracula.css",
+            ":/themes/github-dark.css",
+            ":/themes/github-light.css",
+            ":/themes/gruvbox-dark.css",
+            ":/themes/gruvbox-light.css",
+            ":/themes/nord.css",
+            ":/themes/one-dark.css",
+            ":/themes/rose-pine.css",
+            ":/themes/rose-pine-dawn.css",
+            ":/themes/solarized-dark.css",
+            ":/themes/solarized-light.css",
+            ":/themes/tokyo-night-dark.css",
+            ":/themes/tokyo-night-light.css",
+        };
+        m_cssConfig->setStylesheets(bundled);
+        m_cssConfig->setActiveStylesheet(":/themes/github-light.css");
+        m_cssLoader->invalidateCache();
+        refreshPreviewCss();
+        applyStripeSetting();
     }
     if (settings.value(Preferences::ReopenLastFile, true).toBool()) {
         QString lastFile = settings.value(Preferences::LastOpenedFile).toString();
