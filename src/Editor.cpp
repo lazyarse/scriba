@@ -373,6 +373,15 @@ void Editor::acceptCompletion(const QString &completion)
     cursor.removeSelectedText();
     cursor.insertText(completion);
     setTextCursor(cursor);
+
+    if (!completion.endsWith('/')) {
+        QTextCursor c = textCursor();
+        QChar next = document()->characterAt(c.position());
+        if (next != ')') {
+            c.insertText(QStringLiteral(")"));
+            setTextCursor(c);
+        }
+    }
 }
 
 void Editor::loadEmojiShortcodes()
