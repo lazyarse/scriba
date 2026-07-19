@@ -62,7 +62,19 @@ install(FILES ${CMAKE_SOURCE_DIR}/resources/scriba.desktop
     DESTINATION share/applications)
 
 set(CPACK_PACKAGE_NAME "scriba")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+execute_process(
+    COMMAND git describe --tags --always --dirty
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(GIT_VERSION)
+    string(REGEX REPLACE "^v" "" GIT_VERSION "${GIT_VERSION}")
+    set(CPACK_PACKAGE_VERSION "${GIT_VERSION}")
+else()
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+endif()
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor")
 set(CPACK_PACKAGE_CONTACT "TODO <fixme@example.com>")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
