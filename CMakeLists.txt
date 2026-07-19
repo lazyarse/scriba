@@ -26,6 +26,7 @@ add_executable(scriba
     src/TableDialog.cpp
     src/VegaLiteDialog.cpp
     src/EmojiDialog.cpp
+    src/LogWindow.cpp
     src/StaticHelpers.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c
@@ -130,6 +131,7 @@ if(BUILD_TESTS)
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp
         src/FindDialog.cpp
+        src/LogWindow.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)

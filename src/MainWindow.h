@@ -14,6 +14,7 @@ class CssConfig;
 class CssLoader;
 class VegaLiteDialog;
 class TableDialog;
+class LogWindow;
 
 class MainWindow : public QMainWindow
 {
@@ -37,6 +38,7 @@ private slots:
     void updateStats();
     void showChartBuilder();
     void showTableInsert();
+    void showLogWindow();
 
 private:
     void setupUi();
@@ -65,6 +67,7 @@ private:
     QToolButton *m_fullscreenBtn = nullptr;
     QToolButton *m_previewBtn = nullptr;
     QLabel *m_statsLabel = nullptr;
+    LogWindow *m_logWindow = nullptr;
     int m_previewState = 1;
 
 protected:

@@ -1,5 +1,8 @@
 #include "MdRenderer.h"
+#include <QLoggingCategory>
 #include <QRegularExpression>
+
+Q_LOGGING_CATEGORY(lcMd4c, "scriba.md4c")
 
 MdRenderer::MdRenderer()
 {
@@ -18,7 +21,10 @@ QString MdRenderer::render(const char *input, MD_SIZE size, unsigned parserFlags
     parser.enter_span = enterSpan;
     parser.leave_span = leaveSpan;
     parser.text = text;
-    parser.debug_log = nullptr;
+    parser.debug_log = [](const char *msg, void *userdata) {
+        Q_UNUSED(userdata);
+        qCDebug(lcMd4c) << msg;
+    };
     parser.syntax = nullptr;
 
     md_parse(input, size, &parser, this);

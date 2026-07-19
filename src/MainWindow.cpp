@@ -13,6 +13,7 @@
 #include "TableDialog.h"
 #include "VegaLiteDialog.h"
 #include "EmojiDialog.h"
+#include "LogWindow.h"
 
 #include <QMenuBar>
 #include <QMenu>
@@ -300,6 +301,12 @@ void MainWindow::setupMenuBar()
     QAction *tableAction = toolsMenu->addAction("&Table Insert...");
     tableAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
     connect(tableAction, &QAction::triggered, this, &MainWindow::showTableInsert);
+
+    toolsMenu->addSeparator();
+
+    QAction *logAction = toolsMenu->addAction("&Debug Log");
+    logAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
+    connect(logAction, &QAction::triggered, this, &MainWindow::showLogWindow);
 }
 
 void MainWindow::refreshPreviewCss()
@@ -572,6 +579,17 @@ void MainWindow::showTableInsert()
         cursor.setPosition(insertPos + offset, QTextCursor::MoveAnchor);
         m_editor->setTextCursor(cursor);
     }
+}
+
+void MainWindow::showLogWindow()
+{
+    if (!m_logWindow) {
+        m_logWindow = new LogWindow(this);
+        m_logWindow->setAttribute(Qt::WA_DeleteOnClose, false);
+    }
+    m_logWindow->show();
+    m_logWindow->raise();
+    m_logWindow->activateWindow();
 }
 
 void MainWindow::showFindDialog()
