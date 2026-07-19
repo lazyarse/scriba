@@ -22,7 +22,6 @@ add_executable(scriba
     src/CssEditorDialog.cpp
     src/ExportPdfDialog.cpp
     src/FindDialog.cpp
-        src/TableDialog.cpp
     src/TableDialog.cpp
     src/VegaLiteDialog.cpp
     src/EmojiDialog.cpp
