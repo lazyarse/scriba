@@ -1,4 +1,5 @@
 #include "Editor.h"
+#include "Preferences.h"
 #include "StaticHelpers.h"
 #include <QAbstractItemView>
 #include <QCompleter>
@@ -8,6 +9,7 @@
 #include <QKeyEvent>
 #include <QRegularExpression>
 #include <QScrollBar>
+#include <QSettings>
 #include <QStringListModel>
 #include <QTextBlock>
 #include <QTextBlockFormat>
@@ -301,9 +303,9 @@ void Editor::showFileCompletion(const QString &partialPath)
         }
     }
 
-    constexpr int kMaxFileResults = 20;
-    if (entries.size() > kMaxFileResults)
-        entries = entries.mid(0, kMaxFileResults);
+    int maxResults = QSettings().value(Preferences::FileCompletionLimit, 20).toInt();
+    if (entries.size() > maxResults)
+        entries = entries.mid(0, maxResults);
 
     if (entries.isEmpty() || filePart.isEmpty())
         return;
