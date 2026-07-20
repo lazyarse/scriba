@@ -12,6 +12,7 @@ namespace Preferences {
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *LastCursorBlock = "lastCursorBlock";
     constexpr const char *LastCursorColumn = "lastCursorColumn";
+    constexpr const char *LastScrollTop = "lastScrollTop";
     constexpr const char *PreviewState = "previewState";
     constexpr const char *TableStriping = "tableStriping";
     constexpr const char *EmojiMode = "emojiMode";
