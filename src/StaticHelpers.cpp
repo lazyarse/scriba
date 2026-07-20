@@ -1,6 +1,7 @@
 #include "StaticHelpers.h"
 #include <QRegularExpression>
 #include <QSet>
+#include <QXmlStreamReader>
 
 QString escapeJsString(const QString &s)
 {
@@ -118,6 +119,24 @@ QString handleTableReturn(const QString &line, const QString &prevLine)
     if (line.contains("<tr>") && line.contains("<td>")) {
         int cols = line.count("<td>");
         if (cols <= 0) return {};
+
+        // Blank HTML row → exit autocomplete
+        {
+            QXmlStreamReader xml(line);
+            bool allEmpty = true;
+            while (!xml.atEnd() && !xml.hasError()) {
+                xml.readNext();
+                if (xml.isCharacters() && !xml.isWhitespace()) {
+                    allEmpty = false;
+                    break;
+                }
+            }
+            if (allEmpty) {
+                static const QChar clearSentinel(0x2412);
+                return QString(clearSentinel);
+            }
+        }
+
         QString result = "<tr>";
         for (int c = 0; c < cols; ++c)
             result += "<td></td>";
@@ -164,6 +183,34 @@ int tableNavCell(const QString &line, int cursorPos, bool forward)
         if (cellPos < line.size() && line[cellPos] == ' ')
             ++cellPos;
         return cellPos;
+    }
+}
+
+int tableNavHtmlCell(const QString &line, int cursorPos, bool forward)
+{
+    QList<int> tdStarts;
+    int idx = 0;
+    while ((idx = line.indexOf("<td>", idx)) >= 0) {
+        tdStarts.append(idx);
+        idx += 4;
+    }
+    if (tdStarts.isEmpty())
+        return -1;
+
+    if (forward) {
+        for (int i = 0; i < tdStarts.size(); ++i) {
+            int contentStart = tdStarts[i] + 4;
+            if (contentStart > cursorPos)
+                return contentStart;
+        }
+        return -1;
+    } else {
+        for (int i = tdStarts.size() - 1; i >= 0; --i) {
+            int contentStart = tdStarts[i] + 4;
+            if (contentStart < cursorPos)
+                return contentStart;
+        }
+        return -1;
     }
 }
 

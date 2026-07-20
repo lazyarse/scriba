@@ -135,3 +135,40 @@ TEST(TableNav, BackwardFromFirstReturnsMinusOne) {
 TEST(TableNav, ForwardSingleCellRow) {
     EXPECT_EQ(tableNavCell("|  |", 1, true), -1);
 }
+
+TEST(TableReturn, HtmlBlankRowReturnsSentinel) {
+    EXPECT_EQ(handleTableReturn("<tr><td></td><td></td></tr>", ""), QString(clearSentinel));
+}
+
+TEST(TableReturn, HtmlNonBlankRowReturnsRow) {
+    EXPECT_EQ(handleTableReturn("<tr><td>a</td><td>b</td></tr>", ""),
+              "<tr><td></td><td></td></tr>");
+}
+
+TEST(TableNavHtml, ForwardWithinRow) {
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td></tr>", 8, true), 17);
+}
+
+TEST(TableNavHtml, ForwardFromLastReturnsMinusOne) {
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td></tr>", 17, true), -1);
+}
+
+TEST(TableNavHtml, BackwardWithinRow) {
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td></tr>", 17, false), 8);
+}
+
+TEST(TableNavHtml, BackwardFromFirstReturnsMinusOne) {
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td></tr>", 8, false), -1);
+}
+
+TEST(TableNavHtml, ThreeCellsForward) {
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td><td></td></tr>", 8, true), 17);
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td><td></td></tr>", 17, true), 26);
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td><td></td></tr>", 26, true), -1);
+}
+
+TEST(TableNavHtml, ThreeCellsBackward) {
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td><td></td></tr>", 26, false), 17);
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td><td></td></tr>", 17, false), 8);
+    EXPECT_EQ(tableNavHtmlCell("<tr><td></td><td></td><td></td></tr>", 8, false), -1);
+}
