@@ -84,16 +84,7 @@ void CssLoader::invalidateCache()
 
 QString CssLoader::printCss() const
 {
-    QString active = m_config->activePrintStylesheet();
-    if (!active.isEmpty()) {
-        QString css = loadCssFile(active);
-        if (!css.isEmpty())
-            return css;
-    }
-    QFile f(":/print-base.css");
-    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return QString::fromUtf8(f.readAll());
-    return {};
+    return loadCssFile(":/print-base.css");
 }
 
 QString CssLoader::loadCssFile(const QString &filePath) const

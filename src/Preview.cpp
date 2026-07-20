@@ -30,6 +30,13 @@ void PreviewPage::javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
     }
 }
 
+bool PreviewPage::acceptNavigationRequest(const QUrl &url, NavigationType type, bool isMainFrame)
+{
+    if (type == NavigationTypeLinkClicked)
+        return false;
+    return QWebEnginePage::acceptNavigationRequest(url, type, isMainFrame);
+}
+
 Preview::Preview(QWidget *parent)
     : QWebEngineView(parent)
 {

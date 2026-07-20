@@ -488,7 +488,6 @@ void MainWindow::updatePreview()
     QString emojiMode = QSettings().value(Preferences::EmojiMode, "bw").toString();
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
-        QString printCss = m_cssLoader->printCss();
         QSettings prefs;
         bool striping = prefs.value(Preferences::TableStriping, true).toBool();
         QString stripeInit = striping ? QString()
@@ -497,8 +496,7 @@ void MainWindow::updatePreview()
             "<!DOCTYPE html><html><head>"
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
-            "<style id=\"print-css\">@media print { %4 }</style>"
-            "<style id=\"stripe-css\">%5</style>"
+            "<style id=\"stripe-css\">%4</style>"
             "<style>#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
@@ -512,7 +510,7 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///emoji.js\"></script>"
             "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
             "</head><body id=\"preview\">%3</body></html>"
-        ).arg(baseCss, previewCss, html, printCss, stripeInit);
+        ).arg(baseCss, previewCss, html, stripeInit);
         m_preview->setHtml(fullHtml, baseUrl);
         m_previewInitialized = true;
     } else {
@@ -800,43 +798,39 @@ void MainWindow::exportPdf()
         this, "Export PDF", defaultName, "PDF Files (*.pdf)");
     if (filePath.isEmpty()) return;
 
-    auto printWithCss = [this, filePath, printCss](const QString &origBase, const QString &origTheme) {
-        QString injectJs = QString(
-            "document.getElementById('base-css').textContent = '';"
-            "document.getElementById('theme-css').textContent = '%1';"
-        ).arg(escapeJsString(printCss));
+    QString injectJs = QString(
+        "window.__exportBase = document.getElementById('base-css').textContent;"
+        "window.__exportTheme = document.getElementById('theme-css').textContent;"
+        "document.getElementById('base-css').textContent = '';"
+        "document.getElementById('theme-css').textContent = '';"
+        "var el = document.createElement('style');"
+        "el.id = 'export-print-css';"
+        "el.textContent = '%1';"
+        "document.head.appendChild(el);"
+    ).arg(escapeJsString(printCss));
 
-        m_preview->page()->runJavaScript(injectJs, [this, filePath, origBase, origTheme](const QVariant &) {
-            QTimer::singleShot(150, this, [this, filePath, origBase, origTheme]() {
-                QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
-                                   QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
-                m_preview->page()->printToPdf([this, filePath, origBase, origTheme](const QByteArray &data) {
-                    QFile f(filePath);
-                    if (f.open(QIODevice::WriteOnly)) {
-                        f.write(data);
-                        statusBar()->showMessage("Exported to " + filePath, 5000);
-                    }
-                    QString restore = QString(
-                        "document.getElementById('base-css').textContent = '%1';"
-                        "document.getElementById('theme-css').textContent = '%2';"
-                    ).arg(escapeJsString(origBase), escapeJsString(origTheme));
-    m_preview->page()->runJavaScript(restore);
-                }, layout);
-            });
+    m_preview->page()->runJavaScript(injectJs, [this, filePath](const QVariant &) {
+        QTimer::singleShot(150, this, [this, filePath]() {
+            QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
+                               QMarginsF(0, 0, 0, 0), QPageLayout::Millimeter);
+            m_preview->page()->printToPdf([this, filePath](const QByteArray &data) {
+                QFile f(filePath);
+                if (f.open(QIODevice::WriteOnly)) {
+                    f.write(data);
+                    statusBar()->showMessage("Exported to " + filePath, 5000);
+                }
+                QString restore =
+                    "var el = document.getElementById('export-print-css');"
+                    "if (el) el.remove();"
+                    "document.getElementById('base-css').textContent = window.__exportBase || '';"
+                    "document.getElementById('theme-css').textContent = window.__exportTheme || '';";
+                m_preview->page()->runJavaScript(restore);
+            }, layout);
         });
-    };
-
-    m_preview->page()->runJavaScript(
-        "document.getElementById('base-css').textContent",
-        [this, printWithCss](const QVariant &baseResult) {
-            QString origBase = baseResult.toString();
-            m_preview->page()->runJavaScript(
-                "document.getElementById('theme-css').textContent",
-                [origBase, printWithCss](const QVariant &themeResult) {
-                    printWithCss(origBase, themeResult.toString());
-                });
-        });
+    });
 }
+
+
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {

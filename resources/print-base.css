@@ -1,3 +1,7 @@
+@page {
+    margin: 15mm;
+}
+
 body {
     background: white !important;
     color: #000 !important;
@@ -19,6 +23,14 @@ h2 { font-size: 16pt !important; }
 h3 { font-size: 14pt !important; }
 
 p { margin: 0.5em 0; }
+
+ul, ol {
+    padding-left: 2em;
+}
+
+li {
+    margin: 0.5em 0;
+}
 
 a { color: #000 !important; text-decoration: underline; }
 
@@ -116,6 +128,8 @@ hr { border: none; border-top: 1px solid #ccc; }
 
 .mermaid {
     page-break-inside: avoid;
+    text-align: center;
+    margin: 1em 0;
 }
 
 .mermaid svg {
@@ -141,6 +155,11 @@ hr { border: none; border-top: 1px solid #ccc; }
 
 .katex-display {
     page-break-inside: avoid;
+    margin: 1em 0;
+}
+
+.katex-display > .katex {
+    text-align: center;
 }
 
 .katex {
@@ -151,4 +170,53 @@ hr { border: none; border-top: 1px solid #ccc; }
     width: 12pt;
     height: 12pt;
     vertical-align: middle;
+}
+
+.hljs {
+    background: #fff;
+    color: #1a1a1a;
+}
+
+.hljs-comment, .hljs-quote {
+    color: #808080;
+    font-style: italic;
+}
+
+.hljs-keyword, .hljs-selector-tag, .hljs-section, .hljs-title, .hljs-name {
+    color: #333;
+    font-weight: bold;
+}
+
+.hljs-string, .hljs-selector-attr, .hljs-selector-pseudo, .hljs-regexp {
+    color: #555;
+}
+
+.hljs-literal, .hljs-symbol, .hljs-bullet, .hljs-meta, .hljs-number, .hljs-link {
+    color: #444;
+}
+
+.hljs-doctag, .hljs-type, .hljs-attr, .hljs-built_in, .hljs-params {
+    color: #2a2a2a;
+}
+
+.hljs-attribute, .hljs-subst {
+    color: #1a1a1a;
+}
+
+.hljs-addition {
+    background-color: #e0e0e0;
+    color: #1a1a1a;
+}
+
+.hljs-deletion {
+    background-color: #d0d0d0;
+    color: #1a1a1a;
+}
+
+.hljs-strong {
+    font-weight: bold;
+}
+
+.hljs-emphasis {
+    font-style: italic;
 }
