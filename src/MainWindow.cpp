@@ -138,7 +138,10 @@ MainWindow::MainWindow(QWidget *parent)
                 int block = settings.value(Preferences::LastCursorBlock, 0).toInt();
                 int column = settings.value(Preferences::LastCursorColumn, 0).toInt();
                 m_editor->setTextCursor(restoreCursorPosition(m_editor->document(), block, column));
-                QTimer::singleShot(0, m_editor, &QPlainTextEdit::centerCursor);
+                int scrollTop = settings.value(Preferences::LastScrollTop, 0).toInt();
+                QTimer::singleShot(0, [this, scrollTop]() {
+                    m_editor->verticalScrollBar()->setValue(scrollTop);
+                });
             } else {
                 showCenteredWarning("File Not Found",
                     "Could not find: " + lastFile,
@@ -843,7 +846,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
             autoSave();
         QTextCursor cursor = m_editor->textCursor();
         s.setValue(Preferences::LastCursorBlock, cursor.blockNumber());
-        s.setValue(Preferences::LastCursorColumn, cursor.columnNumber());
+        s.setValue(Preferences::LastCursorColumn, cursor.positionInBlock());
+        s.setValue(Preferences::LastScrollTop, m_editor->verticalScrollBar()->value());
     }
     QMainWindow::closeEvent(event);
 }
