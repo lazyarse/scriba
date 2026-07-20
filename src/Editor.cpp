@@ -80,6 +80,18 @@ void Editor::keyPressEvent(QKeyEvent *event)
         result = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
         if (!result.isEmpty()) {
             if (result == QString(clearSentinel)) {
+                if (line.contains("<tr>") && line.contains("<td>")) {
+                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
+                    cursor.removeSelectedText();
+                    QTextCursor search = document()->find("</table>", cursor);
+                    if (!search.isNull()) {
+                        search.movePosition(QTextCursor::EndOfLine);
+                        setTextCursor(search);
+                        insertPlainText("\n\n");
+                        return;
+                    }
+                }
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
@@ -106,7 +118,8 @@ void Editor::keyPressEvent(QKeyEvent *event)
             cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
             cursor.insertText("\n" + result);
             cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
+            int cellPos = result.startsWith("<tr>") ? result.indexOf("<td>") + 4 : 2;
+            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
             setTextCursor(cursor);
             return;
         }
@@ -173,6 +186,17 @@ void Editor::keyPressEvent(QKeyEvent *event)
                     }
                     block = block.previous();
                 }
+            }
+        }
+
+        // HTML table cell navigation
+        if (line.contains("<tr>") && line.contains("<td>")) {
+            int pos = cursor.positionInBlock();
+            int cellPos = tableNavHtmlCell(line, pos, !shift);
+            if (cellPos >= 0) {
+                cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
+                setTextCursor(cursor);
+                return;
             }
         }
 

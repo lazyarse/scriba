@@ -55,7 +55,7 @@
 - A debug log window output to see rendering errors
 - A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 
-## Shortcuts for Everything
+## Shortcuts for All Features
 
 | Shortcut | Action |
 |---|---|
@@ -138,3 +138,9 @@ Qt WebEngine requires a GPU context for rendering; tests that exercise the previ
 ```
 JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
 
+<table>
+<tr><td>foo</td><td>bar</td></tr>
+<tr><td>car</td><td>zar</td></tr>
+</table>
+
+and this is the new line
