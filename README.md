@@ -3,18 +3,18 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** and other autistics with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right with no other features, but, my bad.
+**A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right with no other features, but, my bad.
 
 <p align="center">
   :cucumber:
-  <img src="https://img.shields.io/badge/opencode-000000?style=for-the-badge&logo=opencode&logoColor=white" />
+  <img src="docs/images/badge-opencode.svg" />
   :cucumber:
   <br />
 
-  <img src="https://img.shields.io/badge/C%2B%2B-17-blue" alt="C++17">
-  <img src="https://img.shields.io/badge/Qt-6-orange" alt="Qt 6">
-  <img src="https://img.shields.io/badge/tests-passing-brightgreen" alt="tests">
-  <img src="https://img.shields.io/badge/Worth it%3F-Totally-red" alt="Worth it?">
+  <img src="docs/images/badge-cpp17.svg" alt="C++17">
+  <img src="docs/images/badge-qt6.svg" alt="Qt 6">
+  <img src="docs/images/badge-tests.svg" alt="tests">
+  <img src="docs/images/badge-worthit.svg" alt="Worth it?">
 </p>
 </div>
 
@@ -47,11 +47,11 @@
 - Cursor restore on application start to pick up where you left off
 - Sentence, word count, estimated reading time, and age-level to suitably patronise
 - Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed. 
-- Table auto-completion:: `Enter` auto creates a new row either in-cell or at end of the row, `Enter` on blank row ends autocomplete, `Tab` to next cell, `Shift+Tab` to previous cell
+- Table auto-completion: `Enter` auto creates a new row either in-cell or at end of the row, `Enter` on blank row ends autocomplete, `Tab` to next cell, `Shift+Tab` to previous cell
 - Ordered and Unordered list item autocompletion after a previous list item.`Tab` to indent, `Shift+Tab` to outdent list items. `Enter` again to stop autocomplete
 - Optional alternating table row striping
 - Emojis + search + autocomplete because all technical documentation now requires them
-- File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar<tab>` could autocomplete to `![](foo/bar.png)`
+- File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` could autocomplete to `![](foo/bar.png)`
 - A debug log window output to see rendering errors
 - A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 
@@ -137,3 +137,4 @@ Qt WebEngine requires a GPU context for rendering; tests that exercise the previ
 ./scriba --debug      # enable JS console logging via Qt logging system
 ```
 JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
+
