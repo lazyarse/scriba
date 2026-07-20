@@ -34,6 +34,7 @@ private:
     QPushButton *m_browseBtn;
     QLabel *m_pathLabel;
     QString m_customCssPath;
+    QString m_cachedPrintCss;
 };
 
 #endif

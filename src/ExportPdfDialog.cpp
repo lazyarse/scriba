@@ -7,7 +7,6 @@
 #include <QRadioButton>
 #include <QPushButton>
 #include <QWebEngineView>
-#include <QSettings>
 #include <QLabel>
 #include <QFileDialog>
 #include <QSplitter>
@@ -16,6 +15,7 @@
 #include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QIcon>
+#include <QSettings>
 
 ExportPdfDialog::ExportPdfDialog(const QString &html, CssLoader *loader, QWidget *parent)
     : QDialog(parent)
@@ -27,15 +27,8 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, CssLoader *loader, QWidget
 
     setupUi();
 
-    QSettings settings;
-    m_customCssPath = settings.value(Preferences::ActivePrintCssFile, "").toString();
-    if (!m_customCssPath.isEmpty() && QFile::exists(m_customCssPath)) {
-        m_customRadio->setChecked(true);
-    } else {
-        m_defaultRadio->setChecked(true);
-        m_customCssPath.clear();
-    }
-
+    m_defaultRadio->setChecked(true);
+    m_customCssPath.clear();
     onCssModeChanged();
 }
 
@@ -93,13 +86,7 @@ void ExportPdfDialog::setupUi()
     connect(m_defaultRadio, &QRadioButton::toggled, this, &ExportPdfDialog::onCssModeChanged);
     connect(m_customRadio, &QRadioButton::toggled, this, &ExportPdfDialog::onCssModeChanged);
     connect(m_browseBtn, &QPushButton::clicked, this, &ExportPdfDialog::browseCustomCss);
-    connect(buttonBox, &QDialogButtonBox::accepted, this, [this]() {
-        if (!m_customCssPath.isEmpty()) {
-            QSettings settings;
-            settings.setValue(Preferences::ActivePrintCssFile, m_customCssPath);
-        }
-        accept();
-    });
+    connect(buttonBox, &QDialogButtonBox::accepted, this, [this]() { accept(); });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
@@ -108,16 +95,16 @@ void ExportPdfDialog::onCssModeChanged()
     bool custom = m_customRadio->isChecked();
     m_browseBtn->setEnabled(custom);
 
-    QString printCss = loadCustomCss();
-    if (printCss.isEmpty())
-        printCss = m_loader->printCss();
+    m_cachedPrintCss = loadCustomCss();
+    if (m_cachedPrintCss.isEmpty())
+        m_cachedPrintCss = m_loader->printCss();
 
     if (custom && !m_customCssPath.isEmpty())
         m_pathLabel->setText(m_customCssPath);
     else
         m_pathLabel->setText("No file selected");
 
-    loadPreview(printCss);
+    loadPreview(m_cachedPrintCss);
 }
 
 void ExportPdfDialog::browseCustomCss()
@@ -154,18 +141,16 @@ void ExportPdfDialog::loadPreview(const QString &printCss)
         "<style>%1</style>"
         "<style>%2</style>"
         "<style>%3</style>"
-        "<style>%4</style>"
         "<script src=\"qrc:///highlight.min.js\"></script>"
         "<script>document.addEventListener('DOMContentLoaded',function(){hljs.highlightAll();});</script>"
-        "</head><body>%5</body></html>"
-    ).arg(printCss, m_loader->previewBaseCss(), stripeCss, grayscaleHljs, m_html);
+        "</head><body id=\"preview\">%4</body></html>"
+    ).arg(printCss, stripeCss, grayscaleHljs, m_html);
     m_preview->setHtml(fullHtml, QUrl(baseUrl));
 }
 
 QString ExportPdfDialog::selectedPrintCss() const
 {
-    QString css = loadCustomCss();
-    return css.isEmpty() ? m_loader->printCss() : css;
+    return m_cachedPrintCss;
 }
 
 QString ExportPdfDialog::loadCustomCss() const

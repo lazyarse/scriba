@@ -120,6 +120,27 @@ pause_frames() {
     done
 }
 
+header() {
+    local text="$1" i ch
+    press "numbersign"; sleep 0.15; capture $F; F=$((F + 1))
+    press "numbersign"; sleep 0.15; capture $F; F=$((F + 1))
+    press "space"; sleep 0.15; capture $F; F=$((F + 1))
+    for ((i=0; i<${#text}; i++)); do
+        ch="${text:$i:1}"
+        if [ "$ch" = " " ]; then
+            press "space"
+        else
+            press "$ch"
+        fi
+        sleep 0.15
+        capture $F; F=$((F + 1))
+    done
+    press "Return"
+    for i in 1 2; do sleep 0.2; capture $F; F=$((F + 1)); done
+    press "Return"
+    for i in 1 2; do sleep 0.2; capture $F; F=$((F + 1)); done
+}
+
 "$BUILD_DIR/scriba" "$PROJECT_DIR/.demo-content.md" &
 PID=$!
 sleep 2
@@ -138,6 +159,8 @@ F=1
 # ═══════════════════════════════════════
 # Scene 1: File autocomplete — chain resources/ → icons/ → scriba.svg
 # ═══════════════════════════════════════
+
+header "Files"
 
 # Type ![](
 for CH in "exclam" "bracketleft" "bracketright" "parenleft"; do
@@ -210,9 +233,23 @@ press "Right"
 sleep 0.15
 capture $F; F=$((F + 1))
 
+# New line before emoji scene
+press "Return"
+for i in 1 2; do
+    sleep 0.2
+    capture $F; F=$((F + 1))
+done
+press "Return"
+for i in 1 2; do
+    sleep 0.2
+    capture $F; F=$((F + 1))
+done
+
 # ═══════════════════════════════════════
 # Scene 2: Emoji autocomplete — type :smi, cycle, accept
 # ═══════════════════════════════════════
+header "Emojis"
+
 for CH in "colon" "s" "m"; do
     press "$CH"
     sleep 0.15
@@ -248,18 +285,17 @@ for i in 1 2; do
     sleep 0.2
     capture $F; F=$((F + 1))
 done
+press "Return"
+for i in 1 2; do
+    sleep 0.2
+    capture $F; F=$((F + 1))
+done
 
 # ═══════════════════════════════════════
 # Scene 3: Table autocomplete — type header, fill cells, exit
 # ═══════════════════════════════════════
 
-# Start new line (after previous content)
-press "Return"
-sleep 0.2
-capture $F; F=$((F + 1))
-press "Return"
-sleep 0.2
-capture $F; F=$((F + 1))
+header "Markdown Tables"
 
 # Type |header1|
 for CH in "bar" "h" "e" "a" "d" "e" "r" "1" "bar"; do
@@ -361,11 +397,7 @@ for i in 1 2 3; do
     capture $F; F=$((F + 1))
 done
 # --- Scene 4: HTML table via Ctrl+T dialog ---
-press "Return"
-for i in 1 2; do
-    sleep 0.2
-    capture $F; F=$((F + 1))
-done
+header "HTML Tables"
 
 press "ctrl+t"
 sleep 0.5

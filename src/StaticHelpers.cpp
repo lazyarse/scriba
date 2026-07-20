@@ -6,7 +6,7 @@
 QString escapeJsString(const QString &s)
 {
     QString r = s;
-    r.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+    r.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
     return r;
 }
 

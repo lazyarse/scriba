@@ -16,6 +16,7 @@ protected:
                                   const QString &message,
                                   int lineNumber,
                                   const QString &sourceID) override;
+    bool acceptNavigationRequest(const QUrl &url, NavigationType type, bool isMainFrame) override;
 };
 
 class Preview : public QWebEngineView
