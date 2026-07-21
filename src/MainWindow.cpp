@@ -32,8 +32,6 @@
 #include <QFontDatabase>
 #include <QPainter>
 #include <QRegularExpression>
-#include <QPageLayout>
-#include <QPageSize>
 #include <QApplication>
 #include <QGuiApplication>
 #include <QScreen>
@@ -782,52 +780,8 @@ void MainWindow::exportPdf()
     QString markdown = m_editor->toPlainText();
     QString html = m_parser->toHtml(markdown);
 
-    ExportPdfDialog dlg(html, m_cssLoader, this);
-    if (dlg.exec() != QDialog::Accepted)
-        return;
-
-    QString printCss = dlg.selectedPrintCss();
-
-    QString defaultName = "Untitled.pdf";
-    if (!m_currentFile.isEmpty()) {
-        QFileInfo fi(m_currentFile);
-        defaultName = fi.absolutePath() + "/" + fi.completeBaseName() + ".pdf";
-    }
-
-    QString filePath = QFileDialog::getSaveFileName(
-        this, "Export PDF", defaultName, "PDF Files (*.pdf)");
-    if (filePath.isEmpty()) return;
-
-    QString injectJs = QString(
-        "window.__exportBase = document.getElementById('base-css').textContent;"
-        "window.__exportTheme = document.getElementById('theme-css').textContent;"
-        "document.getElementById('base-css').textContent = '';"
-        "document.getElementById('theme-css').textContent = '';"
-        "var el = document.createElement('style');"
-        "el.id = 'export-print-css';"
-        "el.textContent = '%1';"
-        "document.head.appendChild(el);"
-    ).arg(escapeJsString(printCss));
-
-    m_preview->page()->runJavaScript(injectJs, [this, filePath](const QVariant &) {
-        QTimer::singleShot(150, this, [this, filePath]() {
-            QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
-                               QMarginsF(0, 0, 0, 0), QPageLayout::Millimeter);
-            m_preview->page()->printToPdf([this, filePath](const QByteArray &data) {
-                QFile f(filePath);
-                if (f.open(QIODevice::WriteOnly)) {
-                    f.write(data);
-                    statusBar()->showMessage("Exported to " + filePath, 5000);
-                }
-                QString restore =
-                    "var el = document.getElementById('export-print-css');"
-                    "if (el) el.remove();"
-                    "document.getElementById('base-css').textContent = window.__exportBase || '';"
-                    "document.getElementById('theme-css').textContent = window.__exportTheme || '';";
-                m_preview->page()->runJavaScript(restore);
-            }, layout);
-        });
-    });
+    ExportPdfDialog dlg(html, m_currentFile, m_cssLoader, this);
+    dlg.exec();
 }
 
 
