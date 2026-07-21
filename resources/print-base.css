@@ -39,6 +39,15 @@ code {
     padding: 0.1em 0.3em;
 }
 
+kbd {
+    border: 1px solid #999;
+    border-radius: 3px;
+    padding: 0.1em 0.3em;
+    font-size: 10pt;
+    font-family: 'Consolas', 'Monaco', monospace;
+    background: #f4f4f4;
+}
+
 pre {
     background: #f4f4f4 !important;
     border: 1px solid #ccc;

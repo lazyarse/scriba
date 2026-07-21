@@ -43,12 +43,12 @@
 
 ### Candy:
 
-- Full-screen mode (F11 or menu bar icon)
+- Full-screen mode (<key>F11</key> or menu bar icon)
 - Cursor restore on application start to pick up where you left off
 - Sentence, word count, estimated reading time, and age-level to suitably patronise
 - Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed. 
-- Table auto-completion: `Enter` auto creates a new row either in-cell or at end of the row, `Enter` on blank row ends autocomplete, `Tab` to next cell, `Shift+Tab` to previous cell
-- Ordered and Unordered list item autocompletion after a previous list item.`Tab` to indent, `Shift+Tab` to outdent list items. `Enter` again to stop autocomplete
+- Table auto-completion: <kbd>Enter</kbd> auto creates a new row either in-cell or at end of the row, <kbd>Enter</kbd> on blank row ends autocomplete, <kbd>Tab</kbd> to next cell, <kbd>Shift</kbd>+<kbd>Tab</kbd> to previous cell
+- Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete
 - Optional alternating table row striping
 - Emojis + search + autocomplete because all technical documentation now requires them
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` could autocomplete to `![](foo/bar.png)`
@@ -58,21 +58,21 @@
 ## Shortcuts for All Features
 
 | Shortcut | Action |
-|---|---|
-| Ctrl+N | New |
-| Ctrl+O | Open |
-| Ctrl+S | Save |
-| Ctrl+Shift+S | Save As |
-| Ctrl+R | Reload |
-| Ctrl+P | Export PDF |
-| Ctrl+F | Find |
-| Ctrl+G | Vega-Lite Chart Builder |
-| Ctrl+B | Toggle Preview Pane |
-| Ctrl+E | Emoji Search :eyes: :mag: |
-| Ctrl+T | Table Generator |
-| Ctrl+Alt+P | Preferences |
-| F11 | Toggle Fullscreen |
-| Ctrl+Q | Quit |
+|---|---|---|
+| <kbd>Ctrl</kbd>+<kbd>N</kbd> | New |
+| <kbd>Ctrl</kbd>+<kbd>O</kbd> | Open |
+| <kbd>Ctrl</kbd>+<kbd>S</kbd> | Save |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Save As |
+| <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reload |
+| <kbd>Ctrl</kbd>+<kbd>P</kbd> | Export PDF |
+| <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find |
+| <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite Chart Builder |
+| <kbd>Ctrl</kbd>+<kbd>B</kbd> | Toggle Preview Pane |
+| <kbd>Ctrl</kbd>+<kbd>E</kbd> | Emoji Search :eyes: :mag: |
+| <kbd>Ctrl</kbd>+<kbd>T</kbd> | Table Generator |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Preferences |
+| <kbd>F11</kbd> | Toggle Fullscreen |
+| <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Quit |
 
 ## Custom CSS / Themes
 
@@ -98,7 +98,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 ## Building
 
 ```bash
-mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
+mkdir -p build-official && cmake -B build-official -DCMAKE_BUILD_TYPE=Release && cmake --build build-official -j$(nproc)
 ```
 
 The post-build step automatically removes cached base stylesheets (`~/.config/Scriba/Scriba/*.css`), so no manual cleanup needed on rebuild.
@@ -106,25 +106,25 @@ The post-build step automatically removes cached base stylesheets (`~/.config/Sc
 ### Build .deb package
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB
+cmake -B build-official -DCMAKE_BUILD_TYPE=Release && cmake --build build-official -j$(nproc) && cpack --config build-official/CPackConfig.cmake -G DEB
 ```
 
-Output: `build/scriba-1.0.0-Linux.deb`
+Output: `build-official/scriba-1.0.0-Linux.deb`
 
 ### Build with tests
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build build -j$(nproc)
+cmake -B build-official -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build build-official -j$(nproc)
 ```
 
 ### Run tests
 
 ```bash
 # With a display server (X11/Wayland):
-cd build && ctest --output-on-failure
+cd build-official && ctest --output-on-failure
 
 # Headless/CI (requires xvfb):
-cd build && xvfb-run ctest --output-on-failure
+cd build-official && xvfb-run ctest --output-on-failure
 ```
 
 Qt WebEngine requires a GPU context for rendering; tests that exercise the preview (`test_scroll_sync`) need `xvfb-run` in headless environments.
@@ -138,9 +138,3 @@ Qt WebEngine requires a GPU context for rendering; tests that exercise the previ
 ```
 JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
 
-<table>
-<tr><td>foo</td><td>bar</td></tr>
-<tr><td>car</td><td>zar</td></tr>
-</table>
-
-and this is the new line
