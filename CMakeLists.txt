@@ -175,5 +175,19 @@ if(BUILD_TESTS)
     target_link_libraries(test_auto_save PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
     add_test(NAME test_auto_save COMMAND test_auto_save)
+
+    add_executable(test_print_css_file tests/test_print_css_file.cpp)
+    target_compile_definitions(test_print_css_file PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+    target_link_libraries(test_print_css_file PRIVATE GTest::gtest_main Qt6::Core)
+    add_test(NAME test_print_css_file COMMAND test_print_css_file)
+
+    add_executable(test_pdf_export tests/test_pdf_export.cpp
+        src/ExportPdfDialog.cpp src/Preview.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_pdf_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_pdf_export PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Test)
+    add_test(NAME test_pdf_export COMMAND test_pdf_export)
 endif()
 
