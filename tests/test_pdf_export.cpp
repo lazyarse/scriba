@@ -4,6 +4,8 @@
 #include <QTemporaryFile>
 #include <QFile>
 #include <QRadioButton>
+#include <QCheckBox>
+#include <QPlainTextEdit>
 #include <QSettings>
 #include <QMarginsF>
 
@@ -24,6 +26,17 @@ public:
     static bool tempFileExists(const ExportPdfDialog *d) { return d->m_tempFile && d->m_tempFile->exists(); }
     static void setCustomCssPath(ExportPdfDialog *d, const QString &p) { d->m_customCssPath = p; }
     static void setCustomRadio(ExportPdfDialog *d, bool checked) { d->m_customRadio->setChecked(checked); }
+    static void setHeaderText(ExportPdfDialog *d, const QString &t) { d->m_headerCenter->setPlainText(t); }
+    static void setFooterText(ExportPdfDialog *d, const QString &t) { d->m_footerCenter->setPlainText(t); }
+    static void setHeaderLeft(ExportPdfDialog *d, const QString &t) { d->m_headerLeft->setPlainText(t); }
+    static void setHeaderCenter(ExportPdfDialog *d, const QString &t) { d->m_headerCenter->setPlainText(t); }
+    static void setHeaderRight(ExportPdfDialog *d, const QString &t) { d->m_headerRight->setPlainText(t); }
+    static void setFooterLeft(ExportPdfDialog *d, const QString &t) { d->m_footerLeft->setPlainText(t); }
+    static void setFooterCenter(ExportPdfDialog *d, const QString &t) { d->m_footerCenter->setPlainText(t); }
+    static void setFooterRight(ExportPdfDialog *d, const QString &t) { d->m_footerRight->setPlainText(t); }
+    static void setShowHeader(ExportPdfDialog *d, bool on) { d->m_showHeader->setChecked(on); }
+    static QString buildHeaderFooterCss(ExportPdfDialog *d) { return d->buildHeaderFooterCss(); }
+    static const QString &currentPrintCss(const ExportPdfDialog *d) { return d->m_currentPrintCss; }
     static QMarginsF parsePageMargins(ExportPdfDialog *, const QString &css) { return ExportPdfDialog::parsePageMargins(css); }
 };
 
@@ -190,6 +203,111 @@ TEST_F(PrintExportTest, ParsePageMarginsNoMargin)
     EXPECT_DOUBLE_EQ(m.top(), 0);
 }
 
+// ---------- buildHeaderFooterCss tests ----------
+
+TEST_F(PrintExportTest, BuildHeaderFooterCssEmptyWhenBothEmpty)
+{
+    PrintExportAccess::setHeaderText(dlg, QString());
+    PrintExportAccess::setFooterText(dlg, QString());
+    EXPECT_TRUE(PrintExportAccess::buildHeaderFooterCss(dlg).isEmpty());
+}
+
+TEST_F(PrintExportTest, BuildHeaderFooterCssHeaderOnly)
+{
+    PrintExportAccess::setHeaderText(dlg, "{title}");
+    PrintExportAccess::setFooterText(dlg, QString());
+    QString css = PrintExportAccess::buildHeaderFooterCss(dlg);
+    EXPECT_TRUE(css.contains("@top-center"));
+    EXPECT_FALSE(css.contains("@bottom-center"));
+}
+
+TEST_F(PrintExportTest, BuildHeaderFooterCssFooterOnly)
+{
+    PrintExportAccess::setHeaderText(dlg, QString());
+    PrintExportAccess::setFooterText(dlg, "Page {page} of {pages}");
+    QString css = PrintExportAccess::buildHeaderFooterCss(dlg);
+    EXPECT_FALSE(css.contains("@top-center"));
+    EXPECT_TRUE(css.contains("@bottom-center"));
+}
+
+TEST_F(PrintExportTest, BuildHeaderFooterCssBoth)
+{
+    PrintExportAccess::setHeaderText(dlg, "{title}");
+    PrintExportAccess::setFooterText(dlg, "{page}");
+    QString css = PrintExportAccess::buildHeaderFooterCss(dlg);
+    EXPECT_TRUE(css.contains("@top-center"));
+    EXPECT_TRUE(css.contains("@bottom-center"));
+}
+
+TEST_F(PrintExportTest, BuildHeaderFooterCounterOutsideQuotes)
+{
+    PrintExportAccess::setHeaderText(dlg, "Page {page} of {pages}");
+    QString css = PrintExportAccess::buildHeaderFooterCss(dlg);
+    // counter() must NOT be inside CSS string quotes
+    EXPECT_TRUE(css.contains(QStringLiteral("counter(page)")));
+    EXPECT_TRUE(css.contains(QStringLiteral("counter(pages)")));
+    // counter() should appear as a bare function, not inside a quoted string
+    EXPECT_FALSE(css.contains(QStringLiteral("\"counter(")));
+}
+
+TEST_F(PrintExportTest, BuildHeaderFooterLeftAndRight)
+{
+    PrintExportAccess::setHeaderLeft(dlg, "{date}");
+    PrintExportAccess::setHeaderRight(dlg, "Page {page}");
+    QString css = PrintExportAccess::buildHeaderFooterCss(dlg);
+    EXPECT_TRUE(css.contains("@top-left"));
+    EXPECT_FALSE(css.contains("@top-center"));
+    EXPECT_TRUE(css.contains("@top-right"));
+}
+
+TEST_F(PrintExportTest, BuildHeaderFooterAllPositions)
+{
+    PrintExportAccess::setHeaderLeft(dlg, "{date}");
+    PrintExportAccess::setHeaderCenter(dlg, "{title}");
+    PrintExportAccess::setHeaderRight(dlg, "{page}");
+    PrintExportAccess::setFooterLeft(dlg, "{date}");
+    PrintExportAccess::setFooterCenter(dlg, "{title}");
+    PrintExportAccess::setFooterRight(dlg, "{page}");
+    QString css = PrintExportAccess::buildHeaderFooterCss(dlg);
+    EXPECT_TRUE(css.contains("@top-left"));
+    EXPECT_TRUE(css.contains("@top-center"));
+    EXPECT_TRUE(css.contains("@top-right"));
+    EXPECT_TRUE(css.contains("@bottom-left"));
+    EXPECT_TRUE(css.contains("@bottom-center"));
+    EXPECT_TRUE(css.contains("@bottom-right"));
+}
+
+TEST_F(PrintExportTest, BuildHeaderFooterCenterOnly)
+{
+    PrintExportAccess::setHeaderCenter(dlg, "{title}");
+    QString css = PrintExportAccess::buildHeaderFooterCss(dlg);
+    EXPECT_FALSE(css.contains("@top-left"));
+    EXPECT_TRUE(css.contains("@top-center"));
+    EXPECT_FALSE(css.contains("@top-right"));
+}
+
+TEST_F(PrintExportTest, HeaderFooterCssExcludedWhenCheckboxOff)
+{
+    PrintExportAccess::setHeaderText(dlg, "{title}");
+    PrintExportAccess::setFooterText(dlg, "{page}");
+    PrintExportAccess::setShowHeader(dlg, false);
+    QApplication::processEvents();
+    QString css = PrintExportAccess::currentPrintCss(dlg);
+    EXPECT_FALSE(css.contains("@top-center"));
+    EXPECT_FALSE(css.contains("@bottom-center"));
+}
+
+TEST_F(PrintExportTest, HeaderFooterCssIncludedWhenCheckboxOn)
+{
+    PrintExportAccess::setHeaderText(dlg, "{title}");
+    PrintExportAccess::setFooterText(dlg, "{page}");
+    PrintExportAccess::setShowHeader(dlg, true);
+    QApplication::processEvents();
+    QString css = PrintExportAccess::currentPrintCss(dlg);
+    EXPECT_TRUE(css.contains("@top-center"));
+    EXPECT_TRUE(css.contains("@bottom-center"));
+}
+
 // ---------- PDF generation tests ----------
 
 static bool waitForPdf(const ExportPdfDialog *dlg, int maxWaitMs = 5000)
@@ -309,6 +427,15 @@ TEST_F(PrintExportTest, TempFileCreated)
     ASSERT_TRUE(waitForPdf(dlg));
     EXPECT_TRUE(PrintExportAccess::hasTempFile(dlg));
     EXPECT_TRUE(PrintExportAccess::tempFileExists(dlg));
+}
+
+TEST_F(PrintExportTest, NoDefaultHeadersInPdf)
+{
+    ASSERT_TRUE(waitForPdf(dlg));
+    QByteArray pdf = PrintExportAccess::pdfData(dlg);
+    ASSERT_FALSE(pdf.isEmpty());
+    EXPECT_FALSE(pdf.contains("1/1")) << "page number should not appear in PDF";
+    EXPECT_FALSE(pdf.contains("file://")) << "file URL should not appear in PDF";
 }
 
 int main(int argc, char **argv)

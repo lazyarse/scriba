@@ -61,8 +61,13 @@ private:
     QProcess *m_pdfProcess = nullptr;
     QCheckBox *m_showPdfToolbar = nullptr;
     QCheckBox *m_showHeader = nullptr;
-    QPlainTextEdit *m_headerEdit = nullptr;
-    QPlainTextEdit *m_footerEdit = nullptr;
+    QPlainTextEdit *m_headerLeft = nullptr;
+    QPlainTextEdit *m_headerCenter = nullptr;
+    QPlainTextEdit *m_headerRight = nullptr;
+    QPlainTextEdit *m_footerLeft = nullptr;
+    QPlainTextEdit *m_footerCenter = nullptr;
+    QPlainTextEdit *m_footerRight = nullptr;
+    QPushButton *m_regenerateBtn = nullptr;
     QString m_pdfUrl;
     int m_generationId = 0;
 };

@@ -4,6 +4,8 @@
 #include "Preferences.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QGridLayout>
+#include <QGroupBox>
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QPlainTextEdit>
@@ -215,66 +217,134 @@ void ExportPdfDialog::setupUi()
     QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(12, 12, 12, 12);
 
-    leftLayout->addWidget(new QLabel("Print Stylesheet:"));
-
-    m_defaultRadio = new QRadioButton("Use default print stylesheet", leftPanel);
-    m_customRadio = new QRadioButton("Use custom print stylesheet", leftPanel);
-    leftLayout->addWidget(m_defaultRadio);
-    leftLayout->addWidget(m_customRadio);
-
-    QHBoxLayout *customLayout = new QHBoxLayout();
-    customLayout->addSpacing(24);
-    m_pathLabel = new QLabel("No file selected", leftPanel);
-    m_pathLabel->setWordWrap(true);
-    m_pathLabel->setStyleSheet("color: gray;");
-    customLayout->addWidget(m_pathLabel, 1);
-    m_browseBtn = new QPushButton("Browse...", leftPanel);
-    customLayout->addWidget(m_browseBtn);
-    leftLayout->addLayout(customLayout);
-
     m_showPdfToolbar = new QCheckBox("Show PDF toolbar", leftPanel);
     m_showPdfToolbar->setChecked(false);
     m_showPdfToolbar->setEnabled(false);
     connect(m_showPdfToolbar, &QCheckBox::toggled, this, &ExportPdfDialog::reloadPdfPreview);
     leftLayout->addWidget(m_showPdfToolbar);
 
-    m_showHeader = new QCheckBox("Show headers & footers", leftPanel);
+    auto *exportGroup = new QGroupBox(QStringLiteral("Export options"), leftPanel);
+    auto *groupLayout = new QVBoxLayout(exportGroup);
+
+    groupLayout->addWidget(new QLabel("Print Stylesheet:", exportGroup));
+
+    m_defaultRadio = new QRadioButton("Use default print stylesheet", exportGroup);
+    m_customRadio = new QRadioButton("Use custom print stylesheet", exportGroup);
+    groupLayout->addWidget(m_defaultRadio);
+    groupLayout->addWidget(m_customRadio);
+
+    QHBoxLayout *customLayout = new QHBoxLayout();
+    customLayout->addSpacing(24);
+    m_pathLabel = new QLabel("No file selected", exportGroup);
+    m_pathLabel->setWordWrap(true);
+    m_pathLabel->setStyleSheet("color: gray;");
+    customLayout->addWidget(m_pathLabel, 1);
+    m_browseBtn = new QPushButton("Browse...", exportGroup);
+    customLayout->addWidget(m_browseBtn);
+    groupLayout->addLayout(customLayout);
+
+    m_showHeader = new QCheckBox("Show headers & footers", exportGroup);
     m_showHeader->setChecked(false);
     connect(m_showHeader, &QCheckBox::toggled, this, [this]() { onCssModeChanged(); });
-    leftLayout->addWidget(m_showHeader);
+    groupLayout->addWidget(m_showHeader);
 
-    auto *headerLabel = new QLabel("Header:", leftPanel);
-    headerLabel->setEnabled(false);
-    leftLayout->addWidget(headerLabel);
-    m_headerEdit = new QPlainTextEdit(leftPanel);
-    m_headerEdit->setPlaceholderText(QStringLiteral("{title}  \u2014  {date}"));
-    m_headerEdit->setMaximumHeight(60);
-    m_headerEdit->setEnabled(false);
-    connect(m_showHeader, &QCheckBox::toggled, headerLabel, &QWidget::setEnabled);
-    connect(m_showHeader, &QCheckBox::toggled, m_headerEdit, &QWidget::setEnabled);
-    leftLayout->addWidget(m_headerEdit);
+    auto *fieldGrid = new QGridLayout();
+    fieldGrid->setHorizontalSpacing(6);
 
-    auto *footerLabel = new QLabel("Footer:", leftPanel);
-    footerLabel->setEnabled(false);
-    leftLayout->addWidget(footerLabel);
-    m_footerEdit = new QPlainTextEdit(leftPanel);
-    m_footerEdit->setPlaceholderText("Page {page} of {pages}");
-    m_footerEdit->setMaximumHeight(60);
-    m_footerEdit->setEnabled(false);
-    connect(m_showHeader, &QCheckBox::toggled, footerLabel, &QWidget::setEnabled);
-    connect(m_showHeader, &QCheckBox::toggled, m_footerEdit, &QWidget::setEnabled);
-    leftLayout->addWidget(m_footerEdit);
+    auto *colLeftLabel = new QLabel("Left", exportGroup);
+    colLeftLabel->setAlignment(Qt::AlignCenter);
+    colLeftLabel->setStyleSheet("color: #888; font-size: 9px;");
+    auto *colCenterLabel = new QLabel("Center", exportGroup);
+    colCenterLabel->setAlignment(Qt::AlignCenter);
+    colCenterLabel->setStyleSheet("color: #888; font-size: 9px;");
+    auto *colRightLabel = new QLabel("Right", exportGroup);
+    colRightLabel->setAlignment(Qt::AlignCenter);
+    colRightLabel->setStyleSheet("color: #888; font-size: 9px;");
+    fieldGrid->addWidget(colLeftLabel, 0, 1);
+    fieldGrid->addWidget(colCenterLabel, 0, 2);
+    fieldGrid->addWidget(colRightLabel, 0, 3);
+
+    auto *headerRowLabel = new QLabel("Header:", exportGroup);
+    headerRowLabel->setEnabled(false);
+    fieldGrid->addWidget(headerRowLabel, 1, 0);
+
+    m_headerLeft = new QPlainTextEdit(exportGroup);
+    m_headerLeft->setPlaceholderText("{date}");
+    m_headerLeft->setMaximumHeight(60);
+    m_headerLeft->setEnabled(false);
+    fieldGrid->addWidget(m_headerLeft, 1, 1);
+
+    m_headerCenter = new QPlainTextEdit(exportGroup);
+    m_headerCenter->setPlaceholderText("{title}");
+    m_headerCenter->setMaximumHeight(60);
+    m_headerCenter->setEnabled(false);
+    fieldGrid->addWidget(m_headerCenter, 1, 2);
+
+    m_headerRight = new QPlainTextEdit(exportGroup);
+    m_headerRight->setPlaceholderText("Page {page}");
+    m_headerRight->setMaximumHeight(60);
+    m_headerRight->setEnabled(false);
+    fieldGrid->addWidget(m_headerRight, 1, 3);
+
+    auto *footerRowLabel = new QLabel("Footer:", exportGroup);
+    footerRowLabel->setEnabled(false);
+    fieldGrid->addWidget(footerRowLabel, 2, 0);
+
+    m_footerLeft = new QPlainTextEdit(exportGroup);
+    m_footerLeft->setPlaceholderText("{date}");
+    m_footerLeft->setMaximumHeight(60);
+    m_footerLeft->setEnabled(false);
+    fieldGrid->addWidget(m_footerLeft, 2, 1);
+
+    m_footerCenter = new QPlainTextEdit(exportGroup);
+    m_footerCenter->setPlaceholderText("{title}");
+    m_footerCenter->setMaximumHeight(60);
+    m_footerCenter->setEnabled(false);
+    fieldGrid->addWidget(m_footerCenter, 2, 2);
+
+    m_footerRight = new QPlainTextEdit(exportGroup);
+    m_footerRight->setPlaceholderText("Page {page}");
+    m_footerRight->setMaximumHeight(60);
+    m_footerRight->setEnabled(false);
+    fieldGrid->addWidget(m_footerRight, 2, 3);
+
+    fieldGrid->setColumnStretch(1, 1);
+    fieldGrid->setColumnStretch(2, 1);
+    fieldGrid->setColumnStretch(3, 1);
+    groupLayout->addLayout(fieldGrid);
+
+    auto enableFields = [=](bool on) {
+        m_headerLeft->setEnabled(on);
+        m_headerCenter->setEnabled(on);
+        m_headerRight->setEnabled(on);
+        m_footerLeft->setEnabled(on);
+        m_footerCenter->setEnabled(on);
+        m_footerRight->setEnabled(on);
+        colLeftLabel->setEnabled(on);
+        colCenterLabel->setEnabled(on);
+        colRightLabel->setEnabled(on);
+        headerRowLabel->setEnabled(on);
+        footerRowLabel->setEnabled(on);
+    };
+    connect(m_showHeader, &QCheckBox::toggled, this, enableFields);
 
     auto *hintLabel = new QLabel(
         QStringLiteral("Variables: <code>{page}</code> <code>{pages}</code> "
                        "<code>{date}</code> <code>{time}</code> <code>{title}</code>"),
-        leftPanel);
+        exportGroup);
     hintLabel->setEnabled(false);
     hintLabel->setWordWrap(true);
     hintLabel->setStyleSheet("color: #888; font-size: 10px;");
     connect(m_showHeader, &QCheckBox::toggled, hintLabel, &QWidget::setEnabled);
-    leftLayout->addWidget(hintLabel);
+    groupLayout->addWidget(hintLabel);
 
+    m_regenerateBtn = new QPushButton("Regenerate preview", exportGroup);
+    m_regenerateBtn->setEnabled(false);
+    connect(m_showHeader, &QCheckBox::toggled, m_regenerateBtn, &QWidget::setEnabled);
+    connect(m_regenerateBtn, &QPushButton::clicked, this, &ExportPdfDialog::onCssModeChanged);
+    groupLayout->addWidget(m_regenerateBtn);
+
+    leftLayout->addWidget(exportGroup);
     leftLayout->addStretch();
 
     m_preview = new QWebEngineView(this);
@@ -406,6 +476,7 @@ void ExportPdfDialog::onPageLoaded(bool ok)
         if (genId != m_generationId) return;
 
         if (m_chromiumBinary.isEmpty()) {
+            fprintf(stderr, "[PDF] no chromium binary found, using Qt printToPdf (headers cannot be suppressed)\n");
             QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
                                QMarginsF(), QPageLayout::Point);
             m_hiddenEngine->page()->printToPdf([this, genId](const QByteArray &data) {
@@ -471,6 +542,7 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
         args << QStringLiteral("--headless=new")
              << QStringLiteral("--disable-gpu")
              << QStringLiteral("--no-margins")
+             << QStringLiteral("--no-pdf-header-footer")
              << QStringLiteral("--print-to-pdf=%1").arg(pdfPath)
              << QUrl::fromLocalFile(htmlPath).toString();
 
@@ -493,21 +565,39 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
             }
         };
 
+        fprintf(stderr, "[PDF] using chromium: %s  args: %s\n",
+                qPrintable(m_chromiumBinary), qPrintable(args.join(' ')));
         QObject::connect(m_pdfProcess, &QProcess::finished,
                          m_pdfProcess, onFinished, Qt::SingleShotConnection);
         m_pdfProcess->start(m_chromiumBinary, args);
     });
 }
 
+static QString cssContentValue(const QString &text)
+{
+    QString result;
+    int lastEnd = 0;
+    QRegularExpression re(QStringLiteral("\\{page(s)?\\}"));
+    auto it = re.globalMatch(text);
+    while (it.hasNext()) {
+        auto match = it.next();
+        QString literal = text.mid(lastEnd, match.capturedStart() - lastEnd);
+        if (!literal.isEmpty())
+            result += QStringLiteral("\"%1\" ").arg(literal.toHtmlEscaped());
+        result += match.captured(1).isEmpty()
+            ? QStringLiteral("counter(page) ")
+            : QStringLiteral("counter(pages) ");
+        lastEnd = match.capturedEnd();
+    }
+    QString literal = text.mid(lastEnd);
+    if (!literal.isEmpty())
+        result += QStringLiteral("\"%1\" ").arg(literal.toHtmlEscaped());
+    return result.trimmed();
+}
+
 QString ExportPdfDialog::buildHeaderFooterCss() const
 {
-    QString h = m_headerEdit->toPlainText().trimmed();
-    QString f = m_footerEdit->toPlainText().trimmed();
-    if (h.isEmpty() && f.isEmpty()) return {};
-
     auto subst = [this](QString s) -> QString {
-        s.replace(QStringLiteral("{page}"), QStringLiteral("counter(page)"));
-        s.replace(QStringLiteral("{pages}"), QStringLiteral("counter(pages)"));
         s.replace(QStringLiteral("{date}"), QDate::currentDate().toString(QStringLiteral("yyyy-MM-dd")));
         s.replace(QStringLiteral("{time}"), QTime::currentTime().toString(QStringLiteral("HH:mm")));
         s.replace(QStringLiteral("{title}"), QFileInfo(m_defaultFilePath).completeBaseName());
@@ -515,13 +605,20 @@ QString ExportPdfDialog::buildHeaderFooterCss() const
         return s;
     };
 
+    auto addField = [&](const QString &marginBox, QPlainTextEdit *field) -> QString {
+        QString text = field->toPlainText().trimmed();
+        if (text.isEmpty()) return {};
+        return QStringLiteral("@page { @%1 { content: %2; font-size: 9pt; color: #666; } }\n")
+            .arg(marginBox, cssContentValue(subst(text)));
+    };
+
     QString css;
-    if (!h.isEmpty())
-        css += QStringLiteral("@page { @top-center { content: \"%1\"; font-size: 9pt; color: #666; } }\n")
-                   .arg(subst(h).toHtmlEscaped());
-    if (!f.isEmpty())
-        css += QStringLiteral("@page { @bottom-center { content: \"%1\"; font-size: 9pt; color: #666; } }\n")
-                   .arg(subst(f).toHtmlEscaped());
+    css += addField(QStringLiteral("top-left"), m_headerLeft);
+    css += addField(QStringLiteral("top-center"), m_headerCenter);
+    css += addField(QStringLiteral("top-right"), m_headerRight);
+    css += addField(QStringLiteral("bottom-left"), m_footerLeft);
+    css += addField(QStringLiteral("bottom-center"), m_footerCenter);
+    css += addField(QStringLiteral("bottom-right"), m_footerRight);
     return css;
 }
 
