@@ -29,6 +29,25 @@ code {
     font-size: 0.9em;
 }
 
+kbd {
+    text-align: center;
+    border: 2px solid #ccc;
+    border-radius: .25em;
+    min-width: 1.5em;
+    margin-right: .15em;
+    padding: 0 5px;
+    display: inline-block;
+    box-shadow: 2px 2px #999;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+}
+
+kbd:hover {
+    position: relative;
+    top: 2px;
+    left: 2px;
+}
+
 pre {
     background-color: #f4f4f4;
     padding: 10px;
