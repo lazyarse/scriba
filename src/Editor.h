@@ -1,6 +1,8 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include <QHash>
+#include <QPixmap>
 #include <QPlainTextEdit>
 #include <QPoint>
 #include <QStringList>
@@ -28,12 +30,15 @@ private:
     bool isInsideEmojiContext(const QTextCursor &cursor, QString &partialCode) const;
     void showEmojiCompletion(const QString &partialCode);
     void acceptEmojiCompletion(const QString &completion);
+    QPixmap renderEmojiIcon(const QString &emojiStr) const;
 
     void repositionPopup();
 
     QString m_currentFile;
     QCompleter *m_completer = nullptr;
     QStringList m_emojiShortcodes;
+    QHash<QString, QString> m_emojiUnicode;
+    mutable QHash<QString, QPixmap> m_emojiIconCache;
 };
 
 #endif
