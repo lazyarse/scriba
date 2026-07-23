@@ -36,8 +36,8 @@
 - Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, or hidden
 - CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. (Fair warning: Qt can't style application or dialog titlebars different to the system theme)
 - PDF export with print-specific CSS stylesheets
-- Find feature with regex search
-- An 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers
+- Find with regex search
+- A shocking 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers like you
 
 ### Standing on the shoulders of giants:
 
@@ -52,6 +52,7 @@
 - Full-screen mode (<key>F11</key> or menu bar icon)
 - Cursor restore on application start to pick up where you left off
 - Sentence, word count, estimated reading time, and age-level to suitably patronise
+- That annoying `<kbd>` css styling to look just like a key. I like it. Feel free to remove it in the `preview-base.css` and `print-base.css`.
 - Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed. 
 - Table auto-completion: <kbd>Enter</kbd> auto creates a new row either in-cell or at end of the row, <kbd>Enter</kbd> on blank row ends autocomplete, <kbd>Tab</kbd> to next cell, <kbd>Shift</kbd>+<kbd>Tab</kbd> to previous cell
 - Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete

@@ -146,16 +146,16 @@ header() {
 
 "$BUILD_DIR/scriba" "$PROJECT_DIR/.demo-content.md" &
 PID=$!
-sleep 0.5
+sleep 1.2
 
 WID=$(xdotool search --onlyvisible --name "Scriba" | head -1)
 xdotool windowsize "$WID" 800 500
 xdotool windowmove "$WID" 0 0
-sleep 0.05
+sleep 0.20
 
 xdotool mousemove --window "$WID" 100 100
 xdotool click 1
-sleep 0.03
+sleep 0.15
 
 F=1
 
@@ -190,7 +190,7 @@ for CH in "r" "e" "s" "o" "u" "r"; do
     capture $F; F=$((F + 1))
 done
 # Popup frame
-sleep 0.08
+sleep 0.20
 capture $F; F=$((F + 1))
 
 # Accept resources/
@@ -207,7 +207,7 @@ for CH in "i" "c"; do
     capture $F; F=$((F + 1))
 done
 # Popup frame
-sleep 0.08
+sleep 0.20
 capture $F; F=$((F + 1))
 
 # Accept icons/
@@ -224,7 +224,7 @@ for CH in "s" "c" "r"; do
     capture $F; F=$((F + 1))
 done
 press "i"
-sleep 0.08
+sleep 0.20
 capture $F; F=$((F + 1))
 
 # Accept scriba.svg (auto-closes parenthesis)
@@ -263,17 +263,17 @@ for CH in "colon" "s" "m"; do
 done
 # Type i and capture popup
 press "i"
-sleep 0.08
+sleep 0.20
 capture $F; F=$((F + 1))
 
 # Press Down twice to cycle through popup items
 press Down
-sleep 0.05
+sleep 0.15
 capture $F; F=$((F + 1))
 sleep 0.05
 capture $F; F=$((F + 1))
 press Down
-sleep 0.05
+sleep 0.15
 capture $F; F=$((F + 1))
 sleep 0.05
 capture $F; F=$((F + 1))
@@ -385,7 +385,7 @@ sleep 0.05
 capture $F; F=$((F + 1))
 # Shift+Tab moves to previous cell (cell5)
 press "Shift+Tab"
-sleep 0.05
+sleep 0.15
 capture $F; F=$((F + 1))
 sleep 0.03
 capture $F; F=$((F + 1))
@@ -437,7 +437,7 @@ press "Return"
 for i in 1 2; do sleep 0.02; capture $F; F=$((F + 1)); done
 
 press "ctrl+t"
-sleep 0.10
+sleep 0.25
 capture $F; F=$((F + 1))
 
 DLG_WID=$(xdotool search --name "Insert Table" 2>/dev/null | tail -1)
@@ -460,7 +460,7 @@ for i in 1 2; do
 done
 
 LAST_KEY="Alt+I"; xdotool key --window "$DLG_WID" "alt+i"
-sleep 0.10
+sleep 0.25
 capture $F; F=$((F + 1))
 
 # Type foo, Tab, bar, Enter in the HTML table

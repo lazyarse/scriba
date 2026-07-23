@@ -185,8 +185,8 @@ delimiters:[
 static const char *vegaLiteInitJs = R"(
 function initVegaLite(){
 var els=document.querySelectorAll('code.language-vl');
-if(!els.length)return;
-els.forEach(function(el){
+if(!els.length)return Promise.resolve();
+return Promise.all(Array.from(els).map(function(el){
 try{
 var spec=JSON.parse(el.textContent);
 var container=el.parentElement;
@@ -196,10 +196,10 @@ div.style.width='100%';
 div.style.minHeight='300px';
 div.style.overflow='visible';
 container.parentElement.replaceChild(div,container);
-vegaEmbed(div,spec,{actions:false}).catch(function(e){});
+return vegaEmbed(div,spec,{actions:false}).catch(function(){});
 }
-catch(e){}
-});
+catch(e){return Promise.resolve();}
+}));
 }
 )";
 
@@ -259,10 +259,12 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, const QString &defaultFile
     setupUi();
 
     m_chromiumBinary = findChromiumBinary();
+    fprintf(stderr, "[PDF] chromium binary: %s\n",
+            m_chromiumBinary.isEmpty() ? "(none)" : qPrintable(m_chromiumBinary));
 
     m_hiddenEngine = new QWebEngineView(this);
     m_hiddenEngine->setFixedSize(1, 1);
-    m_hiddenEngine->setVisible(false);
+    m_hiddenEngine->move(-2000, -2000);
     m_hiddenEngine->settings()->setAttribute(QWebEngineSettings::PreferCSSMarginsForPrinting, true);
     connect(m_hiddenEngine, &QWebEngineView::loadFinished, this, &ExportPdfDialog::onPageLoaded);
 
@@ -464,6 +466,7 @@ void ExportPdfDialog::onCssModeChanged()
         double cwPt = pagePt.width() - marginsPt.left() - marginsPt.right();
         int cwPx = static_cast<int>(cwPt * 96.0 / 72.0 + 0.5);
         m_hiddenEngine->setFixedSize(std::max(400, cwPx), 600);
+        m_hiddenEngine->move(-2000, -2000);
     }
 
     QSettings s;
@@ -533,7 +536,7 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
         "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
         "document.addEventListener('DOMContentLoaded',function(){"
         "mermaid.initialize({startOnLoad:false,theme:'default'});"
-        "initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();"
+        "initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();"
         "replaceEmoji(document.body);twemojiParse('%7');"
         "});</script>"
         "</head><body id=\"preview\">%8</body></html>"
@@ -548,40 +551,58 @@ void ExportPdfDialog::onPageLoaded(bool ok)
 
     int genId = m_generationId;
 
-    // Wait for async JS (mermaid, katex, vega) to finish rendering
+    // Wait for async Vega rendering (vegaEmbed returns a Promise stored on
+    // window.vegaLiteReady).  If there are no vega charts the promise resolves
+    // immediately so this is a no-op for documents without vega.
     QString css = m_currentPrintCss;
-    QTimer::singleShot(500, this, [this, genId, css]() {
-        if (genId != m_generationId) return;
+    m_hiddenEngine->page()->runJavaScript(
+        QStringLiteral("(window.vegaLiteReady||Promise.resolve()).then(function(){return true;})"),
+        [this, genId, css](const QVariant &) {
+            if (genId != m_generationId) return;
 
-        if (m_chromiumBinary.isEmpty()) {
-            fprintf(stderr, "[PDF] no chromium binary found, using Qt printToPdf (headers cannot be suppressed)\n");
-            QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
-                               QMarginsF(), QPageLayout::Point);
-            m_hiddenEngine->page()->printToPdf([this, genId](const QByteArray &data) {
-                if (genId != m_generationId) return;
-                m_pdfData = data;
-                m_tempFile.reset(new QTemporaryFile());
-                if (m_tempFile->open()) {
-                    m_tempFile->write(data);
-                    m_tempFile->flush();
-                    m_preview->load(QUrl::fromLocalFile(m_tempFile->fileName()));
-                }
-            }, layout);
-        } else {
-            generatePdfViaChromium(css);
+            if (m_chromiumBinary.isEmpty()) {
+                fprintf(stderr, "[PDF] no chromium binary found, using Qt printToPdf (headers cannot be suppressed)\n");
+                QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
+                                   QMarginsF(), QPageLayout::Point);
+                m_hiddenEngine->page()->printToPdf([this, genId](const QByteArray &data) {
+                    if (genId != m_generationId) return;
+                    m_pdfData = data;
+                    m_tempFile.reset(new QTemporaryFile());
+                    if (m_tempFile->open()) {
+                        m_tempFile->write(data);
+                        m_tempFile->flush();
+                        m_preview->load(QUrl::fromLocalFile(m_tempFile->fileName()));
+                    }
+                }, layout);
+            } else {
+                generatePdfViaChromium(css);
+            }
         }
-    });
+    );
 }
 
 void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
 {
     int genId = m_generationId;
 
-    // Extract rendered body + ALL styles from the hidden engine.
-    // JS (katex, mermaid, vega, highlight, twemoji) has already run
-    // and transformed the DOM. We wrap in a minimal document.
+    // Fix Vega SVGs: vega-embed uses width="100%" (CSS-relative).
+    // Chromium headless --print-to-pdf renders such SVGs at zero width
+    // (bug #40712208). Bake explicit pixel dimensions from viewBox before
+    // extraction.  The viewBox always carries intrinsic dimensions and
+    // doesn't depend on widget layout (which may be stale for hidden views).
+    // Mermaid SVGs already have explicit attributes and are unaffected.
     QString js = QStringLiteral(
         "(function() {"
+        "  document.querySelectorAll('.vega-lite-chart svg').forEach(function(svg) {"
+        "    var vb = svg.getAttribute('viewBox');"
+        "    if (vb) {"
+        "      var parts = vb.split(/\\s+/);"
+        "      if (parts.length === 4) {"
+        "        svg.setAttribute('width', parts[2]);"
+        "        svg.setAttribute('height', parts[3]);"
+        "      }"
+        "    }"
+        "  });"
         "  var s = '';"
         "  var els = document.querySelectorAll('style');"
         "  for (var i = 0; i < els.length; i++) s += els[i].outerHTML;"
@@ -593,18 +614,36 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
         if (genId != m_generationId) return;
 
         QString bodyHtml = result.toString();
-        if (bodyHtml.isEmpty()) return;
+        if (bodyHtml.isEmpty()) {
+            fprintf(stderr, "[PDF] extracted body HTML is empty!\n");
+            return;
+        }
+        fprintf(stderr, "[PDF] extracted body HTML: %zu bytes\n",
+                static_cast<size_t>(bodyHtml.size()));
 
         bodyHtml = replaceQrcUrls(bodyHtml);
 
-        QString head = QStringLiteral(
+        QString metaHead = QStringLiteral(
             "<meta charset=\"utf-8\">"
             "<base href=\"%1\">"
         ).arg(m_baseUrl.toHtmlEscaped());
 
+        // bodyHtml = "<style>...</style><body>...</body>" after extraction
+        // Split so <style> elements go inside <head> for valid HTML
+        int bodyTagIdx = bodyHtml.indexOf(QStringLiteral("<body"));
+        QString stylesBlock;
+        QString bodyPart;
+        if (bodyTagIdx >= 0) {
+            stylesBlock = bodyHtml.left(bodyTagIdx);
+            bodyPart = bodyHtml.mid(bodyTagIdx);
+        } else {
+            stylesBlock = bodyHtml;
+            bodyPart = QStringLiteral("<body></body>");
+        }
+
         QString fullDoc = QStringLiteral(
-            "<!DOCTYPE html>\n<html><head>%1</head>%2</html>\n"
-        ).arg(head, bodyHtml);
+            "<!DOCTYPE html>\n<html><head>%1%2</head>%3</html>\n"
+        ).arg(metaHead, stylesBlock, bodyPart);
 
         auto dir = QSharedPointer<QTemporaryDir>::create();
         if (!dir->isValid()) return;
@@ -618,7 +657,6 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
 
         QStringList args;
         args << QStringLiteral("--headless=new")
-             << QStringLiteral("--disable-gpu")
              << QStringLiteral("--no-margins")
              << QStringLiteral("--no-pdf-header-footer")
              << QStringLiteral("--print-to-pdf=%1").arg(pdfPath)

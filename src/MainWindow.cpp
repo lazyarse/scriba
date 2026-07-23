@@ -451,8 +451,8 @@ void MainWindow::updatePreview()
     static const QString vegaLiteInitJs = QStringLiteral(
         "function initVegaLite(){"
         "var els=document.querySelectorAll('code.language-vl');"
-        "if(!els.length)return;"
-        "els.forEach(function(el){"
+        "if(!els.length)return Promise.resolve();"
+        "return Promise.all(Array.from(els).map(function(el){"
         "try{"
         "var spec=JSON.parse(el.textContent);"
         "var container=el.parentElement;"
@@ -462,10 +462,10 @@ void MainWindow::updatePreview()
         "div.style.minHeight='300px';"
         "div.style.overflow='visible';"
         "container.parentElement.replaceChild(div,container);"
-        "vegaEmbed(div,spec,{actions:false}).catch(function(e){});"
+        "return vegaEmbed(div,spec,{actions:false}).catch(function(){});"
         "}"
-        "catch(e){}"
-        "});"
+        "catch(e){return Promise.resolve();}"
+        "}));"
         "}"
     );
 
