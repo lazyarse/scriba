@@ -108,7 +108,8 @@ CssEditorDialog::CssEditorDialog(const QString &title, Mode mode, const QString 
         auto sm = sizeRe.match(m_defaultCss);
         if (sm.hasMatch()) {
             QString v = sm.captured(1).trimmed();
-            v.remove("!important").trimmed();
+            v.remove("!important");
+            v = v.trimmed();
             if (v.endsWith("px")) m_fontSizeSpin->setValue(v.chopped(2).toInt());
         }
     });

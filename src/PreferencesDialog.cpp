@@ -24,7 +24,7 @@ PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidg
 {
     setupUi();
     setWindowTitle("Preferences");
-    resize(650, 400);
+    resize(450, 600);
 }
 
 void PreferencesDialog::setupUi()
@@ -150,8 +150,9 @@ void PreferencesDialog::setupUi()
         QVBoxLayout *baseCssLayout = new QVBoxLayout(baseCssGroup);
         baseCssLayout->addSpacing(8);
 
-        baseCssLayout->addWidget(new QLabel(
-            "These stylesheets lay the foundation that all themes build upon."));
+        auto *baseLabel = new QLabel("These stylesheets lay the foundation that all themes build upon.");
+        baseLabel->setWordWrap(true);
+        baseCssLayout->addWidget(baseLabel);
 
         QHBoxLayout *baseBtnRow = new QHBoxLayout();
         m_editEditorBtn = new QPushButton("Edit Editor Base CSS...");
@@ -168,9 +169,10 @@ void PreferencesDialog::setupUi()
         QVBoxLayout *cssLayout = new QVBoxLayout(cssGroup);
         cssLayout->addSpacing(8);
 
-        cssLayout->addWidget(new QLabel(
-            "Additional stylesheets to override the visual appearance of the editor, "
-            "preview, and chrome (toolbars, menus, etc.)."));
+        auto *sheetsLabel = new QLabel("Additional stylesheets to override the visual appearance of the editor, "
+            "preview, and chrome (toolbars, menus, etc.).");
+        sheetsLabel->setWordWrap(true);
+        cssLayout->addWidget(sheetsLabel);
 
         QHBoxLayout *listRow = new QHBoxLayout();
         m_listWidget = new QListWidget();
