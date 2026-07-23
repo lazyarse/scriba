@@ -24,6 +24,48 @@
 #include <QPlainTextEdit>
 #include <QIcon>
 
+enum class VegaMark { Bar, Line, Point, Area, Rect, Tick, Rule, Circle, Square, Text, Trail, Boxplot, Errorband, Errorbar, Geoshape };
+
+enum class VegaFieldType { Nominal, Ordinal, Quantitative, Temporal };
+
+static VegaFieldType vegaFieldTypeFromCombo(const QComboBox *combo)
+{
+    return static_cast<VegaFieldType>(combo->currentData().toInt());
+}
+
+static QString vegaFieldTypeToString(VegaFieldType type)
+{
+    switch (type) {
+        case VegaFieldType::Nominal: return QStringLiteral("nominal");
+        case VegaFieldType::Ordinal: return QStringLiteral("ordinal");
+        case VegaFieldType::Quantitative: return QStringLiteral("quantitative");
+        case VegaFieldType::Temporal: return QStringLiteral("temporal");
+    }
+    return {};
+}
+
+static QString vegaMarkToString(VegaMark mark)
+{
+    switch (mark) {
+        case VegaMark::Bar: return QStringLiteral("bar");
+        case VegaMark::Line: return QStringLiteral("line");
+        case VegaMark::Point: return QStringLiteral("point");
+        case VegaMark::Area: return QStringLiteral("area");
+        case VegaMark::Rect: return QStringLiteral("rect");
+        case VegaMark::Tick: return QStringLiteral("tick");
+        case VegaMark::Rule: return QStringLiteral("rule");
+        case VegaMark::Circle: return QStringLiteral("circle");
+        case VegaMark::Square: return QStringLiteral("square");
+        case VegaMark::Text: return QStringLiteral("text");
+        case VegaMark::Trail: return QStringLiteral("trail");
+        case VegaMark::Boxplot: return QStringLiteral("boxplot");
+        case VegaMark::Errorband: return QStringLiteral("errorband");
+        case VegaMark::Errorbar: return QStringLiteral("errorbar");
+        case VegaMark::Geoshape: return QStringLiteral("geoshape");
+    }
+    return {};
+}
+
 VegaLiteDialog::VegaLiteDialog(QWidget *parent)
     : QDialog(parent)
 {
@@ -90,11 +132,24 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
 
     layout->addWidget(new QLabel("Chart Type:"));
     m_chartTypeCombo = new QComboBox(panel);
-    m_chartTypeCombo->addItems({
-        "bar", "line", "point", "area", "rect", "tick", "rule",
-        "circle", "square", "text", "trail", "boxplot",
-        "errorband", "errorbar", "geoshape"
-    });
+    auto addMark = [&](const char *name, VegaMark mark) {
+        m_chartTypeCombo->addItem(QLatin1String(name), static_cast<int>(mark));
+    };
+    addMark("bar", VegaMark::Bar);
+    addMark("line", VegaMark::Line);
+    addMark("point", VegaMark::Point);
+    addMark("area", VegaMark::Area);
+    addMark("rect", VegaMark::Rect);
+    addMark("tick", VegaMark::Tick);
+    addMark("rule", VegaMark::Rule);
+    addMark("circle", VegaMark::Circle);
+    addMark("square", VegaMark::Square);
+    addMark("text", VegaMark::Text);
+    addMark("trail", VegaMark::Trail);
+    addMark("boxplot", VegaMark::Boxplot);
+    addMark("errorband", VegaMark::Errorband);
+    addMark("errorbar", VegaMark::Errorbar);
+    addMark("geoshape", VegaMark::Geoshape);
     layout->addWidget(m_chartTypeCombo);
 
     layout->addWidget(new QLabel("Data:"));
@@ -135,7 +190,13 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
         field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         encLayout->addWidget(field, row, 1);
         type = new QComboBox(parent);
-        type->addItems({"nominal", "ordinal", "quantitative", "temporal"});
+        auto addType = [&](const char *name, VegaFieldType t) {
+            type->addItem(QLatin1String(name), static_cast<int>(t));
+        };
+        addType("nominal", VegaFieldType::Nominal);
+        addType("ordinal", VegaFieldType::Ordinal);
+        addType("quantitative", VegaFieldType::Quantitative);
+        addType("temporal", VegaFieldType::Temporal);
         encLayout->addWidget(type, row, 2);
     };
 
@@ -149,7 +210,10 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     m_fieldColor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     colorLayout->addWidget(m_fieldColor, 0, 1);
     m_typeColor = new QComboBox(m_colorGroup);
-    m_typeColor->addItems({"nominal", "ordinal", "quantitative", "temporal"});
+    m_typeColor->addItem("nominal", static_cast<int>(VegaFieldType::Nominal));
+    m_typeColor->addItem("ordinal", static_cast<int>(VegaFieldType::Ordinal));
+    m_typeColor->addItem("quantitative", static_cast<int>(VegaFieldType::Quantitative));
+    m_typeColor->addItem("temporal", static_cast<int>(VegaFieldType::Temporal));
     colorLayout->addWidget(m_typeColor, 0, 2);
     encLayout->addWidget(m_colorGroup, 2, 0, 1, 3);
 
@@ -160,7 +224,10 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     m_fieldSize->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     sizeLayout->addWidget(m_fieldSize, 0, 1);
     m_typeSize = new QComboBox(m_sizeGroup);
-    m_typeSize->addItems({"nominal", "ordinal", "quantitative", "temporal"});
+    m_typeSize->addItem("nominal", static_cast<int>(VegaFieldType::Nominal));
+    m_typeSize->addItem("ordinal", static_cast<int>(VegaFieldType::Ordinal));
+    m_typeSize->addItem("quantitative", static_cast<int>(VegaFieldType::Quantitative));
+    m_typeSize->addItem("temporal", static_cast<int>(VegaFieldType::Temporal));
     sizeLayout->addWidget(m_typeSize, 0, 2);
     encLayout->addWidget(m_sizeGroup, 3, 0, 1, 3);
 
@@ -426,17 +493,27 @@ QList<QMap<QString, QString>> VegaLiteDialog::parseJsonData(const QString &text)
 
 void VegaLiteDialog::updateEncodingVisibility()
 {
-    QString mark = m_chartTypeCombo->currentText();
+    VegaMark mark = static_cast<VegaMark>(m_chartTypeCombo->currentData().toInt());
 
     bool showSize = false, showShape = false, showText = false;
 
-    if (mark == "point" || mark == "circle" || mark == "square") {
-        showSize = true;
-        showShape = true;
-    } else if (mark == "text") {
-        showText = true;
-    } else if (mark == "tick" || mark == "trail" || mark == "boxplot") {
-        showSize = true;
+    switch (mark) {
+        case VegaMark::Point:
+        case VegaMark::Circle:
+        case VegaMark::Square:
+            showSize = true;
+            showShape = true;
+            break;
+        case VegaMark::Text:
+            showText = true;
+            break;
+        case VegaMark::Tick:
+        case VegaMark::Trail:
+        case VegaMark::Boxplot:
+            showSize = true;
+            break;
+        default:
+            break;
     }
 
     m_sizeGroup->setVisible(showSize);
@@ -491,7 +568,7 @@ QString VegaLiteDialog::buildSpec() const
     data["values"] = values;
     spec["data"] = data;
 
-    spec["mark"] = m_chartTypeCombo->currentText();
+    spec["mark"] = vegaMarkToString(static_cast<VegaMark>(m_chartTypeCombo->currentData().toInt()));
 
     QJsonObject encoding;
 
@@ -500,7 +577,7 @@ QString VegaLiteDialog::buildSpec() const
         if (f.isEmpty()) return;
         QJsonObject enc;
         enc["field"] = f;
-        enc["type"] = type->currentText();
+        enc["type"] = vegaFieldTypeToString(vegaFieldTypeFromCombo(type));
         encoding[name] = enc;
     };
 
@@ -517,7 +594,7 @@ QString VegaLiteDialog::buildSpec() const
         if (!f.isEmpty()) {
             QJsonObject enc;
             enc["field"] = f;
-            enc["type"] = "nominal";
+            enc["type"] = vegaFieldTypeToString(VegaFieldType::Nominal);
             encoding["shape"] = enc;
         }
     }
@@ -526,7 +603,7 @@ QString VegaLiteDialog::buildSpec() const
         if (!f.isEmpty()) {
             QJsonObject enc;
             enc["field"] = f;
-            enc["type"] = "nominal";
+            enc["type"] = vegaFieldTypeToString(VegaFieldType::Nominal);
             encoding["text"] = enc;
         }
     }
@@ -537,7 +614,7 @@ QString VegaLiteDialog::buildSpec() const
             if (header && !header->text().isEmpty()) {
                 QJsonObject t;
                 t["field"] = header->text();
-                t["type"] = "nominal";
+                t["type"] = vegaFieldTypeToString(VegaFieldType::Nominal);
                 tooltipArr.append(t);
             }
         }
