@@ -76,7 +76,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 ## Gotchas
 
 - `vendor/` is gitignored. Clone with submodules or ensure `vendor/md4c/` exists before building.
-- Tests exist in `tests/` — run with `cd build && xvfb-run ctest --output-on-failure` after building with `-DBUILD_TESTS=ON`.
+- Tests exist in `tests/` — run with `cd build && ctest --output-on-failure` after building with `-DBUILD_TESTS=ON`. Tests auto-wrap in `xvfb-run` when available.
 - `Qt6::WebEngineWidgets` is a heavy dependency; requires `xvfb` for headless/CI — install with `sudo apt install xvfb`.
 - Admonition support is CSS-only (`::before` pseudo-elements), not markdown parser extensions.
 - This app must work fully offline. No CDN, no network-dependent features. All assets (JS, fonts, SVG) must be bundled via qrc.

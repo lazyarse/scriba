@@ -135,14 +135,10 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build buil
 ### Run tests
 
 ```bash
-# With a display server (X11/Wayland):
 cd build && ctest --output-on-failure
-
-# Headless/CI (requires xvfb):
-cd build && xvfb-run ctest --output-on-failure
 ```
 
-Qt WebEngine requires a GPU context for rendering; tests that exercise the preview (`test_scroll_sync`) need `xvfb-run` in headless environments.
+Tests auto-wrap in `xvfb-run` when available (CMake detects it).
 
 ## Running
 
