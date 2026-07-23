@@ -62,6 +62,7 @@
 - A debug log window output to see rendering errors
 - A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 - Selected text + <kbd>Tab</kbd> will indent, <kbd><Shift></kbd>+<kbd>Tab</kbd> will dedent.
+- <kbd>Down</kbd> on the last line will place the cursor at the end of the line
 
 ## Shortcuts for All Features
 
@@ -151,4 +152,3 @@ Qt WebEngine requires a GPU context for rendering; tests that exercise the previ
 ./scriba --debug      # enable JS console logging via Qt logging system
 ```
 JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
-
