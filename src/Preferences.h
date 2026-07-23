@@ -1,6 +1,8 @@
 #ifndef PREFERENCES_H
 #define PREFERENCES_H
 
+#include <QString>
+
 namespace Preferences {
     constexpr const char *CssFiles = "cssFiles";
     constexpr const char *ActiveCssFile = "activeCssFile";
@@ -23,6 +25,18 @@ namespace Preferences {
 
     constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";
     constexpr const char *TableStripePdfCss = "tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}";
+
+    enum class EmojiRendering { Bw, Color };
+
+    inline EmojiRendering emojiRenderingFromString(const QString &s)
+    {
+        return s == QLatin1String("color") ? EmojiRendering::Color : EmojiRendering::Bw;
+    }
+
+    inline QString emojiRenderingToString(EmojiRendering mode)
+    {
+        return mode == EmojiRendering::Color ? QStringLiteral("color") : QStringLiteral("bw");
+    }
 }
 
 #endif

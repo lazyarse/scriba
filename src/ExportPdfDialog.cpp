@@ -515,7 +515,8 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
     QString stripeCss = striping ? QString()
         : QLatin1String(Preferences::TableStripePdfCss);
 
-    QString emojiMode = settings.value(Preferences::EmojiMode, "bw").toString();
+    QString emojiMode = settings.value(Preferences::EmojiMode,
+        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
 
     return QString(
         "<!DOCTYPE html><html><head>"

@@ -469,7 +469,8 @@ void MainWindow::updatePreview()
         "}"
     );
 
-    QString emojiMode = QSettings().value(Preferences::EmojiMode, "bw").toString();
+    QString emojiMode = QSettings().value(Preferences::EmojiMode,
+        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
         QSettings prefs;
