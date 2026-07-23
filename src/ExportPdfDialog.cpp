@@ -63,6 +63,53 @@ static QString replaceQrcUrls(const QString &html)
     return result;
 }
 
+enum class CssUnit { Mm, Cm, In, Pt, Px, Pc };
+
+static CssUnit parseCssUnit(const QString &u)
+{
+    if (u == QStringLiteral("mm")) return CssUnit::Mm;
+    if (u == QStringLiteral("cm")) return CssUnit::Cm;
+    if (u == QStringLiteral("in")) return CssUnit::In;
+    if (u == QStringLiteral("pt")) return CssUnit::Pt;
+    if (u == QStringLiteral("px")) return CssUnit::Px;
+    if (u == QStringLiteral("pc")) return CssUnit::Pc;
+    return CssUnit::Px;
+}
+
+enum class PageOrientation { Portrait, Landscape };
+
+enum class NamedPageSize { A3, A4, A5, Letter, Legal, Tabloid, Ledger, B4, B5 };
+
+static QSizeF namedPageSizeToSize(const QString &name)
+{
+    QString n = name.trimmed().toLower();
+    if (n == QLatin1String("a3")) return QPageSize(QPageSize::A3).size(QPageSize::Point);
+    if (n == QLatin1String("a4")) return QPageSize(QPageSize::A4).size(QPageSize::Point);
+    if (n == QLatin1String("a5")) return QPageSize(QPageSize::A5).size(QPageSize::Point);
+    if (n == QLatin1String("letter")) return QPageSize(QPageSize::Letter).size(QPageSize::Point);
+    if (n == QLatin1String("legal")) return QPageSize(QPageSize::Legal).size(QPageSize::Point);
+    if (n == QLatin1String("tabloid")) return QPageSize(QPageSize::Tabloid).size(QPageSize::Point);
+    if (n == QLatin1String("ledger")) return QPageSize(QPageSize::Tabloid).size(QPageSize::Point);
+    if (n == QLatin1String("b4")) return QPageSize(QPageSize::B4).size(QPageSize::Point);
+    if (n == QLatin1String("b5")) return QPageSize(QPageSize::B5).size(QPageSize::Point);
+    return {};
+}
+
+enum class MarginBox { TopLeft, TopCenter, TopRight, BottomLeft, BottomCenter, BottomRight };
+
+static QString marginBoxToString(MarginBox box)
+{
+    switch (box) {
+        case MarginBox::TopLeft: return QStringLiteral("top-left");
+        case MarginBox::TopCenter: return QStringLiteral("top-center");
+        case MarginBox::TopRight: return QStringLiteral("top-right");
+        case MarginBox::BottomLeft: return QStringLiteral("bottom-left");
+        case MarginBox::BottomCenter: return QStringLiteral("bottom-center");
+        case MarginBox::BottomRight: return QStringLiteral("bottom-right");
+    }
+    return {};
+}
+
 static qreal cssLengthToPt(const QString &s)
 {
     static const QRegularExpression re(QStringLiteral("^(-?\\d+(?:\\.\\d+)?)\\s*(mm|cm|in|pt|px|pc)?$"));
@@ -70,11 +117,14 @@ static qreal cssLengthToPt(const QString &s)
     if (!m.hasMatch()) return 0;
     qreal v = m.captured(1).toDouble();
     QString u = m.captured(2);
-    if (u == QStringLiteral("mm")) return v * 72.0 / 25.4;
-    if (u == QStringLiteral("cm")) return v * 72.0 / 2.54;
-    if (u == QStringLiteral("in")) return v * 72.0;
-    if (u == QStringLiteral("pt")) return v;
-    if (u == QStringLiteral("pc")) return v * 12.0;
+    switch (parseCssUnit(u)) {
+        case CssUnit::Mm: return v * 72.0 / 25.4;
+        case CssUnit::Cm: return v * 72.0 / 2.54;
+        case CssUnit::In: return v * 72.0;
+        case CssUnit::Pt: return v;
+        case CssUnit::Pc: return v * 12.0;
+        case CssUnit::Px: return v * 0.75;
+    }
     return v * 0.75;
 }
 
@@ -95,34 +145,19 @@ static QSizeF doParsePageSize(const QString &css)
 
     QString raw = sizeMatch.captured(1).trimmed();
 
-    bool landscape = false;
+    PageOrientation orientation = PageOrientation::Portrait;
     QString cleaned = raw;
     if (cleaned.contains(QStringLiteral("landscape"), Qt::CaseInsensitive)) {
-        landscape = true;
+        orientation = PageOrientation::Landscape;
         cleaned.remove(QStringLiteral("landscape"), Qt::CaseInsensitive);
     } else if (cleaned.contains(QStringLiteral("portrait"), Qt::CaseInsensitive)) {
         cleaned.remove(QStringLiteral("portrait"), Qt::CaseInsensitive);
     }
     cleaned = cleaned.trimmed();
 
-    static const auto namedSize = [](const QString &name) -> QSizeF {
-        QString n = name.trimmed().toLower();
-        static const struct { const char *key; QPageSize::PageSizeId id; } table[] = {
-            {"a3", QPageSize::A3}, {"a4", QPageSize::A4}, {"a5", QPageSize::A5},
-            {"letter", QPageSize::Letter}, {"legal", QPageSize::Legal},
-            {"tabloid", QPageSize::Tabloid},
-            {"ledger", QPageSize::Tabloid}, {"b4", QPageSize::B4},
-            {"b5", QPageSize::B5},
-        };
-        for (auto &e : table) {
-            if (n == QLatin1String(e.key))
-                return QPageSize(e.id).size(QPageSize::Point);
-        }
-        return {};
-    };
-    QSizeF sz = namedSize(cleaned);
+    QSizeF sz = namedPageSizeToSize(cleaned);
     if (sz.isValid()) {
-        if (landscape)
+        if (orientation == PageOrientation::Landscape)
             sz.transpose();
         return sz;
     }
@@ -133,7 +168,7 @@ static QSizeF doParsePageSize(const QString &css)
         double w = cssLengthToPt(parts[0]);
         double h = cssLengthToPt(parts[1]);
         if (w > 0 && h > 0) {
-            if (landscape)
+            if (orientation == PageOrientation::Landscape)
                 qSwap(w, h);
             return QSizeF(w, h);
         }
@@ -730,12 +765,12 @@ QString ExportPdfDialog::buildHeaderFooterCss() const
     };
 
     QString css;
-    css += addField(QStringLiteral("top-left"), m_headerLeft);
-    css += addField(QStringLiteral("top-center"), m_headerCenter);
-    css += addField(QStringLiteral("top-right"), m_headerRight);
-    css += addField(QStringLiteral("bottom-left"), m_footerLeft);
-    css += addField(QStringLiteral("bottom-center"), m_footerCenter);
-    css += addField(QStringLiteral("bottom-right"), m_footerRight);
+    css += addField(marginBoxToString(MarginBox::TopLeft), m_headerLeft);
+    css += addField(marginBoxToString(MarginBox::TopCenter), m_headerCenter);
+    css += addField(marginBoxToString(MarginBox::TopRight), m_headerRight);
+    css += addField(marginBoxToString(MarginBox::BottomLeft), m_footerLeft);
+    css += addField(marginBoxToString(MarginBox::BottomCenter), m_footerCenter);
+    css += addField(marginBoxToString(MarginBox::BottomRight), m_footerRight);
     return css;
 }
 
