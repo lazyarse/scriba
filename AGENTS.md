@@ -7,7 +7,9 @@ C++17 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown
 ## Build
 
 ```bash
-mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
+mkdir -p build
+cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs after branch switches
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
 Binary: `build/scriba`
