@@ -3,7 +3,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A configurable, no-nonsense, split-screen, off-line Markdown editor with a *pretentious* Latin name**. Designed to *actually* do what it should without plugins and with a restricted feature-set: useful; no bloat.
+**A configurable, no-nonsense, split-screen, off-line Markdown editor with a *pretentious* Latin name**. With a restricted feature-set: useful; no bloat, it's designed to *actually* do what it should without plugins.
 
 <br />
 <div align="center">
@@ -108,7 +108,9 @@ Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root`
 ## Building
 
 ```bash
-mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
+mkdir -p build
+cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs after branch switches
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
 The post-build step automatically removes cached base stylesheets (`~/.config/Scriba/Scriba/*.css`), so no manual cleanup needed on rebuild.
