@@ -65,6 +65,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Rebuild the .deb package after any source/resource change: `cpack --config build-official/CPackConfig.cmake -G DEB`
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
 - Create tests for each new feature — use Qt Test framework (QTest), add test files to `tests/` directory and register in `CMakeLists.txt`
+- When presenting a plan or fix proposal, state it as normal text — do not use a structured question widget asking "shall I proceed/continue/go". Let the user reply naturally.
 
 ## Gotchas
 

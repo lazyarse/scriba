@@ -132,6 +132,10 @@ TEST(TableNav, BackwardFromFirstReturnsMinusOne) {
     EXPECT_EQ(tableNavCell("|  |  |  |", 1, false), -1);
 }
 
+TEST(TableNav, BackwardFromSecondGoesToFirst) {
+    EXPECT_EQ(tableNavCell("|  |  |  |", 4, false), 2);
+}
+
 TEST(TableNav, ForwardSingleCellRow) {
     EXPECT_EQ(tableNavCell("|  |", 1, true), -1);
 }
