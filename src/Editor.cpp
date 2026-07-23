@@ -268,7 +268,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
             }
             {
                 QString partialCode;
-                if (isInsideEmojiContext(cursor, partialCode)) {
+                if (isInsideEmojiContext(cursor, partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool()) {
                     showEmojiCompletion(partialCode);
                     return;
                 }
@@ -303,7 +303,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete) {
         if (m_completer && m_completer->popup()->isVisible()) {
             QString partialCode;
-            if (isInsideEmojiContext(textCursor(), partialCode)) {
+            if (isInsideEmojiContext(textCursor(), partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool()) {
                 if (partialCode.isEmpty())
                     m_completer->popup()->hide();
                 else
@@ -327,7 +327,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
             if (isInsideLinkContext(textCursor(), partialPath))
                 showFileCompletion(partialPath);
             QString partialCode;
-            if (isInsideEmojiContext(textCursor(), partialCode))
+            if (isInsideEmojiContext(textCursor(), partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool())
                 showEmojiCompletion(partialCode);
         }
     }

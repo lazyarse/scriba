@@ -174,10 +174,9 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
         if (d->title.text && d->title.size > 0)
             title = QString::fromUtf8(d->title.text, d->title.size);
         if (title.isEmpty())
-            self->writeHtml(QString("<a href=\"%1\">").arg(escapeAttr(href)));
-        else
-            self->writeHtml(QString("<a href=\"%1\" title=\"%2\">")
-                .arg(escapeAttr(href), escapeAttr(title)));
+            title = href;
+        self->writeHtml(QString("<a href=\"%1\" title=\"%2\">")
+            .arg(escapeAttr(href), escapeAttr(title)));
         break;
     }
     case MD_SPAN_IMG: {

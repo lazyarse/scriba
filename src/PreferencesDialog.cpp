@@ -127,22 +127,6 @@ void PreferencesDialog::setupUi()
         m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
         appearanceLayout->addWidget(m_stripeCheck);
 
-        QWidget *emojiWidget = new QWidget;
-        QVBoxLayout *emojiRadioLayout = new QVBoxLayout(emojiWidget);
-        emojiRadioLayout->setContentsMargins(0, 0, 0, 0);
-        m_emojiBw = new QRadioButton("Black && White");
-        m_emojiColor = new QRadioButton("Color (twemoji)");
-        auto mode = Preferences::emojiRenderingFromString(
-            settings.value(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString());
-        m_emojiBw->setChecked(mode == Preferences::EmojiRendering::Bw);
-        m_emojiColor->setChecked(mode == Preferences::EmojiRendering::Color);
-        emojiRadioLayout->addWidget(m_emojiBw);
-        emojiRadioLayout->addWidget(m_emojiColor);
-
-        QFormLayout *emojiForm = new QFormLayout();
-        emojiForm->addRow("Emoji rendering:", emojiWidget);
-        appearanceLayout->addLayout(emojiForm);
-
         layout->addWidget(appearanceGroup);
 
         /* --- Base CSS panel --- */
@@ -197,6 +181,50 @@ void PreferencesDialog::setupUi()
         m_categoryList->addItem("Themes");
     }
 
+    /* --- Page 2: Emojis --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        /* --- Emoji Auto-Complete panel --- */
+        QGroupBox *autoCompleteGroup = new QGroupBox("Emoji Auto-Complete");
+        QVBoxLayout *autoCompleteLayout = new QVBoxLayout(autoCompleteGroup);
+        autoCompleteLayout->addSpacing(8);
+
+        m_emojiAutoCompleteCheck = new QCheckBox("Use emoji auto-complete");
+        m_emojiAutoCompleteCheck->setChecked(settings.value(Preferences::EmojiAutoComplete, true).toBool());
+        autoCompleteLayout->addWidget(m_emojiAutoCompleteCheck);
+
+        layout->addWidget(autoCompleteGroup);
+
+        /* --- Emoji Rendering panel --- */
+        QGroupBox *renderGroup = new QGroupBox("Emoji Rendering");
+        QVBoxLayout *renderLayout = new QVBoxLayout(renderGroup);
+        renderLayout->addSpacing(8);
+
+        QWidget *emojiWidget = new QWidget;
+        QVBoxLayout *emojiRadioLayout = new QVBoxLayout(emojiWidget);
+        emojiRadioLayout->setContentsMargins(0, 0, 0, 0);
+        m_emojiBw = new QRadioButton("Black && White");
+        m_emojiColor = new QRadioButton("Color (twemoji)");
+        auto mode = Preferences::emojiRenderingFromString(
+            settings.value(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString());
+        m_emojiBw->setChecked(mode == Preferences::EmojiRendering::Bw);
+        m_emojiColor->setChecked(mode == Preferences::EmojiRendering::Color);
+        emojiRadioLayout->addWidget(m_emojiBw);
+        emojiRadioLayout->addWidget(m_emojiColor);
+
+        renderLayout->addWidget(emojiWidget);
+
+        layout->addWidget(renderGroup);
+        layout->addStretch();
+
+        m_pages->addWidget(page);
+        m_categoryList->addItem("Emojis");
+    }
+
     /* --- Connections --- */
     connect(m_addButton, &QPushButton::clicked, this, &PreferencesDialog::addStylesheet);
     connect(m_removeButton, &QPushButton::clicked, this, &PreferencesDialog::removeStylesheet);
@@ -220,6 +248,7 @@ void PreferencesDialog::setupUi()
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         settings.setValue(Preferences::EmojiMode,
     Preferences::emojiRenderingToString(m_emojiBw->isChecked() ? Preferences::EmojiRendering::Bw : Preferences::EmojiRendering::Color));
+        settings.setValue(Preferences::EmojiAutoComplete, m_emojiAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::AutoSaveOnExit, m_autoSaveExitCheck->isChecked());
         int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
         settings.setValue(Preferences::AutoSaveInterval, interval);

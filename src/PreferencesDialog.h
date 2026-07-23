@@ -51,6 +51,7 @@ private:
     QSpinBox *m_fileCompletionSpin;
     QRadioButton *m_emojiBw;
     QRadioButton *m_emojiColor;
+    QCheckBox *m_emojiAutoCompleteCheck;
 };
 
 #endif
