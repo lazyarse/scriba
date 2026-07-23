@@ -177,7 +177,7 @@ int tableNavCell(const QString &line, int cursorPos, bool forward)
         for (int i = pipes.size() - 1; i >= 0; --i) {
             if (pipes[i] < cursorPos) { idx = i; break; }
         }
-        if (idx <= 1)
+        if (idx <= 0)
             return -1;  // at first cell
         int cellPos = pipes[idx - 1] + 1;
         if (cellPos < line.size() && line[cellPos] == ' ')
