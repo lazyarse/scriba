@@ -144,6 +144,53 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
 
         QTextCursor cursor = textCursor();
+
+        // Block indent/dedent for multi-line selections
+        if (cursor.hasSelection()) {
+            int startPos = cursor.selectionStart();
+            int endPos = cursor.selectionEnd();
+            QTextBlock startBlock = document()->findBlock(startPos);
+            QTextBlock endBlock = document()->findBlock(endPos);
+            if (endBlock.position() == endPos && endBlock.blockNumber() > startBlock.blockNumber())
+                endBlock = endBlock.previous();
+
+            int startNum = startBlock.blockNumber();
+            int endNum = endBlock.blockNumber();
+
+            bool dedent = shift || event->key() == Qt::Key_Backtab;
+
+            if (dedent) {
+                for (int i = endNum; i >= startNum; --i) {
+                    QTextBlock block = document()->findBlockByNumber(i);
+                    QString text = block.text();
+                    int toRemove = 0;
+                    while (toRemove < 4 && toRemove < text.size() && text[toRemove] == ' ')
+                        ++toRemove;
+                    if (toRemove > 0) {
+                        QTextCursor tc = textCursor();
+                        tc.setPosition(block.position());
+                        tc.setPosition(block.position() + toRemove, QTextCursor::KeepAnchor);
+                        tc.removeSelectedText();
+                    }
+                }
+            } else {
+                for (int i = endNum; i >= startNum; --i) {
+                    QTextBlock block = document()->findBlockByNumber(i);
+                    QTextCursor tc = textCursor();
+                    tc.setPosition(block.position());
+                    tc.insertText("    ");
+                }
+            }
+
+            // Reselect the modified range
+            QTextBlock newStart = document()->findBlockByNumber(startNum);
+            QTextBlock newEnd = document()->findBlockByNumber(endNum);
+            cursor.setPosition(newStart.position());
+            cursor.setPosition(newEnd.position() + newEnd.length() - 1, QTextCursor::KeepAnchor);
+            setTextCursor(cursor);
+            return;
+        }
+
         QString line = cursor.block().text();
 
         // Table cell navigation
