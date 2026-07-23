@@ -614,6 +614,7 @@ void MainWindow::showTableInsert()
         int offset = dlg.hasHeader() ? 2 : 16;
         cursor.setPosition(insertPos + offset, QTextCursor::MoveAnchor);
         m_editor->setTextCursor(cursor);
+        m_editor->centerCursor();
     }
 }
 

@@ -233,6 +233,57 @@ TEST_F(ScrollSyncIntegrationTest, PreviewScrollSyncsAfterDeferredUpdate) {
     EXPECT_GT(scrollY, 0);
 }
 
+/* ========== Test D: Table insertion scroll sync ========== */
+
+TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+
+    // Scroll editor to top so we can detect movement
+    window->editor()->verticalScrollBar()->setValue(0);
+    QApplication::processEvents();
+
+    // Simulate what showTableInsert() does (insert a 3-column table at line 150)
+    QTextCursor cursor(window->editor()->document());
+    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, 150);
+    int insertPos = cursor.position();
+    QString table = "|  |  |  |\n|---|---|---|\n|  |  |  |\n";
+    cursor.insertText(table);
+    cursor.setPosition(insertPos + 2, QTextCursor::MoveAnchor);
+    window->editor()->setTextCursor(cursor);
+    window->editor()->centerCursor();   // the fix
+    QApplication::processEvents();
+
+    // Verify editor scrolled to the cursor
+    double pct = scrollbarFraction(window->editor()->verticalScrollBar());
+    EXPECT_GT(pct, 0.5);
+
+    // Wait for the 80ms deferred timer + preview load
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    QTest::qWait(200);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i) {
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    }
+    while (!loaded) {
+        if (!loadSpy.wait(1000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    ASSERT_TRUE(loaded);
+
+    QTest::qWait(1000);
+
+    // Verify preview scrolled down to show the table
+    double scrollY = 0;
+    window->preview()->page()->runJavaScript(
+        "document.body ? Math.round(window.scrollY) : 0",
+        [&](const QVariant &r) { scrollY = r.toDouble(); });
+    QTest::qWait(2000);
+    EXPECT_GT(scrollY, 0);
+}
+
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     app.setOrganizationName("ScribaTest");
