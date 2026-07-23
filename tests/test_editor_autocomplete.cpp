@@ -121,7 +121,7 @@ TEST(PathCompletion, FiltersEntries)
 
     auto touch = [&](const QString &name) {
         QFile f(dir.absoluteFilePath(name));
-        f.open(QIODevice::WriteOnly);
+        (void)f.open(QIODevice::WriteOnly);
         f.close();
     };
     touch("main.css");
@@ -147,7 +147,7 @@ TEST(PathCompletion, ListsFilesInSubdir)
     dir.mkdir("images");
     auto touch = [&](const QString &name) {
         QFile f(dir.absoluteFilePath(name));
-        f.open(QIODevice::WriteOnly);
+        (void)f.open(QIODevice::WriteOnly);
         f.close();
     };
     touch("images/photo.png");
@@ -180,7 +180,7 @@ TEST(PathCompletion, NoHiddenFilesWithoutDot)
     QDir dir(tmpDir.path());
     auto touch = [&](const QString &name) {
         QFile f(dir.absoluteFilePath(name));
-        f.open(QIODevice::WriteOnly);
+        (void)f.open(QIODevice::WriteOnly);
         f.close();
     };
     touch(".hidden");
@@ -198,7 +198,7 @@ TEST(PathCompletion, HiddenFilesShownWithDotPrefix)
     QDir dir(tmpDir.path());
     auto touch = [&](const QString &name) {
         QFile f(dir.absoluteFilePath(name));
-        f.open(QIODevice::WriteOnly);
+        (void)f.open(QIODevice::WriteOnly);
         f.close();
     };
     touch(".config");
@@ -218,7 +218,7 @@ TEST(PathCompletion, NoMatchReturnsEmpty)
     QDir dir(tmpDir.path());
     auto touch = [&](const QString &name) {
         QFile f(dir.absoluteFilePath(name));
-        f.open(QIODevice::WriteOnly);
+        (void)f.open(QIODevice::WriteOnly);
         f.close();
     };
     touch("readme.md");
@@ -234,7 +234,7 @@ TEST(PathCompletion, EmptyPathReturnsEmpty)
     QDir dir(tmpDir.path());
     auto touch = [&](const QString &name) {
         QFile f(dir.absoluteFilePath(name));
-        f.open(QIODevice::WriteOnly);
+        (void)f.open(QIODevice::WriteOnly);
         f.close();
     };
     touch("main.css");

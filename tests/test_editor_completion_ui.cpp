@@ -19,13 +19,13 @@ protected:
         currentFilePath = tmpDir.path() + "/doc.md";
         {
             QFile f(currentFilePath);
-            f.open(QIODevice::WriteOnly);
+            (void)f.open(QIODevice::WriteOnly);
             f.write("# Test\n");
         }
 
         auto touch = [&](const QString &name) {
             QFile f(tmpDir.path() + "/" + name);
-            f.open(QIODevice::WriteOnly);
+            (void)f.open(QIODevice::WriteOnly);
             f.close();
         };
         QDir d(tmpDir.path());
@@ -176,7 +176,7 @@ TEST_F(EditorCompletionUITest, FileCompletionLimitsResults)
     // Create 25 files matching prefix "zzfile"
     for (int i = 0; i < 25; ++i) {
         QFile f(tmpDir.path() + QString("/zzfile%1.md").arg(i, 2, 10, QChar('0')));
-        f.open(QIODevice::WriteOnly);
+        (void)f.open(QIODevice::WriteOnly);
         f.close();
     }
 
