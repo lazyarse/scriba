@@ -9,7 +9,7 @@ C++17 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown
 ```bash
 mkdir -p build
 cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs after branch switches
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4
 ```
 
 Binary: `build/scriba`
@@ -68,6 +68,10 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
 - Create tests for each new feature — use Qt Test framework (QTest), add test files to `tests/` directory and register in `CMakeLists.txt`
 - When presenting a plan or fix proposal, state it as normal text — do not use a structured question widget asking "shall I proceed/continue/go". Let the user reply naturally.
+
+## CRITICAL
+
+- NEVER COMMIT, REVERT, ADD, DELETE, STAGE, OR OTHERWISE MUTATE REPO HISTORY WITHOUT EXPLICIT PERMISSION. NO EXCEPTIONS.
 
 ## Gotchas
 
