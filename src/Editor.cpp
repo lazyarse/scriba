@@ -322,7 +322,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
     } else if (!event->text().isEmpty()) {
         QChar c = event->text()[0];
-        if (c.isLetterOrNumber() || c == '_' || c == ':') {
+        if (c.isLetterOrNumber() || c == '_' || c == ':' || c == '+' || c == '-') {
             QString partialPath;
             if (isInsideLinkContext(textCursor(), partialPath))
                 showFileCompletion(partialPath);
@@ -504,17 +504,11 @@ bool Editor::isInsideEmojiContext(const QTextCursor &cursor, QString &partialCod
             return false;
     }
 
-    for (int i = pos - 1; i >= 0; --i) {
-        QChar c = text[i];
-        if (c == ':') {
-            QString after = text.mid(i + 1, pos - i - 1);
-            if (after.contains(':') || after.isEmpty())
-                return false;
-            partialCode = after;
-            return true;
-        }
-        if (!c.isLetterOrNumber() && c != '_' && c != '-')
-            break;
+    static const QRegularExpression emojiRe(R"(:([a-zA-Z0-9+-][a-zA-Z0-9_+-]*)$)");
+    auto match = emojiRe.match(text.left(pos));
+    if (match.hasMatch()) {
+        partialCode = match.captured(1);
+        return true;
     }
     return false;
 }
@@ -569,16 +563,11 @@ void Editor::acceptEmojiCompletion(const QString &completion)
     int pos = cursor.positionInBlock();
 
     int colonPos = -1;
-    for (int i = pos - 1; i >= 0; --i) {
-        QChar c = line[i];
-        if (c == ':') {
-            colonPos = i;
-            break;
-        }
-        if (!c.isLetterOrNumber() && c != '_' && c != '-')
-            break;
-    }
-    if (colonPos < 0)
+    static const QRegularExpression emojiRe(R"(:([a-zA-Z0-9_+-]*)$)");
+    auto match = emojiRe.match(line.left(pos));
+    if (match.hasMatch())
+        colonPos = match.capturedStart(0);
+    else
         return;
 
     int blockStart = cursor.block().position();

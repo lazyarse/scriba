@@ -17,6 +17,13 @@ Resize with `#WIDTHxHEIGHT` suffix appended to the image URL:
 - Width only:  `![](icons/scriba.svg#200x)`
 - Height only: `![](icons/scriba.svg#x100)`
 
+Tooltips for title, alt text in that priority. Hover over the below images
+
+- ![Alt A](../resources/icons/fullscreen.svg) Alt A
+- ![Alt A](../resources/icons/fullscreen.svg "Title B") Title B
+- <img src="../resources/icons/fullscreen.svg" alt="Alt C" /> Alt C
+- <img src="../resources/icons/fullscreen.svg" alt="Alt C" title="Title D" /> Title D
+
 ## Lists
 
 1. First
