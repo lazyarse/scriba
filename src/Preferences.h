@@ -16,6 +16,7 @@ namespace Preferences {
     constexpr const char *PreviewState = "previewState";
     constexpr const char *TableStriping = "tableStriping";
     constexpr const char *EmojiMode = "emojiMode";
+    constexpr const char *EmojiAutoComplete = "emojiAutoComplete";
 
     constexpr const char *AutoSaveOnExit = "autoSaveOnExit";
     constexpr const char *AutoSaveInterval = "autoSaveInterval";
