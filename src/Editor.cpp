@@ -286,6 +286,18 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
     }
 
+    if (event->key() == Qt::Key_Down) {
+        if (!m_completer || !m_completer->popup()->isVisible()) {
+            QTextCursor cursor = textCursor();
+            QTextCursor probe = cursor;
+            if (!probe.movePosition(QTextCursor::Down)) {
+                cursor.movePosition(QTextCursor::EndOfBlock);
+                setTextCursor(cursor);
+                return;
+            }
+        }
+    }
+
     QPlainTextEdit::keyPressEvent(event);
 
     if (event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete) {
