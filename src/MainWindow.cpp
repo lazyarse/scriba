@@ -101,7 +101,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     if (settings.value(Preferences::FirstRun, true).toBool()) {
         settings.setValue(Preferences::FirstRun, false);
-        loadSample();
 
         QStringList bundled = {
             ":/themes/catppuccin-latte.css",
@@ -143,22 +142,9 @@ MainWindow::MainWindow(QWidget *parent)
             } else {
                 showCenteredWarning("File Not Found",
                     "Could not find: " + lastFile,
-                    "Loading default sample instead.");
-                loadSample();
+                    "The file may have been moved or deleted.");
             }
         }
-    }
-}
-
-void MainWindow::loadSample()
-{
-    QFile sample(":/sample.md");
-    if (sample.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        m_editor->setPlainText(QString::fromUtf8(sample.readAll()));
-        m_currentFile.clear();
-        m_editor->setCurrentFile(QString());
-        m_preview->setDocumentPath(QString());
-        setWindowTitle("Scriba - Sample");
     }
 }
 

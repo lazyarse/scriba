@@ -7,15 +7,15 @@ C++17 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown
 ## Build
 
 ```bash
-mkdir -p build-official && cmake -B build-official -DCMAKE_BUILD_TYPE=Release && cmake --build build-official -j$(nproc)
+mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
-Binary: `build-official/scriba`
+Binary: `build/scriba`
 
 ## Package
 
 ```bash
-cpack --config build-official/CPackConfig.cmake -G DEB
+cpack --config build/CPackConfig.cmake -G DEB
 ```
 
 Output: `scriba-<version>-Linux.deb`
@@ -23,8 +23,8 @@ Output: `scriba-<version>-Linux.deb`
 ## Run
 
 ```bash
-build-official/scriba              # empty editor
-build-official/scriba file.md      # open file
+build/scriba              # empty editor
+build/scriba file.md      # open file
 ```
 
 ## Dependencies
@@ -38,7 +38,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 - `src/` — all application code (headers + cpp), flat layout
 - `vendor/md4c/` — vendored markdown parser (gitignored, must exist at build time)
-- `resources/` — Qt QRC resources: CSS themes, JS libraries (mermaid, KaTeX, highlight.js, vega), sample.md, print styles
+- `resources/` — Qt QRC resources: CSS themes, JS libraries (mermaid, KaTeX, highlight.js, vega), print styles
 - `resources/themes/` — bundled CSS themes (15 themes: Catppuccin, Dracula, Nord, etc.)
 - `tests/` — Qt Test-based test suites
 
@@ -61,8 +61,8 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Post-build step deletes `~/.config/Scriba/Scriba/{editor,preview}-base.css` — don't rely on those persisting across builds
 - QDialogButtonBox buttons must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`
 - Always rebuild after making changes — CSS, resource, or source files all require a rebuild to take effect
-- After building, run the application briefly to check for segfaults: `timeout 3 build-official/scriba || true`
-- Rebuild the .deb package after any source/resource change: `cpack --config build-official/CPackConfig.cmake -G DEB`
+- After building, run the application briefly to check for segfaults: `timeout 3 build/scriba || true`
+- Rebuild the .deb package after any source/resource change: `cpack --config build/CPackConfig.cmake -G DEB`
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
 - Create tests for each new feature — use Qt Test framework (QTest), add test files to `tests/` directory and register in `CMakeLists.txt`
 - When presenting a plan or fix proposal, state it as normal text — do not use a structured question widget asking "shall I proceed/continue/go". Let the user reply naturally.
@@ -70,7 +70,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 ## Gotchas
 
 - `vendor/` is gitignored. Clone with submodules or ensure `vendor/md4c/` exists before building.
-- Tests exist in `tests/` — run with `cd build-official && xvfb-run ctest --output-on-failure` after building with `-DBUILD_TESTS=ON`.
+- Tests exist in `tests/` — run with `cd build && xvfb-run ctest --output-on-failure` after building with `-DBUILD_TESTS=ON`.
 - `Qt6::WebEngineWidgets` is a heavy dependency; requires `xvfb` for headless/CI — install with `sudo apt install xvfb`.
 - Admonition support is CSS-only (`::before` pseudo-elements), not markdown parser extensions.
 - This app must work fully offline. No CDN, no network-dependent features. All assets (JS, fonts, SVG) must be bundled via qrc.

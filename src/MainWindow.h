@@ -53,7 +53,6 @@ private:
     void syncCssWatcher();
     void refreshPreviewCss();
     void applyStripeSetting();
-    void loadSample();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);
     QSplitter *m_splitter;
     Editor *m_editor;
