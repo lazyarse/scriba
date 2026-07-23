@@ -49,7 +49,7 @@
 
 ### Candy:
 
-- Full-screen mode (<key>F11</key> or menu bar icon)
+- Full-screen mode (<kbd>F11</kbd> or ![fullscreen icon](resources/icons/fullscreen.svg) in the menubar)
 - Cursor restore on application start to pick up where you left off
 - Sentence, word count, estimated reading time, and age-level to suitably patronise
 - That annoying `<kbd>` css styling to look just like a key. I like it. Feel free to remove it in the `preview-base.css` and `print-base.css`.
@@ -63,6 +63,7 @@
 - A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 - Selected text + <kbd>Tab</kbd> will indent, <kbd><Shift></kbd>+<kbd>Tab</kbd> will dedent.
 - <kbd>Down</kbd> on the last line will place the cursor at the end of the line
+- hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text.
 
 ## Shortcuts for All Features
 

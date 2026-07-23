@@ -469,6 +469,14 @@ void MainWindow::updatePreview()
         "}"
     );
 
+    static const QString setImgTitlesJs = QStringLiteral(
+        "function setImgTitles(){"
+        "document.querySelectorAll('img:not([title])').forEach(function(img){"
+        "if(img.alt)img.title=img.alt;"
+        "});"
+        "}"
+    );
+
     QString emojiMode = QSettings().value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
     if (!m_previewInitialized) {
@@ -493,7 +501,7 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
             "</head><body id=\"preview\">%3</body></html>"
         ).arg(baseCss, previewCss, html, stripeInit);
         m_preview->setHtml(fullHtml, baseUrl);
@@ -515,6 +523,7 @@ void MainWindow::updatePreview()
                 "initVegaLite();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
+                "setImgTitles();"
                 "replaceEmoji(document.body);"
                 "twemojiParse('" + emojiMode + "');"
                 "window.scrollTo(0, sy);"
@@ -531,6 +540,7 @@ void MainWindow::updatePreview()
                 "initVegaLite();"
                 "hljs.highlightAll();"
                 "generateHeadingIds();"
+                "setImgTitles();"
                 "replaceEmoji(document.body);"
                 "twemojiParse('" + emojiMode + "');"
                 "window.scrollTo(0, sy);"
