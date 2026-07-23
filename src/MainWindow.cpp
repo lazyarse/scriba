@@ -63,7 +63,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_cssWatcher(new QFileSystemWatcher(this))
 {
     m_previewState = QSettings().value(Preferences::PreviewState, 1).toInt();
-    if (m_previewState < 0 || m_previewState > 2) m_previewState = 1;
+    if (m_previewState < 0 || m_previewState > 3) m_previewState = 1;
 
     setupUi();
     setupMenuBar();
@@ -173,6 +173,9 @@ void MainWindow::setupUi()
     if (m_previewState == 0) {
         m_splitter->addWidget(m_editor);
         m_preview->setVisible(false);
+    } else if (m_previewState == 3) {
+        m_splitter->addWidget(m_preview);
+        m_editor->setVisible(false);
     } else if (m_previewState == 1) {
         m_splitter->addWidget(m_editor);
         m_splitter->addWidget(m_preview);
@@ -183,7 +186,7 @@ void MainWindow::setupUi()
 
     m_splitter->setSizes({600, 600});
     m_splitter->setStretchFactor(0, 1);
-    if (m_previewState != 0) {
+    if (m_previewState != 0 && m_previewState != 3) {
         m_splitter->setStretchFactor(1, 1);
         m_splitter->handle(1)->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     }
@@ -199,7 +202,7 @@ void MainWindow::setupUi()
 
     m_previewBtn = new QToolButton();
     m_previewBtn->setIcon(themedIcon(":/icons/preview.svg", iconColor));
-    m_previewBtn->setToolTip("Toggle Preview (hidden → right → left)");
+    m_previewBtn->setToolTip("Toggle Preview (editor only → right → left → preview only)");
     m_previewBtn->setAutoRaise(true);
     m_previewBtn->setFixedSize(28, 28);
     connect(m_previewBtn, &QToolButton::clicked, this, &MainWindow::togglePreview);
@@ -677,14 +680,16 @@ void MainWindow::toggleFullscreen()
 
 void MainWindow::togglePreview()
 {
-    // Cycle: 0 (hidden) → 1 (right) → 2 (left) → 0
-    int oldState = m_previewState;
-    m_previewState = (m_previewState + 1) % 3;
+    // Cycle: 0 (editor only) → 1 (editor|preview) → 2 (preview|editor) → 3 (preview only) → 0
+    m_previewState = (m_previewState + 1) % 4;
     QSettings().setValue(Preferences::PreviewState, m_previewState);
 
     if (m_previewState == 0) {
         m_preview->setVisible(false);
         m_editor->setVisible(true);
+    } else if (m_previewState == 3) {
+        m_editor->setVisible(false);
+        m_preview->setVisible(true);
     } else if (m_previewState == 1) {
         // editor | preview
         m_splitter->insertWidget(0, m_editor);
