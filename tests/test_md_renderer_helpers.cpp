@@ -46,6 +46,56 @@ TEST(MdRendererEscapeTest, QuotesInCodeSpan) {
     EXPECT_FALSE(html.contains(R"(say "hello")"));
 }
 
+TEST(MdRendererImageTest, ImageDimensionHxW) {
+    MdRenderer renderer;
+    QString input = R"(![resized](img.png#200x150))";
+    QByteArray utf8 = input.toUtf8();
+    unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("style=\""));
+    EXPECT_TRUE(html.contains("max-width: 200px"));
+    EXPECT_TRUE(html.contains("max-height: 150px"));
+    EXPECT_TRUE(html.contains("img.png"));
+}
+
+TEST(MdRendererImageTest, ImageDimensionHeightOnly) {
+    MdRenderer renderer;
+    QString input = R"(![hlimit](img.png#x200))";
+    QByteArray utf8 = input.toUtf8();
+    unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("style=\""));
+    EXPECT_TRUE(html.contains("max-height: 200px"));
+    EXPECT_FALSE(html.contains("max-width"));
+    EXPECT_TRUE(html.contains("img.png"));
+}
+
+TEST(MdRendererImageTest, ImageDimensionWidthOnly) {
+    MdRenderer renderer;
+    QString input = R"(![wlimit](img.png#300x))";
+    QByteArray utf8 = input.toUtf8();
+    unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("style=\""));
+    EXPECT_TRUE(html.contains("max-width: 300px"));
+    EXPECT_FALSE(html.contains("max-height"));
+    EXPECT_TRUE(html.contains("img.png"));
+}
+
+TEST(MdRendererImageTest, ImageNoDimension) {
+    MdRenderer renderer;
+    QString input = R"(![plain](img.png))";
+    QByteArray utf8 = input.toUtf8();
+    unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_FALSE(html.contains("style=\""));
+    EXPECT_TRUE(html.contains("img.png"));
+}
+
 TEST(MdRendererImageTest, ImageEscaping) {
     MdRenderer renderer;
     QString input = R"(!["alt" & quote](img.png "title"))";

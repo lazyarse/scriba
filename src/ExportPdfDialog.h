@@ -35,6 +35,7 @@ private slots:
 private:
     friend class PrintExportAccess;
     static QMarginsF parsePageMargins(const QString &css);
+    static QSizeF parsePageSize(const QString &css);
     void setupUi();
     QString buildFullHtml(const QString &printCss) const;
     QString buildHeaderFooterCss() const;

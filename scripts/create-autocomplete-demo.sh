@@ -39,7 +39,7 @@ export XDG_CONFIG_HOME=/tmp/scriba-demo-config
 #   1. Use press() instead of xdotool directly — it sets $LAST_KEY automatically.
 #   2. Call capture $F; F=$((F + 1)) after each key press or visual change.
 #   3. Use for-loops for character-by-character typing with per-frame captures.
-#   4. Use "for i in 1 2 3; do sleep 0.2; capture $F; F=$((F+1)); done" for pauses.
+#   4. Use "for i in 1 2 3; do sleep 0.03; capture $F; F=$((F+1)); done" for pauses.
 #   5. Frame numbers use %03d (3 digits). If more than 999 frames are ever needed,
 #      bump to %04d everywhere.
 #   6. The last capture before kill $PID should end with a pause so the viewer
@@ -83,6 +83,7 @@ capture() {
             "parenleft") dk="(" ;; "parenright") dk=")" ;;
             "bar") dk="|" ;; "numbersign") dk="#" ;;
             "period") dk="." ;; "slash") dk="/" ;;
+            "comma") dk="," ;;
             "space") dk="␣" ;; "minus") dk="-" ;;
             "ctrl+t") dk="Ctrl+T" ;; "alt+i") dk="Alt+I" ;;
         esac
@@ -115,46 +116,46 @@ pause_frames() {
     local count=$1
     local start=$2
     for i in $(seq 1 $count); do
-        sleep 0.2
+        sleep 0.03
         capture $((start + i - 1))
     done
 }
 
 header() {
     local text="$1" i ch1 ch2
-    press "numbersign"; sleep 0.15; capture $F; F=$((F + 1))
-    press "numbersign"; sleep 0.15; capture $F; F=$((F + 1))
-    press "space"; sleep 0.15; capture $F; F=$((F + 1))
+    press "numbersign"; sleep 0.02; capture $F; F=$((F + 1))
+    press "numbersign"; sleep 0.02; capture $F; F=$((F + 1))
+    press "space"; sleep 0.02; capture $F; F=$((F + 1))
     for ((i=0; i<${#text}; i+=2)); do
         ch1="${text:$i:1}"
         ch2="${text:$((i+1)):1}"
         if [ "$ch1" = " " ]; then press "space"; else press "$ch1"; fi
-        sleep 0.08
+        sleep 0.01
         if [ -n "$ch2" ]; then
             if [ "$ch2" = " " ]; then press "space"; else press "$ch2"; fi
-            sleep 0.08
+            sleep 0.01
         fi
-        sleep 0.1
+        sleep 0.02
         capture $F; F=$((F + 1))
     done
     press "Return"
-    for i in 1 2; do sleep 0.2; capture $F; F=$((F + 1)); done
+    for i in 1 2; do sleep 0.03; capture $F; F=$((F + 1)); done
     press "Return"
-    for i in 1 2; do sleep 0.2; capture $F; F=$((F + 1)); done
+    for i in 1 2; do sleep 0.03; capture $F; F=$((F + 1)); done
 }
 
 "$BUILD_DIR/scriba" "$PROJECT_DIR/.demo-content.md" &
 PID=$!
-sleep 2
+sleep 0.5
 
 WID=$(xdotool search --onlyvisible --name "Scriba" | head -1)
 xdotool windowsize "$WID" 800 500
 xdotool windowmove "$WID" 0 0
-sleep 0.3
+sleep 0.05
 
 xdotool mousemove --window "$WID" 100 100
 xdotool click 1
-sleep 0.2
+sleep 0.03
 
 F=1
 
@@ -162,77 +163,88 @@ F=1
 # Scene 1: File autocomplete — chain resources/ → icons/ → scriba.svg
 # ═══════════════════════════════════════
 
+# Type "# Autocomplete" — 2 chars per frame (single # for H1)
+press "numbersign"; sleep 0.02; press "space"; sleep 0.02; sleep 0.02; capture $F; F=$((F + 1))
+for CH in "A" "u"; do press "$CH"; sleep 0.01; done; sleep 0.02; capture $F; F=$((F + 1))
+for CH in "t" "o"; do press "$CH"; sleep 0.01; done; sleep 0.02; capture $F; F=$((F + 1))
+for CH in "c" "o"; do press "$CH"; sleep 0.01; done; sleep 0.02; capture $F; F=$((F + 1))
+for CH in "m" "p"; do press "$CH"; sleep 0.01; done; sleep 0.02; capture $F; F=$((F + 1))
+for CH in "l" "e"; do press "$CH"; sleep 0.01; done; sleep 0.02; capture $F; F=$((F + 1))
+press "t"; sleep 0.01; press "e"; sleep 0.01; sleep 0.02; capture $F; F=$((F + 1))
+press "Return"; sleep 0.03; capture $F; F=$((F + 1))
+press "Return"; sleep 0.03; capture $F; F=$((F + 1))
+
 header "Files"
 
 # Type ![](
 for CH in "exclam" "bracketleft" "bracketright" "parenleft"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 
 # Type "resour" — popup shows resources/
 for CH in "r" "e" "s" "o" "u" "r"; do
     press "$CH"
-    sleep 0.1
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 # Popup frame
-sleep 0.4
+sleep 0.08
 capture $F; F=$((F + 1))
 
 # Accept resources/
 press Return
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
 # Type "ic" — popup shows icons/
 for CH in "i" "c"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 # Popup frame
-sleep 0.4
+sleep 0.08
 capture $F; F=$((F + 1))
 
 # Accept icons/
 press Return
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
 # Type "scri" — popup shows scriba.svg
 for CH in "s" "c" "r"; do
     press "$CH"
-    sleep 0.1
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 press "i"
-sleep 0.4
+sleep 0.08
 capture $F; F=$((F + 1))
 
 # Accept scriba.svg (auto-closes parenthesis)
 press Return
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
 # Type #80x for image width constraint
 press "Left"
-sleep 0.15
+sleep 0.02
 capture $F; F=$((F + 1))
 for CH in "numbersign" "8" "0" "x"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 press "Right"
-sleep 0.15
+sleep 0.02
 capture $F; F=$((F + 1))
 
 # New line before emoji scene
@@ -246,30 +258,30 @@ header "Emojis"
 
 for CH in "colon" "s" "m"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 # Type i and capture popup
 press "i"
-sleep 0.4
+sleep 0.08
 capture $F; F=$((F + 1))
 
 # Press Down twice to cycle through popup items
 press Down
-sleep 0.3
+sleep 0.05
 capture $F; F=$((F + 1))
-sleep 0.3
+sleep 0.05
 capture $F; F=$((F + 1))
 press Down
-sleep 0.3
+sleep 0.05
 capture $F; F=$((F + 1))
-sleep 0.3
+sleep 0.05
 capture $F; F=$((F + 1))
 
 # Accept with Enter, then hold (3 pause frames)
 press Return
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
@@ -286,112 +298,112 @@ header "Markdown Tables"
 # Type |header1|
 for CH in "bar" "h" "e" "a" "d" "e" "r" "1" "bar"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 
 # Type header2|
 for CH in "h" "e" "a" "d" "e" "r" "2" "bar"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 
 # Type header3|
 for CH in "h" "e" "a" "d" "e" "r" "3" "bar"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 
 # Press Enter — table autocomplete inserts separator + data row
 press "Return"
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
 # Fill row 1: cell1 → Tab → cell2 → Tab → cell3 → Enter
 for CH in "c" "e" "l" "l" "1"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 press "Tab"
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
 for CH in "c" "e" "l" "l" "2"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 press "Tab"
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
 for CH in "c" "e" "l" "l" "3"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 press "Return"
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
 # Fill row 2: cell4 → Tab → cell5 → Tab → cell6 → Enter (creates blank row)
 for CH in "c" "e" "l" "l" "4"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 press "Tab"
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
 for CH in "c" "e" "l" "l" "5"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 press "Tab"
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
 for CH in "c" "e" "l" "l" "6"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
-sleep 0.3
+sleep 0.05
 capture $F; F=$((F + 1))
 # Shift+Tab moves to previous cell (cell5)
 press "Shift+Tab"
-sleep 0.3
+sleep 0.05
 capture $F; F=$((F + 1))
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
 # Type " prev" to demo previous cell editing
 for CH in "space" "p" "r" "e" "v"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 # Tab back to cell6, then create blank row
 press "Tab"
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
 press "Return"
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
@@ -400,97 +412,121 @@ press "Return"
 # --- Scene 4: HTML table via Ctrl+T dialog ---
 header "HTML Tables"
 
+# Type explanatory text — 2 chars per frame
+_TEXT="Markdown forces all tables to have a header, so the only way to make one without is an HTML table. Let us use the HTML table helper to scaffold an HTML table and disable the header option."
+for ((i=0; i<${#_TEXT}; i+=2)); do
+    ch1="${_TEXT:$i:1}"
+    ch2="${_TEXT:$((i+1)):1}"
+    for ch in "$ch1" "$ch2"; do
+        [ -z "$ch" ] && break
+        case "$ch" in
+            " ") press "space" ;;
+            ",") press "comma" ;;
+            ".") press "period" ;;
+            *) press "$ch" ;;
+        esac
+        sleep 0.04
+    done
+    sleep 0.022
+    capture $F; F=$((F + 1))
+done
+# Blank line after paragraph
+press "Return"
+for i in 1 2; do sleep 0.02; capture $F; F=$((F + 1)); done
+press "Return"
+for i in 1 2; do sleep 0.02; capture $F; F=$((F + 1)); done
+
 press "ctrl+t"
-sleep 0.5
+sleep 0.10
 capture $F; F=$((F + 1))
 
 DLG_WID=$(xdotool search --name "Insert Table" 2>/dev/null | tail -1)
 
 LAST_KEY="2"; xdotool key --window "$DLG_WID" "2"
-sleep 0.15
+sleep 0.02
 capture $F; F=$((F + 1))
 
 LAST_KEY="Tab"; xdotool key --window "$DLG_WID" "Tab"
-sleep 0.15
+sleep 0.02
 capture $F; F=$((F + 1))
 
 LAST_KEY="space"; xdotool key --window "$DLG_WID" "space"
-sleep 0.15
+sleep 0.02
 capture $F; F=$((F + 1))
 
 for i in 1 2; do
-    sleep 0.3
+    sleep 0.05
     capture $F; F=$((F + 1))
 done
 
 LAST_KEY="Alt+I"; xdotool key --window "$DLG_WID" "alt+i"
-sleep 0.5
+sleep 0.10
 capture $F; F=$((F + 1))
 
 # Type foo, Tab, bar, Enter in the HTML table
 for CH in "f" "o" "o"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 
 press "Tab"
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
 
 for CH in "b" "a" "r"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 
 press "Return"
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
 # Type foo2, Tab, bar2, Enter, Enter
 for CH in "f" "o" "o" "2"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 
 press "Tab"
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
-sleep 0.2
+sleep 0.03
 capture $F; F=$((F + 1))
 
 for CH in "b" "a" "r" "2"; do
     press "$CH"
-    sleep 0.15
+    sleep 0.02
     capture $F; F=$((F + 1))
 done
 
 press "Return"
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
 # Exit table: Enter on blank row
 press "Return"
 for i in 1 2 3; do
-    sleep 0.2
+    sleep 0.03
     capture $F; F=$((F + 1))
 done
 
 # Type "La fin!" — 2 chars per frame
-for CH in "L" "a"; do press "$CH"; sleep 0.08; done; sleep 0.15; capture $F; F=$((F + 1))
-for CH in "space" "f"; do press "$CH"; sleep 0.08; done; sleep 0.15; capture $F; F=$((F + 1))
-for CH in "i" "n"; do press "$CH"; sleep 0.08; done; sleep 0.15; capture $F; F=$((F + 1))
-press "exclam"; sleep 0.15; capture $F; F=$((F + 1))
+for CH in "L" "a"; do press "$CH"; sleep 0.01; done; sleep 0.02; capture $F; F=$((F + 1))
+for CH in "space" "f"; do press "$CH"; sleep 0.01; done; sleep 0.02; capture $F; F=$((F + 1))
+for CH in "i" "n"; do press "$CH"; sleep 0.01; done; sleep 0.02; capture $F; F=$((F + 1))
+press "exclam"; sleep 0.02; capture $F; F=$((F + 1))
 # Slight pause at end
-for i in 1 2 3; do sleep 0.2; capture $F; F=$((F + 1)); done
+for i in 1 2 3; do sleep 0.03; capture $F; F=$((F + 1)); done
 
 kill $PID 2>/dev/null
 wait $PID 2>/dev/null
