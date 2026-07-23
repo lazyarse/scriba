@@ -234,10 +234,13 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
             .arg(escapeAttr(cleanSrc), escapeAttr(self->m_img.alt));
         if (!self->m_img.title.isEmpty())
             tag += QString(" title=\"%1\"").arg(escapeAttr(self->m_img.title));
+        QStringList dimStyles;
         if (width >= 0)
-            tag += QString(" width=\"%1\"").arg(width);
+            dimStyles += QString("max-width: %1px").arg(width);
         if (height >= 0)
-            tag += QString(" height=\"%1\"").arg(height);
+            dimStyles += QString("max-height: %1px").arg(height);
+        if (!dimStyles.isEmpty())
+            tag += " style=\"" + dimStyles.join("; ") + "\"";
         tag += ">";
         self->writeHtml(tag);
         self->m_img.inside = false;

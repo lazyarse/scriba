@@ -63,6 +63,90 @@ static QString replaceQrcUrls(const QString &html)
     return result;
 }
 
+static qreal cssLengthToPt(const QString &s)
+{
+    static const QRegularExpression re(QStringLiteral("^(-?\\d+(?:\\.\\d+)?)\\s*(mm|cm|in|pt|px|pc)?$"));
+    auto m = re.match(s.trimmed());
+    if (!m.hasMatch()) return 0;
+    qreal v = m.captured(1).toDouble();
+    QString u = m.captured(2);
+    if (u == QStringLiteral("mm")) return v * 72.0 / 25.4;
+    if (u == QStringLiteral("cm")) return v * 72.0 / 2.54;
+    if (u == QStringLiteral("in")) return v * 72.0;
+    if (u == QStringLiteral("pt")) return v;
+    if (u == QStringLiteral("pc")) return v * 12.0;
+    return v * 0.75;
+}
+
+static QSizeF doParsePageSize(const QString &css)
+{
+    static const QRegularExpression pageRe(QStringLiteral("@page\\s*\\{([^}]*)\\}"),
+                                           QRegularExpression::CaseInsensitiveOption);
+    auto pageMatch = pageRe.match(css);
+    if (!pageMatch.hasMatch())
+        return QSizeF(595.0, 842.0);
+
+    QString block = pageMatch.captured(1);
+    QRegularExpression sizeRe(QStringLiteral("size\\s*:\\s*([^;}]+)"),
+                              QRegularExpression::CaseInsensitiveOption);
+    auto sizeMatch = sizeRe.match(block);
+    if (!sizeMatch.hasMatch())
+        return QSizeF(595.0, 842.0);
+
+    QString raw = sizeMatch.captured(1).trimmed();
+
+    bool landscape = false;
+    QString cleaned = raw;
+    if (cleaned.contains(QStringLiteral("landscape"), Qt::CaseInsensitive)) {
+        landscape = true;
+        cleaned.remove(QStringLiteral("landscape"), Qt::CaseInsensitive);
+    } else if (cleaned.contains(QStringLiteral("portrait"), Qt::CaseInsensitive)) {
+        cleaned.remove(QStringLiteral("portrait"), Qt::CaseInsensitive);
+    }
+    cleaned = cleaned.trimmed();
+
+    static const auto namedSize = [](const QString &name) -> QSizeF {
+        QString n = name.trimmed().toLower();
+        static const struct { const char *key; QPageSize::PageSizeId id; } table[] = {
+            {"a3", QPageSize::A3}, {"a4", QPageSize::A4}, {"a5", QPageSize::A5},
+            {"letter", QPageSize::Letter}, {"legal", QPageSize::Legal},
+            {"tabloid", QPageSize::Tabloid},
+            {"ledger", QPageSize::Tabloid}, {"b4", QPageSize::B4},
+            {"b5", QPageSize::B5},
+        };
+        for (auto &e : table) {
+            if (n == QLatin1String(e.key))
+                return QPageSize(e.id).size(QPageSize::Point);
+        }
+        return {};
+    };
+    QSizeF sz = namedSize(cleaned);
+    if (sz.isValid()) {
+        if (landscape)
+            sz.transpose();
+        return sz;
+    }
+
+    QStringList parts = cleaned.split(QRegularExpression(QStringLiteral("\\s+")),
+                                      Qt::SkipEmptyParts);
+    if (parts.size() >= 2) {
+        double w = cssLengthToPt(parts[0]);
+        double h = cssLengthToPt(parts[1]);
+        if (w > 0 && h > 0) {
+            if (landscape)
+                qSwap(w, h);
+            return QSizeF(w, h);
+        }
+    }
+
+    return QSizeF(595.0, 842.0);
+}
+
+QSizeF ExportPdfDialog::parsePageSize(const QString &css)
+{
+    return doParsePageSize(css);
+}
+
 static const char *mermaidInitJs = R"(
 function initMermaid(){
 var els=document.querySelectorAll('code.language-mermaid');
@@ -121,8 +205,8 @@ catch(e){}
 
 QMarginsF ExportPdfDialog::parsePageMargins(const QString &css)
 {
-    QRegularExpression pageRe(QStringLiteral("@page\\s*\\{([^}]*)\\}"),
-                              QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression pageRe(QStringLiteral("@page\\s*\\{([^}]*)\\}"),
+                                           QRegularExpression::CaseInsensitiveOption);
     auto pageMatch = pageRe.match(css);
     if (!pageMatch.hasMatch())
         return QMarginsF();
@@ -137,25 +221,11 @@ QMarginsF ExportPdfDialog::parsePageMargins(const QString &css)
     QStringList parts = marginMatch.captured(1).trimmed().split(
         QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
 
-    auto toPt = [](const QString &s) -> qreal {
-        QRegularExpression re(QStringLiteral("^(-?\\d+(?:\\.\\d+)?)\\s*(mm|cm|in|pt|px|pc)?$"));
-        auto m = re.match(s.trimmed());
-        if (!m.hasMatch()) return 0;
-        qreal v = m.captured(1).toDouble();
-        QString u = m.captured(2);
-        if (u == QStringLiteral("mm")) return v * 72.0 / 25.4;
-        if (u == QStringLiteral("cm")) return v * 72.0 / 2.54;
-        if (u == QStringLiteral("in")) return v * 72.0;
-        if (u == QStringLiteral("pt")) return v;
-        if (u == QStringLiteral("pc")) return v * 12.0;
-        return v * 0.75;
-    };
-
     double t, r, b, l;
-    if (parts.size() == 1) { t = r = b = l = toPt(parts[0]); }
-    else if (parts.size() == 2) { t = b = toPt(parts[0]); l = r = toPt(parts[1]); }
-    else if (parts.size() == 3) { t = toPt(parts[0]); l = r = toPt(parts[1]); b = toPt(parts[2]); }
-    else if (parts.size() >= 4) { t = toPt(parts[0]); r = toPt(parts[1]); b = toPt(parts[2]); l = toPt(parts[3]); }
+    if (parts.size() == 1) { t = r = b = l = cssLengthToPt(parts[0]); }
+    else if (parts.size() == 2) { t = b = cssLengthToPt(parts[0]); l = r = cssLengthToPt(parts[1]); }
+    else if (parts.size() == 3) { t = cssLengthToPt(parts[0]); l = r = cssLengthToPt(parts[1]); b = cssLengthToPt(parts[2]); }
+    else if (parts.size() >= 4) { t = cssLengthToPt(parts[0]); r = cssLengthToPt(parts[1]); b = cssLengthToPt(parts[2]); l = cssLengthToPt(parts[3]); }
     else return QMarginsF();
     return QMarginsF(l, t, r, b);
 }
@@ -387,6 +457,14 @@ void ExportPdfDialog::onCssModeChanged()
 
     if (m_showHeader->isChecked())
         m_currentPrintCss += buildHeaderFooterCss();
+
+    {
+        QSizeF pagePt = parsePageSize(m_currentPrintCss);
+        QMarginsF marginsPt = parsePageMargins(m_currentPrintCss);
+        double cwPt = pagePt.width() - marginsPt.left() - marginsPt.right();
+        int cwPx = static_cast<int>(cwPt * 96.0 / 72.0 + 0.5);
+        m_hiddenEngine->setFixedSize(std::max(400, cwPx), 600);
+    }
 
     QSettings s;
     s.setValue(Preferences::PdfShowHeader, m_showHeader->isChecked());

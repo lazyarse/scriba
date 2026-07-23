@@ -3,9 +3,10 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A configurable, no-nonsense, split-screen, off-line Markdown editor for coders** with a *pretentious* Latin name. Designed with a restricted feature-set; useful, no bloat. Originally envisioned to be a simple application: text-editor on the left and a HTML preview on the right with no other features, but, my bad.
+**A configurable, no-nonsense, split-screen, off-line Markdown editor with a *pretentious* Latin name**. Designed to *actually* do what it should without plugins and with a restricted feature-set: useful; no bloat.
 
-<p align="center">
+<br />
+<div align="center">
   :cucumber:
   <img src="docs/images/badge-opencode.svg" />
   :cucumber:
@@ -15,7 +16,7 @@
   <img src="docs/images/badge-qt6.svg" alt="Qt 6">
   <img src="docs/images/badge-tests.svg" alt="tests">
   <img src="docs/images/badge-worthit.svg" alt="Worth it?">
-</p>
+</span>
 </div>
 
 <div align="center">
@@ -23,6 +24,7 @@
 ![](docs/images/screenshot.png#700x)
 
 ![](docs/images/autocomplete-demo.gif#700x)
+<br/><em>I want it known that this took way longer than expected to script.</em>
 
 </div>
 
@@ -32,18 +34,18 @@
 
 - WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions with custom titles and icons (note, tip, important, warning, caution) 
 - Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, or hidden
-- CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. (Fair warning: Qt can't style application or dialogs titlebars differently to the system theme)
+- CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. (Fair warning: Qt can't style application or dialog titlebars different to the system theme)
 - PDF export with print-specific CSS stylesheets
-- Content searching including regex search
+- Find feature with regex search
 - An 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers
 
 ### Standing on the shoulders of giants:
 
-- Themable syntax highlighting for fenced code blocks (auto-detects language via highlight.js)
+- [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`)
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie)
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and a chart helper because writing JSON is hard.
-- [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser, modified to accept image sizes (`#WIDTHxHEIGHT` suffix)
+- [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser
 
 ### Candy:
 
@@ -91,18 +93,22 @@ Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root`
 
 - CMake 3.16+
 - Qt6 development libraries
+  ```bash
+  sudo apt install qt6-base-dev qt6-webengine-dev
+  ```
 - GCC/Clang with C++17 support
+- **Chromium ≥ 140** (for PDF export). Install on Debian/Ubuntu:
+  ```bash
+  sudo apt install chromium
+  ```
+  If Chromium is not found, PDF export falls back to Qt's built-in renderer
+  (cannot suppress default page headers/footers).
 
-### Installing Qt6 on Debian/Ubuntu
-
-```bash
-sudo apt install qt6-base-dev qt6-webengine-dev
-```
 
 ## Building
 
 ```bash
-mkdir -p build-official && cmake -B build-official -DCMAKE_BUILD_TYPE=Release && cmake --build build-official -j$(nproc)
+mkdir -p build && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
 The post-build step automatically removes cached base stylesheets (`~/.config/Scriba/Scriba/*.css`), so no manual cleanup needed on rebuild.
@@ -110,25 +116,25 @@ The post-build step automatically removes cached base stylesheets (`~/.config/Sc
 ### Build .deb package
 
 ```bash
-cmake -B build-official -DCMAKE_BUILD_TYPE=Release && cmake --build build-official -j$(nproc) && cpack --config build-official/CPackConfig.cmake -G DEB
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB
 ```
 
-Output: `build-official/scriba-1.0.0-Linux.deb`
+Output: `build/scriba-1.0.0-Linux.deb`
 
 ### Build with tests
 
 ```bash
-cmake -B build-official -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build build-official -j$(nproc)
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build build -j$(nproc)
 ```
 
 ### Run tests
 
 ```bash
 # With a display server (X11/Wayland):
-cd build-official && ctest --output-on-failure
+cd build && ctest --output-on-failure
 
 # Headless/CI (requires xvfb):
-cd build-official && xvfb-run ctest --output-on-failure
+cd build && xvfb-run ctest --output-on-failure
 ```
 
 Qt WebEngine requires a GPU context for rendering; tests that exercise the preview (`test_scroll_sync`) need `xvfb-run` in headless environments.

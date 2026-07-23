@@ -114,37 +114,40 @@ TEST(MarkdownParserTest, ImageWithTitle) {
 TEST(MarkdownParserTest, ImageWithDimensions) {
     QString html = MarkdownParser::toHtml("![alt](img.png#400x200)");
     EXPECT_TRUE(html.contains("src=\"img.png\""));
-    EXPECT_TRUE(html.contains("width=\"400\""));
-    EXPECT_TRUE(html.contains("height=\"200\""));
+    EXPECT_TRUE(html.contains("style=\""));
+    EXPECT_TRUE(html.contains("max-width: 400px"));
+    EXPECT_TRUE(html.contains("max-height: 200px"));
     EXPECT_TRUE(html.contains("alt=\"alt\""));
 }
 
 TEST(MarkdownParserTest, ImageWithWidthOnly) {
     QString html = MarkdownParser::toHtml("![alt](img.png#400x)");
-    EXPECT_TRUE(html.contains("width=\"400\""));
+    EXPECT_TRUE(html.contains("max-width: 400px"));
     EXPECT_TRUE(html.contains("src=\"img.png\""));
-    EXPECT_FALSE(html.contains("height="));
+    EXPECT_FALSE(html.contains("max-height"));
 }
 
 TEST(MarkdownParserTest, ImageWithHeightOnly) {
     QString html = MarkdownParser::toHtml("![alt](img.png#x200)");
-    EXPECT_TRUE(html.contains("height=\"200\""));
+    EXPECT_TRUE(html.contains("max-height: 200px"));
     EXPECT_TRUE(html.contains("src=\"img.png\""));
-    EXPECT_FALSE(html.contains("width="));
+    EXPECT_FALSE(html.contains("max-width"));
 }
 
 TEST(MarkdownParserTest, ImageWithoutDimensions) {
     QString html = MarkdownParser::toHtml("![alt](img.png)");
     EXPECT_TRUE(html.contains("src=\"img.png\""));
-    EXPECT_FALSE(html.contains("width="));
-    EXPECT_FALSE(html.contains("height="));
+    EXPECT_FALSE(html.contains("style=\""));
+    EXPECT_FALSE(html.contains("max-width"));
+    EXPECT_FALSE(html.contains("max-height"));
 }
 
 TEST(MarkdownParserTest, ImageWithDimensionsAndTitle) {
     QString html = MarkdownParser::toHtml("![alt](img.png#400x200 \"title\")");
     EXPECT_TRUE(html.contains("src=\"img.png\""));
-    EXPECT_TRUE(html.contains("width=\"400\""));
-    EXPECT_TRUE(html.contains("height=\"200\""));
+    EXPECT_TRUE(html.contains("style=\""));
+    EXPECT_TRUE(html.contains("max-width: 400px"));
+    EXPECT_TRUE(html.contains("max-height: 200px"));
     EXPECT_TRUE(html.contains("title=\"title\""));
 }
 

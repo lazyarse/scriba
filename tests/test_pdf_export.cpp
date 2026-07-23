@@ -38,6 +38,7 @@ public:
     static QString buildHeaderFooterCss(ExportPdfDialog *d) { return d->buildHeaderFooterCss(); }
     static const QString &currentPrintCss(const ExportPdfDialog *d) { return d->m_currentPrintCss; }
     static QMarginsF parsePageMargins(ExportPdfDialog *, const QString &css) { return ExportPdfDialog::parsePageMargins(css); }
+    static QSizeF parsePageSize(ExportPdfDialog *, const QString &css) { return ExportPdfDialog::parsePageSize(css); }
 };
 
 class PrintExportTest : public testing::Test
@@ -201,6 +202,46 @@ TEST_F(PrintExportTest, ParsePageMarginsNoMargin)
     QMarginsF m = PrintExportAccess::parsePageMargins(dlg, "@page { size: A4; }");
     EXPECT_DOUBLE_EQ(m.left(), 0);
     EXPECT_DOUBLE_EQ(m.top(), 0);
+}
+
+// ---------- parsePageSize tests ----------
+
+TEST_F(PrintExportTest, ParsePageSizeDefault)
+{
+    QSizeF s = PrintExportAccess::parsePageSize(dlg, "body { color: black; }");
+    EXPECT_NEAR(s.width(), 595.0, 0.1);
+    EXPECT_NEAR(s.height(), 842.0, 0.1);
+}
+
+TEST_F(PrintExportTest, ParsePageSizeDefaultA4)
+{
+    QSizeF s = PrintExportAccess::parsePageSize(dlg, "@page { margin: 15mm; }");
+    EXPECT_NEAR(s.width(), 595.0, 0.1);
+    EXPECT_NEAR(s.height(), 842.0, 0.1);
+}
+
+TEST_F(PrintExportTest, ParsePageSizeA4Landscape)
+{
+    QSizeF s = PrintExportAccess::parsePageSize(dlg,
+        "@page { size: A4 landscape; margin: 10mm; }");
+    EXPECT_NEAR(s.width(), 842.0, 0.1);
+    EXPECT_NEAR(s.height(), 595.0, 0.1);
+}
+
+TEST_F(PrintExportTest, ParsePageSizeLetter)
+{
+    QSizeF s = PrintExportAccess::parsePageSize(dlg,
+        "@page { size: letter; margin: 0; }");
+    EXPECT_NEAR(s.width(), 612.0, 0.1);
+    EXPECT_NEAR(s.height(), 792.0, 0.1);
+}
+
+TEST_F(PrintExportTest, ParsePageSizeExplicit)
+{
+    QSizeF s = PrintExportAccess::parsePageSize(dlg,
+        "@page { size: 210mm 297mm; }");
+    EXPECT_NEAR(s.width(), 595.28, 0.1);
+    EXPECT_NEAR(s.height(), 841.89, 0.1);
 }
 
 // ---------- buildHeaderFooterCss tests ----------
