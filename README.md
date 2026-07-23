@@ -61,6 +61,7 @@
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` could autocomplete to `![](foo/bar.png)`
 - A debug log window output to see rendering errors
 - A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
+- Selected text + <kbd>Tab</kbd> will indent, <kbd><Shift></kbd>+<kbd>Tab</kbd> will dedent.
 
 ## Shortcuts for All Features
 
