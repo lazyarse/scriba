@@ -19,9 +19,10 @@ scriba/
 │   ├── ExportPdfDialog.cpp     — PDF export dialog
 │   ├── StaticHelpers.cpp       — List continuation, indent/outdent helpers
 │   └── Preferences.h           — Preferences struct (header-only)
+├── docs/
+│   ├── sample.md               — Sample document (canonical copy)
 ├── resources/
 │   ├── scriba.qrc              — Qt resource file
-│   ├── sample.md               — Sample document
 │   ├── default.css             — Default theme
 │   ├── editor-base.css         — Editor base styles
 │   ├── preview-base.css        — Preview base styles

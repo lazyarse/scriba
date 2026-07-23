@@ -76,7 +76,7 @@ capture() {
         local dk="$LAST_KEY"
         case "$dk" in
             "Return") dk="Enter" ;; "Down") dk="↓" ;; "Up") dk="↑" ;;
-            "Tab") dk="Tab" ;; "Right") dk="→" ;; "Left") dk="←" ;;
+            "Tab") dk="Tab" ;; "Shift+Tab") dk="⇧+Tab" ;; "Right") dk="→" ;; "Left") dk="←" ;;
             "BackSpace") dk="⌫" ;;
             "colon") dk=":" ;; "exclam") dk="!" ;;
             "bracketleft") dk="[" ;; "bracketright") dk="]" ;;
@@ -121,18 +121,20 @@ pause_frames() {
 }
 
 header() {
-    local text="$1" i ch
+    local text="$1" i ch1 ch2
     press "numbersign"; sleep 0.15; capture $F; F=$((F + 1))
     press "numbersign"; sleep 0.15; capture $F; F=$((F + 1))
     press "space"; sleep 0.15; capture $F; F=$((F + 1))
-    for ((i=0; i<${#text}; i++)); do
-        ch="${text:$i:1}"
-        if [ "$ch" = " " ]; then
-            press "space"
-        else
-            press "$ch"
+    for ((i=0; i<${#text}; i+=2)); do
+        ch1="${text:$i:1}"
+        ch2="${text:$((i+1)):1}"
+        if [ "$ch1" = " " ]; then press "space"; else press "$ch1"; fi
+        sleep 0.08
+        if [ -n "$ch2" ]; then
+            if [ "$ch2" = " " ]; then press "space"; else press "$ch2"; fi
+            sleep 0.08
         fi
-        sleep 0.15
+        sleep 0.1
         capture $F; F=$((F + 1))
     done
     press "Return"
@@ -235,15 +237,7 @@ capture $F; F=$((F + 1))
 
 # New line before emoji scene
 press "Return"
-for i in 1 2; do
-    sleep 0.2
-    capture $F; F=$((F + 1))
-done
 press "Return"
-for i in 1 2; do
-    sleep 0.2
-    capture $F; F=$((F + 1))
-done
 
 # ═══════════════════════════════════════
 # Scene 2: Emoji autocomplete — type :smi, cycle, accept
@@ -281,15 +275,7 @@ done
 
 # Extra blank line before table scene
 press "Return"
-for i in 1 2; do
-    sleep 0.2
-    capture $F; F=$((F + 1))
-done
 press "Return"
-for i in 1 2; do
-    sleep 0.2
-    capture $F; F=$((F + 1))
-done
 
 # ═══════════════════════════════════════
 # Scene 3: Table autocomplete — type header, fill cells, exit
@@ -383,7 +369,26 @@ for CH in "c" "e" "l" "l" "6"; do
     sleep 0.15
     capture $F; F=$((F + 1))
 done
-# Enter creates blank row
+sleep 0.3
+capture $F; F=$((F + 1))
+# Shift+Tab moves to previous cell (cell5)
+press "Shift+Tab"
+sleep 0.3
+capture $F; F=$((F + 1))
+sleep 0.2
+capture $F; F=$((F + 1))
+# Type " prev" to demo previous cell editing
+for CH in "space" "p" "r" "e" "v"; do
+    press "$CH"
+    sleep 0.15
+    capture $F; F=$((F + 1))
+done
+# Tab back to cell6, then create blank row
+press "Tab"
+sleep 0.2
+capture $F; F=$((F + 1))
+sleep 0.2
+capture $F; F=$((F + 1))
 press "Return"
 for i in 1 2 3; do
     sleep 0.2
@@ -392,10 +397,6 @@ done
 
 # Exit table: Enter on blank row clears and exits
 press "Return"
-for i in 1 2 3; do
-    sleep 0.2
-    capture $F; F=$((F + 1))
-done
 # --- Scene 4: HTML table via Ctrl+T dialog ---
 header "HTML Tables"
 
@@ -483,12 +484,13 @@ for i in 1 2 3; do
     capture $F; F=$((F + 1))
 done
 
-# Type "End of auto-complete demo."
-for CH in "E" "n" "d" "space" "o" "f" "space" "a" "u" "t" "o" "minus" "c" "o" "m" "p" "l" "e" "t" "e" "space" "d" "e" "m" "o" "period"; do
-    press "$CH"
-    sleep 0.15
-    capture $F; F=$((F + 1))
-done
+# Type "La fin!" — 2 chars per frame
+for CH in "L" "a"; do press "$CH"; sleep 0.08; done; sleep 0.15; capture $F; F=$((F + 1))
+for CH in "space" "f"; do press "$CH"; sleep 0.08; done; sleep 0.15; capture $F; F=$((F + 1))
+for CH in "i" "n"; do press "$CH"; sleep 0.08; done; sleep 0.15; capture $F; F=$((F + 1))
+press "exclam"; sleep 0.15; capture $F; F=$((F + 1))
+# Slight pause at end
+for i in 1 2 3; do sleep 0.2; capture $F; F=$((F + 1)); done
 
 kill $PID 2>/dev/null
 wait $PID 2>/dev/null

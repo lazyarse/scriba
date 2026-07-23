@@ -18,17 +18,21 @@
 </p>
 </div>
 
-![](docs/images/screenshot.png)
+<div align="center">
 
-![](docs/images/autocomplete-demo.gif)
+![](docs/images/screenshot.png#700x)
+
+![](docs/images/autocomplete-demo.gif#700x)
+
+</div>
 
 ## Features
 
 ### The Basics
 
-- WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions (note, tip, important, warning, caution) with custom titles and icons
+- WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions with custom titles and icons (note, tip, important, warning, caution) 
 - Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, or hidden
-- CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. (Fair warning: Qt can't style application or dialogs titlebars)
+- CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. (Fair warning: Qt can't style application or dialogs titlebars differently to the system theme)
 - PDF export with print-specific CSS stylesheets
 - Content searching including regex search
 - An 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers
@@ -38,7 +42,7 @@
 - Themable syntax highlighting for fenced code blocks (auto-detects language via highlight.js)
 - [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`)
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie)
-- [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive)
+- [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and a chart helper because writing JSON is hard.
 - [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser, modified to accept image sizes (`#WIDTHxHEIGHT` suffix)
 
 ### Candy:

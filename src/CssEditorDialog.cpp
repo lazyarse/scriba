@@ -126,7 +126,7 @@ void CssEditorDialog::applyFontPreset()
     QString fontSizeStr = QString("%1px").arg(fontSize);
 
     QRegularExpression familyRe(
-        "(" + sel + R"(\s*\{[^}]*font-family\s*:\s*)" + ")([^;\}]+)");
+        "(" + sel + R"(\s*\{[^}]*font-family\s*:\s*)" + ")([^;}]+)");
     auto fm = familyRe.match(css);
     if (fm.hasMatch()) {
         bool imp = fm.captured(2).contains("!important");
@@ -137,7 +137,7 @@ void CssEditorDialog::applyFontPreset()
     }
 
     QRegularExpression sizeRe(
-        "(" + sel + R"(\s*\{[^}]*font-size\s*:\s*)" + ")([^;\}]+)");
+        "(" + sel + R"(\s*\{[^}]*font-size\s*:\s*)" + ")([^;}]+)");
     auto sm = sizeRe.match(css);
     if (sm.hasMatch()) {
         bool imp = sm.captured(2).contains("!important");

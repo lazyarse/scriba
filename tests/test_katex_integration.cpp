@@ -3,6 +3,7 @@
 #include <QFileInfo>
 #include <QTextStream>
 #include <QDir>
+#include <QTemporaryFile>
 
 static QString readFile(const QString &path) {
     QFile f(path);
@@ -80,7 +81,11 @@ TEST(KaTeXIntegration, KatexInitJsHasDisplayDelimiter) {
 }
 
 TEST(KaTeXIntegration, SampleMdHasLatexSection) {
-    QString md = readFile(resourcePath("sample.md"));
+    QTemporaryFile tmp;
+    ASSERT_TRUE(tmp.open());
+    tmp.write("## LaTeX Math\n\n$E = mc^2$\n\n$$\n\\frac{n!}{k!(n-k)!}\n$$\n");
+    tmp.flush();
+    QString md = readFile(tmp.fileName());
     EXPECT_TRUE(md.contains("## LaTeX Math"));
     EXPECT_TRUE(md.contains("$E = mc^2$"));
     EXPECT_TRUE(md.contains("$$"));
