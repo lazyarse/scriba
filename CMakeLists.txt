@@ -108,50 +108,50 @@ if(BUILD_TESTS)
 
     add_executable(test_markdown_parser tests/test_markdown_parser.cpp)
     target_link_libraries(test_markdown_parser PRIVATE scriba_core GTest::gtest_main)
-    add_test(NAME test_markdown_parser COMMAND ${_TEST_PREFIX} test_markdown_parser)
+    add_test(NAME test_markdown_parser COMMAND ${_TEST_PREFIX} ./test_markdown_parser)
 
     add_executable(test_md_renderer_helpers tests/test_md_renderer_helpers.cpp)
     target_link_libraries(test_md_renderer_helpers PRIVATE scriba_core GTest::gtest_main)
-    add_test(NAME test_md_renderer_helpers COMMAND ${_TEST_PREFIX} test_md_renderer_helpers)
+    add_test(NAME test_md_renderer_helpers COMMAND ${_TEST_PREFIX} ./test_md_renderer_helpers)
 
     add_executable(test_css_utils tests/test_css_utils.cpp)
     target_link_libraries(test_css_utils PRIVATE scriba_core GTest::gtest_main)
-    add_test(NAME test_css_utils COMMAND ${_TEST_PREFIX} test_css_utils)
+    add_test(NAME test_css_utils COMMAND ${_TEST_PREFIX} ./test_css_utils)
 
     add_executable(test_static_helpers tests/test_static_helpers.cpp)
     target_link_libraries(test_static_helpers PRIVATE scriba_core GTest::gtest_main)
-    add_test(NAME test_static_helpers COMMAND ${_TEST_PREFIX} test_static_helpers)
+    add_test(NAME test_static_helpers COMMAND ${_TEST_PREFIX} ./test_static_helpers)
 
     add_executable(test_editor_list_continuation tests/test_editor_list_continuation.cpp)
     target_link_libraries(test_editor_list_continuation PRIVATE scriba_core GTest::gtest_main)
-    add_test(NAME test_editor_list_continuation COMMAND ${_TEST_PREFIX} test_editor_list_continuation)
+    add_test(NAME test_editor_list_continuation COMMAND ${_TEST_PREFIX} ./test_editor_list_continuation)
 
     add_executable(test_cursor_restore tests/test_cursor_restore.cpp)
     target_link_libraries(test_cursor_restore PRIVATE scriba_core GTest::gtest_main)
-    add_test(NAME test_cursor_restore COMMAND ${_TEST_PREFIX} test_cursor_restore)
+    add_test(NAME test_cursor_restore COMMAND ${_TEST_PREFIX} ./test_cursor_restore)
 
     add_executable(test_katex_integration tests/test_katex_integration.cpp)
     target_compile_definitions(test_katex_integration PRIVATE RESOURCE_DIR="${CMAKE_SOURCE_DIR}/resources")
     target_link_libraries(test_katex_integration PRIVATE GTest::gtest_main Qt6::Core)
-    add_test(NAME test_katex_integration COMMAND ${_TEST_PREFIX} test_katex_integration)
+    add_test(NAME test_katex_integration COMMAND ${_TEST_PREFIX} ./test_katex_integration)
 
     add_executable(test_readability tests/test_readability.cpp)
     target_link_libraries(test_readability PRIVATE scriba_core GTest::gtest_main)
-    add_test(NAME test_readability COMMAND ${_TEST_PREFIX} test_readability)
+    add_test(NAME test_readability COMMAND ${_TEST_PREFIX} ./test_readability)
 
     add_executable(test_vegalite_dialog tests/test_vegalite_dialog.cpp src/VegaLiteDialog.cpp src/Preview.cpp)
     target_link_libraries(test_vegalite_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_vegalite_dialog COMMAND ${_TEST_PREFIX} test_vegalite_dialog)
+    add_test(NAME test_vegalite_dialog COMMAND ${_TEST_PREFIX} ./test_vegalite_dialog)
 
     add_executable(test_editor_autocomplete tests/test_editor_autocomplete.cpp)
     target_link_libraries(test_editor_autocomplete PRIVATE GTest::gtest_main Qt6::Core)
-    add_test(NAME test_editor_autocomplete COMMAND ${_TEST_PREFIX} test_editor_autocomplete)
+    add_test(NAME test_editor_autocomplete COMMAND ${_TEST_PREFIX} ./test_editor_autocomplete)
 
     find_package(Qt6 REQUIRED COMPONENTS Test)
     add_executable(test_editor_completion_ui tests/test_editor_completion_ui.cpp src/Editor.cpp resources/scriba.qrc)
     target_include_directories(test_editor_completion_ui PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test scriba_core)
-    add_test(NAME test_editor_completion_ui COMMAND ${_TEST_PREFIX} test_editor_completion_ui)
+    add_test(NAME test_editor_completion_ui COMMAND ${_TEST_PREFIX} ./test_editor_completion_ui)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
@@ -166,7 +166,7 @@ if(BUILD_TESTS)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_scroll_sync PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
-    add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} test_scroll_sync)
+    add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
@@ -179,12 +179,12 @@ if(BUILD_TESTS)
     target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_auto_save PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
-    add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} test_auto_save)
+    add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
     add_executable(test_print_css_file tests/test_print_css_file.cpp)
     target_compile_definitions(test_print_css_file PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     target_link_libraries(test_print_css_file PRIVATE GTest::gtest_main Qt6::Core)
-    add_test(NAME test_print_css_file COMMAND ${_TEST_PREFIX} test_print_css_file)
+    add_test(NAME test_print_css_file COMMAND ${_TEST_PREFIX} ./test_print_css_file)
 
     add_executable(test_pdf_export tests/test_pdf_export.cpp
         src/ExportPdfDialog.cpp src/Preview.cpp
@@ -193,6 +193,6 @@ if(BUILD_TESTS)
     target_include_directories(test_pdf_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_pdf_export PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Test)
-    add_test(NAME test_pdf_export COMMAND ${_TEST_PREFIX} test_pdf_export)
+    add_test(NAME test_pdf_export COMMAND ${_TEST_PREFIX} ./test_pdf_export)
 endif()
 
