@@ -6,11 +6,15 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFontDatabase>
 #include <QKeyEvent>
+#include <QPainter>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
+#include <QStandardItemModel>
 #include <QStringListModel>
+#include <QSvgRenderer>
 #include <QTextBlock>
 #include <QTextBlockFormat>
 #include <QTextCursor>
@@ -478,7 +482,10 @@ void Editor::loadEmojiShortcodes()
     auto it = re.globalMatch(content);
     while (it.hasNext()) {
         auto match = it.next();
-        m_emojiShortcodes.append(match.captured(1));
+        QString name = match.captured(1);
+        QString unicode = match.captured(2);
+        m_emojiShortcodes.append(name);
+        m_emojiUnicode[name] = unicode;
     }
     m_emojiShortcodes.removeDuplicates();
     m_emojiShortcodes.sort();
@@ -534,16 +541,29 @@ void Editor::showEmojiCompletion(const QString &partialCode)
                 this, &Editor::acceptCompletion);
     }
 
-    QStringListModel *model = new QStringListModel(matches, m_completer);
+    QStandardItemModel *model = new QStandardItemModel(m_completer);
+    for (const QString &sc : m_emojiShortcodes) {
+        if (sc.startsWith(partialCode, Qt::CaseInsensitive)) {
+            auto *item = new QStandardItem(QString(":%1:").arg(sc));
+            item->setIcon(QIcon(renderEmojiIcon(m_emojiUnicode.value(sc))));
+            model->appendRow(item);
+        }
+    }
+
+    if (model->rowCount() == 0) {
+        delete model;
+        return;
+    }
+
     m_completer->setModel(model);
     m_completer->setCompletionPrefix(partialCode);
 
     QRect cr = cursorRect();
     QFontMetrics fm(font());
     int maxWidth = 0;
-    for (const QString &m : matches)
-        maxWidth = qMax(maxWidth, fm.horizontalAdvance(m));
-    cr.setWidth(maxWidth + 30);
+    for (int i = 0; i < model->rowCount(); ++i)
+        maxWidth = qMax(maxWidth, fm.horizontalAdvance(model->item(i)->text()));
+    cr.setWidth(maxWidth + 30 + 22);
 
     QTextBlock block = textCursor().block();
     int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
@@ -551,6 +571,48 @@ void Editor::showEmojiCompletion(const QString &partialCode)
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
+}
+
+QPixmap Editor::renderEmojiIcon(const QString &emojiStr) const
+{
+    if (auto it = m_emojiIconCache.find(emojiStr); it != m_emojiIconCache.end())
+        return *it;
+
+    QPixmap pix(18, 18);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    QString mode = QSettings().value(Preferences::EmojiMode,
+        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
+
+    if (mode == "color") {
+        QStringList parts;
+        for (int i = 0; i < emojiStr.size();) {
+            uint code = emojiStr[i].unicode();
+            if (code >= 0xD800 && code <= 0xDBFF && i + 1 < emojiStr.size()) {
+                uint low = emojiStr[i + 1].unicode();
+                code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
+                i += 2;
+            } else {
+                i += 1;
+            }
+            parts.append(QString::number(code, 16));
+        }
+        QSvgRenderer renderer(QString(":/twemoji/svg/%1.svg").arg(parts.join("-")));
+        if (renderer.isValid())
+            renderer.render(&painter, QRectF(0, 0, 18, 18));
+    } else {
+        QFont font("Symbola");
+        font.setPixelSize(16);
+        painter.setFont(font);
+        painter.setPen(Qt::black);
+        painter.drawText(QRect(0, 0, 18, 18), Qt::AlignCenter, emojiStr);
+    }
+
+    painter.end();
+    m_emojiIconCache[emojiStr] = pix;
+    return pix;
 }
 
 void Editor::acceptEmojiCompletion(const QString &completion)
