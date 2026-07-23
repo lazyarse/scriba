@@ -127,14 +127,20 @@ void PreferencesDialog::setupUi()
         m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
         appearanceLayout->addWidget(m_stripeCheck);
 
-        m_emojiCombo = new QComboBox();
-        m_emojiCombo->addItem("Black & White", "bw");
-        m_emojiCombo->addItem("Color (twemoji)", "color");
-        int emojiIdx = m_emojiCombo->findData(settings.value(Preferences::EmojiMode, "bw").toString());
-        m_emojiCombo->setCurrentIndex(emojiIdx >= 0 ? emojiIdx : 0);
+        QWidget *emojiWidget = new QWidget;
+        QVBoxLayout *emojiRadioLayout = new QVBoxLayout(emojiWidget);
+        emojiRadioLayout->setContentsMargins(0, 0, 0, 0);
+        m_emojiBw = new QRadioButton("Black && White");
+        m_emojiColor = new QRadioButton("Color (twemoji)");
+        auto mode = Preferences::emojiRenderingFromString(
+            settings.value(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString());
+        m_emojiBw->setChecked(mode == Preferences::EmojiRendering::Bw);
+        m_emojiColor->setChecked(mode == Preferences::EmojiRendering::Color);
+        emojiRadioLayout->addWidget(m_emojiBw);
+        emojiRadioLayout->addWidget(m_emojiColor);
 
         QFormLayout *emojiForm = new QFormLayout();
-        emojiForm->addRow("Emoji rendering:", m_emojiCombo);
+        emojiForm->addRow("Emoji rendering:", emojiWidget);
         appearanceLayout->addLayout(emojiForm);
 
         layout->addWidget(appearanceGroup);
@@ -210,7 +216,8 @@ void PreferencesDialog::setupUi()
         settings.setValue(Preferences::ReopenLastFile, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
-        settings.setValue(Preferences::EmojiMode, m_emojiCombo->currentData().toString());
+        settings.setValue(Preferences::EmojiMode,
+    Preferences::emojiRenderingToString(m_emojiBw->isChecked() ? Preferences::EmojiRendering::Bw : Preferences::EmojiRendering::Color));
         settings.setValue(Preferences::AutoSaveOnExit, m_autoSaveExitCheck->isChecked());
         int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
         settings.setValue(Preferences::AutoSaveInterval, interval);

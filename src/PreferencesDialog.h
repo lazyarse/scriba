@@ -6,7 +6,7 @@
 #include <QStackedWidget>
 #include <QPushButton>
 #include <QCheckBox>
-#include <QComboBox>
+#include <QRadioButton>
 #include <QSpinBox>
 
 
@@ -49,7 +49,8 @@ private:
     QCheckBox *m_autoSaveCheck;
     QSpinBox *m_autoSaveSpin;
     QSpinBox *m_fileCompletionSpin;
-    QComboBox *m_emojiCombo;
+    QRadioButton *m_emojiBw;
+    QRadioButton *m_emojiColor;
 };
 
 #endif

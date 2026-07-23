@@ -71,7 +71,9 @@ EmojiDialog::EmojiDialog(QWidget *parent)
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-    m_colorMode = QSettings().value(Preferences::EmojiMode, "bw").toString() == "color";
+    m_colorMode = Preferences::emojiRenderingFromString(
+        QSettings().value(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString())
+        == Preferences::EmojiRendering::Color;
     loadEmojiData();
     filterEmoji(QString());
 

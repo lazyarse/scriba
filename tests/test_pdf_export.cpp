@@ -48,7 +48,7 @@ protected:
     {
         QSettings s;
         s.setValue(Preferences::TableStriping, true);
-        s.setValue(Preferences::EmojiMode, "bw");
+        s.setValue(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw));
 
         config = new CssConfig();
         loader = new CssLoader(config);
@@ -121,7 +121,7 @@ TEST_F(PrintExportTest, BuildHtmlTableStripingEnabledOmitsOverride)
 TEST_F(PrintExportTest, BuildHtmlEmojiModeColor)
 {
     QSettings s;
-    s.setValue(Preferences::EmojiMode, "color");
+    s.setValue(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Color));
 
     QString html = PrintExportAccess::buildFullHtml(dlg, "/* emoji */");
 
@@ -131,7 +131,7 @@ TEST_F(PrintExportTest, BuildHtmlEmojiModeColor)
 TEST_F(PrintExportTest, BuildHtmlEmojiModeBw)
 {
     QSettings s;
-    s.setValue(Preferences::EmojiMode, "bw");
+    s.setValue(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw));
 
     QString html = PrintExportAccess::buildFullHtml(dlg, "/* emoji */");
 
