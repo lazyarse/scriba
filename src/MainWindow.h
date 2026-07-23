@@ -38,11 +38,11 @@ private slots:
     void togglePreview();
     void updateStats();
     void showChartBuilder();
-    void showTableInsert();
     void showLogWindow();
 
 public:
     void autoSave();
+    void showTableInsert();
 
 private:
     void setupUi();
