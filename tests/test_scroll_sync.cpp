@@ -8,6 +8,8 @@
 #include <QWebEnginePage>
 #include <QSettings>
 #include <QDir>
+#include <QDialog>
+#include <QTimer>
 
 #include "MainWindow.h"
 #include "Editor.h"
@@ -245,18 +247,24 @@ TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {
     window->editor()->verticalScrollBar()->setValue(0);
     QApplication::processEvents();
 
-    // Simulate what showTableInsert() does (insert a 3-column table at line 150)
+    // Position cursor at line 150 so the table is inserted off-screen
     QTextCursor cursor(window->editor()->document());
     cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, 150);
-    int insertPos = cursor.position();
-    QString table = "|  |  |  |\n|---|---|---|\n|  |  |  |\n";
-    cursor.insertText(table);
-    cursor.setPosition(insertPos + 2, QTextCursor::MoveAnchor);
     window->editor()->setTextCursor(cursor);
-    window->editor()->centerCursor();   // the fix
     QApplication::processEvents();
 
-    // Verify editor scrolled to the cursor
+    // Auto-accept the table dialog with default settings (3 columns, with header)
+    QTimer::singleShot(0, [&]() {
+        auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        ASSERT_NE(dlg, nullptr);
+        dlg->accept();
+    });
+
+    // Call the real method — blocks until the timer fires and dialog is accepted
+    window->showTableInsert();
+    QApplication::processEvents();
+
+    // Verify editor scrolled to the cursor (centerCursor inside showTableInsert)
     double pct = scrollbarFraction(window->editor()->verticalScrollBar());
     EXPECT_GT(pct, 0.5);
 
