@@ -61,9 +61,10 @@
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` could autocomplete to `![](foo/bar.png)`
 - A debug log window output to see rendering errors
 - A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
-- Selected text + <kbd>Tab</kbd> will indent, <kbd><Shift></kbd>+<kbd>Tab</kbd> will dedent.
+- Selected text + <kbd>Tab</kbd> will indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> will dedent.
 - <kbd>Down</kbd> on the last line will place the cursor at the end of the line
 - hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text.
+- Duplicate a line with <kbd>Ctrl</kbd>+<kbd>D</kbd>
 
 ## Shortcuts for All Features
 
@@ -81,6 +82,7 @@
 | <kbd>Ctrl</kbd>+<kbd>E</kbd> | Emoji Search :eyes: :mag: |
 | <kbd>Ctrl</kbd>+<kbd>T</kbd> | Table Generator |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Preferences |
+| <kbd>Ctrl</kbd>+<kbd>D</kbd> | Duplicate line |
 | <kbd>F11</kbd> | Toggle Fullscreen |
 | <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Quit |
 
