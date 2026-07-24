@@ -38,7 +38,8 @@
 - PDF export with print-specific CSS stylesheets
 - Find with regex search
 - A shocking 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers like you
-
+- The usual <kbd>Ctrl</kbd>+<kbd>X</kbd>,<kbd>Ctrl</kbd>+<kbd>C</kbd>,<kbd>Ctrl</kbd>+<kbd>V</kbd>,<kbd>Ctrl</kbd>+<kbd>Z</kbd> <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>,<kbd>Ctrl</kbd>+<kbd>A</kbd> does what you'd expect.
+- 
 ### Standing on the shoulders of giants:
 
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language

@@ -1,6 +1,6 @@
 #include "FindDialog.h"
 #include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QCloseEvent>
@@ -9,36 +9,34 @@ FindDialog::FindDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle("Find & Replace");
-    setFixedSize(480, 200);
+    setFixedSize(640, 160);
     setAttribute(Qt::WA_DeleteOnClose, false);
 
     auto *layout = new QVBoxLayout(this);
-
-    auto *findRow = new QHBoxLayout();
-    findRow->addWidget(new QLabel("Find:"));
+    auto *grid = new QGridLayout();
+    auto *findLabel = new QLabel("Find:");
+    auto *replaceLabel = new QLabel("Replace:");
+    grid->addWidget(findLabel, 0, 0);
     m_searchInput = new QLineEdit();
     m_searchInput->setPlaceholderText("Search text...");
-    findRow->addWidget(m_searchInput);
+    grid->addWidget(m_searchInput, 0, 1);
     auto *findPrevBtn = new QPushButton("< Prev");
     auto *findNextBtn = new QPushButton("Next >");
     findPrevBtn->setIcon(QIcon());
     findNextBtn->setIcon(QIcon());
-    findRow->addWidget(findPrevBtn);
-    findRow->addWidget(findNextBtn);
-    layout->addLayout(findRow);
-
-    auto *replaceRow = new QHBoxLayout();
-    replaceRow->addWidget(new QLabel("Rplc:"));
+    grid->addWidget(findPrevBtn, 0, 2);
+    grid->addWidget(findNextBtn, 0, 3);
+    grid->addWidget(replaceLabel, 1, 0);
     m_replaceInput = new QLineEdit();
     m_replaceInput->setPlaceholderText("Replace with...");
-    replaceRow->addWidget(m_replaceInput);
+    grid->addWidget(m_replaceInput, 1, 1);
     auto *replaceBtn = new QPushButton("Replace");
     auto *replaceAllBtn = new QPushButton("Replace All");
     replaceBtn->setIcon(QIcon());
     replaceAllBtn->setIcon(QIcon());
-    replaceRow->addWidget(replaceBtn);
-    replaceRow->addWidget(replaceAllBtn);
-    layout->addLayout(replaceRow);
+    grid->addWidget(replaceBtn, 1, 2);
+    grid->addWidget(replaceAllBtn, 1, 3);
+    layout->addLayout(grid);
 
     auto *checkRow = new QHBoxLayout();
     m_regexCheck = new QCheckBox("Regex");

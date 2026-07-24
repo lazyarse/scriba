@@ -280,7 +280,7 @@ void MainWindow::setupMenuBar()
 
     QMenu *editMenu = menuBar()->addMenu("&Edit");
 
-    QAction *findAction = editMenu->addAction("&Find...");
+    QAction *findAction = editMenu->addAction("Find / &Replace...");
     findAction->setShortcut(QKeySequence::Find);
     connect(findAction, &QAction::triggered, this, &MainWindow::toggleFindDialog);
 
@@ -291,16 +291,6 @@ void MainWindow::setupMenuBar()
     QAction *findPrevAction = editMenu->addAction("Find &Previous");
     findPrevAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_F3));
     connect(findPrevAction, &QAction::triggered, this, &MainWindow::onFindPrev);
-
-    editMenu->addSeparator();
-
-    QAction *replaceAction = editMenu->addAction("&Replace...");
-    replaceAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_H));
-    connect(replaceAction, &QAction::triggered, this, [this]() {
-        toggleFindDialog();
-        if (m_findDialog)
-            m_findDialog->focusReplaceInput();
-    });
 
     QAction *fullscreenAction = new QAction("Toggle &Fullscreen", this);
     fullscreenAction->setShortcut(QKeySequence(Qt::Key_F11));
