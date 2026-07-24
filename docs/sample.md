@@ -222,3 +222,14 @@ See the [Vega-Lite docs](https://vega.github.io/vega-lite/) for the full spec re
   ]
 }
 ```
+
+## Find & Replace
+
+Use <kbd>Ctrl+F</kbd> to search. Enable **Regex** to use patterns and capture groups in replace.
+
+| Try this search | With replace | Result |
+|---|---|---|
+| `(\d{4})-(\d{2})-(\d{2})` | `\3/\2/\1` | Converts `2026-07-24` to `24/07/2026` |
+| `(\w+) (\w+)` | `\2 \1` | Swaps `hello world` to `world hello` |
+| `\bfix(\w*)` | `bug\1` | Renames `fixme fixit` to `bugme bugit` |
+| `(["'])(.*?)\1` | `[\2]` | Wraps `"quoted"` text in `[quoted]` |

@@ -9,7 +9,7 @@ FindDialog::FindDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle("Find & Replace");
-    setFixedSize(640, 160);
+    setFixedSize(640, 180);
     setAttribute(Qt::WA_DeleteOnClose, false);
 
     auto *layout = new QVBoxLayout(this);
@@ -28,7 +28,7 @@ FindDialog::FindDialog(QWidget *parent)
     grid->addWidget(findNextBtn, 0, 3);
     grid->addWidget(replaceLabel, 1, 0);
     m_replaceInput = new QLineEdit();
-    m_replaceInput->setPlaceholderText("Replace with...");
+    m_replaceInput->setPlaceholderText("Replace with... (\\1, \\2 for regex groups)");
     grid->addWidget(m_replaceInput, 1, 1);
     auto *replaceBtn = new QPushButton("Replace");
     auto *replaceAllBtn = new QPushButton("Replace All");
@@ -65,6 +65,13 @@ FindDialog::FindDialog(QWidget *parent)
     connect(m_searchInput, &QLineEdit::textChanged, this, emitSearchChanged);
     connect(m_regexCheck, &QCheckBox::stateChanged, this, emitSearchChanged);
     connect(m_caseCheck, &QCheckBox::stateChanged, this, emitSearchChanged);
+
+    auto *hintRow = new QHBoxLayout();
+    auto *hintLabel = new QLabel("Tip: Use \\1, \\2 for captured groups in regex replace");
+    hintLabel->setStyleSheet("color: gray; font-size: 11px;");
+    hintRow->addWidget(hintLabel);
+    hintRow->addStretch();
+    layout->addLayout(hintRow);
 
     m_searchInput->setFocus();
 }
