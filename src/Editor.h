@@ -25,6 +25,7 @@ protected:
 
 private:
     bool isInsideLinkContext(const QTextCursor &cursor, QString &partialPath) const;
+    bool isInsideHtmlPathContext(const QTextCursor &cursor, QString &partialPath) const;
     void showFileCompletion(const QString &partialPath);
     void acceptCompletion(const QString &completion);
 
