@@ -46,7 +46,7 @@ FindDialog::FindDialog(QWidget *parent)
     m_caseCheck->setChecked(false);
     checkRow->addWidget(m_caseCheck);
     checkRow->addStretch();
-    m_matchCountLabel = new QLabel();
+    m_matchCountLabel = new QLabel("No matches");
     m_matchCountLabel->setStyleSheet("color: gray;");
     checkRow->addWidget(m_matchCountLabel);
     layout->addLayout(checkRow);
@@ -115,4 +115,9 @@ void FindDialog::setMatchCount(int count)
         m_matchCountLabel->setText("1 match");
     else
         m_matchCountLabel->setText(QString("%1 matches").arg(count));
+}
+
+QString FindDialog::matchCountText() const
+{
+    return m_matchCountLabel->text();
 }
