@@ -24,10 +24,13 @@
 #include <QSettings>
 #include <QPageLayout>
 #include <QPageSize>
+#include <QLoggingCategory>
 #include <QFileInfo>
 #include <QTimer>
 #include <QDateTime>
 #include <QDate>
+
+Q_LOGGING_CATEGORY(lcPdf, "scriba.pdf", QtWarningMsg)
 #include <QTime>
 #include <QTemporaryFile>
 #include <QTemporaryDir>
@@ -294,7 +297,7 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, const QString &defaultFile
     setupUi();
 
     m_chromiumBinary = findChromiumBinary();
-    fprintf(stderr, "[PDF] chromium binary: %s\n",
+    qCDebug(lcPdf, "chromium binary: %s",
             m_chromiumBinary.isEmpty() ? "(none)" : qPrintable(m_chromiumBinary));
 
     m_hiddenEngine = new QWebEngineView(this);
@@ -304,7 +307,8 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, const QString &defaultFile
     connect(m_hiddenEngine, &QWebEngineView::loadFinished, this, &ExportPdfDialog::onPageLoaded);
 
     m_pdfProcess = new QProcess(this);
-    m_pdfProcess->setProcessChannelMode(QProcess::ForwardedChannels);
+    m_pdfProcess->setStandardOutputFile(QProcess::nullDevice());
+    m_pdfProcess->setStandardErrorFile(QProcess::nullDevice());
 
     m_defaultRadio->setChecked(true);
     m_customCssPath.clear();
@@ -597,7 +601,7 @@ void ExportPdfDialog::onPageLoaded(bool ok)
             if (genId != m_generationId) return;
 
             if (m_chromiumBinary.isEmpty()) {
-                fprintf(stderr, "[PDF] no chromium binary found, using Qt printToPdf (headers cannot be suppressed)\n");
+                qCDebug(lcPdf, "no chromium binary found, using Qt printToPdf (headers cannot be suppressed)");
                 QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
                                    QMarginsF(), QPageLayout::Point);
                 m_hiddenEngine->page()->printToPdf([this, genId](const QByteArray &data) {
@@ -651,10 +655,10 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
 
         QString bodyHtml = result.toString();
         if (bodyHtml.isEmpty()) {
-            fprintf(stderr, "[PDF] extracted body HTML is empty!\n");
+            qCDebug(lcPdf, "extracted body HTML is empty!");
             return;
         }
-        fprintf(stderr, "[PDF] extracted body HTML: %zu bytes\n",
+        qCDebug(lcPdf, "extracted body HTML: %zu bytes",
                 static_cast<size_t>(bodyHtml.size()));
 
         bodyHtml = replaceQrcUrls(bodyHtml);
@@ -705,7 +709,7 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
             QFile f(pdfPath);
             if (!f.open(QIODevice::ReadOnly)) return;
             m_pdfData = f.readAll();
-            fprintf(stderr, "[PDF] chromium generated: %zu bytes\n", m_pdfData.size());
+            qCDebug(lcPdf, "chromium generated: %zu bytes", m_pdfData.size());
 
             m_tempFile.reset(new QTemporaryFile());
             if (m_tempFile->open()) {
@@ -717,7 +721,7 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
             }
         };
 
-        fprintf(stderr, "[PDF] using chromium: %s  args: %s\n",
+        qCDebug(lcPdf, "using chromium: %s  args: %s",
                 qPrintable(m_chromiumBinary), qPrintable(args.join(' ')));
         QObject::connect(m_pdfProcess, &QProcess::finished,
                          m_pdfProcess, onFinished, Qt::SingleShotConnection);
