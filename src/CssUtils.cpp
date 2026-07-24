@@ -32,6 +32,33 @@ QColor chromeTextColor(const QString &themeCss)
         : QColor(QStringLiteral("#333333"));
 }
 
+QColor chromeBackgroundColor(const QString &themeCss)
+{
+    auto extractBg = [&](const QString &selector) {
+        QRegularExpression re(
+            R"(\b)" + selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
+        );
+        auto it = re.globalMatch(themeCss);
+        QString result;
+        while (it.hasNext())
+            result = it.next().captured(1).trimmed();
+        return result;
+    };
+
+    QString bgStr = extractBg("#editor");
+    if (bgStr.isEmpty())
+        bgStr = extractBg("body");
+
+    QColor bg(QStringLiteral("#ffffff"));
+    if (!bgStr.isEmpty()) {
+        QColor parsed(bgStr);
+        if (parsed.isValid())
+            bg = parsed;
+    }
+
+    return bg;
+}
+
 QString deriveChromeCss(const QString &themeCss)
 {
     auto extractBg = [&](const QString &selector) {
@@ -82,9 +109,9 @@ QString deriveChromeCss(const QString &themeCss)
         selTxt = QColor(QStringLiteral("#ffffff"));
         dim = QColor(QStringLiteral("#999999"));
     } else {
-        track = bg.darker(115);
-        thumb = bg.darker(160);
-        hover = bg.darker(180);
+        track = bg.darker(105);
+        thumb = bg.darker(125);
+        hover = bg.darker(145);
         selBg = hover;
         selTxt = QColor(QStringLiteral("#000000"));
         dim = QColor(QStringLiteral("#777777"));
