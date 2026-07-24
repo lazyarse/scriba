@@ -303,6 +303,42 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
     }
 
+    if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_D) {
+        QTextCursor cursor = textCursor();
+        QTextDocument *doc = document();
+        bool hasSel = cursor.hasSelection();
+
+        QTextBlock startBlock = hasSel
+            ? doc->findBlock(cursor.selectionStart())
+            : cursor.block();
+        QTextBlock endBlock = hasSel
+            ? doc->findBlock(cursor.selectionEnd())
+            : startBlock;
+
+        QStringList lines;
+        QTextBlock b = startBlock;
+        while (true) {
+            lines << b.text();
+            if (b == endBlock) break;
+            b = b.next();
+        }
+        QString blockText = lines.join('\n');
+
+        cursor.beginEditBlock();
+        if (endBlock.blockNumber() == doc->blockCount() - 1) {
+            cursor.movePosition(QTextCursor::End);
+            cursor.insertText('\n' + blockText);
+        } else {
+            QTextBlock next = endBlock.next();
+            cursor.setPosition(next.position());
+            cursor.insertText(blockText + '\n');
+        }
+        cursor.endEditBlock();
+
+        event->accept();
+        return;
+    }
+
     QPlainTextEdit::keyPressEvent(event);
 
     if (event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete) {
