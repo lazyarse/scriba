@@ -33,7 +33,7 @@
 ### The Basics
 
 - WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions with custom titles and icons (note, tip, important, warning, caution) 
-- Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, or hidden
+- Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, on its own, or hidden
 - CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. (Fair warning: Qt can't style application or dialog titlebars different to the system theme)
 - PDF export with print-specific CSS stylesheets
 - Find with regex search
@@ -68,7 +68,7 @@
 ## Shortcuts for All Features
 
 | Shortcut | Action |
-|---|---|---|
+|---|---|
 | <kbd>Ctrl</kbd>+<kbd>N</kbd> | New |
 | <kbd>Ctrl</kbd>+<kbd>O</kbd> | Open |
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Save |
@@ -77,7 +77,7 @@
 | <kbd>Ctrl</kbd>+<kbd>P</kbd> | Export PDF |
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find |
 | <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite Chart Builder |
-| <kbd>Ctrl</kbd>+<kbd>B</kbd> | Toggle Preview Pane |
+| <kbd>Ctrl</kbd>+<kbd>B</kbd> | Toggle Preview Pane Layout |
 | <kbd>Ctrl</kbd>+<kbd>E</kbd> | Emoji Search :eyes: :mag: |
 | <kbd>Ctrl</kbd>+<kbd>T</kbd> | Table Generator |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Preferences |

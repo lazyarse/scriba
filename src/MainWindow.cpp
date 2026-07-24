@@ -99,28 +99,10 @@ MainWindow::MainWindow(QWidget *parent)
     if (asInterval > 0)
         m_autoSaveTimer->start(asInterval * 60000);
 
-    if (settings.value(Preferences::FirstRun, true).toBool()) {
-        settings.setValue(Preferences::FirstRun, false);
-
-        QStringList bundled = {
-            ":/themes/catppuccin-latte.css",
-            ":/themes/catppuccin-mocha.css",
-            ":/themes/dracula.css",
-            ":/themes/github-dark.css",
-            ":/themes/github-light.css",
-            ":/themes/gruvbox-dark.css",
-            ":/themes/gruvbox-light.css",
-            ":/themes/nord.css",
-            ":/themes/one-dark.css",
-            ":/themes/rose-pine.css",
-            ":/themes/rose-pine-dawn.css",
-            ":/themes/solarized-dark.css",
-            ":/themes/solarized-light.css",
-            ":/themes/tokyo-night-dark.css",
-            ":/themes/tokyo-night-light.css",
-        };
-        m_cssConfig->setStylesheets(bundled);
-        m_cssConfig->setActiveStylesheet(":/themes/github-light.css");
+    if (m_cssConfig->stylesheets().isEmpty()) {
+        m_cssConfig->setStylesheets(CssConfig::bundledThemes());
+        if (m_cssConfig->activeStylesheet().isEmpty())
+            m_cssConfig->setActiveStylesheet(":/themes/github-light.css");
         m_cssLoader->invalidateCache();
         refreshPreviewCss();
         applyStripeSetting();
@@ -165,7 +147,7 @@ void MainWindow::setupUi()
     setCentralWidget(m_splitter);
 
     m_editor = new Editor();
-    m_preview = new Preview();
+    m_preview = new Preview(this);
 
     m_splitter->setChildrenCollapsible(false);
     m_splitter->setHandleWidth(1);
@@ -189,6 +171,15 @@ void MainWindow::setupUi()
     if (m_previewState != 0 && m_previewState != 3) {
         m_splitter->setStretchFactor(1, 1);
         m_splitter->handle(1)->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    }
+
+    // Apply initial single-view centering
+    if (m_previewState == 0 || m_previewState == 3) {
+        QSettings settings;
+        bool centre = settings.value(Preferences::CentreSingleViewContent, true).toBool();
+        int centreWidth = settings.value(Preferences::CentreSingleViewWidth, 800).toInt();
+        if (m_previewState == 0)
+            m_editor->setCenterContent(centre, centreWidth);
     }
 
     // Corner buttons in menu bar
@@ -488,11 +479,19 @@ void MainWindow::updatePreview()
         bool striping = prefs.value(Preferences::TableStriping, true).toBool();
         QString stripeInit = striping ? QString()
             : QLatin1String(Preferences::TableStripeCss);
+        QString centerCss;
+        if (m_previewState == 3) {
+            bool centre = prefs.value(Preferences::CentreSingleViewContent, true).toBool();
+            int centreWidth = prefs.value(Preferences::CentreSingleViewWidth, 800).toInt();
+            if (centre)
+                centerCss = QString("body{margin:0 auto!important;max-width:%1px!important}").arg(centreWidth);
+        }
         QString fullHtml = QString(
             "<!DOCTYPE html><html><head>"
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"stripe-css\">%4</style>"
+            "<style id=\"center-css\">%5</style>"
             "<style>#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
@@ -506,7 +505,7 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///emoji.js\"></script>"
             "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
             "</head><body id=\"preview\">%3</body></html>"
-        ).arg(baseCss, previewCss, html, stripeInit);
+        ).arg(baseCss, previewCss, html, stripeInit, centerCss);
         m_preview->setHtml(fullHtml, baseUrl);
         m_previewInitialized = true;
     } else {
@@ -559,6 +558,8 @@ void MainWindow::updatePreview()
 
 void MainWindow::syncPreviewScroll()
 {
+    if (!m_previewInitialized)
+        return;
     QSettings settings;
     if (!settings.value(Preferences::SyncScroll, true).toBool())
         return;
@@ -684,24 +685,45 @@ void MainWindow::togglePreview()
     m_previewState = (m_previewState + 1) % 4;
     QSettings().setValue(Preferences::PreviewState, m_previewState);
 
+    QSettings settings;
+    bool centre = settings.value(Preferences::CentreSingleViewContent, true).toBool();
+    int centreWidth = settings.value(Preferences::CentreSingleViewWidth, 800).toInt();
+
     if (m_previewState == 0) {
         m_preview->setVisible(false);
         m_editor->setVisible(true);
+        m_editor->setCenterContent(centre, centreWidth);
     } else if (m_previewState == 3) {
         m_editor->setVisible(false);
         m_preview->setVisible(true);
+        m_editor->setCenterContent(false, 0);
+        if (m_previewInitialized) {
+            QString css = centre
+                ? QString("body{margin:0 auto!important;max-width:%1px!important}").arg(centreWidth)
+                : QString();
+            m_preview->page()->runJavaScript(
+                QStringLiteral("document.getElementById('center-css').textContent='%1'").arg(css));
+        }
     } else if (m_previewState == 1) {
         // editor | preview
         m_splitter->insertWidget(0, m_editor);
         m_splitter->insertWidget(1, m_preview);
         m_editor->setVisible(true);
         m_preview->setVisible(true);
+        m_editor->setCenterContent(false, 0);
+        if (m_previewInitialized)
+            m_preview->page()->runJavaScript(
+                QStringLiteral("document.getElementById('center-css').textContent=''"));
     } else {
         // preview | editor
         m_splitter->insertWidget(0, m_preview);
         m_splitter->insertWidget(1, m_editor);
         m_preview->setVisible(true);
         m_editor->setVisible(true);
+        m_editor->setCenterContent(false, 0);
+        if (m_previewInitialized)
+            m_preview->page()->runJavaScript(
+                QStringLiteral("document.getElementById('center-css').textContent=''"));
     }
 
     int w = m_splitter->width();

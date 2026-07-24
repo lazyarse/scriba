@@ -23,7 +23,6 @@ protected:
         QSettings s;
         s.remove(Preferences::LastOpenedFile);
         s.setValue(Preferences::ReopenLastFile, false);
-        s.setValue(Preferences::FirstRun, false);
         s.setValue(Preferences::AutoSaveOnExit, false);
         s.setValue(Preferences::AutoSaveInterval, 0);
 

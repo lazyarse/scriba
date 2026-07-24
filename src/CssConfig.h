@@ -9,6 +9,8 @@ class CssConfig
 public:
     CssConfig();
 
+    static QStringList bundledThemes();
+
     QStringList stylesheets() const;
     void setStylesheets(const QStringList &paths);
 

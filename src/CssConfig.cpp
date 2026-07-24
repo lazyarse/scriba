@@ -9,6 +9,27 @@ CssConfig::CssConfig()
     m_activeStylesheet = settings.value(Preferences::ActiveCssFile, "").toString();
 }
 
+QStringList CssConfig::bundledThemes()
+{
+    return {
+        ":/themes/catppuccin-latte.css",
+        ":/themes/catppuccin-mocha.css",
+        ":/themes/dracula.css",
+        ":/themes/github-dark.css",
+        ":/themes/github-light.css",
+        ":/themes/gruvbox-dark.css",
+        ":/themes/gruvbox-light.css",
+        ":/themes/nord.css",
+        ":/themes/one-dark.css",
+        ":/themes/rose-pine.css",
+        ":/themes/rose-pine-dawn.css",
+        ":/themes/solarized-dark.css",
+        ":/themes/solarized-light.css",
+        ":/themes/tokyo-night-dark.css",
+        ":/themes/tokyo-night-light.css",
+    };
+}
+
 QStringList CssConfig::stylesheets() const
 {
     return m_stylesheets;

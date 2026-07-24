@@ -6,7 +6,6 @@
 namespace Preferences {
     constexpr const char *CssFiles = "cssFiles";
     constexpr const char *ActiveCssFile = "activeCssFile";
-    constexpr const char *FirstRun = "firstRun";
     constexpr const char *ReopenLastFile = "reopenLastFile";
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
@@ -17,6 +16,8 @@ namespace Preferences {
     constexpr const char *TableStriping = "tableStriping";
     constexpr const char *EmojiMode = "emojiMode";
     constexpr const char *EmojiAutoComplete = "emojiAutoComplete";
+    constexpr const char *CentreSingleViewContent = "centreSingleViewContent";
+    constexpr const char *CentreSingleViewWidth = "centreSingleViewWidth";
 
     constexpr const char *AutoSaveOnExit = "autoSaveOnExit";
     constexpr const char *AutoSaveInterval = "autoSaveInterval";

@@ -10,6 +10,7 @@
 #include <QKeyEvent>
 #include <QPainter>
 #include <QRegularExpression>
+#include <QResizeEvent>
 #include <QScrollBar>
 #include <QSettings>
 #include <QStandardItemModel>
@@ -638,4 +639,34 @@ void Editor::acceptEmojiCompletion(const QString &completion)
     cursor.removeSelectedText();
     cursor.insertText(completion);
     setTextCursor(cursor);
+}
+
+void Editor::setCenterContent(bool enabled, int width)
+{
+    m_centerContent = enabled;
+    m_centerContentWidth = width;
+    updateViewportMargins();
+}
+
+void Editor::resizeEvent(QResizeEvent *event)
+{
+    QPlainTextEdit::resizeEvent(event);
+    if (m_centerContent && !m_inResize) {
+        m_inResize = true;
+        updateViewportMargins();
+        m_inResize = false;
+    }
+}
+
+void Editor::updateViewportMargins()
+{
+    if (!m_centerContent) {
+        setViewportMargins(0, 0, 0, 0);
+        return;
+    }
+    int editorWidth = viewport()->width();
+    int scrollbarWidth = verticalScrollBar()->isVisible() ? verticalScrollBar()->width() : 0;
+    int available = editorWidth - scrollbarWidth;
+    int margin = qMax(0, (available - m_centerContentWidth) / 2);
+    setViewportMargins(margin, 0, margin, 0);
 }

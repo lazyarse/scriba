@@ -66,6 +66,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - After building, run the application briefly to check for segfaults: `timeout 3 build/scriba || true`
 - Rebuild the .deb package after any source/resource change: `cpack --config build/CPackConfig.cmake -G DEB`
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
+- After changing autocomplete behavior, update `docs/images/autocomplete-demo.gif` by running `scripts/create-autocomplete-demo.py`. Requires: xvfb-run, xdotool, and Python packages (Pillow, mss).
 - Create tests for each new feature — use Qt Test framework (QTest), add test files to `tests/` directory and register in `CMakeLists.txt`
 - When presenting a plan or fix proposal, state it as normal text — do not use a structured question widget asking "shall I proceed/continue/go". Let the user reply naturally.
 
