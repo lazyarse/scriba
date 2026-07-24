@@ -272,6 +272,13 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 return;
             }
             {
+                QString htmlPath;
+                if (isInsideHtmlPathContext(cursor, htmlPath)) {
+                    showFileCompletion(htmlPath);
+                    return;
+                }
+            }
+            {
                 QString partialCode;
                 if (isInsideEmojiContext(cursor, partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool()) {
                     showEmojiCompletion(partialCode);
@@ -357,16 +364,29 @@ void Editor::keyPressEvent(QKeyEvent *event)
                     else
                         showFileCompletion(partialPath);
                 } else {
-                    m_completer->popup()->hide();
+                    QString htmlPath;
+                    if (isInsideHtmlPathContext(textCursor(), htmlPath)) {
+                        if (htmlPath.isEmpty())
+                            m_completer->popup()->hide();
+                        else
+                            showFileCompletion(htmlPath);
+                    } else {
+                        m_completer->popup()->hide();
+                    }
                 }
             }
         }
     } else if (!event->text().isEmpty()) {
         QChar c = event->text()[0];
-        if (c.isLetterOrNumber() || c == '_' || c == ':' || c == '+' || c == '-') {
+        if (c.isLetterOrNumber() || c == '_' || c == ':' || c == '+' || c == '-' || c == '.' || c == '/') {
             QString partialPath;
             if (isInsideLinkContext(textCursor(), partialPath))
                 showFileCompletion(partialPath);
+            else {
+                QString htmlPath;
+                if (isInsideHtmlPathContext(textCursor(), htmlPath))
+                    showFileCompletion(htmlPath);
+            }
             QString partialCode;
             if (isInsideEmojiContext(textCursor(), partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool())
                 showEmojiCompletion(partialCode);
@@ -394,6 +414,20 @@ bool Editor::isInsideLinkContext(const QTextCursor &cursor, QString &partialPath
         return false;
 
     partialPath = between;
+    return true;
+}
+
+bool Editor::isInsideHtmlPathContext(const QTextCursor &cursor, QString &partialPath) const
+{
+    QString text = cursor.block().text();
+    int pos = cursor.positionInBlock();
+
+    static const QRegularExpression re(R"((?:src|href)\s*=\s*["']([^"']*)$)");
+    auto match = re.match(text.left(pos));
+    if (!match.hasMatch())
+        return false;
+
+    partialPath = match.captured(1);
     return true;
 }
 
@@ -476,7 +510,9 @@ void Editor::acceptCompletion(const QString &completion)
     QTextCursor cursor = textCursor();
     QString line = cursor.block().text();
     int pos = cursor.positionInBlock();
+    int blockStart = cursor.block().position();
 
+    // Markdown link context: [text](path) or ![text](path)
     static const QRegularExpression re(R"(\!?\[.*?\]\()");
     QRegularExpressionMatchIterator it = re.globalMatch(line.left(pos));
     int parenPos = -1;
@@ -484,27 +520,42 @@ void Editor::acceptCompletion(const QString &completion)
         QRegularExpressionMatch m = it.next();
         parenPos = m.capturedEnd();
     }
-    if (parenPos < 0)
-        return;
+    if (parenPos >= 0) {
+        QString between = line.mid(parenPos, pos - parenPos);
+        int lastSlash = between.lastIndexOf('/');
+        int replaceStart = lastSlash >= 0 ? parenPos + lastSlash + 1 : parenPos;
 
-    QString between = line.mid(parenPos, pos - parenPos);
-    int lastSlash = between.lastIndexOf('/');
-    int replaceStart = lastSlash >= 0 ? parenPos + lastSlash + 1 : parenPos;
+        cursor.setPosition(blockStart + replaceStart, QTextCursor::MoveAnchor);
+        cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
+        cursor.removeSelectedText();
+        cursor.insertText(completion);
+        setTextCursor(cursor);
 
-    int blockStart = cursor.block().position();
-    cursor.setPosition(blockStart + replaceStart, QTextCursor::MoveAnchor);
-    cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
-    cursor.removeSelectedText();
-    cursor.insertText(completion);
-    setTextCursor(cursor);
-
-    if (!completion.endsWith('/')) {
-        QTextCursor c = textCursor();
-        QChar next = document()->characterAt(c.position());
-        if (next != ')') {
-            c.insertText(QStringLiteral(")"));
-            setTextCursor(c);
+        if (!completion.endsWith('/')) {
+            QTextCursor c = textCursor();
+            QChar next = document()->characterAt(c.position());
+            if (next != ')') {
+                c.insertText(QStringLiteral(")"));
+                setTextCursor(c);
+            }
         }
+        return;
+    }
+
+    // HTML attribute context: src="path" or href='path'
+    static const QRegularExpression htmlRe(R"((?:src|href)\s*=\s*["']([^"']*)$)");
+    auto htmlMatch = htmlRe.match(line.left(pos));
+    if (htmlMatch.hasMatch()) {
+        QString value = htmlMatch.captured(1);
+        int valueStart = pos - value.length();
+        int lastSlash = value.lastIndexOf('/');
+        int replaceStart = lastSlash >= 0 ? valueStart + lastSlash + 1 : valueStart;
+
+        cursor.setPosition(blockStart + replaceStart, QTextCursor::MoveAnchor);
+        cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
+        cursor.removeSelectedText();
+        cursor.insertText(completion);
+        setTextCursor(cursor);
     }
 }
 
