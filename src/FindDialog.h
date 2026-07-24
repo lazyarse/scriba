@@ -24,6 +24,7 @@ public:
     void focusReplaceInput();
 
     void setMatchCount(int count);
+    QString matchCountText() const;
 
 signals:
     void findNextRequested(const QString &text, bool useRegex, bool caseSensitive);

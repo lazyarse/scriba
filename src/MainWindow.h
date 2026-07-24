@@ -41,13 +41,13 @@ private slots:
     void showChartBuilder();
     void showLogWindow();
 
-    void toggleFindDialog();
     void onFindNext();
     void onFindPrev();
     void onReplace(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive);
     void onReplaceAll(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive);
 
 public:
+    void toggleFindDialog();
     void autoSave();
     void showTableInsert();
 

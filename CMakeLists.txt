@@ -181,6 +181,19 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
+    add_executable(test_find_dialog tests/test_find_dialog.cpp
+        src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp
+        src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
+        src/EmojiDialog.cpp src/FindDialog.cpp
+        src/LogWindow.cpp src/TableDialog.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_find_dialog PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
+    add_test(NAME test_find_dialog COMMAND ${_TEST_PREFIX} ./test_find_dialog)
+
     add_executable(test_print_css_file tests/test_print_css_file.cpp)
     target_compile_definitions(test_print_css_file PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     target_link_libraries(test_print_css_file PRIVATE GTest::gtest_main Qt6::Core)
