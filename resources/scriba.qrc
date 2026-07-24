@@ -5,6 +5,7 @@
         <file>editor-base.css</file>
         <file>preview-base.css</file>
         <file>checkbox-checked.svg</file>
+        <file>checkbox-checked-dark.svg</file>
         <file>mermaid.min.js</file>
         <file>highlight.min.js</file>
         <file>print-base.css</file>
