@@ -7,6 +7,7 @@
 namespace CssUtils {
     QString deriveChromeCss(const QString &themeCss);
     QColor chromeTextColor(const QString &themeCss);
+    QColor chromeBackgroundColor(const QString &themeCss);
 }
 
 #endif
