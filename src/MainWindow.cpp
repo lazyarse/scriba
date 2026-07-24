@@ -832,18 +832,23 @@ void MainWindow::onReplace(const QString &search, const QString &replacement, bo
     QTextCursor cursor = m_editor->textCursor();
     if (cursor.hasSelection()) {
         QString sel = cursor.selectedText();
-        bool matches = false;
         if (useRegex) {
             auto opts = caseSensitive ? QRegularExpression::NoPatternOption
                                        : QRegularExpression::CaseInsensitiveOption;
-            matches = QRegularExpression(search, opts).match(sel).hasMatch();
+            QRegularExpression regex(search, opts);
+            QString replaced = sel;
+            if (replaced.contains(regex)) {
+                replaced.replace(regex, replacement);
+                cursor.insertText(replaced);
+                findText(search, false, useRegex, caseSensitive);
+                return;
+            }
         } else {
-            matches = (sel == search);
-        }
-        if (matches) {
-            cursor.insertText(replacement);
-            findText(search, false, useRegex, caseSensitive);
-            return;
+            if (sel == search) {
+                cursor.insertText(replacement);
+                findText(search, false, useRegex, caseSensitive);
+                return;
+            }
         }
     }
     findText(search, false, useRegex, caseSensitive);
@@ -871,7 +876,9 @@ void MainWindow::onReplaceAll(const QString &search, const QString &replacement,
         while (true) {
             QTextCursor match = doc->find(regex, cursor, flags);
             if (match.isNull()) break;
-            match.insertText(replacement);
+            QString replaced = match.selectedText();
+            replaced.replace(regex, replacement);
+            match.insertText(replaced);
             count++;
             cursor = match;
         }
