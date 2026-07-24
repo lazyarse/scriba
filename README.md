@@ -160,7 +160,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build buil
 ### Run tests
 
 ```bash
-cd build && ctest --output-on-failure
+cd build && ctest --output-on-failure -j1
 ```
 
 Tests auto-wrap in `xvfb-run` when available (CMake detects it).
