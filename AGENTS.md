@@ -48,7 +48,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 - `src/MainWindow.cpp` — app entry, file I/O, CSS management, scroll sync
 - `src/MarkdownParser.cpp` — wraps md4c, emits HTML with `data-line` attributes
-- `src/CssLoader.cpp` — loads user/system CSS, writes base stylesheets to `~/.config/Scriba/Scriba/`
+- `src/CssLoader.cpp` — loads user/system CSS, writes base stylesheets to `~/.config/scriba/`
 - `resources/scriba.qrc` — Qt resource bundle (must list any new resource files)
 
 ## Conventions
@@ -60,7 +60,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - CSS theming: editor uses `#editor` selector, preview uses standard HTML selectors
 - New source files must be added to both `src/` and the `add_executable(scriba ...)` list in `CMakeLists.txt`. If `MainWindow.cpp` uses the new class, also add it to the `test_scroll_sync` target (which compiles `MainWindow.cpp` directly)
 - New resource files must be added to both `resources/` and `resources/scriba.qrc`
-- Post-build step deletes `~/.config/Scriba/Scriba/{editor,preview}-base.css` — don't rely on those persisting across builds
+- Post-build step deletes `~/.config/scriba/{editor,preview}-base.css` — don't rely on those persisting across builds
 - QDialogButtonBox buttons must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`
 - Always rebuild after making changes — CSS, resource, or source files all require a rebuild to take effect
 - After building, run the application briefly to check for segfaults: `timeout 3 build/scriba || true`

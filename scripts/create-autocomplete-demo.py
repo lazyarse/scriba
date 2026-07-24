@@ -45,8 +45,8 @@ class DemoScribe:
 
     def _setup_env(self):
         shutil.rmtree(str(XDG_CONFIG), ignore_errors=True)
-        (XDG_CONFIG / "Scriba").mkdir(parents=True)
-        cfg = XDG_CONFIG / "Scriba" / "Scriba.conf"
+        (XDG_CONFIG / "scriba").mkdir(parents=True)
+        cfg = XDG_CONFIG / "scriba" / "scriba.conf"
         cfg.write_text(
             "[General]\nemojiMode=color\n"
             "activeCssFile=:/themes/catppuccin-mocha.css\n"

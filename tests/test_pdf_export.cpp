@@ -482,8 +482,8 @@ TEST_F(PrintExportTest, NoDefaultHeadersInPdf)
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    app.setOrganizationName("ScribaTest");
-    app.setApplicationName("ScribaTest");
+    app.setOrganizationName("scribaTest");
+    app.setApplicationName("scribaTest");
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

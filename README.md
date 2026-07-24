@@ -121,7 +121,7 @@ cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs af
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
-The post-build step automatically removes cached base stylesheets (`~/.config/Scriba/Scriba/*.css`), so no manual cleanup needed on rebuild.
+The post-build step automatically removes cached base stylesheets (`~/.config/scriba/*.css`), so no manual cleanup needed on rebuild.
 
 ### Build .deb package
 

@@ -51,8 +51,8 @@ target_link_libraries(scriba PRIVATE
 add_custom_command(TARGET scriba POST_BUILD
     COMMENT "Removing cached stylesheets from config directory"
     COMMAND ${CMAKE_COMMAND} -E rm -f
-        "$ENV{HOME}/.config/Scriba/Scriba/editor-base.css"
-        "$ENV{HOME}/.config/Scriba/Scriba/preview-base.css"
+        "$ENV{HOME}/.config/scriba/editor-base.css"
+        "$ENV{HOME}/.config/scriba/preview-base.css"
 )
 
 install(TARGETS scriba RUNTIME DESTINATION bin)
