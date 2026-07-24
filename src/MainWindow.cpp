@@ -45,6 +45,8 @@
 #include <QColor>
 #include <QSvgRenderer>
 #include <QFontDatabase>
+#include <QTextBlockFormat>
+#include <QTextCursor>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QApplication>
@@ -397,11 +399,10 @@ void MainWindow::refreshPreviewCss()
     QString rawThemeCss = m_cssLoader->themeCss();
     QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss);
     QString previewCss = chromeCss + rawThemeCss;
-    QString fullCss = chromeCss + m_cssLoader->editorBaseCss();
     QString previewBaseCss = m_cssLoader->previewBaseCss();
 
     bool needPreviewUpdate = (previewCss != m_cachedPreviewCss);
-    bool needChromeUpdate = (fullCss != m_cachedFullCss);
+    bool needChromeUpdate = (chromeCss != m_cachedFullCss);
     bool needBaseUpdate = (previewBaseCss != m_cachedPreviewBaseCss);
 
     if (!needPreviewUpdate && !needChromeUpdate && !needBaseUpdate)
@@ -426,19 +427,43 @@ void MainWindow::refreshPreviewCss()
     }
 
     if (needChromeUpdate) {
-        m_cachedFullCss = fullCss;
-        m_editor->setStyleSheet(fullCss);
+        m_cachedFullCss = chromeCss;
+        QString paddingCss = applyEditorSettings();
+        m_editor->setStyleSheet(chromeCss + paddingCss);
         if (!m_chromeUpdateScheduled) {
             m_chromeUpdateScheduled = true;
-            QTimer::singleShot(0, this, [this, fullCss]() {
+            QTimer::singleShot(0, this, [this, chromeCss]() {
                 m_chromeUpdateScheduled = false;
-                qApp->setStyleSheet(fullCss);
+                qApp->setStyleSheet(chromeCss);
             });
         }
         QColor iconColor = CssUtils::chromeTextColor(rawThemeCss);
         m_fullscreenBtn->setIcon(themedIcon(":/icons/fullscreen.svg", iconColor));
         m_previewBtn->setIcon(themedIcon(":/icons/preview.svg", iconColor));
     }
+}
+
+QString MainWindow::applyEditorSettings()
+{
+    QSettings settings;
+    QString family = settings.value(Preferences::EditorFontFamily,
+        "'Consolas', 'Monaco', 'Courier New', monospace").toString();
+    int size = settings.value(Preferences::EditorFontSize, 18).toInt();
+    int lineHeight = settings.value(Preferences::EditorLineHeight, 240).toInt();
+    int padding = settings.value(Preferences::EditorPadding, 12).toInt();
+
+    QFont font;
+    font.setFamily(family);
+    font.setPointSize(size);
+    m_editor->setFont(font);
+
+    QTextBlockFormat fmt;
+    fmt.setLineHeight(lineHeight, QTextBlockFormat::ProportionalHeight);
+    QTextCursor cursor(m_editor->document());
+    cursor.select(QTextCursor::Document);
+    cursor.mergeBlockFormat(fmt);
+
+    return QString("#scriba-editor { padding: %1px; }").arg(padding);
 }
 
 void MainWindow::applyStripeSetting()

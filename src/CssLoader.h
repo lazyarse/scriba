@@ -11,11 +11,9 @@ public:
     explicit CssLoader(const CssConfig *config);
 
     QString themeCss();
-    QString editorBaseCss();
     QString previewBaseCss();
     QString printCss() const;
 
-    void setEditorBaseCss(const QString &css);
     void setPreviewBaseCss(const QString &css);
 
     void invalidateCache();
@@ -27,7 +25,6 @@ private:
 
     const CssConfig *m_config;
     QString m_themeCache;
-    QString m_editorBaseCache;
     QString m_previewBaseCache;
     bool m_cacheDirty = true;
 };
