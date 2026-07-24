@@ -3,6 +3,11 @@
     color: #c9d1d9;
 }
 
+
+:root {
+    --checkbox-checked-bg: #202a39;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     font-size: 16px;

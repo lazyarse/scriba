@@ -1,3 +1,13 @@
+#editor {
+    background-color: #282c34;
+    color: #abb2bf;
+}
+
+
+:root {
+    --checkbox-checked-bg: #636d82;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     font-size: 16px;

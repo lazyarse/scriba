@@ -56,6 +56,16 @@ QString deriveChromeCss(const QString &themeCss)
         return result;
     };
 
+    auto extractVar = [&](const QString &name) -> QString {
+        QRegularExpression re(QStringLiteral("--%1\\s*:\\s*([^;]+)").arg(name),
+                               QRegularExpression::MultilineOption);
+        QString result;
+        auto it = re.globalMatch(themeCss);
+        while (it.hasNext())
+            result = it.next().captured(1).trimmed();
+        return result;
+    };
+
     QString bgStr = extractBg("#editor");
     if (bgStr.isEmpty())
         bgStr = extractBg("body");
@@ -63,6 +73,8 @@ QString deriveChromeCss(const QString &themeCss)
     QString txtStr = extractColor("#editor");
     if (txtStr.isEmpty())
         txtStr = extractColor("body");
+
+    QString chkBgStr = extractVar("checkbox-checked-bg");
 
     QColor bg(QStringLiteral("#ffffff"));
     if (!bgStr.isEmpty()) {
@@ -73,6 +85,8 @@ QString deriveChromeCss(const QString &themeCss)
 
     bool dark = bg.lightness() < 128;
     QColor track, thumb, hover, sideBg, selBg, txt, selTxt, dim;
+    QColor chkBg, chkCheckedBg;
+    QString chkImg;
     txt = chromeTextColor(themeCss);
     if (dark) {
         track = bg.lighter(160);
@@ -82,6 +96,8 @@ QString deriveChromeCss(const QString &themeCss)
         selBg = hover;
         selTxt = QColor(QStringLiteral("#ffffff"));
         dim = QColor(QStringLiteral("#999999"));
+        chkBg = track;
+        chkImg = QStringLiteral("url(:/checkbox-checked.svg)");
     } else {
         track = bg.darker(105);
         thumb = bg.darker(125);
@@ -90,6 +106,14 @@ QString deriveChromeCss(const QString &themeCss)
         selBg = hover;
         selTxt = QColor(QStringLiteral("#000000"));
         dim = QColor(QStringLiteral("#777777"));
+        chkBg = bg;
+        chkImg = QStringLiteral("url(:/checkbox-checked-dark.svg)");
+    }
+    chkCheckedBg = dark ? hover : bg.darker(120);
+    if (!chkBgStr.isEmpty()) {
+        QColor parsed(chkBgStr);
+        if (parsed.isValid())
+            chkCheckedBg = parsed;
     }
 
     return QStringLiteral(
@@ -97,11 +121,11 @@ QString deriveChromeCss(const QString &themeCss)
         "QGroupBox { color: %3; font-weight: bold; border: 1px solid %4; margin-top: 8px; }\n"
         "QGroupBox::title { color: %3; font-weight: bold; }\n"
         "QCheckBox { color: %3; spacing: 6px; }\n"
-        "QCheckBox::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; }\n"
-        "QCheckBox::indicator:checked { background-color: %5; border: 1px solid %5; image: url(:/checkbox-checked.svg); }\n"
+        "QCheckBox::indicator { width: 14px; height: 14px; background-color: %12; border: 1px solid %4; }\n"
+        "QCheckBox::indicator:checked { background-color: %13; border: 1px solid %13; image: %11; }\n"
         "QRadioButton { color: %3; spacing: 6px; }\n"
         "QRadioButton::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; border-radius: 7px; }\n"
-        "QRadioButton::indicator:checked { background-color: %5; border: 1px solid %5; }\n"
+        "QRadioButton::indicator:checked { background-color: %13; border: 1px solid %13; }\n"
         "QListWidget { background-color: %2; color: %3; border: none; }\n"
         "QListWidget::item:selected { background-color: %5; color: %6; }\n"
         "QListWidget::item:hover { background-color: %1; }\n"
@@ -147,8 +171,15 @@ QString deriveChromeCss(const QString &themeCss)
         selTxt.name(),  // %6 — selected text color
         bg.name(),       // %7 — editor background
         txtStr.isEmpty() ? txt.name() : txtStr, // %8 — editor text color from theme
-        dim.name(),    // %9 — dim text for stats label
+        dim.name()    // %9 — dim text for stats label
+    ).arg(
         sideBg.name()  // %10 — sidebar background
+    ).arg(
+        chkImg         // %11 — checkbox checked image
+    ).arg(
+        chkBg.name()   // %12 — checkbox indicator background
+    ).arg(
+        chkCheckedBg.name() // %13 — checkbox checked background
     );
 }
 

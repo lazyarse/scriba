@@ -3,6 +3,11 @@
     color: #839496;
 }
 
+
+:root {
+    --checkbox-checked-bg: #006b87;
+}
+
 body {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 16px;
