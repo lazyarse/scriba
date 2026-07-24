@@ -23,6 +23,11 @@ namespace Preferences {
     constexpr const char *AutoSaveInterval = "autoSaveInterval";
     constexpr const char *FileCompletionLimit = "fileCompletionLimit";
 
+    constexpr const char *EditorFontFamily = "editorFontFamily";
+    constexpr const char *EditorFontSize = "editorFontSize";
+    constexpr const char *EditorLineHeight = "editorLineHeight";
+    constexpr const char *EditorPadding = "editorPadding";
+
     constexpr const char *PdfShowHeader = "pdfShowHeader";
 
     constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";

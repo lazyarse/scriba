@@ -10,6 +10,8 @@
 #include <QSpinBox>
 
 
+#include <QComboBox>
+
 class CssConfig;
 class CssLoader;
 
@@ -26,7 +28,6 @@ signals:
 private slots:
     void addStylesheet();
     void removeStylesheet();
-    void editEditorBaseCss();
     void editPreviewBaseCss();
     void onCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
 private:
@@ -40,7 +41,6 @@ private:
     QListWidget *m_listWidget;
     QPushButton *m_addButton;
     QPushButton *m_removeButton;
-    QPushButton *m_editEditorBtn;
     QPushButton *m_editPreviewBtn;
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
@@ -54,6 +54,10 @@ private:
     QCheckBox *m_emojiAutoCompleteCheck;
     QCheckBox *m_centreSingleViewCheck;
     QSpinBox *m_centreSingleViewWidthSpin;
+    QComboBox *m_editorFontCombo;
+    QSpinBox *m_editorFontSizeSpin;
+    QSpinBox *m_editorLineHeightSpin;
+    QSpinBox *m_editorPaddingSpin;
 };
 
 #endif

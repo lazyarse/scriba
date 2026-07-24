@@ -83,6 +83,7 @@ private:
     void syncPreviewScroll();
     void syncCssWatcher();
     void refreshPreviewCss();
+    QString applyEditorSettings();
     void applyStripeSetting();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);
     bool findText(const QString &text, bool backward, bool useRegex, bool caseSensitive);

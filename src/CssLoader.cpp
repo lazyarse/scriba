@@ -25,31 +25,12 @@ QString CssLoader::loadOrFallback(const QString &path, const QString &fallback) 
     return {};
 }
 
-QString CssLoader::editorBaseCss()
-{
-    if (!m_cacheDirty && !m_editorBaseCache.isNull())
-        return m_editorBaseCache;
-    m_editorBaseCache = loadOrFallback(configDir() + "/editor-base.css", ":/editor-base.css");
-    return m_editorBaseCache;
-}
-
 QString CssLoader::previewBaseCss()
 {
     if (!m_cacheDirty && !m_previewBaseCache.isNull())
         return m_previewBaseCache;
     m_previewBaseCache = loadOrFallback(configDir() + "/preview-base.css", ":/preview-base.css");
     return m_previewBaseCache;
-}
-
-void CssLoader::setEditorBaseCss(const QString &css)
-{
-    QDir().mkpath(configDir());
-    QFile f(configDir() + "/editor-base.css");
-    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        f.write(css.toUtf8());
-    }
-    m_editorBaseCache = css;
-    invalidateCache();
 }
 
 void CssLoader::setPreviewBaseCss(const QString &css)
@@ -78,7 +59,6 @@ QString CssLoader::themeCss()
 void CssLoader::invalidateCache()
 {
     m_cacheDirty = true;
-    m_editorBaseCache.clear();
     m_previewBaseCache.clear();
 }
 

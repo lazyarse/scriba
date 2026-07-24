@@ -30,12 +30,6 @@ Editor::Editor(QWidget *parent)
     setFrameShape(QFrame::NoFrame);
 
     loadEmojiShortcodes();
-
-    QTextBlockFormat fmt;
-    fmt.setLineHeight(240, QTextBlockFormat::ProportionalHeight);
-    QTextCursor cursor(document());
-    cursor.select(QTextCursor::Document);
-    cursor.mergeBlockFormat(fmt);
 }
 
 void Editor::setCurrentFile(const QString &path)

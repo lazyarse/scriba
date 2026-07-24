@@ -176,17 +176,12 @@ void PreferencesDialog::setupUi()
         QVBoxLayout *baseCssLayout = new QVBoxLayout(baseCssGroup);
         baseCssLayout->addSpacing(8);
 
-        auto *baseLabel = new QLabel("These stylesheets lay the foundation that all themes build upon.");
+        auto *baseLabel = new QLabel("This stylesheet lays the foundation that all themes build upon.");
         baseLabel->setWordWrap(true);
         baseCssLayout->addWidget(baseLabel);
 
-        QHBoxLayout *baseBtnRow = new QHBoxLayout();
-        m_editEditorBtn = new QPushButton("Edit Editor Base CSS...");
         m_editPreviewBtn = new QPushButton("Edit Preview Base CSS...");
-        baseBtnRow->addWidget(m_editEditorBtn);
-        baseBtnRow->addWidget(m_editPreviewBtn);
-        baseBtnRow->addStretch();
-        baseCssLayout->addLayout(baseBtnRow);
+        baseCssLayout->addWidget(m_editPreviewBtn);
 
         layout->addWidget(baseCssGroup);
 
@@ -223,10 +218,63 @@ void PreferencesDialog::setupUi()
         m_categoryList->addItem("Themes");
     }
 
+    /* --- Page 2: Editor --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *editorGroup = new QGroupBox("Editor Appearance");
+        QFormLayout *editorLayout = new QFormLayout(editorGroup);
+
+        m_editorFontCombo = new QComboBox();
+        m_editorFontCombo->setEditable(true);
+        m_editorFontCombo->addItems({
+            "'Consolas', 'Monaco', 'Courier New', monospace",
+            "'Menlo', 'Monaco', 'Courier New', monospace",
+            "Georgia, 'Times New Roman', serif",
+            "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            "'Linux Libertine', Georgia, Times, serif",
+            "'Source Code Pro', 'Fira Code', monospace",
+        });
+        QString fontFamily = settings.value(Preferences::EditorFontFamily,
+            "'Consolas', 'Monaco', 'Courier New', monospace").toString();
+        int idx = m_editorFontCombo->findText(fontFamily);
+        if (idx >= 0)
+            m_editorFontCombo->setCurrentIndex(idx);
+        else
+            m_editorFontCombo->setCurrentText(fontFamily);
+        editorLayout->addRow("Font family:", m_editorFontCombo);
+
+        m_editorFontSizeSpin = new QSpinBox();
+        m_editorFontSizeSpin->setRange(8, 48);
+        m_editorFontSizeSpin->setSuffix(" px");
+        m_editorFontSizeSpin->setValue(settings.value(Preferences::EditorFontSize, 18).toInt());
+        editorLayout->addRow("Font size:", m_editorFontSizeSpin);
+
+        m_editorLineHeightSpin = new QSpinBox();
+        m_editorLineHeightSpin->setRange(100, 400);
+        m_editorLineHeightSpin->setSuffix(" %");
+        m_editorLineHeightSpin->setValue(settings.value(Preferences::EditorLineHeight, 240).toInt());
+        editorLayout->addRow("Line height:", m_editorLineHeightSpin);
+
+        m_editorPaddingSpin = new QSpinBox();
+        m_editorPaddingSpin->setRange(0, 60);
+        m_editorPaddingSpin->setSuffix(" px");
+        m_editorPaddingSpin->setValue(settings.value(Preferences::EditorPadding, 12).toInt());
+        editorLayout->addRow("Padding:", m_editorPaddingSpin);
+
+        layout->addWidget(editorGroup);
+        layout->addStretch();
+
+        m_pages->addWidget(page);
+        m_categoryList->addItem("Editor");
+    }
+
     /* --- Connections --- */
     connect(m_addButton, &QPushButton::clicked, this, &PreferencesDialog::addStylesheet);
     connect(m_removeButton, &QPushButton::clicked, this, &PreferencesDialog::removeStylesheet);
-    connect(m_editEditorBtn, &QPushButton::clicked, this, &PreferencesDialog::editEditorBaseCss);
     connect(m_editPreviewBtn, &QPushButton::clicked, this, &PreferencesDialog::editPreviewBaseCss);
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
     connect(m_categoryList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
@@ -253,6 +301,10 @@ void PreferencesDialog::setupUi()
         int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
         settings.setValue(Preferences::AutoSaveInterval, interval);
         settings.setValue(Preferences::FileCompletionLimit, m_fileCompletionSpin->value());
+        settings.setValue(Preferences::EditorFontFamily, m_editorFontCombo->currentText());
+        settings.setValue(Preferences::EditorFontSize, m_editorFontSizeSpin->value());
+        settings.setValue(Preferences::EditorLineHeight, m_editorLineHeightSpin->value());
+        settings.setValue(Preferences::EditorPadding, m_editorPaddingSpin->value());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -313,19 +365,9 @@ static QString loadResourceCss(const QString &path)
     return {};
 }
 
-void PreferencesDialog::editEditorBaseCss()
-{
-    CssEditorDialog dlg("Edit Editor Base CSS", CssEditorDialog::EditorBase, m_loader->editorBaseCss(),
-        loadResourceCss(":/editor-base.css"), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        m_loader->setEditorBaseCss(dlg.css());
-        emit stylesheetChanged();
-    }
-}
-
 void PreferencesDialog::editPreviewBaseCss()
 {
-    CssEditorDialog dlg("Edit Preview Base CSS", CssEditorDialog::PreviewBase, m_loader->previewBaseCss(),
+    CssEditorDialog dlg("Edit Preview Base CSS", m_loader->previewBaseCss(),
         loadResourceCss(":/preview-base.css"), this);
     if (dlg.exec() == QDialog::Accepted) {
         m_loader->setPreviewBaseCss(dlg.css());
