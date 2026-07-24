@@ -26,6 +26,18 @@ add_executable(scriba
     src/VegaLiteDialog.cpp
     src/EmojiDialog.cpp
     src/LogWindow.cpp
+    src/MermaidPieDialog.cpp
+    src/MermaidFlowchartDialog.cpp
+    src/MermaidSequenceDialog.cpp
+    src/MermaidGanttDialog.cpp
+    src/MermaidClassDialog.cpp
+    src/MermaidErDialog.cpp
+    src/MermaidStateDialog.cpp
+    src/MermaidMindmapDialog.cpp
+    src/MermaidTimelineDialog.cpp
+    src/MermaidJourneyDialog.cpp
+    src/MermaidQuadrantDialog.cpp
+    src/MermaidSankeyDialog.cpp
     src/StaticHelpers.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c
@@ -143,6 +155,54 @@ if(BUILD_TESTS)
     target_link_libraries(test_vegalite_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
     add_test(NAME test_vegalite_dialog COMMAND ${_TEST_PREFIX} ./test_vegalite_dialog)
 
+    add_executable(test_mermaid_pie_dialog tests/test_mermaid_pie_dialog.cpp src/MermaidPieDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_pie_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_pie_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_pie_dialog)
+
+    add_executable(test_mermaid_flowchart_dialog tests/test_mermaid_flowchart_dialog.cpp src/MermaidFlowchartDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_flowchart_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_flowchart_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_flowchart_dialog)
+
+    add_executable(test_mermaid_sankey_dialog tests/test_mermaid_sankey_dialog.cpp src/MermaidSankeyDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_sankey_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_sankey_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_sankey_dialog)
+
+    add_executable(test_mermaid_timeline_dialog tests/test_mermaid_timeline_dialog.cpp src/MermaidTimelineDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_timeline_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_timeline_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_timeline_dialog)
+
+    add_executable(test_mermaid_quadrant_dialog tests/test_mermaid_quadrant_dialog.cpp src/MermaidQuadrantDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_quadrant_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_quadrant_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_quadrant_dialog)
+
+    add_executable(test_mermaid_journey_dialog tests/test_mermaid_journey_dialog.cpp src/MermaidJourneyDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_journey_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_journey_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_journey_dialog)
+
+    add_executable(test_mermaid_state_dialog tests/test_mermaid_state_dialog.cpp src/MermaidStateDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_state_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_state_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_state_dialog)
+
+    add_executable(test_mermaid_sequence_dialog tests/test_mermaid_sequence_dialog.cpp src/MermaidSequenceDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_sequence_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_sequence_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_sequence_dialog)
+
+    add_executable(test_mermaid_gantt_dialog tests/test_mermaid_gantt_dialog.cpp src/MermaidGanttDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_gantt_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_gantt_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_gantt_dialog)
+
+    add_executable(test_mermaid_mindmap_dialog tests/test_mermaid_mindmap_dialog.cpp src/MermaidMindmapDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_mindmap_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_mindmap_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_mindmap_dialog)
+
+    add_executable(test_mermaid_er_dialog tests/test_mermaid_er_dialog.cpp src/MermaidErDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_er_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_er_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_er_dialog)
+
+    add_executable(test_mermaid_class_dialog tests/test_mermaid_class_dialog.cpp src/MermaidClassDialog.cpp src/Preview.cpp)
+    target_link_libraries(test_mermaid_class_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_class_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_class_dialog)
+
     add_executable(test_editor_autocomplete tests/test_editor_autocomplete.cpp)
     target_link_libraries(test_editor_autocomplete PRIVATE GTest::gtest_main Qt6::Core)
     add_test(NAME test_editor_autocomplete COMMAND ${_TEST_PREFIX} ./test_editor_autocomplete)
@@ -161,6 +221,18 @@ if(BUILD_TESTS)
         src/EmojiDialog.cpp
         src/FindDialog.cpp
         src/LogWindow.cpp
+        src/MermaidPieDialog.cpp
+    src/MermaidFlowchartDialog.cpp
+    src/MermaidSequenceDialog.cpp
+    src/MermaidGanttDialog.cpp
+    src/MermaidClassDialog.cpp
+    src/MermaidErDialog.cpp
+    src/MermaidStateDialog.cpp
+    src/MermaidMindmapDialog.cpp
+    src/MermaidTimelineDialog.cpp
+    src/MermaidJourneyDialog.cpp
+    src/MermaidQuadrantDialog.cpp
+    src/MermaidSankeyDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -174,7 +246,14 @@ if(BUILD_TESTS)
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/FindDialog.cpp
-        src/LogWindow.cpp src/TableDialog.cpp
+        src/LogWindow.cpp
+        src/MermaidPieDialog.cpp src/MermaidFlowchartDialog.cpp
+        src/MermaidSequenceDialog.cpp src/MermaidGanttDialog.cpp
+        src/MermaidClassDialog.cpp src/MermaidErDialog.cpp
+        src/MermaidStateDialog.cpp src/MermaidMindmapDialog.cpp
+        src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
+        src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
+        src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_auto_save PRIVATE
@@ -187,7 +266,14 @@ if(BUILD_TESTS)
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/FindDialog.cpp
-        src/LogWindow.cpp src/TableDialog.cpp
+        src/LogWindow.cpp
+        src/MermaidPieDialog.cpp src/MermaidFlowchartDialog.cpp
+        src/MermaidSequenceDialog.cpp src/MermaidGanttDialog.cpp
+        src/MermaidClassDialog.cpp src/MermaidErDialog.cpp
+        src/MermaidStateDialog.cpp src/MermaidMindmapDialog.cpp
+        src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
+        src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
+        src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_find_dialog PRIVATE

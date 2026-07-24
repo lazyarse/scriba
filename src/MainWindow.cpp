@@ -14,6 +14,18 @@
 #include "VegaLiteDialog.h"
 #include "EmojiDialog.h"
 #include "LogWindow.h"
+#include "MermaidPieDialog.h"
+#include "MermaidFlowchartDialog.h"
+#include "MermaidSequenceDialog.h"
+#include "MermaidGanttDialog.h"
+#include "MermaidClassDialog.h"
+#include "MermaidErDialog.h"
+#include "MermaidStateDialog.h"
+#include "MermaidMindmapDialog.h"
+#include "MermaidTimelineDialog.h"
+#include "MermaidJourneyDialog.h"
+#include "MermaidQuadrantDialog.h"
+#include "MermaidSankeyDialog.h"
 
 #include <QVBoxLayout>
 #include <QTextBrowser>
@@ -310,6 +322,34 @@ void MainWindow::setupMenuBar()
     QAction *chartAction = toolsMenu->addAction("Chart &Builder");
     chartAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
     connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
+
+    QMenu *mermaidMenu = toolsMenu->addMenu("&Mermaid");
+    QAction *pieAction = mermaidMenu->addAction("&Pie Chart...");
+    connect(pieAction, &QAction::triggered, this, &MainWindow::showMermaidPie);
+    QAction *flowchartAction = mermaidMenu->addAction("&Flowchart...");
+    connect(flowchartAction, &QAction::triggered, this, &MainWindow::showMermaidFlowchart);
+    QAction *sequenceAction = mermaidMenu->addAction("&Sequence Diagram...");
+    connect(sequenceAction, &QAction::triggered, this, &MainWindow::showMermaidSequence);
+    QAction *ganttAction = mermaidMenu->addAction("&Gantt Chart...");
+    connect(ganttAction, &QAction::triggered, this, &MainWindow::showMermaidGantt);
+    QAction *classAction = mermaidMenu->addAction("&Class Diagram...");
+    connect(classAction, &QAction::triggered, this, &MainWindow::showMermaidClass);
+    QAction *erAction = mermaidMenu->addAction("&ER Diagram...");
+    connect(erAction, &QAction::triggered, this, &MainWindow::showMermaidEr);
+    mermaidMenu->addSeparator();
+    QAction *stateAction = mermaidMenu->addAction("S&tate Diagram...");
+    connect(stateAction, &QAction::triggered, this, &MainWindow::showMermaidState);
+    QAction *mindmapAction = mermaidMenu->addAction("&Mind Map...");
+    connect(mindmapAction, &QAction::triggered, this, &MainWindow::showMermaidMindmap);
+    mermaidMenu->addSeparator();
+    QAction *timelineAction = mermaidMenu->addAction("&Timeline...");
+    connect(timelineAction, &QAction::triggered, this, &MainWindow::showMermaidTimeline);
+    QAction *journeyAction = mermaidMenu->addAction("User &Journey...");
+    connect(journeyAction, &QAction::triggered, this, &MainWindow::showMermaidJourney);
+    QAction *quadrantAction = mermaidMenu->addAction("&Quadrant Chart...");
+    connect(quadrantAction, &QAction::triggered, this, &MainWindow::showMermaidQuadrant);
+    QAction *sankeyAction = mermaidMenu->addAction("&Sankey...");
+    connect(sankeyAction, &QAction::triggered, this, &MainWindow::showMermaidSankey);
 
     QAction *emojiAction = toolsMenu->addAction("&Emoji Picker...");
     emojiAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
@@ -665,6 +705,150 @@ void MainWindow::showChartBuilder()
         QString spec = dlg.generatedSpec();
         if (!spec.isEmpty()) {
             QString block = "\n```vl\n" + spec + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidPie()
+{
+    MermaidPieDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidFlowchart()
+{
+    MermaidFlowchartDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidSequence()
+{
+    MermaidSequenceDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidGantt()
+{
+    MermaidGanttDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidClass()
+{
+    MermaidClassDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidEr()
+{
+    MermaidErDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidState()
+{
+    MermaidStateDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidMindmap()
+{
+    MermaidMindmapDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidTimeline()
+{
+    MermaidTimelineDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidJourney()
+{
+    MermaidJourneyDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidQuadrant()
+{
+    MermaidQuadrantDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+            m_editor->insertPlainText(block);
+        }
+    }
+}
+
+void MainWindow::showMermaidSankey()
+{
+    MermaidSankeyDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString diagram = dlg.generatedDiagram();
+        if (!diagram.isEmpty()) {
+            QString block = "\n```mermaid\n" + diagram + "\n```\n";
             m_editor->insertPlainText(block);
         }
     }
