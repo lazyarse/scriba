@@ -92,3 +92,7 @@ This changes the else-branch at `PrintViewManagerQt::DidPrintPage` from `kPrinta
 Without this patch, `ExportPdfDialog::onPageLoaded()` previously ran a `parsePageMargins` workaround that parsed `@page { margin }` via regex and piped values through `QPageLayout`. That approach could not handle `@page { size }`, margin boxes, named pages, or page selectors. The workaround was removed when the binary patch was applied.
 
 The full patching plan (Option A: binary patch, Option B: LD_PRELOAD, Option C: full Qt source rebuild) is documented in `qt-knomargins-patch.md`.
+
+## Testing
+
+Test suites set `QCoreApplication::setOrganizationName("ScribaTest")` / `setApplicationName("ScribaTest")` so their QSettings data (and default CSS files written by `CssLoader`) land in `~/.config/ScribaTest/` instead of the real app's `~/.config/Scriba/`. This keeps test config isolated from the user's config.
