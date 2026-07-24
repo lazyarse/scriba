@@ -2,7 +2,6 @@
 #include "CssConfig.h"
 #include "CssLoader.h"
 #include "CssEditorDialog.h"
-#include "CssUtils.h"
 #include "Preferences.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -45,18 +44,6 @@ void PreferencesDialog::setupUi()
     catFont.setPointSize(catFont.pointSize() + 3);
     m_categoryList->setFont(catFont);
     m_categoryList->setObjectName("category-list");
-    QColor sideBg = CssUtils::chromeBackgroundColor(m_loader->themeCss());
-    bool sideDark = sideBg.lightness() < 128;
-    QColor sideHover = sideDark ? sideBg.lighter(140) : sideBg.darker(110);
-    QColor sideSel = sideDark ? sideBg.lighter(180) : sideBg.darker(140);
-    QColor sideTxt = sideDark ? QColor("#f0f0f0") : QColor("#333333");
-    QColor sideSelTxt = sideDark ? QColor("#ffffff") : QColor("#000000");
-    m_categoryList->setStyleSheet(QStringLiteral(
-        "#category-list { background-color: %1; color: %2; border: none; }\n"
-        "#category-list::item { padding: 8px 4px; }\n"
-        "#category-list::item:hover { background-color: %3; }\n"
-        "#category-list::item:selected { background-color: %4; color: %5; }\n"
-    ).arg(sideBg.name(), sideTxt.name(), sideHover.name(), sideSel.name(), sideSelTxt.name()));
     contentLayout->addWidget(m_categoryList);
 
     m_pages = new QStackedWidget;

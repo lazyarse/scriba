@@ -32,33 +32,6 @@ QColor chromeTextColor(const QString &themeCss)
         : QColor(QStringLiteral("#333333"));
 }
 
-QColor chromeBackgroundColor(const QString &themeCss)
-{
-    auto extractBg = [&](const QString &selector) {
-        QRegularExpression re(
-            R"(\b)" + selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
-        );
-        auto it = re.globalMatch(themeCss);
-        QString result;
-        while (it.hasNext())
-            result = it.next().captured(1).trimmed();
-        return result;
-    };
-
-    QString bgStr = extractBg("#editor");
-    if (bgStr.isEmpty())
-        bgStr = extractBg("body");
-
-    QColor bg(QStringLiteral("#ffffff"));
-    if (!bgStr.isEmpty()) {
-        QColor parsed(bgStr);
-        if (parsed.isValid())
-            bg = parsed;
-    }
-
-    return bg;
-}
-
 QString deriveChromeCss(const QString &themeCss)
 {
     auto extractBg = [&](const QString &selector) {
@@ -99,12 +72,13 @@ QString deriveChromeCss(const QString &themeCss)
     }
 
     bool dark = bg.lightness() < 128;
-    QColor track, thumb, hover, selBg, txt, selTxt, dim;
+    QColor track, thumb, hover, sideBg, selBg, txt, selTxt, dim;
     txt = chromeTextColor(themeCss);
     if (dark) {
         track = bg.lighter(160);
         thumb = bg.lighter(220);
         hover = bg.lighter(250);
+        sideBg = bg.lighter(130);
         selBg = hover;
         selTxt = QColor(QStringLiteral("#ffffff"));
         dim = QColor(QStringLiteral("#999999"));
@@ -112,6 +86,7 @@ QString deriveChromeCss(const QString &themeCss)
         track = bg.darker(105);
         thumb = bg.darker(125);
         hover = bg.darker(145);
+        sideBg = bg;
         selBg = hover;
         selTxt = QColor(QStringLiteral("#000000"));
         dim = QColor(QStringLiteral("#777777"));
@@ -142,6 +117,10 @@ QString deriveChromeCss(const QString &themeCss)
         "QMenu::item:selected { background-color: %5; color: %6; }\n"
         "QMenu::separator { background-color: %4; height: 1px; margin: 4px 8px; }\n"
         "#scriba-editor { padding: 0 !important; margin: 0 !important; border: none !important; background-color: %7 !important; color: %8 !important; }\n"
+        "#category-list { background-color: %10; color: %3; border: none; }\n"
+        "#category-list::item { padding: 8px 4px; }\n"
+        "#category-list::item:selected { background-color: %5; color: %6; }\n"
+        "#category-list::item:hover { background-color: %1; }\n"
         "QSplitter::handle { background-color: %4; width: 1px; }\n"
         "QSplitter::handle:hover { background-color: %5; }\n"
         "QScrollBar:vertical { background: %2; width: 12px; }\n"
@@ -168,7 +147,8 @@ QString deriveChromeCss(const QString &themeCss)
         selTxt.name(),  // %6 — selected text color
         bg.name(),       // %7 — editor background
         txtStr.isEmpty() ? txt.name() : txtStr, // %8 — editor text color from theme
-        dim.name()    // %9 — dim text for stats label
+        dim.name(),    // %9 — dim text for stats label
+        sideBg.name()  // %10 — sidebar background
     );
 }
 
