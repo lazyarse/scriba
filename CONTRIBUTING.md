@@ -95,4 +95,4 @@ The full patching plan (Option A: binary patch, Option B: LD_PRELOAD, Option C: 
 
 ## Testing
 
-Test suites set `QCoreApplication::setOrganizationName("ScribaTest")` / `setApplicationName("ScribaTest")` so their QSettings data (and default CSS files written by `CssLoader`) land in `~/.config/ScribaTest/` instead of the real app's `~/.config/Scriba/`. This keeps test config isolated from the user's config.
+Test suites set `QCoreApplication::setOrganizationName("scribaTest")` / `setApplicationName("scribaTest")` so their QSettings data (and default CSS files written by `CssLoader`) land in `~/.config/scribaTest/scribaTest/` instead of the real app's `~/.config/scriba/scriba/`. This keeps test config isolated from the user's config.

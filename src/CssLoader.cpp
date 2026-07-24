@@ -11,7 +11,7 @@ CssLoader::CssLoader(const CssConfig *config)
 
 QString CssLoader::configDir() const
 {
-    return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/scriba";
 }
 
 QString CssLoader::loadOrFallback(const QString &path, const QString &fallback) const

@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
     }
 
     app.setStyle(QStyleFactory::create("Fusion"));
-    app.setApplicationName("Scriba");
-    app.setOrganizationName("Scriba");
+    app.setOrganizationName("scriba");
+    app.setApplicationName("scriba");
     app.setApplicationVersion("1.0.0");
     app.setWindowIcon(QIcon(":/icons/scriba.svg"));
 
