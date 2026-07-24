@@ -12,6 +12,7 @@
         <file>icons/fullscreen.svg</file>
         <file>icons/preview.svg</file>
         <file>icons/scriba.svg</file>
+        <file>shortcuts.html</file>
         <file>katex.min.js</file>
         <file>katex.min.css</file>
         <file>contrib/auto-render.min.js</file>

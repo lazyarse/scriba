@@ -3,7 +3,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A configurable, no-nonsense, split-screen, off-line Markdown editor with a *pretentious* Latin name**. With a restricted feature-set: useful; no bloat, it's designed to *actually* do what it should without plugins.
+**A configurable, no-nonsense, split-screen, off-line Markdown editor with a *pretentious* Latin name**. An opinionated restricted feature-set: useful; no bloat, it's designed to *actually* do what it should without plugin hell.
 
 <br />
 <div align="center">
@@ -24,7 +24,7 @@
 ![](docs/images/screenshot.png#700x)
 
 ![](docs/images/autocomplete-demo.gif#700x)
-<br/><em>I want it known that this took way longer than expected to script.</em>
+<br/><em>I want it known this took way longer than expected to script.</em>
 
 </div>
 
@@ -36,10 +36,10 @@
 - Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, on its own, or hidden
 - CSS-based theming: editor, preview, and chrome all styled from one file. Also included: sample themes for you to moan about. (Fair warning: Qt can't style application or dialog titlebars different to the system theme)
 - PDF export with print-specific CSS stylesheets
-- Find with regex search
-- A shocking 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers like you
+- Find and replace with regex search, highlighting, 
 - The usual <kbd>Ctrl</kbd>+<kbd>X</kbd>,<kbd>Ctrl</kbd>+<kbd>C</kbd>,<kbd>Ctrl</kbd>+<kbd>V</kbd>,<kbd>Ctrl</kbd>+<kbd>Z</kbd> <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>,<kbd>Ctrl</kbd>+<kbd>A</kbd> do what you'd expect.
-- 
+- A shocking 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers like you
+
 ### Standing on the shoulders of giants:
 
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
@@ -69,27 +69,47 @@
 
 ## Shortcuts for All Features
 
+### Scriba
+
+| Shortcut | Action |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Scriba Preferences |
+| <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Quit |
+| <kbd>Ctrl</kbd>+<kbd>B</kbd> | Toggle Preview Pane Layout |
+| <kbd>F11</kbd> / ![fullscreen icon](resources/icons/fullscreen.svg) | Toggle Fullscreen |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | Show Debug Log |
+
+### Files
+
 | Shortcut | Action |
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>N</kbd> | New |
 | <kbd>Ctrl</kbd>+<kbd>O</kbd> | Open |
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Save |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Save As |
-| <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reload |
+| <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reload `.md` |
 | <kbd>Ctrl</kbd>+<kbd>P</kbd> | Export PDF |
-| <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find |
+
+### `.md` Creation
+
+| Shortcut | Action |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find / Replace |
+| <kbd>F3</kbd> | Next Search Result |
+| <kbd>Shift</kbd>+<kbd>F3</kbd> | Previous Search Result|
 | <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite Chart Builder |
-| <kbd>Ctrl</kbd>+<kbd>B</kbd> | Toggle Preview Pane Layout |
+| <kbd>Ctrl</kbd>+<kbd>D</kbd> | Duplicate line |
+
+### Helpers
+
+| Shortcut | Action |
+|---|---|
 | <kbd>Ctrl</kbd>+<kbd>E</kbd> | Emoji Search :eyes: :mag: |
 | <kbd>Ctrl</kbd>+<kbd>T</kbd> | Table Generator |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Preferences |
-| <kbd>Ctrl</kbd>+<kbd>D</kbd> | Duplicate line |
-| <kbd>F11</kbd> | Toggle Fullscreen |
-| <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Quit |
 
 ## Custom CSS / Themes
 
-See [themes.md](themes.md) for how to write themes, customize admonition icons, and understand the selector structure.
+See [docs/themes.md](docs/themes.md) for how to write themes, customize admonition icons, and understand the selector structure.
 
 ## Security
 
