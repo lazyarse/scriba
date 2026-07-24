@@ -291,7 +291,54 @@ TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {
     EXPECT_GT(scrollY, 0);
 }
 
-/* ========== Test D: togglePreview without initialized preview ========== */
+/* ========== Test E: Image insertion scroll sync ========== */
+
+TEST_F(ScrollSyncIntegrationTest, ImageInsertScrollSyncsPreview) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+
+    // Scroll editor to top so we can detect movement
+    window->editor()->verticalScrollBar()->setValue(0);
+    QApplication::processEvents();
+
+    // Position cursor at line 150 so the image is inserted off-screen
+    QTextCursor cursor(window->editor()->document());
+    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, 150);
+    window->editor()->setTextCursor(cursor);
+    QApplication::processEvents();
+
+    // Insert image markdown (non-existent file triggers onerror immediately)
+    window->editor()->textCursor().insertText("![](/nonexistent/image.png)");
+    QApplication::processEvents();
+
+    // Wait for the 80ms deferred timer + preview update + image loading
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    QTest::qWait(300);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i) {
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    }
+    while (!loaded) {
+        if (!loadSpy.wait(1000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    ASSERT_TRUE(loaded);
+
+    // Allow image onerror + promise resolution + syncPreviewScroll to execute
+    QTest::qWait(2000);
+
+    // Verify preview scrolled down to show the image
+    double scrollY = 0;
+    window->preview()->page()->runJavaScript(
+        "document.body ? Math.round(window.scrollY) : 0",
+        [&](const QVariant &r) { scrollY = r.toDouble(); });
+    QTest::qWait(2000);
+    EXPECT_GT(scrollY, 0);
+}
+
+/* ========== Test F: togglePreview without initialized preview ========== */
 
 class TogglePreviewTest : public testing::Test {
 protected:
