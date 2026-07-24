@@ -3,56 +3,98 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
-#include <QDialogButtonBox>
-#include <QIcon>
+#include <QCloseEvent>
 
 FindDialog::FindDialog(QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle("Find");
-    setFixedSize(320, 150);
+    setWindowTitle("Find & Replace");
+    setFixedSize(480, 200);
+    setAttribute(Qt::WA_DeleteOnClose, false);
 
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    auto *layout = new QVBoxLayout(this);
 
-    QHBoxLayout *inputLayout = new QHBoxLayout();
-    inputLayout->addWidget(new QLabel("Find:"));
+    auto *findRow = new QHBoxLayout();
+    findRow->addWidget(new QLabel("Find:"));
     m_searchInput = new QLineEdit();
     m_searchInput->setPlaceholderText("Search text...");
-    inputLayout->addWidget(m_searchInput);
-    layout->addLayout(inputLayout);
+    findRow->addWidget(m_searchInput);
+    auto *findPrevBtn = new QPushButton("< Prev");
+    auto *findNextBtn = new QPushButton("Next >");
+    findPrevBtn->setIcon(QIcon());
+    findNextBtn->setIcon(QIcon());
+    findRow->addWidget(findPrevBtn);
+    findRow->addWidget(findNextBtn);
+    layout->addLayout(findRow);
 
-    QHBoxLayout *checkLayout = new QHBoxLayout();
+    auto *replaceRow = new QHBoxLayout();
+    replaceRow->addWidget(new QLabel("Rplc:"));
+    m_replaceInput = new QLineEdit();
+    m_replaceInput->setPlaceholderText("Replace with...");
+    replaceRow->addWidget(m_replaceInput);
+    auto *replaceBtn = new QPushButton("Replace");
+    auto *replaceAllBtn = new QPushButton("Replace All");
+    replaceBtn->setIcon(QIcon());
+    replaceAllBtn->setIcon(QIcon());
+    replaceRow->addWidget(replaceBtn);
+    replaceRow->addWidget(replaceAllBtn);
+    layout->addLayout(replaceRow);
+
+    auto *checkRow = new QHBoxLayout();
     m_regexCheck = new QCheckBox("Regex");
     m_regexCheck->setChecked(false);
-    checkLayout->addWidget(m_regexCheck);
+    checkRow->addWidget(m_regexCheck);
     m_caseCheck = new QCheckBox("Case sensitive");
     m_caseCheck->setChecked(false);
-    checkLayout->addWidget(m_caseCheck);
-    layout->addLayout(checkLayout);
+    checkRow->addWidget(m_caseCheck);
+    checkRow->addStretch();
+    layout->addLayout(checkRow);
 
-    QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttons->button(QDialogButtonBox::Ok)->setText("Find");
-    for (auto *btn : buttons->buttons())
-        btn->setIcon(QIcon());
-    layout->addWidget(buttons);
+    connect(findNextBtn, &QPushButton::clicked, this, &FindDialog::emitFindNext);
+    connect(findPrevBtn, &QPushButton::clicked, this, &FindDialog::emitFindPrev);
+    connect(replaceBtn, &QPushButton::clicked, this, &FindDialog::emitReplace);
+    connect(replaceAllBtn, &QPushButton::clicked, this, &FindDialog::emitReplaceAll);
 
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(m_searchInput, &QLineEdit::returnPressed, this, &FindDialog::emitFindNext);
+    connect(m_replaceInput, &QLineEdit::returnPressed, this, &FindDialog::emitReplace);
 
     m_searchInput->setFocus();
 }
 
-QString FindDialog::searchTerm() const
+void FindDialog::closeEvent(QCloseEvent *event)
 {
-    return m_searchInput->text();
+    hide();
+    event->ignore();
 }
 
-bool FindDialog::regexEnabled() const
+QString FindDialog::searchTerm() const { return m_searchInput->text(); }
+QString FindDialog::replaceTerm() const { return m_replaceInput->text(); }
+bool FindDialog::regexEnabled() const { return m_regexCheck->isChecked(); }
+bool FindDialog::caseSensitive() const { return m_caseCheck->isChecked(); }
+
+void FindDialog::focusSearchInput() { m_searchInput->setFocus(); }
+void FindDialog::focusReplaceInput() { m_replaceInput->setFocus(); }
+
+void FindDialog::emitFindNext()
 {
-    return m_regexCheck->isChecked();
+    if (!m_searchInput->text().isEmpty())
+        emit findNextRequested(m_searchInput->text(), m_regexCheck->isChecked(), m_caseCheck->isChecked());
 }
 
-bool FindDialog::caseSensitive() const
+void FindDialog::emitFindPrev()
 {
-    return m_caseCheck->isChecked();
+    if (!m_searchInput->text().isEmpty())
+        emit findPrevRequested(m_searchInput->text(), m_regexCheck->isChecked(), m_caseCheck->isChecked());
+}
+
+void FindDialog::emitReplace()
+{
+    if (!m_searchInput->text().isEmpty())
+        emit replaceRequested(m_searchInput->text(), m_replaceInput->text(), m_regexCheck->isChecked(), m_caseCheck->isChecked());
+}
+
+void FindDialog::emitReplaceAll()
+{
+    if (!m_searchInput->text().isEmpty())
+        emit replaceAllRequested(m_searchInput->text(), m_replaceInput->text(), m_regexCheck->isChecked(), m_caseCheck->isChecked());
 }

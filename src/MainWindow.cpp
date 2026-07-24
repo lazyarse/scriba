@@ -278,10 +278,29 @@ void MainWindow::setupMenuBar()
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, this, &QWidget::close);
 
-    QAction *findAction = new QAction("&Find", this);
+    QMenu *editMenu = menuBar()->addMenu("&Edit");
+
+    QAction *findAction = editMenu->addAction("&Find...");
     findAction->setShortcut(QKeySequence::Find);
-    connect(findAction, &QAction::triggered, this, &MainWindow::showFindDialog);
-    addAction(findAction);
+    connect(findAction, &QAction::triggered, this, &MainWindow::toggleFindDialog);
+
+    QAction *findNextAction = editMenu->addAction("Find &Next");
+    findNextAction->setShortcut(QKeySequence(Qt::Key_F3));
+    connect(findNextAction, &QAction::triggered, this, &MainWindow::onFindNext);
+
+    QAction *findPrevAction = editMenu->addAction("Find &Previous");
+    findPrevAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_F3));
+    connect(findPrevAction, &QAction::triggered, this, &MainWindow::onFindPrev);
+
+    editMenu->addSeparator();
+
+    QAction *replaceAction = editMenu->addAction("&Replace...");
+    replaceAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_H));
+    connect(replaceAction, &QAction::triggered, this, [this]() {
+        toggleFindDialog();
+        if (m_findDialog)
+            m_findDialog->focusReplaceInput();
+    });
 
     QAction *fullscreenAction = new QAction("Toggle &Fullscreen", this);
     fullscreenAction->setShortcut(QKeySequence(Qt::Key_F11));
@@ -630,22 +649,155 @@ void MainWindow::showLogWindow()
     m_logWindow->activateWindow();
 }
 
-void MainWindow::showFindDialog()
+void MainWindow::toggleFindDialog()
 {
-    FindDialog dlg(m_editor);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString term = dlg.searchTerm();
-        if (term.isEmpty()) return;
-
-        QTextDocument::FindFlags flags;
-        if (dlg.caseSensitive())
-            flags |= QTextDocument::FindCaseSensitively;
-
-        if (dlg.regexEnabled())
-            m_editor->find(QRegularExpression(term), flags);
-        else
-            m_editor->find(term, flags);
+    if (!m_findDialog) {
+        m_findDialog = new FindDialog(this);
+        connect(m_findDialog, &FindDialog::findNextRequested, this, [this](const QString &text, bool useRegex, bool caseSensitive) {
+            findText(text, false, useRegex, caseSensitive);
+        });
+        connect(m_findDialog, &FindDialog::findPrevRequested, this, [this](const QString &text, bool useRegex, bool caseSensitive) {
+            findText(text, true, useRegex, caseSensitive);
+        });
+        connect(m_findDialog, &FindDialog::replaceRequested, this, &MainWindow::onReplace);
+        connect(m_findDialog, &FindDialog::replaceAllRequested, this, &MainWindow::onReplaceAll);
     }
+    m_findDialog->show();
+    m_findDialog->raise();
+    m_findDialog->activateWindow();
+    m_findDialog->focusSearchInput();
+}
+
+void MainWindow::onFindNext()
+{
+    if (!m_findDialog) {
+        toggleFindDialog();
+        return;
+    }
+    QString text = m_findDialog->searchTerm();
+    if (text.isEmpty()) {
+        toggleFindDialog();
+        return;
+    }
+    findText(text, false, m_findDialog->regexEnabled(), m_findDialog->caseSensitive());
+}
+
+void MainWindow::onFindPrev()
+{
+    if (!m_findDialog) {
+        toggleFindDialog();
+        return;
+    }
+    QString text = m_findDialog->searchTerm();
+    if (text.isEmpty()) {
+        toggleFindDialog();
+        return;
+    }
+    findText(text, true, m_findDialog->regexEnabled(), m_findDialog->caseSensitive());
+}
+
+bool MainWindow::findText(const QString &text, bool backward, bool useRegex, bool caseSensitive)
+{
+    if (text.isEmpty()) return false;
+
+    QTextDocument::FindFlags flags;
+    if (caseSensitive)
+        flags |= QTextDocument::FindCaseSensitively;
+    if (backward)
+        flags |= QTextDocument::FindBackward;
+
+    bool found;
+    if (useRegex)
+        found = m_editor->find(QRegularExpression(text), flags);
+    else
+        found = m_editor->find(text, flags);
+
+    if (!found) {
+        QTextCursor c = m_editor->textCursor();
+        c.movePosition(backward ? QTextCursor::End : QTextCursor::Start);
+        m_editor->setTextCursor(c);
+
+        if (useRegex)
+            found = m_editor->find(QRegularExpression(text), flags);
+        else
+            found = m_editor->find(text, flags);
+
+        if (found)
+            statusBar()->showMessage("Search wrapped around", 3000);
+    }
+
+    if (!found)
+        statusBar()->showMessage("No matches found", 3000);
+
+    return found;
+}
+
+void MainWindow::onReplace(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive)
+{
+    if (search.isEmpty()) return;
+
+    QTextCursor cursor = m_editor->textCursor();
+    if (cursor.hasSelection()) {
+        QString sel = cursor.selectedText();
+        bool matches = false;
+        if (useRegex) {
+            auto opts = caseSensitive ? QRegularExpression::NoPatternOption
+                                       : QRegularExpression::CaseInsensitiveOption;
+            matches = QRegularExpression(search, opts).match(sel).hasMatch();
+        } else {
+            matches = (sel == search);
+        }
+        if (matches) {
+            cursor.insertText(replacement);
+            findText(search, false, useRegex, caseSensitive);
+            return;
+        }
+    }
+    findText(search, false, useRegex, caseSensitive);
+}
+
+void MainWindow::onReplaceAll(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive)
+{
+    if (search.isEmpty()) return;
+
+    QTextDocument *doc = m_editor->document();
+    QTextCursor cursor(doc);
+    cursor.movePosition(QTextCursor::Start);
+
+    QTextDocument::FindFlags flags;
+    if (caseSensitive)
+        flags |= QTextDocument::FindCaseSensitively;
+
+    int count = 0;
+    cursor.beginEditBlock();
+
+    if (useRegex) {
+        auto opts = caseSensitive ? QRegularExpression::NoPatternOption
+                                   : QRegularExpression::CaseInsensitiveOption;
+        QRegularExpression regex(search, opts);
+        while (true) {
+            QTextCursor match = doc->find(regex, cursor, flags);
+            if (match.isNull()) break;
+            match.insertText(replacement);
+            count++;
+            cursor = match;
+        }
+    } else {
+        while (true) {
+            QTextCursor match = doc->find(search, cursor, flags);
+            if (match.isNull()) break;
+            match.insertText(replacement);
+            count++;
+            cursor = match;
+        }
+    }
+
+    cursor.endEditBlock();
+
+    if (count > 0)
+        statusBar()->showMessage(QString("Replaced %1 occurrence%2").arg(count).arg(count == 1 ? "" : "s"), 5000);
+    else
+        statusBar()->showMessage("No matches found", 3000);
 }
 
 void MainWindow::syncCssWatcher()

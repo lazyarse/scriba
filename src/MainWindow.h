@@ -7,6 +7,7 @@
 #include <QToolButton>
 #include <QLabel>
 #include <QTimer>
+#include <QTextDocument>
 
 class Editor;
 class Preview;
@@ -16,6 +17,7 @@ class CssLoader;
 class VegaLiteDialog;
 class TableDialog;
 class LogWindow;
+class FindDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -31,7 +33,6 @@ public:
 private slots:
     void updatePreview();
     void showPreferences();
-    void showFindDialog();
     void onCssFileChanged();
     void onEditorScroll();
     void toggleFullscreen();
@@ -39,6 +40,12 @@ private slots:
     void updateStats();
     void showChartBuilder();
     void showLogWindow();
+
+    void toggleFindDialog();
+    void onFindNext();
+    void onFindPrev();
+    void onReplace(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive);
+    void onReplaceAll(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive);
 
 public:
     void autoSave();
@@ -54,6 +61,8 @@ private:
     void refreshPreviewCss();
     void applyStripeSetting();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);
+    bool findText(const QString &text, bool backward, bool useRegex, bool caseSensitive);
+
     QSplitter *m_splitter;
     Editor *m_editor;
     Preview *m_preview;
@@ -73,6 +82,7 @@ private:
     LogWindow *m_logWindow = nullptr;
     QTimer *m_autoSaveTimer = nullptr;
     int m_previewState = 1;
+    FindDialog *m_findDialog = nullptr;
 
 protected:
     void closeEvent(QCloseEvent *event) override;
