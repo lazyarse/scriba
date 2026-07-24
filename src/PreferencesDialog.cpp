@@ -82,6 +82,28 @@ void PreferencesDialog::setupUi()
 
         layout->addWidget(generalGroup);
 
+        QGroupBox *singleViewGroup = new QGroupBox("Single View");
+        QVBoxLayout *singleViewLayout = new QVBoxLayout(singleViewGroup);
+        singleViewLayout->addSpacing(8);
+
+        m_centreSingleViewCheck = new QCheckBox("Centre editor/preview content on single view");
+        m_centreSingleViewCheck->setChecked(settings.value(Preferences::CentreSingleViewContent, true).toBool());
+        singleViewLayout->addWidget(m_centreSingleViewCheck);
+
+        QHBoxLayout *widthRow = new QHBoxLayout();
+        widthRow->addWidget(new QLabel("Content width:"));
+        m_centreSingleViewWidthSpin = new QSpinBox();
+        m_centreSingleViewWidthSpin->setRange(400, 2000);
+        m_centreSingleViewWidthSpin->setSuffix(" px");
+        m_centreSingleViewWidthSpin->setValue(settings.value(Preferences::CentreSingleViewWidth, 800).toInt());
+        m_centreSingleViewWidthSpin->setEnabled(m_centreSingleViewCheck->isChecked());
+        connect(m_centreSingleViewCheck, &QCheckBox::toggled, m_centreSingleViewWidthSpin, &QSpinBox::setEnabled);
+        widthRow->addWidget(m_centreSingleViewWidthSpin);
+        widthRow->addStretch();
+        singleViewLayout->addLayout(widthRow);
+
+        layout->addWidget(singleViewGroup);
+
         QGroupBox *autoSaveGroup = new QGroupBox("Auto Save");
         QVBoxLayout *autoSaveLayout = new QVBoxLayout(autoSaveGroup);
         autoSaveLayout->addSpacing(8);
@@ -249,6 +271,8 @@ void PreferencesDialog::setupUi()
         settings.setValue(Preferences::EmojiMode,
     Preferences::emojiRenderingToString(m_emojiBw->isChecked() ? Preferences::EmojiRendering::Bw : Preferences::EmojiRendering::Color));
         settings.setValue(Preferences::EmojiAutoComplete, m_emojiAutoCompleteCheck->isChecked());
+        settings.setValue(Preferences::CentreSingleViewContent, m_centreSingleViewCheck->isChecked());
+        settings.setValue(Preferences::CentreSingleViewWidth, m_centreSingleViewWidthSpin->value());
         settings.setValue(Preferences::AutoSaveOnExit, m_autoSaveExitCheck->isChecked());
         int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
         settings.setValue(Preferences::AutoSaveInterval, interval);

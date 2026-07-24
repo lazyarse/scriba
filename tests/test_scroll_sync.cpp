@@ -153,7 +153,6 @@ protected:
         QSettings settings;
         settings.remove(Preferences::LastOpenedFile);
         settings.setValue(Preferences::ReopenLastFile, false);
-        settings.setValue(Preferences::FirstRun, false);
 
         tmpFile = new QTemporaryFile();
         ASSERT_TRUE(tmpFile->open());
@@ -290,6 +289,42 @@ TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {
         [&](const QVariant &r) { scrollY = r.toDouble(); });
     QTest::qWait(2000);
     EXPECT_GT(scrollY, 0);
+}
+
+/* ========== Test D: togglePreview without initialized preview ========== */
+
+class TogglePreviewTest : public testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        if (!QCoreApplication::instance())
+            new QApplication(s_argc, s_argv);
+    }
+
+    void SetUp() override {
+        QSettings settings;
+        settings.remove(Preferences::LastOpenedFile);
+        settings.setValue(Preferences::ReopenLastFile, false);
+        settings.setValue(Preferences::PreviewState, 1);
+    }
+
+    void TearDown() override {
+        delete window;
+    }
+
+    MainWindow *window = nullptr;
+};
+
+TEST_F(TogglePreviewTest, CycleThroughAllStatesWithoutCrash) {
+    window = new MainWindow();
+    window->show();
+    QApplication::processEvents();
+
+    // Preview is not yet initialized (no file loaded)
+    // Cycle through all 4 states via Ctrl+B — must not crash
+    for (int i = 0; i < 4; ++i) {
+        QTest::keyClick(window, Qt::Key_B, Qt::ControlModifier);
+        QApplication::processEvents();
+    }
 }
 
 int main(int argc, char **argv) {
