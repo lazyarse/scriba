@@ -55,6 +55,36 @@ scriba/
     └── md4c/                   — Markdown parser library (MIT, gitignored)
 ```
 
+## Documentation Assets
+
+### Screenshot
+
+After adding a new menu item or any significant UI change, update `docs/images/screenshot.png`:
+
+```bash
+bash scripts/update-screenshot.sh
+```
+
+This launches `build/scriba` under `xvfb-run`, loads `resources/sample.md`, waits 3s, then captures the window with `import` (ImageMagick).
+
+### Autocomplete Demo GIF
+
+After changing autocomplete behavior, update `docs/images/autocomplete-demo.gif`:
+
+```bash
+python3 scripts/create-autocomplete-demo.py
+```
+
+The script auto-wraps in `xvfb-run`. It simulates keystrokes via `xdotool`, captures frames with `mss` (Python), and assembles the GIF.
+
+**Dependencies:**
+```
+sudo apt install xvfb xdotool
+pip install Pillow mss
+```
+
+Both scripts expect a pre-built binary at `build/scriba`.
+
 ## PDF Printing: Qt Binary Patch Required
 
 ### The Problem
