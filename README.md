@@ -97,7 +97,7 @@
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find / Replace |
 | <kbd>F3</kbd> | Next Search Result |
 | <kbd>Shift</kbd>+<kbd>F3</kbd> | Previous Search Result|
-| <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite Chart Builder |
+| <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite Charts |
 | <kbd>Ctrl</kbd>+<kbd>D</kbd> | Duplicate line |
 
 ### Helpers

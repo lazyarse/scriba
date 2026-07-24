@@ -319,11 +319,11 @@ void MainWindow::setupMenuBar()
 
     QMenu *toolsMenu = menuBar()->addMenu("&Tools");
 
-    QAction *chartAction = toolsMenu->addAction("Chart &Builder");
+    QAction *chartAction = toolsMenu->addAction("Vega-Lite &Charts");
     chartAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
     connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
 
-    QMenu *mermaidMenu = toolsMenu->addMenu("&Mermaid");
+    QMenu *mermaidMenu = toolsMenu->addMenu("Mermaid &Charts");
     QAction *pieAction = mermaidMenu->addAction("&Pie Chart...");
     connect(pieAction, &QAction::triggered, this, &MainWindow::showMermaidPie);
     QAction *flowchartAction = mermaidMenu->addAction("&Flowchart...");
