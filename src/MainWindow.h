@@ -18,6 +18,18 @@ class VegaLiteDialog;
 class TableDialog;
 class LogWindow;
 class FindDialog;
+class MermaidPieDialog;
+class MermaidFlowchartDialog;
+class MermaidSequenceDialog;
+class MermaidGanttDialog;
+class MermaidClassDialog;
+class MermaidErDialog;
+class MermaidStateDialog;
+class MermaidMindmapDialog;
+class MermaidTimelineDialog;
+class MermaidJourneyDialog;
+class MermaidQuadrantDialog;
+class MermaidSankeyDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -40,6 +52,18 @@ private slots:
     void updateStats();
     void showChartBuilder();
     void showLogWindow();
+    void showMermaidPie();
+    void showMermaidFlowchart();
+    void showMermaidSequence();
+    void showMermaidGantt();
+    void showMermaidClass();
+    void showMermaidEr();
+    void showMermaidState();
+    void showMermaidMindmap();
+    void showMermaidTimeline();
+    void showMermaidJourney();
+    void showMermaidQuadrant();
+    void showMermaidSankey();
 
     void onFindNext();
     void onFindPrev();
