@@ -4,5 +4,6 @@ Name=Scriba
 Comment=Qt6-based Markdown editor
 Exec=scriba
 Icon=scriba
+MimeType=text/markdown;text/x-markdown;
 Categories=Office;TextEditor;
 Terminal=false
