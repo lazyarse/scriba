@@ -15,6 +15,9 @@
 #include "EmojiDialog.h"
 #include "LogWindow.h"
 
+#include <QVBoxLayout>
+#include <QTextBrowser>
+#include <QDialogButtonBox>
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -327,6 +330,26 @@ void MainWindow::setupMenuBar()
     QAction *logAction = toolsMenu->addAction("&Debug Log");
     logAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
     connect(logAction, &QAction::triggered, this, &MainWindow::showLogWindow);
+
+    QMenu *helpMenu = menuBar()->addMenu("&Help");
+    QAction *shortcutsAction = helpMenu->addAction("&Keyboard Shortcuts...");
+    connect(shortcutsAction, &QAction::triggered, this, [this]() {
+        QDialog dlg(this);
+        dlg.setWindowTitle("Keyboard Shortcuts");
+        dlg.resize(520, 420);
+        auto *layout = new QVBoxLayout(&dlg);
+        auto *browser = new QTextBrowser();
+        browser->setReadOnly(true);
+        QFile f(":/shortcuts.html");
+        if (f.open(QIODevice::ReadOnly))
+            browser->setHtml(f.readAll());
+        layout->addWidget(browser);
+        auto *btnBox = new QDialogButtonBox(QDialogButtonBox::Close);
+        for (auto *btn : btnBox->buttons()) btn->setIcon(QIcon());
+        connect(btnBox, &QDialogButtonBox::rejected, &dlg, &QDialog::close);
+        layout->addWidget(btnBox);
+        dlg.exec();
+    });
 }
 
 void MainWindow::refreshPreviewCss()
