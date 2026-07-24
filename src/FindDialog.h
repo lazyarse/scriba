@@ -5,6 +5,7 @@
 #include <QLineEdit>
 #include <QCheckBox>
 #include <QPushButton>
+#include <QLabel>
 #include <QTextDocument>
 
 class FindDialog : public QDialog
@@ -22,9 +23,12 @@ public:
     void focusSearchInput();
     void focusReplaceInput();
 
+    void setMatchCount(int count);
+
 signals:
     void findNextRequested(const QString &text, bool useRegex, bool caseSensitive);
     void findPrevRequested(const QString &text, bool useRegex, bool caseSensitive);
+    void searchTextChanged(const QString &text, bool useRegex, bool caseSensitive);
     void replaceRequested(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive);
     void replaceAllRequested(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive);
 
@@ -42,6 +46,7 @@ private:
     QLineEdit *m_replaceInput;
     QCheckBox *m_regexCheck;
     QCheckBox *m_caseCheck;
+    QLabel *m_matchCountLabel;
 };
 
 #endif

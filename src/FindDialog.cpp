@@ -46,6 +46,9 @@ FindDialog::FindDialog(QWidget *parent)
     m_caseCheck->setChecked(false);
     checkRow->addWidget(m_caseCheck);
     checkRow->addStretch();
+    m_matchCountLabel = new QLabel();
+    m_matchCountLabel->setStyleSheet("color: gray;");
+    checkRow->addWidget(m_matchCountLabel);
     layout->addLayout(checkRow);
 
     connect(findNextBtn, &QPushButton::clicked, this, &FindDialog::emitFindNext);
@@ -55,6 +58,13 @@ FindDialog::FindDialog(QWidget *parent)
 
     connect(m_searchInput, &QLineEdit::returnPressed, this, &FindDialog::emitFindNext);
     connect(m_replaceInput, &QLineEdit::returnPressed, this, &FindDialog::emitReplace);
+
+    auto emitSearchChanged = [this]() {
+        emit searchTextChanged(m_searchInput->text(), m_regexCheck->isChecked(), m_caseCheck->isChecked());
+    };
+    connect(m_searchInput, &QLineEdit::textChanged, this, emitSearchChanged);
+    connect(m_regexCheck, &QCheckBox::stateChanged, this, emitSearchChanged);
+    connect(m_caseCheck, &QCheckBox::stateChanged, this, emitSearchChanged);
 
     m_searchInput->setFocus();
 }
@@ -95,4 +105,14 @@ void FindDialog::emitReplaceAll()
 {
     if (!m_searchInput->text().isEmpty())
         emit replaceAllRequested(m_searchInput->text(), m_replaceInput->text(), m_regexCheck->isChecked(), m_caseCheck->isChecked());
+}
+
+void FindDialog::setMatchCount(int count)
+{
+    if (count == 0)
+        m_matchCountLabel->setText("No matches");
+    else if (count == 1)
+        m_matchCountLabel->setText("1 match");
+    else
+        m_matchCountLabel->setText(QString("%1 matches").arg(count));
 }

@@ -708,7 +708,17 @@ void MainWindow::toggleFindDialog()
         });
         connect(m_findDialog, &FindDialog::replaceRequested, this, &MainWindow::onReplace);
         connect(m_findDialog, &FindDialog::replaceAllRequested, this, &MainWindow::onReplaceAll);
+        connect(m_findDialog, &FindDialog::searchTextChanged, this, [this](const QString &text, bool useRegex, bool caseSensitive) {
+            int count = countMatches(text, useRegex, caseSensitive);
+            m_findDialog->setMatchCount(count);
+        });
     }
+
+    if (!m_findDialog->searchTerm().isEmpty())
+        m_findDialog->setMatchCount(countMatches(m_findDialog->searchTerm(), m_findDialog->regexEnabled(), m_findDialog->caseSensitive()));
+    else
+        m_findDialog->setMatchCount(0);
+
     m_findDialog->show();
     m_findDialog->raise();
     m_findDialog->activateWindow();
@@ -777,6 +787,42 @@ bool MainWindow::findText(const QString &text, bool backward, bool useRegex, boo
         statusBar()->showMessage("No matches found", 3000);
 
     return found;
+}
+
+int MainWindow::countMatches(const QString &text, bool useRegex, bool caseSensitive) const
+{
+    if (text.isEmpty()) return 0;
+
+    QTextDocument *doc = m_editor->document();
+    QTextCursor cursor(doc);
+    cursor.movePosition(QTextCursor::Start);
+
+    QTextDocument::FindFlags flags;
+    if (caseSensitive)
+        flags |= QTextDocument::FindCaseSensitively;
+
+    int count = 0;
+
+    if (useRegex) {
+        auto opts = caseSensitive ? QRegularExpression::NoPatternOption
+                                   : QRegularExpression::CaseInsensitiveOption;
+        QRegularExpression regex(text, opts);
+        while (true) {
+            QTextCursor match = doc->find(regex, cursor, flags);
+            if (match.isNull()) break;
+            count++;
+            cursor = match;
+        }
+    } else {
+        while (true) {
+            QTextCursor match = doc->find(text, cursor, flags);
+            if (match.isNull()) break;
+            count++;
+            cursor = match;
+        }
+    }
+
+    return count;
 }
 
 void MainWindow::onReplace(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive)
