@@ -3,7 +3,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A configurable, no-nonsense, split-screen, off-line Markdown editor with a *pretentious* Latin name**. An opinionated restricted feature-set: useful; no bloat, it's designed to *actually* do what it should without plugin hell.
+**A configurable, no-nonsense, split-screen, off-line Markdown editor with a *pretentious* Latin name**. An opinionated restricted feature-set: useful; no bloat, and designed to *actually* do what it should without plugin hell.
 
 <br />
 <div align="center">
@@ -21,9 +21,9 @@
 
 <div align="center">
 
-![](docs/images/screenshot.png#700x)
+![](docs/images/screenshot.png)
 
-![](docs/images/autocomplete-demo.gif#700x)
+![](docs/images/autocomplete-demo.gif)
 <br/><em>I want it known this took way longer than expected to script.</em>
 
 </div>
