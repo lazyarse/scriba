@@ -420,8 +420,9 @@ void MainWindow::refreshPreviewCss()
 
     if (needChromeUpdate) {
         m_cachedFullCss = chromeCss;
-        QString paddingCss = applyEditorSettings();
-        m_editor->setStyleSheet(chromeCss + paddingCss);
+        m_editor->setStyleSheet(chromeCss + applyEditorSettings());
+        QSettings s;
+        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
         if (!m_chromeUpdateScheduled) {
             m_chromeUpdateScheduled = true;
             QTimer::singleShot(0, this, [this, chromeCss]() {
@@ -441,20 +442,19 @@ QString MainWindow::applyEditorSettings()
     QString family = settings.value(Preferences::EditorFontFamily,
         "'Consolas', 'Monaco', 'Courier New', monospace").toString();
     int size = settings.value(Preferences::EditorFontSize, 18).toInt();
-    int lineHeight = settings.value(Preferences::EditorLineHeight, 240).toInt();
     int padding = settings.value(Preferences::EditorPadding, 12).toInt();
 
-    applyEditorSettings(family, size, lineHeight, padding);
-    return QString("#scriba-editor { padding: %1px; }").arg(padding);
+    return applyEditorSettings(family, size, padding);
 }
 
-void MainWindow::applyEditorSettings(const QString &fontFamily, int fontSize, int lineHeight, int padding)
+QString MainWindow::applyEditorSettings(const QString &fontFamily, int fontSize, int padding)
 {
-    QFont font;
-    font.setFamily(firstFontFamily(fontFamily));
-    font.setPointSize(fontSize);
-    m_editor->setFont(font);
+    return QString("#scriba-editor { padding: %1px; font-family: %2; font-size: %3pt; }")
+        .arg(padding).arg(fontFamily).arg(fontSize);
+}
 
+void MainWindow::applyEditorLineHeight(int lineHeight)
+{
     QTextBlockFormat fmt;
     fmt.setLineHeight(lineHeight, QTextBlockFormat::ProportionalHeight);
     QTextCursor cursor(m_editor->document());
@@ -707,16 +707,18 @@ void MainWindow::showPreferences()
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
     connect(&dlg, &PreferencesDialog::editorSettingsChanged, this,
         [this](const QString &f, int s, int lh, int p) {
-            applyEditorSettings(f, s, lh, p);
+            m_editor->setStyleSheet(m_cachedFullCss + applyEditorSettings(f, s, p));
+            applyEditorLineHeight(lh);
         });
     dlg.exec();
     m_editor->setStyleSheet(m_cachedFullCss + applyEditorSettings());
+    QSettings s;
+    applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
     updateAll();
     applyStripeSetting();
     m_previewInitialized = false;
     updatePreview();
 
-    QSettings s;
     int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
     if (interval > 0)
         m_autoSaveTimer->start(interval * 60000);

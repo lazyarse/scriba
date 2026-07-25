@@ -20,6 +20,7 @@ add_executable(scriba
     src/CssUtils.cpp
     src/PreferencesDialog.cpp
     src/CssEditorDialog.cpp
+    src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp
     src/FindDialog.cpp
     src/TableDialog.cpp
@@ -218,7 +219,7 @@ if(BUILD_TESTS)
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
-        src/PreferencesDialog.cpp src/CssEditorDialog.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp
         src/FindDialog.cpp
@@ -246,7 +247,7 @@ if(BUILD_TESTS)
     add_executable(test_auto_save tests/test_auto_save.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
-        src/PreferencesDialog.cpp src/CssEditorDialog.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
@@ -266,7 +267,7 @@ if(BUILD_TESTS)
     add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
-        src/PreferencesDialog.cpp src/CssEditorDialog.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
@@ -290,7 +291,7 @@ if(BUILD_TESTS)
 
     add_executable(test_pdf_export tests/test_pdf_export.cpp
         src/ExportPdfDialog.cpp src/Preview.cpp
-        src/CssConfig.cpp src/CssLoader.cpp src/CssEditorDialog.cpp
+        src/CssConfig.cpp src/CssLoader.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         resources/scriba.qrc)
     target_include_directories(test_pdf_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_pdf_export PRIVATE

@@ -557,7 +557,7 @@ static QString loadResourceCss(const QString &path)
 void ExportPdfDialog::editPrintBaseCss()
 {
     CssEditorDialog dlg("Edit Print Base CSS", m_loader->printBaseCss(),
-        loadResourceCss(":/print-base.css"), this);
+        loadResourceCss(":/print-base.css"), m_loader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         m_loader->setPrintBaseCss(dlg.css());
         onCssModeChanged();
