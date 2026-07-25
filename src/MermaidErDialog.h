@@ -1,23 +1,19 @@
 #pragma once
 
-#include <QDialog>
+#include "MermaidDialogBase.h"
 #include <QMap>
 
 class QTableWidget;
 class QComboBox;
-class QWebEngineView;
-class QTimer;
 
-class MermaidErDialog : public QDialog
+class MermaidErDialog : public MermaidDialogBase
 {
     Q_OBJECT
 
 public:
-    explicit MermaidErDialog(QWidget *parent = nullptr);
-    QString generatedDiagram() const;
+    explicit MermaidErDialog(const QString &themeCss, QWidget *parent = nullptr);
 
 private slots:
-    void updatePreview();
     void updateAttributeTable();
     void refreshRelationCombos();
     void addEntity();
@@ -27,8 +23,10 @@ private slots:
     void addRelation();
     void removeRelation();
 
+protected:
+    QString buildDiagram() const override;
+
 private:
-    void schedulePreviewUpdate();
     void saveCurrentAttributes();
     void loadAttributes(int entityRow);
     void setupDefaultData();
@@ -36,8 +34,6 @@ private:
     QTableWidget *m_entitiesTable;
     QTableWidget *m_attributesTable;
     QTableWidget *m_relationsTable;
-    QWebEngineView *m_preview;
-    QTimer *m_previewTimer;
 
     QMap<int, QList<QMap<QString, QString>>> m_entityAttributes;
     int m_lastEntityRow = -1;

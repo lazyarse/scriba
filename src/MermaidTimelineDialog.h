@@ -1,33 +1,26 @@
 #ifndef MERMAIDTIMELINEDIALOG_H
 #define MERMAIDTIMELINEDIALOG_H
 
-#include <QDialog>
+#include "MermaidDialogBase.h"
 
 class QTableWidget;
-class QWebEngineView;
 class QLineEdit;
-class QTimer;
 
-class MermaidTimelineDialog : public QDialog
+class MermaidTimelineDialog : public MermaidDialogBase
 {
     Q_OBJECT
 
 public:
-    explicit MermaidTimelineDialog(QWidget *parent = nullptr);
-    QString generatedDiagram() const;
+    explicit MermaidTimelineDialog(const QString &themeCss, QWidget *parent = nullptr);
 
-private slots:
-    void schedulePreviewUpdate();
-    void updatePreview();
+protected:
+    QString buildDiagram() const override;
 
 private:
     void setupUi();
-    QString buildDiagram() const;
 
     QLineEdit *m_titleEdit;
     QTableWidget *m_table;
-    QWebEngineView *m_preview;
-    QTimer *m_previewTimer;
 };
 
 #endif

@@ -1,31 +1,24 @@
 #ifndef MERMAIDSANKEYDIALOG_H
 #define MERMAIDSANKEYDIALOG_H
 
-#include <QDialog>
+#include "MermaidDialogBase.h"
 
 class QTableWidget;
-class QWebEngineView;
-class QTimer;
 
-class MermaidSankeyDialog : public QDialog
+class MermaidSankeyDialog : public MermaidDialogBase
 {
     Q_OBJECT
 
 public:
-    explicit MermaidSankeyDialog(QWidget *parent = nullptr);
-    QString generatedDiagram() const;
+    explicit MermaidSankeyDialog(const QString &themeCss, QWidget *parent = nullptr);
 
-private slots:
-    void schedulePreviewUpdate();
-    void updatePreview();
+protected:
+    QString buildDiagram() const override;
 
 private:
     void setupUi();
-    QString buildDiagram() const;
 
     QTableWidget *m_table;
-    QWebEngineView *m_preview;
-    QTimer *m_previewTimer;
 };
 
 #endif

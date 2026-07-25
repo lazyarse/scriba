@@ -14,7 +14,7 @@ protected:
             new QApplication(g_argc, g_argv);
     }
 
-    MermaidFlowchartDialog dlg;
+    MermaidFlowchartDialog dlg{QString(), nullptr};
 };
 
 TEST_F(MermaidFlowchartDialogTest, DefaultDiagramIsNonEmpty)

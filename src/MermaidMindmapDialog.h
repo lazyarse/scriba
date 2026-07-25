@@ -1,32 +1,27 @@
 #pragma once
 
-#include <QDialog>
+#include "MermaidDialogBase.h"
 
 class QTreeWidget;
 class QTreeWidgetItem;
-class QWebEngineView;
-class QTimer;
 
-class MermaidMindmapDialog : public QDialog
+class MermaidMindmapDialog : public MermaidDialogBase
 {
     Q_OBJECT
 
 public:
-    explicit MermaidMindmapDialog(QWidget *parent = nullptr);
-    QString generatedDiagram() const;
+    explicit MermaidMindmapDialog(const QString &themeCss, QWidget *parent = nullptr);
 
 private slots:
-    void updatePreview();
     void addChild();
     void addSibling();
     void deleteNode();
 
+protected:
+    QString buildDiagram() const override;
+
 private:
-    void schedulePreviewUpdate();
-    QString buildDiagram() const;
     QString buildNode(QTreeWidgetItem *item, int depth) const;
 
     QTreeWidget *m_tree;
-    QWebEngineView *m_preview;
-    QTimer *m_previewTimer;
 };

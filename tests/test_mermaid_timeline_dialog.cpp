@@ -13,7 +13,7 @@ protected:
             new QApplication(g_argc, g_argv);
     }
 
-    MermaidTimelineDialog dlg;
+    MermaidTimelineDialog dlg{QString(), nullptr};
 };
 
 TEST_F(MermaidTimelineDialogTest, DefaultDiagramIsNonEmpty) {
