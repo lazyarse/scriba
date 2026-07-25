@@ -56,36 +56,71 @@ void MermaidStateDialog::setupUi()
     leftLayout->addWidget(new QLabel("States:"));
     QHBoxLayout *stateBtnLayout = new QHBoxLayout();
     QPushButton *addStateBtn = new QPushButton("+State", leftPanel);
-    QPushButton *removeStateBtn = new QPushButton("-State", leftPanel);
     stateBtnLayout->addWidget(addStateBtn);
-    stateBtnLayout->addWidget(removeStateBtn);
     stateBtnLayout->addStretch();
     leftLayout->addLayout(stateBtnLayout);
 
-    m_stateTable = new QTableWidget(4, 2, leftPanel);
-    m_stateTable->setHorizontalHeaderLabels({"Name", "Description"});
+    const int stateDelCol = 2;
+    m_stateTable = new QTableWidget(4, 3, leftPanel);
+    m_stateTable->setHorizontalHeaderLabels({"Name", "Description", "Del"});
     m_stateTable->setItem(0, 0, new QTableWidgetItem("[*]"));
     m_stateTable->setItem(1, 0, new QTableWidgetItem("Idle"));
     m_stateTable->setItem(2, 0, new QTableWidgetItem("Processing"));
     m_stateTable->setItem(3, 0, new QTableWidgetItem("Done"));
     m_stateTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_stateTable->horizontalHeader()->setSectionResizeMode(stateDelCol, QHeaderView::Fixed);
+    m_stateTable->setColumnWidth(stateDelCol, 32);
     m_stateTable->verticalHeader()->setDefaultSectionSize(28);
+
+    auto addStateDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_stateTable);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_stateTable->setCellWidget(row, stateDelCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_stateTable->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_stateTable->rowCount() > 1) {
+                m_stateTable->removeRow(row);
+                refreshTransitionCombos();
+                schedulePreviewUpdate();
+            }
+        });
+    };
+    for (int r = 0; r < m_stateTable->rowCount(); ++r)
+        addStateDeleteButton(r);
+
     leftLayout->addWidget(m_stateTable);
 
     leftLayout->addWidget(new QLabel("Transitions:"));
     QHBoxLayout *transBtnLayout = new QHBoxLayout();
     QPushButton *addTransBtn = new QPushButton("+Transition", leftPanel);
-    QPushButton *removeTransBtn = new QPushButton("-Transition", leftPanel);
     transBtnLayout->addWidget(addTransBtn);
-    transBtnLayout->addWidget(removeTransBtn);
     transBtnLayout->addStretch();
     leftLayout->addLayout(transBtnLayout);
 
-    m_transitionTable = new QTableWidget(4, 3, leftPanel);
-    m_transitionTable->setHorizontalHeaderLabels({"From", "To", "Label"});
+    const int transDelCol = 3;
+    m_transitionTable = new QTableWidget(4, 4, leftPanel);
+    m_transitionTable->setHorizontalHeaderLabels({"From", "To", "Label", "Del"});
     m_transitionTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_transitionTable->horizontalHeader()->setSectionResizeMode(transDelCol, QHeaderView::Fixed);
+    m_transitionTable->setColumnWidth(transDelCol, 32);
     m_transitionTable->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_transitionTable);
+
+    auto addTransitionDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_transitionTable);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_transitionTable->setCellWidget(row, transDelCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_transitionTable->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_transitionTable->rowCount() > 1)
+                m_transitionTable->removeRow(row);
+            schedulePreviewUpdate();
+        });
+    };
+    for (int r = 0; r < m_transitionTable->rowCount(); ++r)
+        addTransitionDeleteButton(r);
 
     leftLayout->addStretch();
 
@@ -116,29 +151,19 @@ void MermaidStateDialog::setupUi()
     connect(m_stateTable, &QTableWidget::itemChanged, this, &MermaidStateDialog::onStateChanged);
     connect(m_transitionTable, &QTableWidget::itemChanged, this, &MermaidStateDialog::schedulePreviewUpdate);
 
-    connect(addStateBtn, &QPushButton::clicked, this, [this]() {
-        m_stateTable->insertRow(m_stateTable->rowCount());
+    connect(addStateBtn, &QPushButton::clicked, this, [this, addStateDeleteButton]() {
+        int row = m_stateTable->rowCount();
+        m_stateTable->insertRow(row);
+        addStateDeleteButton(row);
         refreshTransitionCombos();
         schedulePreviewUpdate();
     });
-    connect(removeStateBtn, &QPushButton::clicked, this, [this]() {
-        if (m_stateTable->rowCount() > 1) {
-            m_stateTable->removeRow(m_stateTable->rowCount() - 1);
-            refreshTransitionCombos();
-            schedulePreviewUpdate();
-        }
-    });
-    connect(addTransBtn, &QPushButton::clicked, this, [this]() {
+    connect(addTransBtn, &QPushButton::clicked, this, [this, addTransitionDeleteButton]() {
         int row = m_transitionTable->rowCount();
         m_transitionTable->insertRow(row);
+        addTransitionDeleteButton(row);
         refreshTransitionCombos();
         schedulePreviewUpdate();
-    });
-    connect(removeTransBtn, &QPushButton::clicked, this, [this]() {
-        if (m_transitionTable->rowCount() > 1) {
-            m_transitionTable->removeRow(m_transitionTable->rowCount() - 1);
-            schedulePreviewUpdate();
-        }
     });
 
     refreshTransitionCombos();

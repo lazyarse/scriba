@@ -70,19 +70,20 @@ void MermaidFlowchartDialog::setupUi()
     QVBoxLayout *nodeLayout = new QVBoxLayout(nodeGroup);
     QHBoxLayout *nodeBtnLayout = new QHBoxLayout();
     QPushButton *addNodeBtn = new QPushButton("+Node", nodeGroup);
-    QPushButton *removeNodeBtn = new QPushButton("-Node", nodeGroup);
     nodeBtnLayout->addWidget(addNodeBtn);
-    nodeBtnLayout->addWidget(removeNodeBtn);
     nodeBtnLayout->addStretch();
     nodeLayout->addLayout(nodeBtnLayout);
 
-    m_nodeTable = new QTableWidget(2, 3, nodeGroup);
-    m_nodeTable->setHorizontalHeaderLabels({"ID", "Text", "Shape"});
+    const int nodeDelCol = 3;
+    m_nodeTable = new QTableWidget(2, 4, nodeGroup);
+    m_nodeTable->setHorizontalHeaderLabels({"ID", "Text", "Shape", "Del"});
     m_nodeTable->setItem(0, 0, new QTableWidgetItem("A"));
     m_nodeTable->setItem(0, 1, new QTableWidgetItem("Start"));
     m_nodeTable->setItem(1, 0, new QTableWidgetItem("B"));
     m_nodeTable->setItem(1, 1, new QTableWidgetItem("Process"));
     m_nodeTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_nodeTable->horizontalHeader()->setSectionResizeMode(nodeDelCol, QHeaderView::Fixed);
+    m_nodeTable->setColumnWidth(nodeDelCol, 32);
     m_nodeTable->verticalHeader()->setDefaultSectionSize(28);
 
     QComboBox *shapeCombo0 = new QComboBox(nodeGroup);
@@ -93,6 +94,23 @@ void MermaidFlowchartDialog::setupUi()
     shapeCombo1->setCurrentIndex(1);
     m_nodeTable->setCellWidget(1, 2, shapeCombo1);
 
+    auto addNodeDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_nodeTable);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_nodeTable->setCellWidget(row, nodeDelCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_nodeTable->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_nodeTable->rowCount() > 1) {
+                m_nodeTable->removeRow(row);
+                refreshEdgeNodeCombos();
+                schedulePreviewUpdate();
+            }
+        });
+    };
+    addNodeDeleteButton(0);
+    addNodeDeleteButton(1);
+
     nodeLayout->addWidget(m_nodeTable);
     leftLayout->addWidget(nodeGroup);
 
@@ -100,15 +118,16 @@ void MermaidFlowchartDialog::setupUi()
     QVBoxLayout *edgeLayout = new QVBoxLayout(edgeGroup);
     QHBoxLayout *edgeBtnLayout = new QHBoxLayout();
     QPushButton *addEdgeBtn = new QPushButton("+Edge", edgeGroup);
-    QPushButton *removeEdgeBtn = new QPushButton("-Edge", edgeGroup);
     edgeBtnLayout->addWidget(addEdgeBtn);
-    edgeBtnLayout->addWidget(removeEdgeBtn);
     edgeBtnLayout->addStretch();
     edgeLayout->addLayout(edgeBtnLayout);
 
-    m_edgeTable = new QTableWidget(1, 4, edgeGroup);
-    m_edgeTable->setHorizontalHeaderLabels({"From", "To", "Label", "Arrow"});
+    const int edgeDelCol = 4;
+    m_edgeTable = new QTableWidget(1, 5, edgeGroup);
+    m_edgeTable->setHorizontalHeaderLabels({"From", "To", "Label", "Arrow", "Del"});
     m_edgeTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_edgeTable->horizontalHeader()->setSectionResizeMode(edgeDelCol, QHeaderView::Fixed);
+    m_edgeTable->setColumnWidth(edgeDelCol, 32);
     m_edgeTable->verticalHeader()->setDefaultSectionSize(28);
 
     QStringList nodeIds = {"A", "B"};
@@ -127,6 +146,20 @@ void MermaidFlowchartDialog::setupUi()
     for (int i = 0; i < kArrowCount; ++i)
         arrowCombo->addItem(kArrowTypes[i].display);
     m_edgeTable->setCellWidget(0, 3, arrowCombo);
+
+    auto addEdgeDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_edgeTable);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_edgeTable->setCellWidget(row, edgeDelCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_edgeTable->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_edgeTable->rowCount() > 1)
+                m_edgeTable->removeRow(row);
+            schedulePreviewUpdate();
+        });
+    };
+    addEdgeDeleteButton(0);
 
     edgeLayout->addWidget(m_edgeTable);
     leftLayout->addWidget(edgeGroup);
@@ -170,7 +203,7 @@ void MermaidFlowchartDialog::setupUi()
     connect(toCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, onComboChange);
     connect(arrowCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, onComboChange);
 
-    connect(addNodeBtn, &QPushButton::clicked, this, [this]() {
+    connect(addNodeBtn, &QPushButton::clicked, this, [this, addNodeDeleteButton]() {
         int row = m_nodeTable->rowCount();
         m_nodeTable->insertRow(row);
         QString id = QString(QChar('A' + row));
@@ -181,24 +214,15 @@ void MermaidFlowchartDialog::setupUi()
         connect(shapeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &MermaidFlowchartDialog::schedulePreviewUpdate);
         m_nodeTable->setCellWidget(row, 2, shapeCombo);
+        addNodeDeleteButton(row);
         refreshEdgeNodeCombos();
     });
-    connect(removeNodeBtn, &QPushButton::clicked, this, [this]() {
-        if (m_nodeTable->rowCount() > 1) {
-            m_nodeTable->removeRow(m_nodeTable->rowCount() - 1);
-            refreshEdgeNodeCombos();
-            schedulePreviewUpdate();
-        }
-    });
-    connect(addEdgeBtn, &QPushButton::clicked, this, [this]() {
+    connect(addEdgeBtn, &QPushButton::clicked, this, [this, addEdgeDeleteButton]() {
         int row = m_edgeTable->rowCount();
         m_edgeTable->insertRow(row);
         m_edgeTable->setItem(row, 2, new QTableWidgetItem(""));
+        addEdgeDeleteButton(row);
         refreshEdgeNodeCombos();
-    });
-    connect(removeEdgeBtn, &QPushButton::clicked, this, [this]() {
-        if (m_edgeTable->rowCount() > 1)
-            m_edgeTable->removeRow(m_edgeTable->rowCount() - 1);
     });
 }
 

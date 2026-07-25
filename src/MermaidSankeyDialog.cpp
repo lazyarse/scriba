@@ -41,14 +41,13 @@ void MermaidSankeyDialog::setupUi()
     leftLayout->addWidget(new QLabel("Links (Source, Target, Value):"));
     QHBoxLayout *btnLayout = new QHBoxLayout();
     QPushButton *addBtn = new QPushButton("+Row", leftPanel);
-    QPushButton *removeBtn = new QPushButton("-Row", leftPanel);
     btnLayout->addWidget(addBtn);
-    btnLayout->addWidget(removeBtn);
     btnLayout->addStretch();
     leftLayout->addLayout(btnLayout);
 
-    m_table = new QTableWidget(3, 3, leftPanel);
-    m_table->setHorizontalHeaderLabels({"Source", "Target", "Value"});
+    const int delCol = 3;
+    m_table = new QTableWidget(3, 4, leftPanel);
+    m_table->setHorizontalHeaderLabels({"Source", "Target", "Value", "Del"});
     m_table->setItem(0, 0, new QTableWidgetItem("Revenue"));
     m_table->setItem(0, 1, new QTableWidgetItem("Product Sales"));
     m_table->setItem(0, 2, new QTableWidgetItem("600"));
@@ -59,8 +58,25 @@ void MermaidSankeyDialog::setupUi()
     m_table->setItem(2, 1, new QTableWidgetItem("COGS"));
     m_table->setItem(2, 2, new QTableWidgetItem("250"));
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_table->horizontalHeader()->setSectionResizeMode(delCol, QHeaderView::Fixed);
+    m_table->setColumnWidth(delCol, 32);
     m_table->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_table);
+
+    auto addDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_table);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_table->setCellWidget(row, delCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_table->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_table->rowCount() > 1)
+                m_table->removeRow(row);
+            schedulePreviewUpdate();
+        });
+    };
+    for (int r = 0; r < m_table->rowCount(); ++r)
+        addDeleteButton(r);
 
     leftLayout->addStretch();
 
@@ -89,12 +105,10 @@ void MermaidSankeyDialog::setupUi()
     connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(m_table, &QTableWidget::itemChanged, this, &MermaidSankeyDialog::schedulePreviewUpdate);
-    connect(addBtn, &QPushButton::clicked, this, [this]() {
-        m_table->insertRow(m_table->rowCount());
-    });
-    connect(removeBtn, &QPushButton::clicked, this, [this]() {
-        if (m_table->rowCount() > 1)
-            m_table->removeRow(m_table->rowCount() - 1);
+    connect(addBtn, &QPushButton::clicked, this, [this, addDeleteButton]() {
+        int row = m_table->rowCount();
+        m_table->insertRow(row);
+        addDeleteButton(row);
     });
 }
 

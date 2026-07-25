@@ -57,34 +57,67 @@ void MermaidSequenceDialog::setupUi()
     leftLayout->addWidget(new QLabel("Participants:"));
     QHBoxLayout *participantBtnLayout = new QHBoxLayout();
     QPushButton *addParticipantBtn = new QPushButton("+Participant", leftPanel);
-    QPushButton *removeParticipantBtn = new QPushButton("-Participant", leftPanel);
     participantBtnLayout->addWidget(addParticipantBtn);
-    participantBtnLayout->addWidget(removeParticipantBtn);
     participantBtnLayout->addStretch();
     leftLayout->addLayout(participantBtnLayout);
 
-    m_participantTable = new QTableWidget(2, 2, leftPanel);
-    m_participantTable->setHorizontalHeaderLabels({"Name", "Alias"});
+    const int partDelCol = 2;
+    m_participantTable = new QTableWidget(2, 3, leftPanel);
+    m_participantTable->setHorizontalHeaderLabels({"Name", "Alias", "Del"});
     m_participantTable->setItem(0, 0, new QTableWidgetItem("Alice"));
     m_participantTable->setItem(1, 0, new QTableWidgetItem("Bob"));
     m_participantTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_participantTable->horizontalHeader()->setSectionResizeMode(partDelCol, QHeaderView::Fixed);
+    m_participantTable->setColumnWidth(partDelCol, 32);
     m_participantTable->verticalHeader()->setDefaultSectionSize(28);
+
+    auto addParticipantDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_participantTable);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_participantTable->setCellWidget(row, partDelCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_participantTable->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_participantTable->rowCount() > 1) {
+                m_participantTable->removeRow(row);
+                refreshMessageCombos();
+                schedulePreviewUpdate();
+            }
+        });
+    };
+    addParticipantDeleteButton(0);
+    addParticipantDeleteButton(1);
+
     leftLayout->addWidget(m_participantTable);
 
     leftLayout->addWidget(new QLabel("Messages:"));
     QHBoxLayout *messageBtnLayout = new QHBoxLayout();
     QPushButton *addMessageBtn = new QPushButton("+Message", leftPanel);
-    QPushButton *removeMessageBtn = new QPushButton("-Message", leftPanel);
     messageBtnLayout->addWidget(addMessageBtn);
-    messageBtnLayout->addWidget(removeMessageBtn);
     messageBtnLayout->addStretch();
     leftLayout->addLayout(messageBtnLayout);
 
-    m_messageTable = new QTableWidget(2, 4, leftPanel);
-    m_messageTable->setHorizontalHeaderLabels({"From", "To", "Label", "Arrow"});
+    const int msgDelCol = 4;
+    m_messageTable = new QTableWidget(2, 5, leftPanel);
+    m_messageTable->setHorizontalHeaderLabels({"From", "To", "Label", "Arrow", "Del"});
     m_messageTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_messageTable->horizontalHeader()->setSectionResizeMode(msgDelCol, QHeaderView::Fixed);
+    m_messageTable->setColumnWidth(msgDelCol, 32);
     m_messageTable->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_messageTable);
+
+    auto addMessageDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_messageTable);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_messageTable->setCellWidget(row, msgDelCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_messageTable->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_messageTable->rowCount() > 1)
+                m_messageTable->removeRow(row);
+            schedulePreviewUpdate();
+        });
+    };
 
     leftLayout->addStretch();
 
@@ -117,30 +150,20 @@ void MermaidSequenceDialog::setupUi()
     connect(m_messageTable, &QTableWidget::itemChanged,
             this, &MermaidSequenceDialog::schedulePreviewUpdate);
 
-    connect(addParticipantBtn, &QPushButton::clicked, this, [this]() {
-        m_participantTable->insertRow(m_participantTable->rowCount());
+    connect(addParticipantBtn, &QPushButton::clicked, this, [this, addParticipantDeleteButton]() {
+        int row = m_participantTable->rowCount();
+        m_participantTable->insertRow(row);
+        addParticipantDeleteButton(row);
         refreshMessageCombos();
         schedulePreviewUpdate();
     });
-    connect(removeParticipantBtn, &QPushButton::clicked, this, [this]() {
-        if (m_participantTable->rowCount() > 1) {
-            m_participantTable->removeRow(m_participantTable->rowCount() - 1);
-            refreshMessageCombos();
-            schedulePreviewUpdate();
-        }
-    });
-    connect(addMessageBtn, &QPushButton::clicked, this, [this]() {
+    connect(addMessageBtn, &QPushButton::clicked, this, [this, addMessageDeleteButton]() {
         int row = m_messageTable->rowCount();
         m_messageTable->insertRow(row);
         m_messageTable->setItem(row, 2, new QTableWidgetItem(""));
+        addMessageDeleteButton(row);
         refreshMessageCombos();
         schedulePreviewUpdate();
-    });
-    connect(removeMessageBtn, &QPushButton::clicked, this, [this]() {
-        if (m_messageTable->rowCount() > 1) {
-            m_messageTable->removeRow(m_messageTable->rowCount() - 1);
-            schedulePreviewUpdate();
-        }
     });
 
     refreshMessageCombos();

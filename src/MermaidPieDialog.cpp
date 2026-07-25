@@ -50,21 +50,37 @@ void MermaidPieDialog::setupUi()
     leftLayout->addWidget(new QLabel("Slices:"));
     QHBoxLayout *btnLayout = new QHBoxLayout();
     QPushButton *addBtn = new QPushButton("+Row", leftPanel);
-    QPushButton *removeBtn = new QPushButton("-Row", leftPanel);
     btnLayout->addWidget(addBtn);
-    btnLayout->addWidget(removeBtn);
     btnLayout->addStretch();
     leftLayout->addLayout(btnLayout);
 
-    m_table = new QTableWidget(2, 2, leftPanel);
-    m_table->setHorizontalHeaderLabels({"Label", "Value"});
+    const int delCol = 2;
+    m_table = new QTableWidget(2, 3, leftPanel);
+    m_table->setHorizontalHeaderLabels({"Label", "Value", "Del"});
     m_table->setItem(0, 0, new QTableWidgetItem("Alpha"));
     m_table->setItem(0, 1, new QTableWidgetItem("30"));
     m_table->setItem(1, 0, new QTableWidgetItem("Beta"));
     m_table->setItem(1, 1, new QTableWidgetItem("70"));
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_table->horizontalHeader()->setSectionResizeMode(delCol, QHeaderView::Fixed);
+    m_table->setColumnWidth(delCol, 32);
     m_table->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_table);
+
+    auto addDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_table);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_table->setCellWidget(row, delCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_table->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_table->rowCount() > 1)
+                m_table->removeRow(row);
+            schedulePreviewUpdate();
+        });
+    };
+    addDeleteButton(0);
+    addDeleteButton(1);
 
     leftLayout->addStretch();
 
@@ -95,12 +111,10 @@ void MermaidPieDialog::setupUi()
 
     connect(m_titleEdit, &QLineEdit::textChanged, this, &MermaidPieDialog::schedulePreviewUpdate);
     connect(m_table, &QTableWidget::itemChanged, this, &MermaidPieDialog::schedulePreviewUpdate);
-    connect(addBtn, &QPushButton::clicked, this, [this]() {
-        m_table->insertRow(m_table->rowCount());
-    });
-    connect(removeBtn, &QPushButton::clicked, this, [this]() {
-        if (m_table->rowCount() > 1)
-            m_table->removeRow(m_table->rowCount() - 1);
+    connect(addBtn, &QPushButton::clicked, this, [this, addDeleteButton]() {
+        int row = m_table->rowCount();
+        m_table->insertRow(row);
+        addDeleteButton(row);
     });
 }
 

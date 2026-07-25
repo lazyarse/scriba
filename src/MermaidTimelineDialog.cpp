@@ -47,14 +47,13 @@ void MermaidTimelineDialog::setupUi()
     leftLayout->addWidget(new QLabel("Entries (Section, Event):"));
     QHBoxLayout *btnLayout = new QHBoxLayout();
     QPushButton *addBtn = new QPushButton("+Row", leftPanel);
-    QPushButton *removeBtn = new QPushButton("-Row", leftPanel);
     btnLayout->addWidget(addBtn);
-    btnLayout->addWidget(removeBtn);
     btnLayout->addStretch();
     leftLayout->addLayout(btnLayout);
 
-    m_table = new QTableWidget(3, 2, leftPanel);
-    m_table->setHorizontalHeaderLabels({"Section", "Event"});
+    const int delCol = 2;
+    m_table = new QTableWidget(3, 3, leftPanel);
+    m_table->setHorizontalHeaderLabels({"Section", "Event", "Del"});
     m_table->setItem(0, 0, new QTableWidgetItem("Q1 2026"));
     m_table->setItem(0, 1, new QTableWidgetItem("Launch v1.0"));
     m_table->setItem(1, 0, new QTableWidgetItem("Q2 2026"));
@@ -62,8 +61,25 @@ void MermaidTimelineDialog::setupUi()
     m_table->setItem(2, 0, new QTableWidgetItem("Q2 2026"));
     m_table->setItem(2, 1, new QTableWidgetItem("VS Code extension"));
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_table->horizontalHeader()->setSectionResizeMode(delCol, QHeaderView::Fixed);
+    m_table->setColumnWidth(delCol, 32);
     m_table->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_table);
+
+    auto addDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_table);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_table->setCellWidget(row, delCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_table->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_table->rowCount() > 1)
+                m_table->removeRow(row);
+            schedulePreviewUpdate();
+        });
+    };
+    for (int r = 0; r < m_table->rowCount(); ++r)
+        addDeleteButton(r);
 
     leftLayout->addStretch();
 
@@ -93,12 +109,10 @@ void MermaidTimelineDialog::setupUi()
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(m_titleEdit, &QLineEdit::textChanged, this, &MermaidTimelineDialog::schedulePreviewUpdate);
     connect(m_table, &QTableWidget::itemChanged, this, &MermaidTimelineDialog::schedulePreviewUpdate);
-    connect(addBtn, &QPushButton::clicked, this, [this]() {
-        m_table->insertRow(m_table->rowCount());
-    });
-    connect(removeBtn, &QPushButton::clicked, this, [this]() {
-        if (m_table->rowCount() > 1)
-            m_table->removeRow(m_table->rowCount() - 1);
+    connect(addBtn, &QPushButton::clicked, this, [this, addDeleteButton]() {
+        int row = m_table->rowCount();
+        m_table->insertRow(row);
+        addDeleteButton(row);
     });
 }
 
