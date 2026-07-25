@@ -7,7 +7,6 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QHeaderView>
-#include <QPalette>
 
 MermaidStateDialog::MermaidStateDialog(const QString &themeCss, QWidget *parent)
     : MermaidDialogBase("Mermaid State Diagram", themeCss, parent)
@@ -43,7 +42,7 @@ void MermaidStateDialog::setupUi()
     m_stateTable->verticalHeader()->setDefaultSectionSize(28);
 
     auto addStateDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_stateTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_stateTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_stateTable->setCellWidget(row, stateDelCol, delBtn);
@@ -78,7 +77,7 @@ void MermaidStateDialog::setupUi()
     leftLayout->addWidget(m_transitionTable);
 
     auto addTransitionDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_transitionTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_transitionTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_transitionTable->setCellWidget(row, transDelCol, delBtn);

@@ -7,7 +7,6 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QHeaderView>
-#include <QPalette>
 #include <QTableWidgetItem>
 
 MermaidSequenceDialog::MermaidSequenceDialog(const QString &themeCss, QWidget *parent)
@@ -42,7 +41,7 @@ void MermaidSequenceDialog::setupUi()
     m_participantTable->verticalHeader()->setDefaultSectionSize(28);
 
     auto addParticipantDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_participantTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_participantTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_participantTable->setCellWidget(row, partDelCol, delBtn);
@@ -77,7 +76,7 @@ void MermaidSequenceDialog::setupUi()
     leftLayout->addWidget(m_messageTable);
 
     auto addMessageDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_messageTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_messageTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_messageTable->setCellWidget(row, msgDelCol, delBtn);

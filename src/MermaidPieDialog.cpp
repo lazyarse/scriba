@@ -7,7 +7,6 @@
 #include <QLabel>
 #include <QHeaderView>
 #include <QLineEdit>
-#include <QPalette>
 
 MermaidPieDialog::MermaidPieDialog(const QString &themeCss, QWidget *parent)
     : MermaidDialogBase("Mermaid Pie Chart", themeCss, parent)
@@ -49,7 +48,7 @@ void MermaidPieDialog::setupUi()
     leftLayout->addWidget(m_table);
 
     auto addDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_table);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_table);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_table->setCellWidget(row, delCol, delBtn);

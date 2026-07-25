@@ -7,7 +7,6 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QHeaderView>
-#include <QPalette>
 #include <QLineEdit>
 #include <QCheckBox>
 #include <QTableWidgetItem>
@@ -93,7 +92,7 @@ void MermaidGanttDialog::setupUi()
     };
 
     auto addDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_taskTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_taskTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_taskTable->setCellWidget(row, delCol, delBtn);
