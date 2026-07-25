@@ -140,7 +140,7 @@ QString deriveChromeCss(const QString &themeCss)
         "QMenu { background-color: %2; color: %3; border: 1px solid %4; }\n"
         "QMenu::item:selected { background-color: %5; color: %6; }\n"
         "QMenu::separator { background-color: %4; height: 1px; margin: 4px 8px; }\n"
-        "#scriba-editor { padding: 0 !important; margin: 0 !important; border: none !important; background-color: %7 !important; color: %8 !important; }\n"
+        "#scriba-editor { padding: 0; margin: 0 !important; border: none !important; background-color: %7 !important; color: %8 !important; }\n"
         "#category-list { background-color: %10; color: %3; border: none; }\n"
         "#category-list::item { padding: 8px 4px; }\n"
         "#category-list::item:selected { background-color: %5; color: %6; }\n"
