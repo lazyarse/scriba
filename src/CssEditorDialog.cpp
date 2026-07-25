@@ -1,4 +1,5 @@
 #include "CssEditorDialog.h"
+#include "CssHighlighter.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -6,7 +7,8 @@
 #include <QFont>
 #include <QRegularExpression>
 
-CssEditorDialog::CssEditorDialog(const QString &title, const QString &css, const QString &defaultCss, QWidget *parent)
+CssEditorDialog::CssEditorDialog(const QString &title, const QString &css, const QString &defaultCss,
+                                 const QString &themeCss, QWidget *parent)
     : QDialog(parent), m_defaultCss(defaultCss)
 {
     setWindowTitle(title);
@@ -49,6 +51,9 @@ CssEditorDialog::CssEditorDialog(const QString &title, const QString &css, const
     m_editor->setFont(font);
 
     m_editor->setLineWrapMode(QPlainTextEdit::NoWrap);
+
+    new CssHighlighter(themeCss, m_editor->document());
+
     layout->addWidget(m_editor, 1);
 
     QHBoxLayout *btnLayout = new QHBoxLayout();

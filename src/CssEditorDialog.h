@@ -6,12 +6,15 @@
 #include <QComboBox>
 #include <QSpinBox>
 
+class CssHighlighter;
+
 class CssEditorDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit CssEditorDialog(const QString &title, const QString &css, const QString &defaultCss, QWidget *parent = nullptr);
+    explicit CssEditorDialog(const QString &title, const QString &css, const QString &defaultCss,
+                             const QString &themeCss, QWidget *parent = nullptr);
     QString css() const;
 
 private:

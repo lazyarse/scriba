@@ -123,6 +123,36 @@ Without this patch, `ExportPdfDialog::onPageLoaded()` previously ran a `parsePag
 
 The full patching plan (Option A: binary patch, Option B: LD_PRELOAD, Option C: full Qt source rebuild) is documented in `qt-knomargins-patch.md`.
 
+## Themes
+
+### Theme file structure
+
+Each CSS file in `resources/themes/` has four sections in order:
+
+1. **Editor styles** (`#editor`) — background and text color for the source editor pane
+2. **CSS custom properties** (`:root`) — checkbox styling variables
+3. **Preview pane styles** (`body` and descendants) — full HTML preview styling including headings, code blocks, tables, blockquotes, admonitions, etc.
+4. **highlight.js block** — syntax highlighting CSS for fenced code blocks, preceded by a `/* highlight.js */` comment
+
+New themes must include all four sections. The preview styles follow a consistent template across all themes — copy an existing theme and replace the color values.
+
+### highlight.js integration
+
+The highlight.js blocks at the end of each theme were sourced from the [highlight.js theme repository](https://github.com/highlightjs/highlight.js/tree/main/src/styles) and color-mapped to match each theme's palette. Two hljs style variants are used:
+
+- **base16 style** (most themes) — includes `::selection` styling, `operator` opacity, and language-specific overrides
+- **GitHub/Hirse style** (github-dark, github-light, catppuccin-latte, tokyo-night-dark, tokyo-night-light) — simpler structure based on GitHub's syntax highlighting
+
+When creating a new theme, find the closest matching highlight.js theme from the repository, adjust its colors to fit your palette, and append it after the `/* highlight.js */` comment. Ensure the hljs background matches the theme's `pre` background color and the default text matches `pre code` color.
+
+### Adding a new theme
+
+1. Copy an existing theme file in `resources/themes/`
+2. Replace the color values throughout (editor bg/text, body bg/text, headings, code blocks, links, admonition accents, blockquote styling)
+3. Source or write a matching highlight.js block and append it at the end
+4. Register the new file in `resources/scriba.qrc` under `<file>themes/your-theme.css</file>`
+5. Rebuild — themes are compiled into the binary via Qt resources
+
 ## Testing
 
 Test suites set `QCoreApplication::setOrganizationName("scribaTest")` / `setApplicationName("scribaTest")` so their QSettings data (and default CSS files written by `CssLoader`) land in `~/.config/scribaTest/scribaTest/` instead of the real app's `~/.config/scriba/scriba/`. This keeps test config isolated from the user's config.

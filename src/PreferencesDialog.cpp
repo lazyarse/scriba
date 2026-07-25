@@ -249,7 +249,7 @@ void PreferencesDialog::setupUi()
 
         m_editorFontSizeSpin = new QSpinBox();
         m_editorFontSizeSpin->setRange(8, 48);
-        m_editorFontSizeSpin->setSuffix(" px");
+        m_editorFontSizeSpin->setSuffix(" pt");
         m_editorFontSizeSpin->setValue(settings.value(Preferences::EditorFontSize, 18).toInt());
         editorLayout->addRow("Font size:", m_editorFontSizeSpin);
 
@@ -378,7 +378,7 @@ static QString loadResourceCss(const QString &path)
 void PreferencesDialog::editPreviewBaseCss()
 {
     CssEditorDialog dlg("Edit Preview Base CSS", m_loader->previewBaseCss(),
-        loadResourceCss(":/preview-base.css"), this);
+        loadResourceCss(":/preview-base.css"), m_loader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         m_loader->setPreviewBaseCss(dlg.css());
         emit stylesheetChanged();

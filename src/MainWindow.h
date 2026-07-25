@@ -84,7 +84,8 @@ private:
     void syncCssWatcher();
     void refreshPreviewCss();
     QString applyEditorSettings();
-    void applyEditorSettings(const QString &fontFamily, int fontSize, int lineHeight, int padding);
+    QString applyEditorSettings(const QString &fontFamily, int fontSize, int padding);
+    void applyEditorLineHeight(int lineHeight);
     void applyStripeSetting();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);
     bool findText(const QString &text, bool backward, bool useRegex, bool caseSensitive);
