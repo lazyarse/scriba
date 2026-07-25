@@ -16,18 +16,20 @@
 #include <QIcon>
 #include <QFile>
 #include <QStackedWidget>
+#include <QColorDialog>
 
-PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent)
+PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent,
+    const QString &themeBgColor, const QString &themeFgColor)
     : QDialog(parent)
     , m_config(config)
     , m_loader(loader)
 {
-    setupUi();
+    setupUi(themeBgColor, themeFgColor);
     setWindowTitle("Preferences");
     resize(450, 600);
 }
 
-void PreferencesDialog::setupUi()
+void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &themeFgColor)
 {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(8);
@@ -265,6 +267,79 @@ void PreferencesDialog::setupUi()
         m_editorPaddingSpin->setValue(settings.value(Preferences::EditorPadding, 12).toInt());
         editorLayout->addRow("Padding:", m_editorPaddingSpin);
 
+        auto emitEditorSettings = [this]() {
+            emit editorSettingsChanged(m_editorFontCombo->currentText(),
+                m_editorFontSizeSpin->value(), m_editorLineHeightSpin->value(),
+                m_editorPaddingSpin->value());
+        };
+
+        auto makeSwatchBtn = [](const QString &hex) {
+            auto *btn = new QPushButton;
+            QPixmap px(16, 16);
+            px.fill(QColor(hex));
+            btn->setIcon(QIcon(px));
+            btn->setIconSize(QSize(16, 16));
+            btn->setText(hex);
+            btn->setCursor(Qt::PointingHandCursor);
+            return btn;
+        };
+
+        m_editorBgBtn = makeSwatchBtn(
+            settings.value(Preferences::EditorBgColor, themeBgColor).toString());
+        m_editorFontBtn = makeSwatchBtn(
+            settings.value(Preferences::EditorFontColor, themeFgColor).toString());
+
+        m_overrideGroup = new QGroupBox("Override theme colors");
+        m_overrideGroup->setCheckable(true);
+        m_overrideGroup->setChecked(settings.value(Preferences::EditorColorOverride, false).toBool());
+        auto *overrideLayout = new QHBoxLayout(m_overrideGroup);
+        overrideLayout->setContentsMargins(6, 18, 6, 6);
+        overrideLayout->addWidget(new QLabel("Background:"));
+        overrideLayout->addWidget(m_editorBgBtn);
+        overrideLayout->addSpacing(12);
+        overrideLayout->addWidget(new QLabel("Font:"));
+        overrideLayout->addWidget(m_editorFontBtn);
+        overrideLayout->addStretch();
+        editorLayout->addRow(m_overrideGroup);
+
+        connect(m_editorBgBtn, &QPushButton::clicked, this, [this, emitEditorSettings]() {
+            QColor current(m_editorBgBtn->text());
+            QColor c = QColorDialog::getColor(current, this, "Editor Background Color");
+            if (!c.isValid()) return;
+            QSettings s;
+            s.setValue(Preferences::EditorBgColor, c.name());
+            QPixmap px(16, 16);
+            px.fill(c);
+            m_editorBgBtn->setIcon(QIcon(px));
+            m_editorBgBtn->setText(c.name());
+            m_overrideGroup->setChecked(true);
+            emitEditorSettings();
+        });
+
+        connect(m_editorFontBtn, &QPushButton::clicked, this, [this, emitEditorSettings]() {
+            QColor current(m_editorFontBtn->text());
+            QColor c = QColorDialog::getColor(current, this, "Editor Font Color");
+            if (!c.isValid()) return;
+            QSettings s;
+            s.setValue(Preferences::EditorFontColor, c.name());
+            QPixmap px(16, 16);
+            px.fill(c);
+            m_editorFontBtn->setIcon(QIcon(px));
+            m_editorFontBtn->setText(c.name());
+            m_overrideGroup->setChecked(true);
+            emitEditorSettings();
+        });
+
+        connect(m_overrideGroup, &QGroupBox::toggled, this, [this, emitEditorSettings]() {
+            QSettings s;
+            s.setValue(Preferences::EditorColorOverride, m_overrideGroup->isChecked());
+            emitEditorSettings();
+        });
+        connect(m_editorFontCombo, &QComboBox::currentTextChanged, this, emitEditorSettings);
+        connect(m_editorFontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
+        connect(m_editorLineHeightSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
+        connect(m_editorPaddingSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
+
         layout->addWidget(editorGroup);
         layout->addStretch();
 
@@ -278,16 +353,6 @@ void PreferencesDialog::setupUi()
     connect(m_editPreviewBtn, &QPushButton::clicked, this, &PreferencesDialog::editPreviewBaseCss);
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
     connect(m_categoryList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
-
-    auto emitEditorSettings = [this]() {
-        emit editorSettingsChanged(m_editorFontCombo->currentText(),
-            m_editorFontSizeSpin->value(), m_editorLineHeightSpin->value(),
-            m_editorPaddingSpin->value());
-    };
-    connect(m_editorFontCombo, &QComboBox::currentTextChanged, this, emitEditorSettings);
-    connect(m_editorFontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
-    connect(m_editorLineHeightSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
-    connect(m_editorPaddingSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
 
     populateStylesheetList();
     m_categoryList->setCurrentRow(0);
@@ -315,6 +380,9 @@ void PreferencesDialog::setupUi()
         settings.setValue(Preferences::EditorFontSize, m_editorFontSizeSpin->value());
         settings.setValue(Preferences::EditorLineHeight, m_editorLineHeightSpin->value());
         settings.setValue(Preferences::EditorPadding, m_editorPaddingSpin->value());
+        settings.setValue(Preferences::EditorColorOverride, m_overrideGroup->isChecked());
+        settings.setValue(Preferences::EditorBgColor, m_editorBgBtn->text());
+        settings.setValue(Preferences::EditorFontColor, m_editorFontBtn->text());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

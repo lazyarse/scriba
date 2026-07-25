@@ -457,8 +457,34 @@ QString MainWindow::applyEditorSettings()
 
 QString MainWindow::applyEditorSettings(const QString &fontFamily, int fontSize, int padding)
 {
-    return QString("#scriba-editor { padding: %1px; font-family: %2; font-size: %3pt; }")
+    QString css = QString("#scriba-editor { padding: %1px; font-family: %2; font-size: %3pt; }")
         .arg(padding).arg(fontFamily).arg(fontSize);
+    QSettings s;
+    if (s.value(Preferences::EditorColorOverride, false).toBool()) {
+        QString bg = s.value(Preferences::EditorBgColor).toString();
+        QString fg = s.value(Preferences::EditorFontColor).toString();
+        if (!bg.isEmpty() || !fg.isEmpty()) {
+            css += "#scriba-editor {";
+            if (!bg.isEmpty()) css += " background-color: " + bg + " !important;";
+            if (!fg.isEmpty()) css += " color: " + fg + " !important;";
+            css += " }";
+        }
+        if (!bg.isEmpty()) {
+            QColor bgColor(bg);
+            if (bgColor.isValid()) {
+                bool dark = bgColor.lightness() < 128;
+                QColor track = dark ? bgColor.lighter(110) : bgColor.darker(105);
+                QColor thumb = dark ? bgColor.lighter(130) : bgColor.darker(125);
+                QColor hover = dark ? bgColor.lighter(160) : bgColor.darker(145);
+                css += "#scriba-editor QScrollBar:vertical { background: " + track.name() + "; width: 12px; }";
+                css += "#scriba-editor QScrollBar::handle:vertical { background: " + thumb.name() + "; border-radius: 6px; min-height: 30px; }";
+                css += "#scriba-editor QScrollBar::handle:vertical:hover { background: " + hover.name() + "; }";
+                css += "#scriba-editor QScrollBar::add-line:vertical, #scriba-editor QScrollBar::sub-line:vertical { height: 0; }";
+                css += "#scriba-editor QScrollBar::add-page:vertical, #scriba-editor QScrollBar::sub-page:vertical { background: none; }";
+            }
+        }
+    }
+    return css;
 }
 
 void MainWindow::applyEditorLineHeight(int lineHeight)
@@ -705,7 +731,9 @@ void MainWindow::syncPreviewScroll()
 
 void MainWindow::showPreferences()
 {
-    PreferencesDialog dlg(m_cssConfig, m_cssLoader, this);
+    CssUtils::ThemeColors tc = CssUtils::themeColors(m_cssLoader->themeCss());
+    PreferencesDialog dlg(m_cssConfig, m_cssLoader, this,
+        tc.background.name(), tc.text.name());
     auto updateAll = [this]() {
         syncCssWatcher();
         refreshPreviewCss();
