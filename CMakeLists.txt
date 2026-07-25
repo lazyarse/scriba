@@ -290,7 +290,7 @@ if(BUILD_TESTS)
 
     add_executable(test_pdf_export tests/test_pdf_export.cpp
         src/ExportPdfDialog.cpp src/Preview.cpp
-        src/CssConfig.cpp src/CssLoader.cpp
+        src/CssConfig.cpp src/CssLoader.cpp src/CssEditorDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_pdf_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_pdf_export PRIVATE
