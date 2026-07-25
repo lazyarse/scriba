@@ -3,13 +3,13 @@
 
 #include <QHash>
 #include <QPixmap>
-#include <QPlainTextEdit>
+#include <QTextEdit>
 #include <QPoint>
 #include <QStringList>
 
 class QCompleter;
 
-class Editor : public QPlainTextEdit
+class Editor : public QTextEdit
 {
     Q_OBJECT
 
@@ -17,6 +17,7 @@ public:
     explicit Editor(QWidget *parent = nullptr);
     void setCurrentFile(const QString &path);
     void setCenterContent(bool enabled, int width);
+    void centerCursor();
     QCompleter *completer() const { return m_completer; }
 
 protected:

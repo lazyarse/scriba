@@ -88,7 +88,7 @@ MainWindow::MainWindow(QWidget *parent)
     timer->setSingleShot(true);
     timer->setInterval(80);
     connect(timer, &QTimer::timeout, this, &MainWindow::updatePreview);
-    connect(m_editor, &QPlainTextEdit::textChanged, timer, qOverload<>(&QTimer::start));
+    connect(m_editor, &QTextEdit::textChanged, timer, qOverload<>(&QTimer::start));
 
     connect(m_cssWatcher, &QFileSystemWatcher::fileChanged, this, &MainWindow::onCssFileChanged);
     connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::onEditorScroll);
@@ -426,6 +426,7 @@ void MainWindow::refreshPreviewCss()
     if (needChromeUpdate) {
         m_cachedFullCss = chromeCss;
         m_editor->setStyleSheet(chromeCss + applyEditorSettings());
+        m_editor->update();
         QSettings s;
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
         if (!m_chromeUpdateScheduled) {
@@ -713,10 +714,12 @@ void MainWindow::showPreferences()
     connect(&dlg, &PreferencesDialog::editorSettingsChanged, this,
         [this](const QString &f, int s, int lh, int p) {
             m_editor->setStyleSheet(m_cachedFullCss + applyEditorSettings(f, s, p));
+            m_editor->update();
             applyEditorLineHeight(lh);
         });
     dlg.exec();
     m_editor->setStyleSheet(m_cachedFullCss + applyEditorSettings());
+    m_editor->update();
     QSettings s;
     applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
     updateAll();
