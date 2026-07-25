@@ -74,8 +74,10 @@ MainWindow::MainWindow(QWidget *parent)
     QFontDatabase::addApplicationFont(":/fonts/Symbola.ttf");
 
     connect(m_preview->page(), &QWebEnginePage::loadFinished, this, [this](bool ok) {
-        if (ok && m_previewInitialized)
+        if (ok) {
+            m_previewInitialized = true;
             syncPreviewScroll();
+        }
     });
 
     refreshPreviewCss();
@@ -606,7 +608,6 @@ void MainWindow::updatePreview()
             "</head><body id=\"preview\">%3</body></html>"
         ).arg(baseCss, previewCss, html, stripeInit, centerCss);
         m_preview->setHtml(fullHtml, baseUrl);
-        m_previewInitialized = true;
     } else {
         QString escapedHtml = escapeJsString(html);
 
