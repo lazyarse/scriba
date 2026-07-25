@@ -1811,6 +1811,9 @@ void MainWindow::restoreSession(const QJsonObject &session)
 
     if (active >= 0 && active < m_tabWidget->count())
         m_tabWidget->setCurrentIndex(active);
+
+    if (auto *ed = currentEditor())
+        ed->setFocus();
 }
 
 void MainWindow::saveSessionAction()
