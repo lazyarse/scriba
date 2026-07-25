@@ -740,6 +740,7 @@ void MainWindow::syncPreviewScroll()
 
 void MainWindow::showPreferences()
 {
+    QString oldStylesheet = m_cssConfig->activeStylesheet();
     CssUtils::ThemeColors tc = CssUtils::themeColors(m_cssLoader->themeCss());
     PreferencesDialog dlg(m_cssConfig, m_cssLoader, this,
         tc.background.name(), tc.text.name());
@@ -755,7 +756,10 @@ void MainWindow::showPreferences()
             m_editor->update();
             applyEditorLineHeight(lh);
         });
-    dlg.exec();
+    if (dlg.exec() == QDialog::Rejected) {
+        m_cssConfig->setActiveStylesheet(oldStylesheet);
+        m_cssLoader->invalidateCache();
+    }
     m_editor->setStyleSheet(m_cachedFullCss + applyEditorSettings());
     m_editor->update();
     QSettings s;
