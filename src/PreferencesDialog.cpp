@@ -61,27 +61,13 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
 
-        QGroupBox *generalGroup = new QGroupBox("Startup & Navigation");
-        QVBoxLayout *generalLayout = new QVBoxLayout(generalGroup);
-        generalLayout->addSpacing(8);
-
-        m_reopenCheck = new QCheckBox("Re-open last edited file on startup");
+        m_reopenCheck = new QCheckBox("Open last session on startup");
         m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastSession, true).toBool());
-        generalLayout->addWidget(m_reopenCheck);
+        layout->addWidget(m_reopenCheck);
 
         m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
         m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
-        generalLayout->addWidget(m_syncCheck);
-
-        QHBoxLayout *compRow = new QHBoxLayout();
-        compRow->addWidget(new QLabel("Filename autocomplete limit:"));
-        m_fileCompletionSpin = new QSpinBox();
-        m_fileCompletionSpin->setRange(2, 100);
-        m_fileCompletionSpin->setValue(settings.value(Preferences::FileCompletionLimit, 20).toInt());
-        compRow->addWidget(m_fileCompletionSpin);
-        compRow->addStretch();
-
-        layout->addWidget(generalGroup);
+        layout->addWidget(m_syncCheck);
 
         QGroupBox *filenameAutoCompleteGroup = new QGroupBox("Filename Autocomplete");
         QVBoxLayout *filenameAutoCompleteLayout = new QVBoxLayout(filenameAutoCompleteGroup);
@@ -91,6 +77,13 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_filenameAutoCompleteCheck->setChecked(settings.value(Preferences::FileAutoComplete, true).toBool());
         filenameAutoCompleteLayout->addWidget(m_filenameAutoCompleteCheck);
 
+        QHBoxLayout *compRow = new QHBoxLayout();
+        compRow->addWidget(new QLabel("Filename autocomplete limit:"));
+        m_fileCompletionSpin = new QSpinBox();
+        m_fileCompletionSpin->setRange(2, 100);
+        m_fileCompletionSpin->setValue(settings.value(Preferences::FileCompletionLimit, 20).toInt());
+        compRow->addWidget(m_fileCompletionSpin);
+        compRow->addStretch();
         filenameAutoCompleteLayout->addLayout(compRow);
         layout->addWidget(filenameAutoCompleteGroup);
 
