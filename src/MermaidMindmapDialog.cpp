@@ -5,11 +5,14 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QLabel>
 #include <QPushButton>
 #include <QSplitter>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QClipboard>
+#include <QCheckBox>
+#include <QSpinBox>
 #include <QWebEngineView>
 
 MermaidMindmapDialog::MermaidMindmapDialog(const QString &themeCss, QWidget *parent)
@@ -46,6 +49,18 @@ MermaidMindmapDialog::MermaidMindmapDialog(const QString &themeCss, QWidget *par
     auto *rightWidget = new QWidget;
     auto *rightLayout = new QVBoxLayout(rightWidget);
     rightLayout->setContentsMargins(0, 0, 0, 0);
+    auto *widthRow = new QHBoxLayout;
+    m_widthCheck = new QCheckBox(tr("Set max width:"), rightWidget);
+    m_widthSpin = new QSpinBox(rightWidget);
+    m_widthSpin->setRange(100, 2000);
+    m_widthSpin->setValue(500);
+    m_widthSpin->setSuffix(QStringLiteral(" px"));
+    m_widthSpin->setEnabled(false);
+    connect(m_widthCheck, &QCheckBox::toggled, m_widthSpin, &QWidget::setEnabled);
+    widthRow->addWidget(m_widthCheck);
+    widthRow->addWidget(m_widthSpin);
+    widthRow->addStretch();
+    rightLayout->addLayout(widthRow);
     m_preview = new QWebEngineView(rightWidget);
     m_preview->setPage(new PreviewPage(m_preview));
     rightLayout->addWidget(m_preview);

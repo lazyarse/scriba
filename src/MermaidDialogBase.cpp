@@ -10,6 +10,9 @@
 #include <QClipboard>
 #include <QTimer>
 #include <QIcon>
+#include <QLabel>
+#include <QCheckBox>
+#include <QSpinBox>
 
 MermaidDialogBase::MermaidDialogBase(const QString &title, const QString &themeCss,
                                      QWidget *parent)
@@ -20,6 +23,7 @@ MermaidDialogBase::MermaidDialogBase(const QString &title, const QString &themeC
     auto colors = CssUtils::themeColors(themeCss);
     m_bgColor = colors.background.name();
     m_iconColor = colors.text;
+    m_widthSpin = nullptr;
 
     setWindowTitle(title);
 
@@ -38,6 +42,19 @@ MermaidDialogBase::~MermaidDialogBase()
 QString MermaidDialogBase::generatedDiagram() const
 {
     return buildDiagram();
+}
+
+QString MermaidDialogBase::mermaidBlock() const
+{
+    QString diagram = generatedDiagram();
+    if (diagram.isEmpty())
+        return {};
+    int w = m_widthCheck && m_widthCheck->isChecked() && m_widthSpin ? m_widthSpin->value() : 0;
+    if (w > 0)
+        return QStringLiteral("\n<div style=\"max-width:%1px\">\n\n```mermaid\n%2\n```\n\n</div>\n")
+            .arg(w)
+            .arg(diagram);
+    return QStringLiteral("\n```mermaid\n%1\n```\n").arg(diagram);
 }
 
 QString MermaidDialogBase::mermaidTheme() const
@@ -62,17 +79,35 @@ QString MermaidDialogBase::mermaidPreviewHtml(const QString &escaped, const QStr
 }
 
 void MermaidDialogBase::setupMainLayout(QWidget *leftPanel, QVBoxLayout *leftLayout,
-                                        const QList<int> &sizes)
+                                         const QList<int> &sizes)
 {
     Q_UNUSED(leftLayout)
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
 
-    m_preview = new QWebEngineView(this);
+    auto *rightWidget = new QWidget(this);
+    auto *rightLayout = new QVBoxLayout(rightWidget);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+
+    auto *widthRow = new QHBoxLayout;
+    m_widthCheck = new QCheckBox(tr("Set max width:"), rightWidget);
+    m_widthSpin = new QSpinBox(rightWidget);
+    m_widthSpin->setRange(100, 2000);
+    m_widthSpin->setValue(500);
+    m_widthSpin->setSuffix(QStringLiteral(" px"));
+    m_widthSpin->setEnabled(false);
+    connect(m_widthCheck, &QCheckBox::toggled, m_widthSpin, &QWidget::setEnabled);
+    widthRow->addWidget(m_widthCheck);
+    widthRow->addWidget(m_widthSpin);
+    widthRow->addStretch();
+    rightLayout->addLayout(widthRow);
+
+    m_preview = new QWebEngineView(rightWidget);
     m_preview->setPage(new PreviewPage(m_preview));
+    rightLayout->addWidget(m_preview, 1);
 
     splitter->addWidget(leftPanel);
-    splitter->addWidget(m_preview);
+    splitter->addWidget(rightWidget);
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
     if (!sizes.isEmpty())
