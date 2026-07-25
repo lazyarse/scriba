@@ -1,43 +1,25 @@
 #include "MermaidQuadrantDialog.h"
-#include "Preview.h"
 #include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QSplitter>
 #include <QTableWidget>
-#include <QWebEngineView>
-#include <QLineEdit>
 #include <QPushButton>
-#include <QDialogButtonBox>
 #include <QLabel>
 #include <QHeaderView>
 #include <QGridLayout>
-#include <QTimer>
-#include <QIcon>
+#include <QLineEdit>
 #include <QPalette>
-#include <QGuiApplication>
-#include <QClipboard>
 
-MermaidQuadrantDialog::MermaidQuadrantDialog(QWidget *parent)
-    : QDialog(parent)
+MermaidQuadrantDialog::MermaidQuadrantDialog(const QString &themeCss, QWidget *parent)
+    : MermaidDialogBase("Mermaid Quadrant Chart", themeCss, parent)
 {
-    setWindowTitle("Mermaid Quadrant Chart");
-    resize(900, 600);
-
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
-    connect(m_previewTimer, &QTimer::timeout, this, &MermaidQuadrantDialog::updatePreview);
-
     setupUi();
     updatePreview();
+    schedulePreviewUpdate();
 }
 
 void MermaidQuadrantDialog::setupUi()
 {
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
-
     QWidget *leftPanel = new QWidget(this);
     QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(12, 12, 12, 12);
@@ -130,30 +112,7 @@ void MermaidQuadrantDialog::setupUi()
 
     leftLayout->addStretch();
 
-    m_preview = new QWebEngineView(this);
-    m_preview->setPage(new PreviewPage(m_preview));
-
-    splitter->addWidget(leftPanel);
-    splitter->addWidget(m_preview);
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 1);
-    splitter->setSizes({420, 480});
-
-    mainLayout->addWidget(splitter);
-
-    QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    QPushButton *copyBtn = buttonBox->addButton("Copy", QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
-    Q_UNUSED(insertBtn);
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
-    mainLayout->addWidget(buttonBox);
-
-    connect(copyBtn, &QPushButton::clicked, this, [this]() {
-        QGuiApplication::clipboard()->setText(generatedDiagram());
-    });
-    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    setupMainLayout(leftPanel, leftLayout, {420, 480});
 
     auto triggerUpdate = [this]() { schedulePreviewUpdate(); };
     connect(m_titleEdit, &QLineEdit::textChanged, this, triggerUpdate);
@@ -171,35 +130,6 @@ void MermaidQuadrantDialog::setupUi()
         m_table->insertRow(row);
         addDeleteButton(row);
     });
-}
-
-void MermaidQuadrantDialog::schedulePreviewUpdate()
-{
-    m_previewTimer->start();
-}
-
-void MermaidQuadrantDialog::updatePreview()
-{
-    QString diagram = buildDiagram();
-    QString escaped = diagram;
-    escaped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-    QString html = QString(
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;}"
-        ".error{color:#d32f2f;padding:16px;}</style>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "</head><body><div class=\"mermaid\">%1</div>"
-        "<script>mermaid.initialize({startOnLoad:false,theme:'default'});"
-        "try{mermaid.run({querySelector:'.mermaid'}).catch(function(e){"
-        "document.body.innerHTML='<div class=\"error\">'+e+'</div>';});"
-        "}catch(e){document.body.innerHTML='<div class=\"error\">'+e+'</div>';}</script></body></html>"
-    ).arg(escaped);
-    m_preview->setHtml(html);
-}
-
-QString MermaidQuadrantDialog::generatedDiagram() const
-{
-    return buildDiagram();
 }
 
 QString MermaidQuadrantDialog::buildDiagram() const

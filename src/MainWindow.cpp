@@ -526,6 +526,8 @@ void MainWindow::updatePreview()
     QString baseCss = m_cssLoader->previewBaseCss();
     QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss);
     QString previewCss = chromeCss + rawThemeCss;
+    QString mermaidTheme = CssUtils::isDarkTheme(rawThemeCss)
+        ? QStringLiteral("dark") : QStringLiteral("default");
 
     bool cssChanged = (previewCss != m_cachedPreviewCss);
     if (cssChanged) {
@@ -635,7 +637,7 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'default'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
             "</head><body id=\"preview\">%3</body></html>"
         ).arg(baseCss, previewCss, html, stripeInit, centerCss);
         m_preview->setHtml(fullHtml, baseUrl);
@@ -651,6 +653,7 @@ void MainWindow::updatePreview()
                 "var sy = window.scrollY;"
                 "document.getElementById('theme-css').textContent = '%1';"
                 "document.body.innerHTML = '%2';"
+                "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
                 "var mermaidPromise=initMermaid();"
                 "initKaTeX();"
                 "var vlPromise=initVegaLite();"
@@ -685,6 +688,7 @@ void MainWindow::updatePreview()
                 "else{"
                 "var sy = window.scrollY;"
                 "document.body.innerHTML = '%1';"
+                "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
                 "var mermaidPromise=initMermaid();"
                 "initKaTeX();"
                 "var vlPromise=initVegaLite();"
@@ -782,7 +786,7 @@ void MainWindow::showChartBuilder()
 
 void MainWindow::showMermaidPie()
 {
-    MermaidPieDialog dlg(this);
+    MermaidPieDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -794,7 +798,7 @@ void MainWindow::showMermaidPie()
 
 void MainWindow::showMermaidFlowchart()
 {
-    MermaidFlowchartDialog dlg(this);
+    MermaidFlowchartDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -806,7 +810,7 @@ void MainWindow::showMermaidFlowchart()
 
 void MainWindow::showMermaidSequence()
 {
-    MermaidSequenceDialog dlg(this);
+    MermaidSequenceDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -818,7 +822,7 @@ void MainWindow::showMermaidSequence()
 
 void MainWindow::showMermaidGantt()
 {
-    MermaidGanttDialog dlg(this);
+    MermaidGanttDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -830,7 +834,7 @@ void MainWindow::showMermaidGantt()
 
 void MainWindow::showMermaidClass()
 {
-    MermaidClassDialog dlg(this);
+    MermaidClassDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -842,7 +846,7 @@ void MainWindow::showMermaidClass()
 
 void MainWindow::showMermaidEr()
 {
-    MermaidErDialog dlg(this);
+    MermaidErDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -854,7 +858,7 @@ void MainWindow::showMermaidEr()
 
 void MainWindow::showMermaidState()
 {
-    MermaidStateDialog dlg(this);
+    MermaidStateDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -866,7 +870,7 @@ void MainWindow::showMermaidState()
 
 void MainWindow::showMermaidMindmap()
 {
-    MermaidMindmapDialog dlg(this);
+    MermaidMindmapDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -878,7 +882,7 @@ void MainWindow::showMermaidMindmap()
 
 void MainWindow::showMermaidTimeline()
 {
-    MermaidTimelineDialog dlg(this);
+    MermaidTimelineDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -890,7 +894,7 @@ void MainWindow::showMermaidTimeline()
 
 void MainWindow::showMermaidJourney()
 {
-    MermaidJourneyDialog dlg(this);
+    MermaidJourneyDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -902,7 +906,7 @@ void MainWindow::showMermaidJourney()
 
 void MainWindow::showMermaidQuadrant()
 {
-    MermaidQuadrantDialog dlg(this);
+    MermaidQuadrantDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {
@@ -914,7 +918,7 @@ void MainWindow::showMermaidQuadrant()
 
 void MainWindow::showMermaidSankey()
 {
-    MermaidSankeyDialog dlg(this);
+    MermaidSankeyDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString diagram = dlg.generatedDiagram();
         if (!diagram.isEmpty()) {

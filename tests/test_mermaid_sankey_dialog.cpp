@@ -13,7 +13,7 @@ protected:
             new QApplication(g_argc, g_argv);
     }
 
-    MermaidSankeyDialog dlg;
+    MermaidSankeyDialog dlg{QString(), nullptr};
 };
 
 TEST_F(MermaidSankeyDialogTest, DefaultDiagramIsNonEmpty) {

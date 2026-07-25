@@ -162,7 +162,11 @@ QString deriveChromeCss(const QString &themeCss)
         "QScrollBar::handle:horizontal:hover { background: %5; }\n"
         "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }\n"
         "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }\n"
-        
+        "QLineEdit { background-color: %2; color: %3; border: 1px solid %4; padding: 2px 4px; }\n"
+        "QComboBox QAbstractItemView { background-color: %10; color: %3; selection-background-color: %5; selection-color: %6; outline: none; }\n"
+        "QTableWidget, QTableView { background-color: %2; color: %3; border: 1px solid %4; gridline-color: %4; }\n"
+        "QHeaderView::section { background-color: %5; color: %3; padding: 4px; border: none; font-weight: bold; }\n"
+        "\n"
         "::-webkit-scrollbar { width: 12px; height: 12px; }\n"
         "::-webkit-scrollbar-track { background: %2; }\n"
         "::-webkit-scrollbar-thumb { background: %4; border-radius: 6px; }\n"

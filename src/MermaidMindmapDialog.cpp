@@ -7,31 +7,14 @@
 #include <QIcon>
 #include <QPushButton>
 #include <QSplitter>
-#include <QTimer>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QClipboard>
 #include <QWebEngineView>
 
-static QString mermaidPreviewHtml(const QString &escaped)
+MermaidMindmapDialog::MermaidMindmapDialog(const QString &themeCss, QWidget *parent)
+    : MermaidDialogBase(tr("Insert Mermaid Mindmap"), themeCss, parent)
 {
-    return QString(
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;}"
-        ".error{color:#d32f2f;padding:16px;}</style>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "</head><body><div class=\"mermaid\">%1</div>"
-        "<script>mermaid.initialize({startOnLoad:false,theme:'default'});"
-        "try{mermaid.run({querySelector:'.mermaid'}).catch(function(e){"
-        "document.body.innerHTML='<div class=\"error\">'+e+'</div>';});"
-        "}catch(e){document.body.innerHTML='<div class=\"error\">'+e+'</div>';}</script></body></html>"
-    ).arg(escaped);
-}
-
-MermaidMindmapDialog::MermaidMindmapDialog(QWidget *parent)
-    : QDialog(parent)
-{
-    setWindowTitle(tr("Insert Mermaid Mindmap"));
     resize(900, 550);
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
@@ -104,26 +87,33 @@ MermaidMindmapDialog::MermaidMindmapDialog(QWidget *parent)
 
     m_tree->setCurrentItem(root);
 
-    // Preview timer
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
-    connect(m_previewTimer, &QTimer::timeout, this, &MermaidMindmapDialog::updatePreview);
-
     connect(m_tree, &QTreeWidget::itemChanged, this, [this]() { schedulePreviewUpdate(); });
 
-    QTimer::singleShot(300, this, &MermaidMindmapDialog::updatePreview);
+    updatePreview();
+    schedulePreviewUpdate();
 }
 
-QString MermaidMindmapDialog::generatedDiagram() const
+QString MermaidMindmapDialog::buildDiagram() const
 {
-    return buildDiagram();
+    QString out = "mindmap\n";
+    QTreeWidgetItem *root = m_tree->topLevelItem(0);
+    if (root)
+        out += buildNode(root, 1);
+    return out;
 }
 
-void MermaidMindmapDialog::updatePreview()
+QString MermaidMindmapDialog::buildNode(QTreeWidgetItem *item, int depth) const
 {
-    QString html = mermaidPreviewHtml(buildDiagram().toHtmlEscaped());
-    m_preview->setHtml(html);
+    QString indent(depth * 4, ' ');
+    QString text = item->text(0);
+    QString out;
+    if (depth == 1)
+        out = indent + "root((" + text + "))\n";
+    else
+        out = indent + text + "\n";
+    for (int i = 0; i < item->childCount(); ++i)
+        out += buildNode(item->child(i), depth + 1);
+    return out;
 }
 
 void MermaidMindmapDialog::addChild()
@@ -163,32 +153,4 @@ void MermaidMindmapDialog::deleteNode()
         m_tree->takeTopLevelItem(m_tree->indexOfTopLevelItem(current));
     }
     schedulePreviewUpdate();
-}
-
-void MermaidMindmapDialog::schedulePreviewUpdate()
-{
-    m_previewTimer->start();
-}
-
-QString MermaidMindmapDialog::buildDiagram() const
-{
-    QString out = "mindmap\n";
-    QTreeWidgetItem *root = m_tree->topLevelItem(0);
-    if (root)
-        out += buildNode(root, 1);
-    return out;
-}
-
-QString MermaidMindmapDialog::buildNode(QTreeWidgetItem *item, int depth) const
-{
-    QString indent(depth * 4, ' ');
-    QString text = item->text(0);
-    QString out;
-    if (depth == 1)
-        out = indent + "root((" + text + "))\n";
-    else
-        out = indent + text + "\n";
-    for (int i = 0; i < item->childCount(); ++i)
-        out += buildNode(item->child(i), depth + 1);
-    return out;
 }

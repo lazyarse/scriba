@@ -11,30 +11,13 @@
 #include <QPushButton>
 #include <QSplitter>
 #include <QTableWidget>
-#include <QTimer>
 #include <QVBoxLayout>
 #include <QClipboard>
 #include <QWebEngineView>
 
-static QString mermaidPreviewHtml(const QString &escaped)
+MermaidClassDialog::MermaidClassDialog(const QString &themeCss, QWidget *parent)
+    : MermaidDialogBase(tr("Insert Mermaid Class Diagram"), themeCss, parent)
 {
-    return QString(
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;}"
-        ".error{color:#d32f2f;padding:16px;}</style>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "</head><body><div class=\"mermaid\">%1</div>"
-        "<script>mermaid.initialize({startOnLoad:false,theme:'default'});"
-        "try{mermaid.run({querySelector:'.mermaid'}).catch(function(e){"
-        "document.body.innerHTML='<div class=\"error\">'+e+'</div>';});"
-        "}catch(e){document.body.innerHTML='<div class=\"error\">'+e+'</div>';}</script></body></html>"
-    ).arg(escaped);
-}
-
-MermaidClassDialog::MermaidClassDialog(QWidget *parent)
-    : QDialog(parent)
-{
-    setWindowTitle(tr("Insert Mermaid Class Diagram"));
     resize(900, 550);
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
@@ -155,17 +138,12 @@ MermaidClassDialog::MermaidClassDialog(QWidget *parent)
     });
     mainLayout->addWidget(buttonBox);
 
-    // Preview timer
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
-    connect(m_previewTimer, &QTimer::timeout, this, &MermaidClassDialog::updatePreview);
-
     setupDefaultData();
-    QTimer::singleShot(300, this, &MermaidClassDialog::updatePreview);
+    updatePreview();
+    schedulePreviewUpdate();
 }
 
-QString MermaidClassDialog::generatedDiagram() const
+QString MermaidClassDialog::buildDiagram() const
 {
     QString out = "classDiagram\n";
 
@@ -224,17 +202,6 @@ QString MermaidClassDialog::generatedDiagram() const
     }
 
     return out;
-}
-
-void MermaidClassDialog::schedulePreviewUpdate()
-{
-    m_previewTimer->start();
-}
-
-void MermaidClassDialog::updatePreview()
-{
-    QString html = mermaidPreviewHtml(generatedDiagram().toHtmlEscaped());
-    m_preview->setHtml(html);
 }
 
 void MermaidClassDialog::updateFieldTable()

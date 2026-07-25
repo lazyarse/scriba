@@ -1,21 +1,14 @@
 #include "MermaidFlowchartDialog.h"
-#include "Preview.h"
 #include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QSplitter>
 #include <QComboBox>
 #include <QTableWidget>
-#include <QWebEngineView>
 #include <QPushButton>
-#include <QDialogButtonBox>
 #include <QLabel>
 #include <QHeaderView>
-#include <QTimer>
 #include <QIcon>
 #include <QPalette>
-#include <QGuiApplication>
-#include <QClipboard>
 #include <QGroupBox>
 
 struct ArrowInfo {
@@ -35,27 +28,17 @@ static const ArrowInfo kArrowTypes[] = {
 
 static const int kArrowCount = sizeof(kArrowTypes) / sizeof(ArrowInfo);
 
-MermaidFlowchartDialog::MermaidFlowchartDialog(QWidget *parent)
-    : QDialog(parent)
+MermaidFlowchartDialog::MermaidFlowchartDialog(const QString &themeCss, QWidget *parent)
+    : MermaidDialogBase("Mermaid Flowchart", themeCss, parent)
 {
-    setWindowTitle("Mermaid Flowchart");
-    resize(1000, 650);
-
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
-    connect(m_previewTimer, &QTimer::timeout, this, &MermaidFlowchartDialog::updatePreview);
-
     setupUi();
+    resize(1000, 650);
     updatePreview();
+    schedulePreviewUpdate();
 }
 
 void MermaidFlowchartDialog::setupUi()
 {
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-
-    QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
-
     QWidget *leftPanel = new QWidget(this);
     QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(12, 12, 12, 12);
@@ -168,35 +151,12 @@ void MermaidFlowchartDialog::setupUi()
 
     leftLayout->addStretch();
 
-    m_preview = new QWebEngineView(this);
-    m_preview->setPage(new PreviewPage(m_preview));
-
-    splitter->addWidget(leftPanel);
-    splitter->addWidget(m_preview);
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 1);
-    splitter->setSizes({500, 500});
-
-    mainLayout->addWidget(splitter);
-
-    QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    QPushButton *copyBtn = buttonBox->addButton("Copy", QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
-    Q_UNUSED(insertBtn);
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
-    mainLayout->addWidget(buttonBox);
-
-    connect(copyBtn, &QPushButton::clicked, this, [this]() {
-        QGuiApplication::clipboard()->setText(generatedDiagram());
-    });
-    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    setupMainLayout(leftPanel, leftLayout, {500, 500});
 
     connect(m_directionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MermaidFlowchartDialog::schedulePreviewUpdate);
+            this, &MermaidDialogBase::schedulePreviewUpdate);
     connect(m_nodeTable, &QTableWidget::itemChanged, this, &MermaidFlowchartDialog::onNodeChanged);
-    connect(m_edgeTable, &QTableWidget::itemChanged, this, &MermaidFlowchartDialog::schedulePreviewUpdate);
+    connect(m_edgeTable, &QTableWidget::itemChanged, this, &MermaidDialogBase::schedulePreviewUpdate);
 
     auto onComboChange = [this]() { schedulePreviewUpdate(); };
     connect(shapeCombo0, QOverload<int>::of(&QComboBox::currentIndexChanged), this, onComboChange);
@@ -214,7 +174,7 @@ void MermaidFlowchartDialog::setupUi()
         QComboBox *shapeCombo = new QComboBox(m_nodeTable);
         shapeCombo->addItems({"box", "round", "stadium", "diamond", "hexagon"});
         connect(shapeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &MermaidFlowchartDialog::schedulePreviewUpdate);
+                this, &MermaidDialogBase::schedulePreviewUpdate);
         m_nodeTable->setCellWidget(row, 2, shapeCombo);
         addNodeDeleteButton(row);
         refreshEdgeNodeCombos();
@@ -272,13 +232,13 @@ void MermaidFlowchartDialog::refreshEdgeNodeCombos()
             newFrom->addItems(nodeIds);
             m_edgeTable->setCellWidget(r, 0, newFrom);
             connect(newFrom, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, &MermaidFlowchartDialog::schedulePreviewUpdate);
+                    this, &MermaidDialogBase::schedulePreviewUpdate);
 
             QComboBox *newTo = new QComboBox(m_edgeTable);
             newTo->addItems(nodeIds);
             m_edgeTable->setCellWidget(r, 1, newTo);
             connect(newTo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, &MermaidFlowchartDialog::schedulePreviewUpdate);
+                    this, &MermaidDialogBase::schedulePreviewUpdate);
         }
     }
 
@@ -291,50 +251,9 @@ void MermaidFlowchartDialog::refreshEdgeNodeCombos()
                 arrowBox->addItem(kArrowTypes[i].display);
             m_edgeTable->setCellWidget(r, arrowCol, arrowBox);
             connect(arrowBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, &MermaidFlowchartDialog::schedulePreviewUpdate);
+                    this, &MermaidDialogBase::schedulePreviewUpdate);
         }
     }
-}
-
-void MermaidFlowchartDialog::schedulePreviewUpdate()
-{
-    m_previewTimer->start();
-}
-
-void MermaidFlowchartDialog::updatePreview()
-{
-    QString diagram = buildDiagram();
-    QString escaped = diagram;
-    escaped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-
-    QString html = QString(
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        "<style>"
-        "body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;}"
-        ".mermaid{max-width:100%;}"
-        ".error{color:#d32f2f;padding:16px;font-size:14px;}"
-        "</style>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "</head><body>"
-        "<div class=\"mermaid\">%1</div>"
-        "<script>"
-        "mermaid.initialize({startOnLoad:false,theme:'default'});"
-        "try{"
-        "mermaid.run({querySelector:'.mermaid'}).catch(function(e){"
-        "document.body.innerHTML='<div class=\"error\">'+e+'</div>';"
-        "});"
-        "}catch(e){"
-        "document.body.innerHTML='<div class=\"error\">'+e+'</div>';"
-        "}"
-        "</script></body></html>"
-    ).arg(escaped);
-
-    m_preview->setHtml(html);
-}
-
-QString MermaidFlowchartDialog::generatedDiagram() const
-{
-    return buildDiagram();
 }
 
 QString MermaidFlowchartDialog::shapeToMermaid(const QString &shape, const QString &text)

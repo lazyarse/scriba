@@ -1,57 +1,25 @@
 #include "MermaidJourneyDialog.h"
-#include "Preview.h"
 #include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QSplitter>
 #include <QTableWidget>
-#include <QWebEngineView>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QDialogButtonBox>
 #include <QLabel>
 #include <QHeaderView>
-#include <QTimer>
 #include <QSpinBox>
-#include <QIcon>
 #include <QPalette>
-#include <QGuiApplication>
-#include <QClipboard>
 
-static QString mermaidPreviewHtml(const QString &escaped) {
-    return QString(
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;}"
-        ".error{color:#d32f2f;padding:16px;}</style>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "</head><body><div class=\"mermaid\">%1</div>"
-        "<script>mermaid.initialize({startOnLoad:false,theme:'default'});"
-        "try{mermaid.run({querySelector:'.mermaid'}).catch(function(e){"
-        "document.body.innerHTML='<div class=\"error\">'+e+'</div>';});"
-        "}catch(e){document.body.innerHTML='<div class=\"error\">'+e+'</div>';}</script></body></html>"
-    ).arg(escaped);
-}
-
-MermaidJourneyDialog::MermaidJourneyDialog(QWidget *parent)
-    : QDialog(parent)
+MermaidJourneyDialog::MermaidJourneyDialog(const QString &themeCss, QWidget *parent)
+    : MermaidDialogBase("Mermaid Journey", themeCss, parent)
 {
-    setWindowTitle("Mermaid Journey");
-    resize(900, 550);
-
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
-    connect(m_previewTimer, &QTimer::timeout, this, &MermaidJourneyDialog::updatePreview);
-
     setupUi();
     updatePreview();
+    schedulePreviewUpdate();
 }
 
 void MermaidJourneyDialog::setupUi()
 {
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
-
     QWidget *leftPanel = new QWidget(this);
     QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(12, 12, 12, 12);
@@ -109,30 +77,8 @@ void MermaidJourneyDialog::setupUi()
     leftLayout->addWidget(m_table);
     leftLayout->addStretch();
 
-    m_preview = new QWebEngineView(this);
-    m_preview->setPage(new PreviewPage(m_preview));
+    setupMainLayout(leftPanel, leftLayout, {350, 550});
 
-    splitter->addWidget(leftPanel);
-    splitter->addWidget(m_preview);
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 1);
-    splitter->setSizes({350, 550});
-
-    mainLayout->addWidget(splitter);
-
-    QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    QPushButton *copyBtn = buttonBox->addButton("Copy", QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
-    Q_UNUSED(insertBtn);
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
-    mainLayout->addWidget(buttonBox);
-
-    connect(copyBtn, &QPushButton::clicked, this, [this]() {
-        QGuiApplication::clipboard()->setText(generatedDiagram());
-    });
-    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(m_titleEdit, &QLineEdit::textChanged, this, &MermaidJourneyDialog::schedulePreviewUpdate);
     connect(m_table, &QTableWidget::itemChanged, this, &MermaidJourneyDialog::schedulePreviewUpdate);
     connect(addBtn, &QPushButton::clicked, this, [this, addDeleteButton]() {
@@ -140,24 +86,6 @@ void MermaidJourneyDialog::setupUi()
         m_table->insertRow(row);
         addDeleteButton(row);
     });
-}
-
-void MermaidJourneyDialog::schedulePreviewUpdate()
-{
-    m_previewTimer->start();
-}
-
-void MermaidJourneyDialog::updatePreview()
-{
-    QString diagram = buildDiagram();
-    QString escaped = diagram;
-    escaped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-    m_preview->setHtml(mermaidPreviewHtml(escaped));
-}
-
-QString MermaidJourneyDialog::generatedDiagram() const
-{
-    return buildDiagram();
 }
 
 QString MermaidJourneyDialog::buildDiagram() const

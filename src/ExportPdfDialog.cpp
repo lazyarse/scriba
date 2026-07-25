@@ -1,6 +1,7 @@
 #include "ExportPdfDialog.h"
 #include "CssEditorDialog.h"
 #include "CssLoader.h"
+#include "CssUtils.h"
 #include "Preview.h"
 #include "Preferences.h"
 #include <QVBoxLayout>
@@ -584,6 +585,9 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
     QString emojiMode = settings.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
 
+    QString mermaidTheme = CssUtils::isDarkTheme(m_loader->themeCss())
+        ? QStringLiteral("dark") : QStringLiteral("default");
+
     return QString(
         "<!DOCTYPE html><html><head>"
         "<style>%1</style>"
@@ -602,7 +606,7 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
         "<script>%3%4%5%6"
         "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
         "document.addEventListener('DOMContentLoaded',function(){"
-        "mermaid.initialize({startOnLoad:false,theme:'default'});"
+        "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
         "initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();"
         "replaceEmoji(document.body);twemojiParse('%7');"
         "});</script>"

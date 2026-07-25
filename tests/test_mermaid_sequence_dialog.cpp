@@ -13,7 +13,7 @@ protected:
             new QApplication(g_argc, g_argv);
     }
 
-    MermaidSequenceDialog dlg;
+    MermaidSequenceDialog dlg{QString()};
 };
 
 TEST_F(MermaidSequenceDialogTest, DefaultDiagramIsNonEmpty) {

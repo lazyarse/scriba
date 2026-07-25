@@ -1,60 +1,28 @@
 #include "MermaidGanttDialog.h"
-#include "Preview.h"
 #include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QSplitter>
 #include <QTableWidget>
-#include <QWebEngineView>
 #include <QComboBox>
 #include <QPushButton>
-#include <QDialogButtonBox>
 #include <QLabel>
 #include <QHeaderView>
-#include <QTimer>
-#include <QIcon>
 #include <QPalette>
-#include <QGuiApplication>
-#include <QClipboard>
 #include <QLineEdit>
 #include <QCheckBox>
 #include <QTableWidgetItem>
 #include <QMap>
 
-static QString mermaidPreviewHtml(const QString &escaped) {
-    return QString(
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;}"
-        ".error{color:#d32f2f;padding:16px;}</style>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "</head><body><div class=\"mermaid\">%1</div>"
-        "<script>mermaid.initialize({startOnLoad:false,theme:'default'});"
-        "try{mermaid.run({querySelector:'.mermaid'}).catch(function(e){"
-        "document.body.innerHTML='<div class=\"error\">'+e+'</div>';});"
-        "}catch(e){document.body.innerHTML='<div class=\"error\">'+e+'</div>';}</script></body></html>"
-    ).arg(escaped);
-}
-
-MermaidGanttDialog::MermaidGanttDialog(QWidget *parent)
-    : QDialog(parent)
+MermaidGanttDialog::MermaidGanttDialog(const QString &themeCss, QWidget *parent)
+    : MermaidDialogBase("Mermaid Gantt Chart", themeCss, parent)
 {
-    setWindowTitle("Mermaid Gantt Chart");
-    resize(900, 550);
-
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
-    connect(m_previewTimer, &QTimer::timeout, this, &MermaidGanttDialog::updatePreview);
-
     setupUi();
     updatePreview();
+    schedulePreviewUpdate();
 }
 
 void MermaidGanttDialog::setupUi()
 {
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
-
     QWidget *leftPanel = new QWidget(this);
     QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(12, 12, 12, 12);
@@ -95,30 +63,7 @@ void MermaidGanttDialog::setupUi()
 
     leftLayout->addStretch();
 
-    m_preview = new QWebEngineView(this);
-    m_preview->setPage(new PreviewPage(m_preview));
-
-    splitter->addWidget(leftPanel);
-    splitter->addWidget(m_preview);
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 1);
-    splitter->setSizes({350, 550});
-
-    mainLayout->addWidget(splitter);
-
-    QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    QPushButton *copyBtn = buttonBox->addButton("Copy", QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
-    Q_UNUSED(insertBtn);
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
-    mainLayout->addWidget(buttonBox);
-
-    connect(copyBtn, &QPushButton::clicked, this, [this]() {
-        QGuiApplication::clipboard()->setText(generatedDiagram());
-    });
-    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    setupMainLayout(leftPanel, leftLayout, {350, 550});
 
     connect(m_titleEdit, &QLineEdit::textChanged,
             this, &MermaidGanttDialog::schedulePreviewUpdate);
@@ -183,24 +128,6 @@ void MermaidGanttDialog::setupUi()
         addDeleteButton(row);
         schedulePreviewUpdate();
     });
-}
-
-void MermaidGanttDialog::schedulePreviewUpdate()
-{
-    m_previewTimer->start();
-}
-
-void MermaidGanttDialog::updatePreview()
-{
-    QString diagram = buildDiagram();
-    QString escaped = diagram;
-    escaped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-    m_preview->setHtml(mermaidPreviewHtml(escaped));
-}
-
-QString MermaidGanttDialog::generatedDiagram() const
-{
-    return buildDiagram();
 }
 
 QString MermaidGanttDialog::buildDiagram() const

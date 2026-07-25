@@ -1,35 +1,28 @@
 #ifndef MERMAIDSTATEDIALOG_H
 #define MERMAIDSTATEDIALOG_H
 
-#include <QDialog>
+#include "MermaidDialogBase.h"
 
 class QComboBox;
 class QTableWidget;
-class QWebEngineView;
-class QTimer;
 
-class MermaidStateDialog : public QDialog
+class MermaidStateDialog : public MermaidDialogBase
 {
     Q_OBJECT
 
 public:
-    explicit MermaidStateDialog(QWidget *parent = nullptr);
-    QString generatedDiagram() const;
+    explicit MermaidStateDialog(const QString &themeCss, QWidget *parent = nullptr);
 
 private slots:
     void onStateChanged();
-    void schedulePreviewUpdate();
-    void updatePreview();
 
 private:
     void setupUi();
     void refreshTransitionCombos();
-    QString buildDiagram() const;
+    QString buildDiagram() const override;
 
     QTableWidget *m_stateTable;
     QTableWidget *m_transitionTable;
-    QWebEngineView *m_preview;
-    QTimer *m_previewTimer;
 };
 
 #endif

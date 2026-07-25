@@ -1,35 +1,28 @@
 #ifndef MERMAIDSEQUENCEDIALOG_H
 #define MERMAIDSEQUENCEDIALOG_H
 
-#include <QDialog>
+#include "MermaidDialogBase.h"
 
 class QComboBox;
 class QTableWidget;
-class QWebEngineView;
-class QTimer;
 
-class MermaidSequenceDialog : public QDialog
+class MermaidSequenceDialog : public MermaidDialogBase
 {
     Q_OBJECT
 
 public:
-    explicit MermaidSequenceDialog(QWidget *parent = nullptr);
-    QString generatedDiagram() const;
+    explicit MermaidSequenceDialog(const QString &themeCss, QWidget *parent = nullptr);
 
 private slots:
     void onParticipantChanged();
-    void schedulePreviewUpdate();
-    void updatePreview();
 
 private:
     void setupUi();
     void refreshMessageCombos();
-    QString buildDiagram() const;
+    QString buildDiagram() const override;
 
     QTableWidget *m_participantTable;
     QTableWidget *m_messageTable;
-    QWebEngineView *m_preview;
-    QTimer *m_previewTimer;
 };
 
 #endif

@@ -11,7 +11,7 @@ protected:
     static void SetUpTestSuite() {
         if (!QCoreApplication::instance())
             new QApplication(g_argc, g_argv);
-        s_dlg = new MermaidMindmapDialog;
+        s_dlg = new MermaidMindmapDialog{QString()};
     }
 
     static void TearDownTestSuite() {
