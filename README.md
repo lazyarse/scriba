@@ -105,7 +105,9 @@
 | Shortcut | Action |
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>E</kbd> | Emoji Search :eyes: :mag: |
-| <kbd>Ctrl</kbd>+<kbd>T</kbd> | Table Generator |
+| <kbd>Ctrl</kbd>+<kbd>T</kbd> | Tables |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> | Katex |
+| <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite |
 
 ## Custom CSS / Themes
 

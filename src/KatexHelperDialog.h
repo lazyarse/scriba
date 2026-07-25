@@ -2,6 +2,7 @@
 #define KATEXHELPERDIALOG_H
 
 #include <QDialog>
+#include <QColor>
 
 class QWebEngineView;
 class QPlainTextEdit;
@@ -13,7 +14,7 @@ class KatexHelperDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit KatexHelperDialog(QWidget *parent = nullptr);
+    explicit KatexHelperDialog(const QString &themeCss = QString(), QWidget *parent = nullptr);
     QString generatedLatex() const;
 
 private slots:
@@ -31,6 +32,8 @@ private:
     QRadioButton *m_inlineRadio;
     QRadioButton *m_blockRadio;
     QTimer *m_previewTimer;
+    QColor m_themeBg;
+    QColor m_themeTxt;
 };
 
 #endif

@@ -1,5 +1,6 @@
 #include "KatexHelperDialog.h"
 #include "Preview.h"
+#include "CssUtils.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -140,9 +141,13 @@ static const CheatSection kCheatSections[] = {
 };
 static const int kCheatSectionCount = sizeof(kCheatSections) / sizeof(CheatSection);
 
-KatexHelperDialog::KatexHelperDialog(QWidget *parent)
+KatexHelperDialog::KatexHelperDialog(const QString &themeCss, QWidget *parent)
     : QDialog(parent)
 {
+    CssUtils::ThemeColors colors = CssUtils::themeColors(themeCss);
+    m_themeBg = colors.background;
+    m_themeTxt = colors.text;
+
     setWindowTitle("Insert Equation");
     resize(640, 700);
 
@@ -181,6 +186,9 @@ void KatexHelperDialog::setupUi()
     QFont mono("Monospace");
     mono.setStyleHint(QFont::Monospace);
     m_input->setFont(mono);
+    m_input->setStyleSheet(QString(
+        "QPlainTextEdit { background-color: %1; color: %2; border: none; }")
+        .arg(m_themeBg.name(), m_themeTxt.name()));
     mainLayout->addWidget(m_input);
 
     QScrollArea *scrollArea = new QScrollArea(this);
@@ -197,6 +205,10 @@ void KatexHelperDialog::setupUi()
     helperLayout->addStretch();
 
     scrollArea->setWidget(helperWidget);
+    scrollArea->viewport()->setStyleSheet(
+        QString("background-color: %1;").arg(m_themeBg.name()));
+    helperWidget->setStyleSheet(
+        QString("background-color: %1;").arg(m_themeBg.name()));
     mainLayout->addWidget(scrollArea, 1);
 
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
@@ -283,7 +295,15 @@ QWidget *KatexHelperDialog::createCheatSheet(QWidget *parent)
         const CheatSection &sec = kCheatSections[s];
         QGroupBox *secBox = new QGroupBox(QString::fromUtf8(sec.title), group);
         secBox->setCheckable(true);
-        secBox->setFlat(true);
+        {
+            bool dark = m_themeBg.lightness() < 128;
+            QColor borderColor = dark ? m_themeBg.lighter(220) : m_themeBg.darker(125);
+            secBox->setStyleSheet(QString(
+                "QGroupBox { color: %1; font-weight: bold; "
+                "border: 1px solid %2; margin-top: 8px; padding-top: 18px; }"
+                "QGroupBox::title { color: %1; font-weight: bold; }")
+                .arg(m_themeTxt.name(), borderColor.name()));
+        }
         QGridLayout *grid = new QGridLayout(secBox);
         grid->setContentsMargins(4, 4, 4, 4);
         grid->setSpacing(2);
@@ -300,8 +320,10 @@ QWidget *KatexHelperDialog::createCheatSheet(QWidget *parent)
             exLabel->setMinimumWidth(120);
             exLabel->setFixedHeight(32);
             exLabel->setHtml(QString(
-                "<div style='font-family:monospace;font-size:12px;padding:4px 8px;'>%1</div>")
-                .arg(QString::fromUtf8(sec.entries[i].example).replace("<", "&lt;").replace(">", "&gt;")));
+                "<div style='font-family:monospace;font-size:12px;padding:4px 8px;"
+                "background-color:%1;color:%2;'>%3</div>")
+                .arg(m_themeBg.name(), m_themeTxt.name(),
+                     QString::fromUtf8(sec.entries[i].example).replace("<", "&lt;").replace(">", "&gt;")));
 
             QPushButton *insertBtn = new QPushButton("+", secBox);
             insertBtn->setFixedSize(24, 24);
@@ -349,11 +371,13 @@ void KatexHelperDialog::updatePreview()
 {
     QString latex = m_input->toPlainText().trimmed();
     if (latex.isEmpty()) {
-        m_preview->setHtml(
+        m_preview->setHtml(QString(
             "<!DOCTYPE html><html><head><style>"
             "body{margin:0;display:flex;justify-content:center;align-items:center;"
-            "min-height:100%;font-family:sans-serif;color:#888;}</style></head>"
-            "<body><span>Enter LaTeX to see preview</span></body></html>");
+            "min-height:100%;font-family:sans-serif;"
+            "background-color:%1;color:%2;}</style></head>"
+            "<body><span>Enter LaTeX to see preview</span></body></html>")
+            .arg(m_themeBg.name(), m_themeTxt.name()));
         return;
     }
 
@@ -369,7 +393,8 @@ void KatexHelperDialog::updatePreview()
         "<script src=\"qrc:///katex.min.js\"></script>"
         "<style>"
         "body{margin:0;display:flex;justify-content:center;align-items:center;"
-        "min-height:100%;font-family:sans-serif;}"
+        "min-height:100%;font-family:sans-serif;"
+        "background-color:%3;color:%4;}"
         ".error{color:#d32f2f;padding:16px;font-size:14px;}"
         "</style>"
         "</head><body>"
@@ -382,7 +407,7 @@ void KatexHelperDialog::updatePreview()
         "document.body.innerHTML='<div class=\"error\">'+e+'</div>';"
         "}"
         "</script></body></html>"
-    ).arg(escaped, displayMode);
+    ).arg(escaped, displayMode, m_themeBg.name(), m_themeTxt.name());
 
     m_preview->setHtml(html);
 }

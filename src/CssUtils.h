@@ -5,8 +5,13 @@
 #include <QColor>
 
 namespace CssUtils {
-    QString deriveChromeCss(const QString &themeCss);
-    QColor chromeTextColor(const QString &themeCss);
-}
+
+struct ThemeColors { QColor background; QColor text; };
+
+QString deriveChromeCss(const QString &themeCss);
+QColor chromeTextColor(const QString &themeCss);
+ThemeColors themeColors(const QString &themeCss);
+
+} // namespace CssUtils
 
 #endif

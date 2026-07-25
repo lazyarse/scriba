@@ -3,6 +3,7 @@
 #include <QPlainTextEdit>
 #include <QRadioButton>
 #include "KatexHelperDialog.h"
+#include "CssUtils.h"
 
 static int g_argc = 1;
 static char g_arg0[] = "test_katex_helper_dialog";
@@ -16,6 +17,14 @@ protected:
     }
 
     KatexHelperDialog dlg;
+};
+
+class KatexHelperThemeTest : public ::testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        if (!QCoreApplication::instance())
+            new QApplication(g_argc, g_argv);
+    }
 };
 
 TEST_F(KatexHelperDialogTest, WindowTitle) {
@@ -87,4 +96,35 @@ TEST_F(KatexHelperDialogTest, InputFieldAcceptsMultiLineLatex) {
     EXPECT_FALSE(result.isEmpty());
     EXPECT_TRUE(result.startsWith("$$"));
     EXPECT_TRUE(result.endsWith("$$"));
+}
+
+TEST_F(KatexHelperThemeTest, ThemeColorsExtractedFromCss) {
+    QString css = "#editor { background-color: #0d1117; color: #c9d1d9; }\n"
+                  "body { background-color: #0d1117; color: #c9d1d9; }";
+    CssUtils::ThemeColors colors = CssUtils::themeColors(css);
+    EXPECT_EQ(colors.background.name().toStdString(), "#0d1117");
+    EXPECT_EQ(colors.text.name().toStdString(), "#c9d1d9");
+}
+
+TEST_F(KatexHelperThemeTest, ThemeColorsFallbackFromBody) {
+    QString css = "body { background-color: #ffffff; color: #333333; }";
+    CssUtils::ThemeColors colors = CssUtils::themeColors(css);
+    EXPECT_EQ(colors.background.name().toStdString(), "#ffffff");
+    EXPECT_EQ(colors.text.name().toStdString(), "#333333");
+}
+
+TEST_F(KatexHelperThemeTest, ThemeColorsDefaultsOnEmptyCss) {
+    CssUtils::ThemeColors colors = CssUtils::themeColors("");
+    EXPECT_EQ(colors.background.name().toStdString(), "#ffffff");
+    EXPECT_EQ(colors.text.name().toStdString(), "#333333");
+}
+
+TEST_F(KatexHelperThemeTest, DialogAcceptsThemeCss) {
+    QString css = "#editor { background-color: #1e1e2e; color: #cdd6f4; }\n"
+                  "body { background-color: #1e1e2e; color: #cdd6f4; }";
+    KatexHelperDialog dlg(css);
+    QPlainTextEdit *input = dlg.findChild<QPlainTextEdit*>();
+    ASSERT_NE(input, nullptr);
+    EXPECT_TRUE(input->styleSheet().contains("#1e1e2e"));
+    EXPECT_TRUE(input->styleSheet().contains("#cdd6f4"));
 }
