@@ -12,9 +12,11 @@ public:
 
     QString themeCss();
     QString previewBaseCss();
+    QString printBaseCss();
     QString printCss() const;
 
     void setPreviewBaseCss(const QString &css);
+    void setPrintBaseCss(const QString &css);
 
     void invalidateCache();
 
@@ -26,6 +28,7 @@ private:
     const CssConfig *m_config;
     QString m_themeCache;
     QString m_previewBaseCache;
+    QString m_printBaseCache;
     bool m_cacheDirty = true;
 };
 

@@ -1,4 +1,5 @@
 #include "ExportPdfDialog.h"
+#include "CssEditorDialog.h"
 #include "CssLoader.h"
 #include "Preview.h"
 #include "Preferences.h"
@@ -342,6 +343,14 @@ void ExportPdfDialog::setupUi()
     m_defaultRadio = new QRadioButton("Use default print stylesheet", exportGroup);
     m_customRadio = new QRadioButton("Use custom print stylesheet", exportGroup);
     groupLayout->addWidget(m_defaultRadio);
+
+    auto *editPrintCssLayout = new QHBoxLayout();
+    editPrintCssLayout->addSpacing(24);
+    m_editPrintCssBtn = new QPushButton("Edit Print Base CSS...", exportGroup);
+    editPrintCssLayout->addWidget(m_editPrintCssBtn);
+    groupLayout->addLayout(editPrintCssLayout);
+    connect(m_editPrintCssBtn, &QPushButton::clicked, this, &ExportPdfDialog::editPrintBaseCss);
+
     groupLayout->addWidget(m_customRadio);
 
     QHBoxLayout *customLayout = new QHBoxLayout();
@@ -535,6 +544,24 @@ void ExportPdfDialog::browseCustomCss()
 
     m_customCssPath = path;
     onCssModeChanged();
+}
+
+static QString loadResourceCss(const QString &path)
+{
+    QFile f(path);
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QString::fromUtf8(f.readAll());
+    return {};
+}
+
+void ExportPdfDialog::editPrintBaseCss()
+{
+    CssEditorDialog dlg("Edit Print Base CSS", m_loader->printBaseCss(),
+        loadResourceCss(":/print-base.css"), this);
+    if (dlg.exec() == QDialog::Accepted) {
+        m_loader->setPrintBaseCss(dlg.css());
+        onCssModeChanged();
+    }
 }
 
 QString ExportPdfDialog::loadCustomCss() const
