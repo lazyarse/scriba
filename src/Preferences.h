@@ -27,6 +27,9 @@ namespace Preferences {
     constexpr const char *EditorFontSize = "editorFontSize";
     constexpr const char *EditorLineHeight = "editorLineHeight";
     constexpr const char *EditorPadding = "editorPadding";
+    constexpr const char *EditorBgColor = "editorBgColor";
+    constexpr const char *EditorFontColor = "editorFontColor";
+    constexpr const char *EditorColorOverride = "editorColorOverride";
 
     constexpr const char *PdfShowHeader = "pdfShowHeader";
 

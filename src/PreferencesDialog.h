@@ -6,6 +6,7 @@
 #include <QStackedWidget>
 #include <QPushButton>
 #include <QCheckBox>
+#include <QGroupBox>
 #include <QRadioButton>
 #include <QSpinBox>
 
@@ -20,7 +21,8 @@ class PreferencesDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent = nullptr);
+    explicit PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent,
+        const QString &themeBgColor, const QString &themeFgColor);
 
 signals:
     void stylesheetChanged();
@@ -33,7 +35,7 @@ private slots:
     void onCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
 private:
     void populateStylesheetList();
-    void setupUi();
+    void setupUi(const QString &themeBgColor, const QString &themeFgColor);
 
     CssConfig *m_config;
     CssLoader *m_loader;
@@ -59,6 +61,9 @@ private:
     QSpinBox *m_editorFontSizeSpin;
     QSpinBox *m_editorLineHeightSpin;
     QSpinBox *m_editorPaddingSpin;
+    QGroupBox *m_overrideGroup;
+    QPushButton *m_editorBgBtn;
+    QPushButton *m_editorFontBtn;
 };
 
 #endif
