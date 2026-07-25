@@ -24,6 +24,7 @@ public:
 
 signals:
     void stylesheetChanged();
+    void editorSettingsChanged(const QString &fontFamily, int fontSize, int lineHeight, int padding);
 
 private slots:
     void addStylesheet();
