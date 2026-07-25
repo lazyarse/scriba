@@ -63,8 +63,8 @@ FindDialog::FindDialog(QWidget *parent)
         emit searchTextChanged(m_searchInput->text(), m_regexCheck->isChecked(), m_caseCheck->isChecked());
     };
     connect(m_searchInput, &QLineEdit::textChanged, this, emitSearchChanged);
-    connect(m_regexCheck, &QCheckBox::stateChanged, this, emitSearchChanged);
-    connect(m_caseCheck, &QCheckBox::stateChanged, this, emitSearchChanged);
+    connect(m_regexCheck, &QCheckBox::checkStateChanged, this, emitSearchChanged);
+    connect(m_caseCheck, &QCheckBox::checkStateChanged, this, emitSearchChanged);
 
     auto *hintRow = new QHBoxLayout();
     auto *hintLabel = new QLabel("Tip: Use \\1, \\2 for captured groups in regex replace");
