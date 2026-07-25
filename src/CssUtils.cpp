@@ -118,8 +118,8 @@ QString deriveChromeCss(const QString &themeCss)
 
     return QStringLiteral(
         "QDialog { background-color: %2; }\n"
-        "QGroupBox { color: %3; font-weight: bold; border: 1px solid %4; margin-top: 8px; }\n"
-        "QGroupBox::title { color: %3; font-weight: bold; }\n"
+        "QGroupBox { color: %3; font-weight: bold; border: 1px solid %4; margin-top: 14px; }\n"
+        "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; padding: 2px 8px; color: %3; font-weight: bold; }\n"
         "QGroupBox::indicator { width: 14px; height: 14px; background-color: %12; border: 1px solid %4; }\n"
         "QGroupBox::indicator:checked { background-color: %13; border: 1px solid %13; image: %11; }\n"
         "QCheckBox { color: %3; spacing: 6px; }\n"
