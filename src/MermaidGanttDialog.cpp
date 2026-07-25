@@ -78,15 +78,16 @@ void MermaidGanttDialog::setupUi()
     leftLayout->addWidget(new QLabel("Tasks:"));
     QHBoxLayout *taskBtnLayout = new QHBoxLayout();
     QPushButton *addTaskBtn = new QPushButton("+Task", leftPanel);
-    QPushButton *removeTaskBtn = new QPushButton("-Task", leftPanel);
     taskBtnLayout->addWidget(addTaskBtn);
-    taskBtnLayout->addWidget(removeTaskBtn);
     taskBtnLayout->addStretch();
     leftLayout->addLayout(taskBtnLayout);
 
-    m_taskTable = new QTableWidget(4, 6, leftPanel);
-    m_taskTable->setHorizontalHeaderLabels({"ID", "Description", "Start/After", "Duration", "Status", "Section"});
+    const int delCol = 6;
+    m_taskTable = new QTableWidget(4, 7, leftPanel);
+    m_taskTable->setHorizontalHeaderLabels({"ID", "Description", "Start/After", "Duration", "Status", "Section", "Del"});
     m_taskTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_taskTable->horizontalHeader()->setSectionResizeMode(delCol, QHeaderView::Fixed);
+    m_taskTable->setColumnWidth(delCol, 32);
     m_taskTable->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_taskTable);
 
@@ -144,12 +145,27 @@ void MermaidGanttDialog::setupUi()
                 this, &MermaidGanttDialog::schedulePreviewUpdate);
     };
 
+    auto addDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_taskTable);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_taskTable->setCellWidget(row, delCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_taskTable->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_taskTable->rowCount() > 1)
+                m_taskTable->removeRow(row);
+            schedulePreviewUpdate();
+        });
+    };
+
     populateDefaultRow(0, "a1", "API design", "2026-07-01", "7d", "done", "Backend");
     populateDefaultRow(1, "a2", "DB schema", "after a1", "5d", "done", "Backend");
     populateDefaultRow(2, "a3", "Endpoints", "after a2", "14d", "active", "Frontend");
     populateDefaultRow(3, "b1", "UI components", "2026-07-10", "10d", "", "Frontend");
+    for (int r = 0; r < m_taskTable->rowCount(); ++r)
+        addDeleteButton(r);
 
-    connect(addTaskBtn, &QPushButton::clicked, this, [this]() {
+    connect(addTaskBtn, &QPushButton::clicked, this, [this, addDeleteButton]() {
         int row = m_taskTable->rowCount();
         m_taskTable->insertRow(row);
         m_taskTable->setItem(row, 0, new QTableWidgetItem(""));
@@ -162,13 +178,8 @@ void MermaidGanttDialog::setupUi()
         m_taskTable->setCellWidget(row, 4, statusCombo);
         connect(statusCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &MermaidGanttDialog::schedulePreviewUpdate);
+        addDeleteButton(row);
         schedulePreviewUpdate();
-    });
-    connect(removeTaskBtn, &QPushButton::clicked, this, [this]() {
-        if (m_taskTable->rowCount() > 1) {
-            m_taskTable->removeRow(m_taskTable->rowCount() - 1);
-            schedulePreviewUpdate();
-        }
     });
 }
 

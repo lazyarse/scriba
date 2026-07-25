@@ -62,15 +62,16 @@ void MermaidJourneyDialog::setupUi()
     leftLayout->addWidget(new QLabel("Tasks:"));
     QHBoxLayout *btnLayout = new QHBoxLayout();
     QPushButton *addBtn = new QPushButton("+Row", leftPanel);
-    QPushButton *removeBtn = new QPushButton("-Row", leftPanel);
     btnLayout->addWidget(addBtn);
-    btnLayout->addWidget(removeBtn);
     btnLayout->addStretch();
     leftLayout->addLayout(btnLayout);
 
-    m_table = new QTableWidget(4, 4, leftPanel);
-    m_table->setHorizontalHeaderLabels({"Section", "Task Name", "Score", "Actors"});
+    const int delCol = 4;
+    m_table = new QTableWidget(4, 5, leftPanel);
+    m_table->setHorizontalHeaderLabels({"Section", "Task Name", "Score", "Actors", "Del"});
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_table->horizontalHeader()->setSectionResizeMode(delCol, QHeaderView::Fixed);
+    m_table->setColumnWidth(delCol, 32);
     m_table->verticalHeader()->setDefaultSectionSize(28);
 
     auto setRow = [&](int row, const QString &section, const QString &task, int score, const QString &actors) {
@@ -87,6 +88,21 @@ void MermaidJourneyDialog::setupUi()
     setRow(1, "Morning", "Shower", 3, "Me");
     setRow(2, "Work", "Coding", 7, "Me, Team");
     setRow(3, "Work", "Meetings", 2, "Me, Boss");
+
+    auto addDeleteButton = [&](int row) {
+        QPushButton *delBtn = new QPushButton("\u00d7", m_table);
+        delBtn->setFixedSize(26, 22);
+        delBtn->setToolTip("Delete row");
+        m_table->setCellWidget(row, delCol, delBtn);
+        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
+            int row = m_table->indexAt(delBtn->pos()).row();
+            if (row >= 0 && m_table->rowCount() > 1)
+                m_table->removeRow(row);
+            schedulePreviewUpdate();
+        });
+    };
+    for (int r = 0; r < m_table->rowCount(); ++r)
+        addDeleteButton(r);
 
     leftLayout->addWidget(m_table);
     leftLayout->addStretch();
@@ -117,12 +133,10 @@ void MermaidJourneyDialog::setupUi()
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(m_titleEdit, &QLineEdit::textChanged, this, &MermaidJourneyDialog::schedulePreviewUpdate);
     connect(m_table, &QTableWidget::itemChanged, this, &MermaidJourneyDialog::schedulePreviewUpdate);
-    connect(addBtn, &QPushButton::clicked, this, [this]() {
-        m_table->insertRow(m_table->rowCount());
-    });
-    connect(removeBtn, &QPushButton::clicked, this, [this]() {
-        if (m_table->rowCount() > 1)
-            m_table->removeRow(m_table->rowCount() - 1);
+    connect(addBtn, &QPushButton::clicked, this, [this, addDeleteButton]() {
+        int row = m_table->rowCount();
+        m_table->insertRow(row);
+        addDeleteButton(row);
     });
 }
 
