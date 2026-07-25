@@ -21,9 +21,12 @@ protected:
     virtual QString buildDiagram() const = 0;
 
     QString mermaidTheme() const;
-    static QString mermaidPreviewHtml(const QString &escaped, const QString &theme);
+    static QString mermaidPreviewHtml(const QString &escaped, const QString &theme,
+                                      const QString &bgColor = QString());
     void setupMainLayout(QWidget *leftPanel, QVBoxLayout *leftLayout,
                          const QList<int> &sizes = {350, 550});
+
+    QColor iconColor() const { return m_iconColor; }
 
     QWebEngineView *m_preview;
     QTimer *m_previewTimer;
@@ -36,6 +39,8 @@ protected slots:
 
 private:
     QString m_mermaidTheme;
+    QString m_bgColor;
+    QColor m_iconColor;
 };
 
 #endif

@@ -17,6 +17,10 @@ MermaidDialogBase::MermaidDialogBase(const QString &title, const QString &themeC
     , m_mermaidTheme(CssUtils::isDarkTheme(themeCss) ? QStringLiteral("dark")
                                                      : QStringLiteral("default"))
 {
+    auto colors = CssUtils::themeColors(themeCss);
+    m_bgColor = colors.background.name();
+    m_iconColor = colors.text;
+
     setWindowTitle(title);
 
     m_previewTimer = new QTimer(this);
@@ -41,11 +45,12 @@ QString MermaidDialogBase::mermaidTheme() const
     return m_mermaidTheme;
 }
 
-QString MermaidDialogBase::mermaidPreviewHtml(const QString &escaped, const QString &theme)
+QString MermaidDialogBase::mermaidPreviewHtml(const QString &escaped, const QString &theme,
+                                               const QString &bgColor)
 {
     return QString(
         "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;}"
+        "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;background-color:%3;}"
         ".error{color:#d32f2f;padding:16px;}</style>"
         "<script src=\"qrc:///mermaid.min.js\"></script>"
         "</head><body><div class=\"mermaid\">%1</div>"
@@ -53,7 +58,7 @@ QString MermaidDialogBase::mermaidPreviewHtml(const QString &escaped, const QStr
         "try{mermaid.run({querySelector:'.mermaid'}).catch(function(e){"
         "document.body.innerHTML='<div class=\"error\">'+e+'</div>';});"
         "}catch(e){document.body.innerHTML='<div class=\"error\">'+e+'</div>';}</script></body></html>"
-    ).arg(escaped, theme);
+    ).arg(escaped, theme, bgColor);
 }
 
 void MermaidDialogBase::setupMainLayout(QWidget *leftPanel, QVBoxLayout *leftLayout,
@@ -102,5 +107,5 @@ void MermaidDialogBase::updatePreview()
     QString diagram = buildDiagram();
     QString escaped = diagram;
     escaped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-    m_preview->setHtml(mermaidPreviewHtml(escaped, m_mermaidTheme));
+    m_preview->setHtml(mermaidPreviewHtml(escaped, m_mermaidTheme, m_bgColor));
 }
