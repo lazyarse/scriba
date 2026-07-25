@@ -25,6 +25,7 @@ add_executable(scriba
     src/TableDialog.cpp
     src/VegaLiteDialog.cpp
     src/EmojiDialog.cpp
+    src/AboutDialog.cpp
     src/LogWindow.cpp
     src/MermaidPieDialog.cpp
     src/MermaidFlowchartDialog.cpp
@@ -90,6 +91,8 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor")
 set(CPACK_PACKAGE_CONTACT "TODO <fixme@example.com>")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 include(CPack)
+
+target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
 
 option(BUILD_TESTS "Build unit tests" OFF)
 
@@ -217,7 +220,7 @@ if(BUILD_TESTS)
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
-        src/EmojiDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp
         src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp
@@ -235,6 +238,7 @@ if(BUILD_TESTS)
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_compile_definitions(test_scroll_sync PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
     target_link_libraries(test_scroll_sync PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
@@ -244,7 +248,7 @@ if(BUILD_TESTS)
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
-        src/EmojiDialog.cpp src/FindDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidFlowchartDialog.cpp
         src/MermaidSequenceDialog.cpp src/MermaidGanttDialog.cpp
@@ -264,7 +268,7 @@ if(BUILD_TESTS)
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp
         src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
-        src/EmojiDialog.cpp src/FindDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidFlowchartDialog.cpp
         src/MermaidSequenceDialog.cpp src/MermaidGanttDialog.cpp

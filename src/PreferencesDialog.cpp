@@ -279,6 +279,16 @@ void PreferencesDialog::setupUi()
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
     connect(m_categoryList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
 
+    auto emitEditorSettings = [this]() {
+        emit editorSettingsChanged(m_editorFontCombo->currentText(),
+            m_editorFontSizeSpin->value(), m_editorLineHeightSpin->value(),
+            m_editorPaddingSpin->value());
+    };
+    connect(m_editorFontCombo, &QComboBox::currentTextChanged, this, emitEditorSettings);
+    connect(m_editorFontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
+    connect(m_editorLineHeightSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
+    connect(m_editorPaddingSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
+
     populateStylesheetList();
     m_categoryList->setCurrentRow(0);
 

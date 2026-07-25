@@ -13,6 +13,7 @@
 #include "TableDialog.h"
 #include "VegaLiteDialog.h"
 #include "EmojiDialog.h"
+#include "AboutDialog.h"
 #include "LogWindow.h"
 #include "MermaidPieDialog.h"
 #include "MermaidFlowchartDialog.h"
@@ -321,6 +322,22 @@ void MainWindow::setupMenuBar()
 
     QMenu *toolsMenu = menuBar()->addMenu("&Tools");
 
+    QAction *tableAction = toolsMenu->addAction("&Table Insert...");
+    tableAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
+    connect(tableAction, &QAction::triggered, this, &MainWindow::showTableInsert);
+
+    QAction *emojiAction = toolsMenu->addAction("&Emoji Picker...");
+    emojiAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
+    connect(emojiAction, &QAction::triggered, this, [this]() {
+        EmojiDialog dlg(this);
+        connect(&dlg, &EmojiDialog::emojiChosen, this, [this](const QString &sc) {
+            m_editor->insertPlainText(":" + sc + ":");
+        });
+        dlg.exec();
+    });
+
+    toolsMenu->addSeparator();
+
     QAction *chartAction = toolsMenu->addAction("Vega-Lite &Charts");
     chartAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
     connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
@@ -353,20 +370,6 @@ void MainWindow::setupMenuBar()
     QAction *sankeyAction = mermaidMenu->addAction("&Sankey...");
     connect(sankeyAction, &QAction::triggered, this, &MainWindow::showMermaidSankey);
 
-    QAction *emojiAction = toolsMenu->addAction("&Emoji Picker...");
-    emojiAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
-    connect(emojiAction, &QAction::triggered, this, [this]() {
-        EmojiDialog dlg(this);
-        connect(&dlg, &EmojiDialog::emojiChosen, this, [this](const QString &sc) {
-            m_editor->insertPlainText(":" + sc + ":");
-        });
-        dlg.exec();
-    });
-
-    QAction *tableAction = toolsMenu->addAction("&Table Insert...");
-    tableAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
-    connect(tableAction, &QAction::triggered, this, &MainWindow::showTableInsert);
-
     toolsMenu->addSeparator();
 
     QAction *logAction = toolsMenu->addAction("&Debug Log");
@@ -374,6 +377,11 @@ void MainWindow::setupMenuBar()
     connect(logAction, &QAction::triggered, this, &MainWindow::showLogWindow);
 
     QMenu *helpMenu = menuBar()->addMenu("&Help");
+    QAction *aboutAction = helpMenu->addAction("&About Scriba...");
+    connect(aboutAction, &QAction::triggered, this, [this]() {
+        AboutDialog dlg(this);
+        dlg.exec();
+    });
     QAction *shortcutsAction = helpMenu->addAction("&Keyboard Shortcuts...");
     connect(shortcutsAction, &QAction::triggered, this, [this]() {
         QDialog dlg(this);
@@ -452,9 +460,15 @@ QString MainWindow::applyEditorSettings()
     int lineHeight = settings.value(Preferences::EditorLineHeight, 240).toInt();
     int padding = settings.value(Preferences::EditorPadding, 12).toInt();
 
+    applyEditorSettings(family, size, lineHeight, padding);
+    return QString("#scriba-editor { padding: %1px; }").arg(padding);
+}
+
+void MainWindow::applyEditorSettings(const QString &fontFamily, int fontSize, int lineHeight, int padding)
+{
     QFont font;
-    font.setFamily(family);
-    font.setPointSize(size);
+    font.setFamily(fontFamily);
+    font.setPointSize(fontSize);
     m_editor->setFont(font);
 
     QTextBlockFormat fmt;
@@ -462,8 +476,6 @@ QString MainWindow::applyEditorSettings()
     QTextCursor cursor(m_editor->document());
     cursor.select(QTextCursor::Document);
     cursor.mergeBlockFormat(fmt);
-
-    return QString("#scriba-editor { padding: %1px; }").arg(padding);
 }
 
 void MainWindow::applyStripeSetting()
@@ -709,6 +721,10 @@ void MainWindow::showPreferences()
         applyStripeSetting();
     };
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
+    connect(&dlg, &PreferencesDialog::editorSettingsChanged, this,
+        [this](const QString &f, int s, int lh, int p) {
+            applyEditorSettings(f, s, lh, p);
+        });
     dlg.exec();
     updateAll();
     applyStripeSetting();
