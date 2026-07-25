@@ -573,6 +573,18 @@ void MainWindow::setupMenuBar()
             m_tabWidget->setCurrentIndex((m_tabWidget->currentIndex() - 1 + count) % count);
     });
 
+    for (int i = 1; i <= 10; ++i) {
+        Qt::Key key = (i == 10) ? Qt::Key_0
+                                : static_cast<Qt::Key>(Qt::Key_0 + i);
+        QAction *tabAction = new QAction(QString("Switch to Tab %1").arg(i), this);
+        tabAction->setShortcut(QKeySequence(Qt::ALT | key));
+        connect(tabAction, &QAction::triggered, this, [this, i]() {
+            if (i - 1 < m_tabWidget->count())
+                m_tabWidget->setCurrentIndex(i - 1);
+        });
+        addAction(tabAction);
+    }
+
     QMenu *toolsMenu = menuBar()->addMenu("&Tools");
 
     QAction *tableAction = toolsMenu->addAction("&Table Insert...");
