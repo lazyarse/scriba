@@ -165,6 +165,7 @@ QString deriveChromeCss(const QString &themeCss)
         "QLineEdit { background-color: %2; color: %3; border: 1px solid %4; padding: 2px 4px; }\n"
         "QComboBox QAbstractItemView { background-color: %10; color: %3; selection-background-color: %5; selection-color: %6; outline: none; }\n"
         "QTableWidget, QTableView { background-color: %2; color: %3; border: 1px solid %4; gridline-color: %4; }\n"
+        "QTableCornerButton::section { background-color: %2; border: 1px solid %4; }\n"
         "QHeaderView { background-color: %2; }\n"
         "QHeaderView::section { background-color: %2; color: %3; padding: 4px; border: 1px solid %4; font-weight: bold; }\n"
         "\n"
