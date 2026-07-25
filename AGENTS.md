@@ -65,6 +65,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Always rebuild after making changes — CSS, resource, or source files all require a rebuild to take effect
 - After building, run the application briefly to check for segfaults: `timeout 3 build/scriba || true`
 - Only rebuild the .deb package when explicitly asked to — do not rebuild it automatically after changes
+- After adding a new keyboard shortcut, update `resources/shortcuts.html` to document it
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
 - After changing autocomplete behavior, update `docs/images/autocomplete-demo.gif` by running `scripts/create-autocomplete-demo.py`. Requires: xvfb-run, xdotool, and Python packages (Pillow, mss).
 - Create tests for each new feature — use Qt Test framework (QTest), add test files to `tests/` directory and register in `CMakeLists.txt`

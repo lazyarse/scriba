@@ -607,7 +607,7 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
         "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
         "document.addEventListener('DOMContentLoaded',function(){"
         "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();"
+        "initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();"
         "replaceEmoji(document.body);twemojiParse('%7');"
         "});</script>"
         "</head><body id=\"preview\">%8</body></html>"
