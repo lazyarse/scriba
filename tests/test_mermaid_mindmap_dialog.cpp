@@ -15,9 +15,8 @@ protected:
     }
 
     static void TearDownTestSuite() {
-        // Give WebEngine a chance to finish pending work before cleanup
-        QApplication::processEvents();
-        delete s_dlg;
+        // WebEngine background threads race during explicit delete.
+        // Leak intentionally — process reclaims memory instantly on exit.
         s_dlg = nullptr;
     }
 

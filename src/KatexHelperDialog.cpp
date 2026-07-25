@@ -158,6 +158,7 @@ KatexHelperDialog::KatexHelperDialog(const QString &themeCss, QWidget *parent)
 
     setupUi();
     updatePreview();
+    m_input->setFocus();
 }
 
 void KatexHelperDialog::setupUi()
@@ -174,7 +175,7 @@ void KatexHelperDialog::setupUi()
     QHBoxLayout *modeLayout = new QHBoxLayout();
     m_blockRadio = new QRadioButton("Block ($$…$$)", this);
     m_inlineRadio = new QRadioButton("Inline ($…$)", this);
-    m_blockRadio->setChecked(true);
+    m_inlineRadio->setChecked(true);
     modeLayout->addWidget(m_blockRadio);
     modeLayout->addWidget(m_inlineRadio);
     modeLayout->addStretch();
@@ -233,7 +234,7 @@ QWidget *KatexHelperDialog::createSymbolPalette(QWidget *parent)
 {
     QGroupBox *group = new QGroupBox("Symbol Palette", parent);
     QVBoxLayout *groupLayout = new QVBoxLayout(group);
-    groupLayout->setContentsMargins(4, 8, 4, 4);
+    groupLayout->setContentsMargins(4, 14, 4, 4);
     groupLayout->setSpacing(4);
 
     auto addCategory = [&](const char *title, const SymbolEntry *entries, int count) {
@@ -288,7 +289,7 @@ QWidget *KatexHelperDialog::createCheatSheet(QWidget *parent)
 {
     QGroupBox *group = new QGroupBox("Cheat Sheet", parent);
     QVBoxLayout *groupLayout = new QVBoxLayout(group);
-    groupLayout->setContentsMargins(4, 8, 4, 4);
+    groupLayout->setContentsMargins(4, 14, 4, 4);
     groupLayout->setSpacing(4);
 
     for (int s = 0; s < kCheatSectionCount; ++s) {

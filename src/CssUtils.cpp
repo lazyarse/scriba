@@ -237,4 +237,9 @@ ThemeColors themeColors(const QString &themeCss)
     return { bg, txt };
 }
 
+bool isDarkTheme(const QString &themeCss)
+{
+    return themeColors(themeCss).background.lightness() < 128;
+}
+
 } // namespace CssUtils
