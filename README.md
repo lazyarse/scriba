@@ -175,3 +175,5 @@ Tests auto-wrap in `xvfb-run` when available (CMake detects it).
 ./scriba --debug      # enable JS console logging via Qt logging system
 ```
 JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
+
+

@@ -788,11 +788,9 @@ void MainWindow::showMermaidPie()
 {
     MermaidPieDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -800,11 +798,9 @@ void MainWindow::showMermaidFlowchart()
 {
     MermaidFlowchartDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -812,11 +808,9 @@ void MainWindow::showMermaidSequence()
 {
     MermaidSequenceDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -824,11 +818,9 @@ void MainWindow::showMermaidGantt()
 {
     MermaidGanttDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -836,11 +828,9 @@ void MainWindow::showMermaidClass()
 {
     MermaidClassDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -848,11 +838,9 @@ void MainWindow::showMermaidEr()
 {
     MermaidErDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -860,11 +848,9 @@ void MainWindow::showMermaidState()
 {
     MermaidStateDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -872,11 +858,9 @@ void MainWindow::showMermaidMindmap()
 {
     MermaidMindmapDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -884,11 +868,9 @@ void MainWindow::showMermaidTimeline()
 {
     MermaidTimelineDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -896,11 +878,9 @@ void MainWindow::showMermaidJourney()
 {
     MermaidJourneyDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -908,11 +888,9 @@ void MainWindow::showMermaidQuadrant()
 {
     MermaidQuadrantDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 
@@ -920,11 +898,9 @@ void MainWindow::showMermaidSankey()
 {
     MermaidSankeyDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
-        QString diagram = dlg.generatedDiagram();
-        if (!diagram.isEmpty()) {
-            QString block = "\n```mermaid\n" + diagram + "\n```\n";
+        QString block = dlg.mermaidBlock();
+        if (!block.isEmpty())
             m_editor->insertPlainText(block);
-        }
     }
 }
 

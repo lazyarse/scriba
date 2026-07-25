@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+class QCheckBox;
+class QSpinBox;
 class QWebEngineView;
 class QTimer;
 class QVBoxLayout;
@@ -16,6 +18,7 @@ public:
                                QWidget *parent = nullptr);
     ~MermaidDialogBase() override;
     QString generatedDiagram() const;
+    QString mermaidBlock() const;
 
 protected:
     virtual QString buildDiagram() const = 0;
@@ -30,6 +33,8 @@ protected:
 
     QWebEngineView *m_preview;
     QTimer *m_previewTimer;
+    QCheckBox *m_widthCheck;
+    QSpinBox *m_widthSpin;
 
 public slots:
     void schedulePreviewUpdate();
