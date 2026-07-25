@@ -467,7 +467,7 @@ QString MainWindow::applyEditorSettings()
 void MainWindow::applyEditorSettings(const QString &fontFamily, int fontSize, int lineHeight, int padding)
 {
     QFont font;
-    font.setFamily(fontFamily);
+    font.setFamily(firstFontFamily(fontFamily));
     font.setPointSize(fontSize);
     m_editor->setFont(font);
 

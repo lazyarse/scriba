@@ -43,6 +43,38 @@ TEST(ListContinuation, EmptyIndentedClears) {
     EXPECT_EQ(handleListReturn("  -"), QString(clearSentinel));
 }
 
+TEST(ListContinuation, TaskUnchecked) {
+    EXPECT_EQ(handleListReturn("- [ ] todo"), "- [ ] ");
+}
+
+TEST(ListContinuation, TaskChecked) {
+    EXPECT_EQ(handleListReturn("- [x] done"), "- [ ] ");
+}
+
+TEST(ListContinuation, TaskCheckedCapital) {
+    EXPECT_EQ(handleListReturn("- [X] done"), "- [ ] ");
+}
+
+TEST(ListContinuation, TaskStar) {
+    EXPECT_EQ(handleListReturn("* [ ] todo"), "* [ ] ");
+}
+
+TEST(ListContinuation, TaskPlus) {
+    EXPECT_EQ(handleListReturn("+ [ ] todo"), "+ [ ] ");
+}
+
+TEST(ListContinuation, TaskIndented) {
+    EXPECT_EQ(handleListReturn("  - [ ] nested"), "  - [ ] ");
+}
+
+TEST(ListContinuation, TaskEmptyClears) {
+    EXPECT_EQ(handleListReturn("- [ ]"), QString(clearSentinel));
+}
+
+TEST(ListContinuation, TaskCheckedEmptyClears) {
+    EXPECT_EQ(handleListReturn("- [x]"), QString(clearSentinel));
+}
+
 TEST(ListContinuation, PlainTextReturnsEmpty) {
     EXPECT_EQ(handleListReturn("just text"), QString());
 }

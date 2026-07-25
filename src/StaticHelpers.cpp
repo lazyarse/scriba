@@ -46,6 +46,14 @@ static const QRegularExpression &listOrderedRe()
 QString handleListReturn(const QString &line)
 {
     static const QChar clearSentinel(0x2412);
+    static QRegularExpression taskRe(R"(^(\s*)([-*+])\s+\[[ xX]\]\s?)");
+    auto taskMatch = taskRe.match(line);
+    if (taskMatch.hasMatch()) {
+        QString rest = line.mid(taskMatch.capturedEnd()).trimmed();
+        if (rest.isEmpty())
+            return QString(clearSentinel);
+        return taskMatch.captured(1) + taskMatch.captured(2) + " [ ] ";
+    }
     auto match = listUnorderedRe().match(line);
     if (match.hasMatch()) {
         QString rest = line.mid(match.capturedEnd()).trimmed();
@@ -244,6 +252,17 @@ QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column)
     cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, block);
     cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, column);
     return cursor;
+}
+
+QString firstFontFamily(const QString &cssFontStack)
+{
+    QString first = cssFontStack.section(QLatin1Char(','), 0, 0).trimmed();
+    if (first.startsWith(QLatin1Char('\'')) || first.startsWith(QLatin1Char('"'))) {
+        int end = first.indexOf(first[0], 1);
+        if (end > 1)
+            first = first.mid(1, end - 1);
+    }
+    return first;
 }
 
 int countSentences(const QString &text)
