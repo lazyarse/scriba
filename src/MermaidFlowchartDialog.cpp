@@ -1,5 +1,6 @@
 #include "MermaidFlowchartDialog.h"
 #include "Preview.h"
+#include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -12,6 +13,7 @@
 #include <QHeaderView>
 #include <QTimer>
 #include <QIcon>
+#include <QPalette>
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QGroupBox>
@@ -95,7 +97,7 @@ void MermaidFlowchartDialog::setupUi()
     m_nodeTable->setCellWidget(1, 2, shapeCombo1);
 
     auto addNodeDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton("\u00d7", m_nodeTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_nodeTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_nodeTable->setCellWidget(row, nodeDelCol, delBtn);
@@ -148,7 +150,7 @@ void MermaidFlowchartDialog::setupUi()
     m_edgeTable->setCellWidget(0, 3, arrowCombo);
 
     auto addEdgeDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton("\u00d7", m_edgeTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_edgeTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_edgeTable->setCellWidget(row, edgeDelCol, delBtn);

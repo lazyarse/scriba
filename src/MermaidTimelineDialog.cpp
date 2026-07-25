@@ -1,5 +1,6 @@
 #include "MermaidTimelineDialog.h"
 #include "Preview.h"
+#include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -12,6 +13,7 @@
 #include <QHeaderView>
 #include <QTimer>
 #include <QIcon>
+#include <QPalette>
 #include <QGuiApplication>
 #include <QClipboard>
 
@@ -67,7 +69,7 @@ void MermaidTimelineDialog::setupUi()
     leftLayout->addWidget(m_table);
 
     auto addDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton("\u00d7", m_table);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_table);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_table->setCellWidget(row, delCol, delBtn);

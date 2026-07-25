@@ -1,5 +1,6 @@
 #include "MermaidSequenceDialog.h"
 #include "Preview.h"
+#include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -12,6 +13,7 @@
 #include <QHeaderView>
 #include <QTimer>
 #include <QIcon>
+#include <QPalette>
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QTableWidgetItem>
@@ -72,7 +74,7 @@ void MermaidSequenceDialog::setupUi()
     m_participantTable->verticalHeader()->setDefaultSectionSize(28);
 
     auto addParticipantDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton("\u00d7", m_participantTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_participantTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_participantTable->setCellWidget(row, partDelCol, delBtn);
@@ -107,7 +109,7 @@ void MermaidSequenceDialog::setupUi()
     leftLayout->addWidget(m_messageTable);
 
     auto addMessageDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton("\u00d7", m_messageTable);
+        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", palette().color(QPalette::WindowText), 16), "", m_messageTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
         m_messageTable->setCellWidget(row, msgDelCol, delBtn);

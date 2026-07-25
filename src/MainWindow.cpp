@@ -57,22 +57,6 @@
 #include <QToolButton>
 #include <QCloseEvent>
 
-static QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28)
-{
-    QFile f(svgPath);
-    if (!f.open(QIODevice::ReadOnly))
-        return QIcon(svgPath);
-    QString svg = QString::fromUtf8(f.readAll());
-    svg.replace("currentColor", color.name());
-    QSvgRenderer renderer(svg.toUtf8());
-    QPixmap pix(size, size);
-    pix.fill(Qt::transparent);
-    QPainter painter(&pix);
-    renderer.render(&painter);
-    painter.end();
-    return QIcon(pix);
-}
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_parser(new MarkdownParser())
@@ -726,6 +710,7 @@ void MainWindow::showPreferences()
             applyEditorSettings(f, s, lh, p);
         });
     dlg.exec();
+    m_editor->setStyleSheet(m_cachedFullCss + applyEditorSettings());
     updateAll();
     applyStripeSetting();
     m_previewInitialized = false;

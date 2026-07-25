@@ -2,6 +2,11 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <QXmlStreamReader>
+#include <QFile>
+#include <QColor>
+#include <QPixmap>
+#include <QPainter>
+#include <QSvgRenderer>
 
 QString escapeJsString(const QString &s)
 {
@@ -316,4 +321,20 @@ double fleschKincaidGrade(int words, int sentences, int syllables)
     return 0.39 * (static_cast<double>(words) / sentences)
          + 11.8 * (static_cast<double>(syllables) / words)
          - 15.59;
+}
+
+QIcon themedIcon(const QString &svgPath, const QColor &color, int size)
+{
+    QFile f(svgPath);
+    if (!f.open(QIODevice::ReadOnly))
+        return QIcon(svgPath);
+    QString svg = QString::fromUtf8(f.readAll());
+    svg.replace("currentColor", color.name());
+    QSvgRenderer renderer(svg.toUtf8());
+    QPixmap pix(size, size);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    renderer.render(&painter);
+    painter.end();
+    return QIcon(pix);
 }
