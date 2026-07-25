@@ -6,7 +6,9 @@
 namespace Preferences {
     constexpr const char *CssFiles = "cssFiles";
     constexpr const char *ActiveCssFile = "activeCssFile";
-    constexpr const char *ReopenLastFile = "reopenLastFile";
+    constexpr const char *ReopenLastSession = "reopenLastSession";
+    constexpr const char *SessionData = "sessionData";
+    constexpr const char *LastSessionName = "lastSessionName";
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *LastCursorBlock = "lastCursorBlock";
@@ -22,6 +24,7 @@ namespace Preferences {
     constexpr const char *AutoSaveOnExit = "autoSaveOnExit";
     constexpr const char *AutoSaveInterval = "autoSaveInterval";
     constexpr const char *FileCompletionLimit = "fileCompletionLimit";
+    constexpr const char *FileAutoComplete = "fileAutoComplete";
 
     constexpr const char *EditorFontFamily = "editorFontFamily";
     constexpr const char *EditorFontSize = "editorFontSize";

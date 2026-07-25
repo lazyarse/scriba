@@ -32,10 +32,13 @@ int main(int argc, char *argv[])
     MainWindow window;
     window.show();
 
-    if (app.arguments().size() > 1) {
-        QString arg = app.arguments().at(1);
-        if (arg != "--debug")
-            window.loadFile(arg);
+    QStringList args = app.arguments();
+    bool hasFiles = false;
+    for (int i = 1; i < args.size(); ++i) {
+        if (args[i] == "--debug")
+            continue;
+        window.loadFile(args[i]);
+        hasFiles = true;
     }
 
     return app.exec();

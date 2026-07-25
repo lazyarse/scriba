@@ -22,7 +22,7 @@ protected:
     void SetUp() override {
         QSettings s;
         s.remove(Preferences::LastOpenedFile);
-        s.setValue(Preferences::ReopenLastFile, false);
+        s.setValue(Preferences::ReopenLastSession, false);
         s.setValue(Preferences::AutoSaveOnExit, false);
         s.setValue(Preferences::AutoSaveInterval, 0);
 
