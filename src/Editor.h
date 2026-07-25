@@ -22,6 +22,7 @@ public:
     void centerCursor();
     QCompleter *completer() const { return m_completer; }
     void setInsertActions(const QList<QAction *> &actions);
+    void setMermaidActions(const QList<QAction *> &actions);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -65,6 +66,7 @@ private:
     int m_centerContentWidth = 800;
     bool m_inResize = false;
     QList<QAction *> m_insertActions;
+    QList<QAction *> m_mermaidActions;
 };
 
 #endif

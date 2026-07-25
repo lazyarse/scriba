@@ -392,12 +392,10 @@ void MainWindow::setupMenuBar()
         dlg.exec();
     });
 
-    QList<QAction *> insertActions;
-    insertActions << tableAction << emojiAction << katexAction << chartAction;
-    insertActions << pieAction << flowchartAction << sequenceAction << ganttAction
-                  << classAction << erAction << stateAction << mindmapAction
-                  << timelineAction << journeyAction << quadrantAction << sankeyAction;
-    m_editor->setInsertActions(insertActions);
+    m_editor->setInsertActions({tableAction, emojiAction, katexAction, chartAction});
+    m_editor->setMermaidActions({pieAction, flowchartAction, sequenceAction, ganttAction,
+                  classAction, erAction, stateAction, mindmapAction,
+                  timelineAction, journeyAction, quadrantAction, sankeyAction});
 }
 
 void MainWindow::refreshPreviewCss()
