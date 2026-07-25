@@ -6,6 +6,7 @@
 
 :root {
     --checkbox-checked-bg: #006b87;
+    --checkbox-tick-color: #fff;
 }
 
 body {
@@ -113,9 +114,6 @@ li {
     margin: 0.5em 0;
 }
 
-.task-list-item-checkbox {
-    margin-right: 0.5em;
-}
 
 .admonition {
     margin: 1em 0;
