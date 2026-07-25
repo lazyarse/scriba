@@ -43,7 +43,7 @@
 ### Standing on the shoulders of giants:
 
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
-- [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`)
+- [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) and helper
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and a chart helper
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and a chart helper because writing JSON is hard.
 - [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser
