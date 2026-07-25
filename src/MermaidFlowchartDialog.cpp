@@ -305,7 +305,7 @@ void MermaidFlowchartDialog::updatePreview()
 {
     QString diagram = buildDiagram();
     QString escaped = diagram;
-    escaped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>");
+    escaped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 
     QString html = QString(
         "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
