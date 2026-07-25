@@ -29,6 +29,7 @@ public:
 private slots:
     void onCssModeChanged();
     void browseCustomCss();
+    void editPrintBaseCss();
     void onPageLoaded(bool ok);
     void reloadPdfPreview();
 
@@ -51,6 +52,7 @@ private:
     QRadioButton *m_defaultRadio;
     QRadioButton *m_customRadio;
     QPushButton *m_browseBtn;
+    QPushButton *m_editPrintCssBtn = nullptr;
     QLabel *m_pathLabel;
     QString m_customCssPath;
     QString m_currentPrintCss;
