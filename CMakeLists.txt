@@ -40,6 +40,7 @@ add_executable(scriba
     src/MermaidJourneyDialog.cpp
     src/MermaidQuadrantDialog.cpp
     src/MermaidSankeyDialog.cpp
+    src/KatexHelperDialog.cpp
     src/StaticHelpers.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c
@@ -206,6 +207,14 @@ if(BUILD_TESTS)
     target_link_libraries(test_mermaid_class_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
     add_test(NAME test_mermaid_class_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_class_dialog)
 
+    add_executable(test_katex_helper_dialog
+        tests/test_katex_helper_dialog.cpp
+        src/KatexHelperDialog.cpp
+        src/Preview.cpp)
+    target_link_libraries(test_katex_helper_dialog
+        PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_katex_helper_dialog COMMAND ${_TEST_PREFIX} ./test_katex_helper_dialog)
+
     add_executable(test_editor_autocomplete tests/test_editor_autocomplete.cpp)
     target_link_libraries(test_editor_autocomplete PRIVATE GTest::gtest_main Qt6::Core)
     add_test(NAME test_editor_autocomplete COMMAND ${_TEST_PREFIX} ./test_editor_autocomplete)
@@ -236,6 +245,7 @@ if(BUILD_TESTS)
     src/MermaidJourneyDialog.cpp
     src/MermaidQuadrantDialog.cpp
     src/MermaidSankeyDialog.cpp
+    src/KatexHelperDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -257,6 +267,7 @@ if(BUILD_TESTS)
         src/MermaidStateDialog.cpp src/MermaidMindmapDialog.cpp
         src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
         src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
+        src/KatexHelperDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -277,6 +288,7 @@ if(BUILD_TESTS)
         src/MermaidStateDialog.cpp src/MermaidMindmapDialog.cpp
         src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
         src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
+        src/KatexHelperDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
