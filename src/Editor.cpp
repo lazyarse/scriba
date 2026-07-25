@@ -22,7 +22,7 @@
 #include <QTextDocument>
 
 Editor::Editor(QWidget *parent)
-    : QPlainTextEdit(parent)
+    : QTextEdit(parent)
 {
     setObjectName("scriba-editor");
     setPlaceholderText("Start writing markdown...");
@@ -67,10 +67,10 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
-                QPlainTextEdit::keyPressEvent(event);
+                QTextEdit::keyPressEvent(event);
                 return;
             }
-            QPlainTextEdit::keyPressEvent(event);
+            QTextEdit::keyPressEvent(event);
             insertPlainText(result);
             return;
         }
@@ -94,7 +94,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
-                QPlainTextEdit::keyPressEvent(event);
+                QTextEdit::keyPressEvent(event);
                 return;
             }
 
@@ -340,7 +340,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
         return;
     }
 
-    QPlainTextEdit::keyPressEvent(event);
+    QTextEdit::keyPressEvent(event);
 
     if (event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete) {
         if (m_completer && m_completer->popup()->isVisible()) {
@@ -722,6 +722,18 @@ void Editor::acceptEmojiCompletion(const QString &completion)
     setTextCursor(cursor);
 }
 
+void Editor::centerCursor()
+{
+    QRect cr = cursorRect();
+    if (cr.isNull())
+        return;
+    int vh = viewport()->height();
+    int cy = cr.center().y() + verticalScrollBar()->value();
+    int target = cy - vh / 2;
+    target = qBound(0, target, verticalScrollBar()->maximum());
+    verticalScrollBar()->setValue(target);
+}
+
 void Editor::setCenterContent(bool enabled, int width)
 {
     m_centerContent = enabled;
@@ -731,7 +743,7 @@ void Editor::setCenterContent(bool enabled, int width)
 
 void Editor::resizeEvent(QResizeEvent *event)
 {
-    QPlainTextEdit::resizeEvent(event);
+    QTextEdit::resizeEvent(event);
     if (m_centerContent && !m_inResize) {
         m_inResize = true;
         updateViewportMargins();
