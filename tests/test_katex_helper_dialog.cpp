@@ -31,10 +31,19 @@ TEST_F(KatexHelperDialogTest, WindowTitle) {
     EXPECT_EQ(dlg.windowTitle().toStdString(), "Insert Equation");
 }
 
-TEST_F(KatexHelperDialogTest, DefaultModeIsBlock) {
-    QRadioButton *blockBtn = dlg.findChild<QRadioButton*>();
-    ASSERT_NE(blockBtn, nullptr);
-    EXPECT_TRUE(blockBtn->isChecked());
+TEST_F(KatexHelperDialogTest, DefaultModeIsInline) {
+    QList<QRadioButton*> radios = dlg.findChildren<QRadioButton*>();
+    ASSERT_GE(radios.size(), 2);
+
+    QRadioButton *inlineBtn = nullptr;
+    for (auto *r : radios) {
+        if (r->text().contains("Inline")) {
+            inlineBtn = r;
+            break;
+        }
+    }
+    ASSERT_NE(inlineBtn, nullptr);
+    EXPECT_TRUE(inlineBtn->isChecked());
 }
 
 TEST_F(KatexHelperDialogTest, GeneratedLatexEmptyWhenNoInput) {
@@ -44,6 +53,20 @@ TEST_F(KatexHelperDialogTest, GeneratedLatexEmptyWhenNoInput) {
 TEST_F(KatexHelperDialogTest, GeneratedLatexBlockFormat) {
     QPlainTextEdit *input = dlg.findChild<QPlainTextEdit*>();
     ASSERT_NE(input, nullptr);
+
+    QList<QRadioButton*> radios = dlg.findChildren<QRadioButton*>();
+    ASSERT_GE(radios.size(), 2);
+
+    QRadioButton *blockBtn = nullptr;
+    for (auto *r : radios) {
+        if (r->text().contains("Block")) {
+            blockBtn = r;
+            break;
+        }
+    }
+    ASSERT_NE(blockBtn, nullptr);
+    blockBtn->setChecked(true);
+
     input->setPlainText("x^2");
     QApplication::processEvents();
     EXPECT_EQ(dlg.generatedLatex().toStdString(), "$$x^2$$");
@@ -76,7 +99,7 @@ TEST_F(KatexHelperDialogTest, GeneratedLatexTrimsWhitespace) {
     ASSERT_NE(input, nullptr);
     input->setPlainText("  x  ");
     QApplication::processEvents();
-    EXPECT_EQ(dlg.generatedLatex().toStdString(), "$$x$$");
+    EXPECT_EQ(dlg.generatedLatex().toStdString(), "$x$");
 }
 
 TEST_F(KatexHelperDialogTest, GeneratedLatexEmptyAfterTrim) {
@@ -94,8 +117,8 @@ TEST_F(KatexHelperDialogTest, InputFieldAcceptsMultiLineLatex) {
     QApplication::processEvents();
     QString result = dlg.generatedLatex();
     EXPECT_FALSE(result.isEmpty());
-    EXPECT_TRUE(result.startsWith("$$"));
-    EXPECT_TRUE(result.endsWith("$$"));
+    EXPECT_TRUE(result.startsWith("$"));
+    EXPECT_TRUE(result.endsWith("$"));
 }
 
 TEST_F(KatexHelperThemeTest, ThemeColorsExtractedFromCss) {
