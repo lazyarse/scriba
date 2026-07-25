@@ -889,7 +889,7 @@ void MainWindow::showMermaidSankey()
 
 void MainWindow::showKatexHelper()
 {
-    KatexHelperDialog dlg(this);
+    KatexHelperDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString latex = dlg.generatedLatex();
         if (!latex.isEmpty())

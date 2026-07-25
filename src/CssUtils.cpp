@@ -184,4 +184,53 @@ QString deriveChromeCss(const QString &themeCss)
     );
 }
 
+ThemeColors themeColors(const QString &themeCss)
+{
+    auto extractBg = [&](const QString &selector) {
+        QRegularExpression re(
+            R"(\b)" + selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
+        );
+        auto it = re.globalMatch(themeCss);
+        QString result;
+        while (it.hasNext())
+            result = it.next().captured(1).trimmed();
+        return result;
+    };
+
+    auto extractColor = [&](const QString &selector) {
+        QRegularExpression re(
+            R"(\b)" + selector + R"(\s*\{(?:[^}]*;\s*)?\bcolor\s*:\s*([^;\}]+))"
+        );
+        auto it = re.globalMatch(themeCss);
+        QString result;
+        while (it.hasNext())
+            result = it.next().captured(1).trimmed();
+        return result;
+    };
+
+    QString bgStr = extractBg("#editor");
+    if (bgStr.isEmpty())
+        bgStr = extractBg("body");
+
+    QString txtStr = extractColor("#editor");
+    if (txtStr.isEmpty())
+        txtStr = extractColor("body");
+
+    QColor bg(QStringLiteral("#ffffff"));
+    if (!bgStr.isEmpty()) {
+        QColor parsed(bgStr);
+        if (parsed.isValid())
+            bg = parsed;
+    }
+
+    QColor txt(QStringLiteral("#333333"));
+    if (!txtStr.isEmpty()) {
+        QColor parsed(txtStr);
+        if (parsed.isValid())
+            txt = parsed;
+    }
+
+    return { bg, txt };
+}
+
 } // namespace CssUtils
