@@ -391,6 +391,13 @@ void MainWindow::setupMenuBar()
         layout->addWidget(btnBox);
         dlg.exec();
     });
+
+    QList<QAction *> insertActions;
+    insertActions << tableAction << emojiAction << katexAction << chartAction;
+    insertActions << pieAction << flowchartAction << sequenceAction << ganttAction
+                  << classAction << erAction << stateAction << mindmapAction
+                  << timelineAction << journeyAction << quadrantAction << sankeyAction;
+    m_editor->setInsertActions(insertActions);
 }
 
 void MainWindow::refreshPreviewCss()

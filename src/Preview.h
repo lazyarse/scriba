@@ -4,6 +4,8 @@
 #include <QWebEnginePage>
 #include <QWebEngineView>
 
+class QContextMenuEvent;
+
 class PreviewPage : public QWebEnginePage
 {
     Q_OBJECT
@@ -30,6 +32,9 @@ public:
     QString documentPath() const;
     void scrollToLine(int line);
     void scrollToPercent(double pct);
+
+protected:
+    void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     QString m_documentPath;

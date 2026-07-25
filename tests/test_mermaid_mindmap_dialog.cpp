@@ -11,23 +11,33 @@ protected:
     static void SetUpTestSuite() {
         if (!QCoreApplication::instance())
             new QApplication(g_argc, g_argv);
+        s_dlg = new MermaidMindmapDialog;
     }
 
-    MermaidMindmapDialog dlg;
+    static void TearDownTestSuite() {
+        // Give WebEngine a chance to finish pending work before cleanup
+        QApplication::processEvents();
+        delete s_dlg;
+        s_dlg = nullptr;
+    }
+
+    static MermaidMindmapDialog *s_dlg;
 };
 
+MermaidMindmapDialog *MermaidMindmapDialogTest::s_dlg = nullptr;
+
 TEST_F(MermaidMindmapDialogTest, DefaultDiagramIsNonEmpty) {
-    QString diagram = dlg.generatedDiagram();
+    QString diagram = s_dlg->generatedDiagram();
     EXPECT_FALSE(diagram.isEmpty());
 }
 
 TEST_F(MermaidMindmapDialogTest, DefaultDiagramStartsWithExpectedKeyword) {
-    QString diagram = dlg.generatedDiagram();
+    QString diagram = s_dlg->generatedDiagram();
     EXPECT_TRUE(diagram.startsWith("mindmap"));
 }
 
 TEST_F(MermaidMindmapDialogTest, DefaultDiagramContainsMeaningfulContent) {
-    QString diagram = dlg.generatedDiagram();
+    QString diagram = s_dlg->generatedDiagram();
     EXPECT_TRUE(diagram.contains("mindmap"));
     EXPECT_TRUE(diagram.contains("root"));
 }

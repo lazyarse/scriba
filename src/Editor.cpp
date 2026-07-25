@@ -3,11 +3,14 @@
 #include "StaticHelpers.h"
 #include <QAbstractItemView>
 #include <QCompleter>
+#include <QContextMenuEvent>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QInputDialog>
 #include <QKeyEvent>
+#include <QMenu>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QResizeEvent>
@@ -739,6 +742,356 @@ void Editor::setCenterContent(bool enabled, int width)
     m_centerContent = enabled;
     m_centerContentWidth = width;
     updateViewportMargins();
+}
+
+void Editor::setInsertActions(const QList<QAction *> &actions)
+{
+    m_insertActions = actions;
+}
+
+QString Editor::currentLineText() const
+{
+    return textCursor().block().text();
+}
+
+Editor::CursorContext Editor::detectCursorContext() const
+{
+    QString line = currentLineText();
+
+    static const QRegularExpression listRe(R"(^\s*[-*+]\s|^\s*\d+\.\s)");
+    if (listRe.match(line).hasMatch())
+        return CursorContext::ListItem;
+
+    if (line.startsWith('|') && !line.contains("---"))
+        return CursorContext::TableRow;
+
+    if (isCursorInFencedCodeBlock())
+        return CursorContext::CodeBlock;
+
+    return CursorContext::None;
+}
+
+bool Editor::isCursorInFencedCodeBlock() const
+{
+    QTextCursor cursor = textCursor();
+    int blockNum = cursor.blockNumber();
+    int fenceCount = 0;
+    QTextBlock block = document()->firstBlock();
+    while (block.isValid() && block.blockNumber() <= blockNum) {
+        QString text = block.text().trimmed();
+        if (text.startsWith("```"))
+            ++fenceCount;
+        block = block.next();
+    }
+    return (fenceCount % 2) == 1;
+}
+
+bool Editor::cursorHasUrlSelection() const
+{
+    QTextCursor cursor = textCursor();
+    if (!cursor.hasSelection())
+        return false;
+    QString selected = cursor.selectedText();
+    static const QRegularExpression urlRe(R"(^https?://\S+$)");
+    return urlRe.match(selected).hasMatch();
+}
+
+bool Editor::cursorHasImagePathSelection() const
+{
+    QTextCursor cursor = textCursor();
+    if (!cursor.hasSelection())
+        return false;
+    QString selected = cursor.selectedText();
+    static const QRegularExpression imgRe(R"(^(\./|\.\.\/|/)?\S+\.(png|jpe?g|gif|svg|webp|bmp)$)", QRegularExpression::CaseInsensitiveOption);
+    return imgRe.match(selected).hasMatch();
+}
+
+void Editor::toggleCheckbox()
+{
+    QTextCursor cursor = textCursor();
+    QString line = cursor.block().text();
+    static const QRegularExpression checkRe(R"(^(\s*[-*+]\s)\[)([ xX])(\])");
+    auto match = checkRe.match(line);
+    if (!match.hasMatch())
+        return;
+
+    QString current = match.captured(2);
+    QString toggled = (current == " ") ? "x" : " ";
+    int offset = cursor.block().position() + match.capturedStart(2);
+    cursor.setPosition(offset, QTextCursor::MoveAnchor);
+    cursor.setPosition(offset + 1, QTextCursor::KeepAnchor);
+    cursor.insertText(toggled);
+    setTextCursor(cursor);
+}
+
+void Editor::insertTableRow(bool above)
+{
+    QTextCursor cursor = textCursor();
+    QString line = currentLineText();
+    if (!line.startsWith('|'))
+        return;
+
+    int pipes = line.count('|');
+    QString newRow;
+    for (int i = 0; i < pipes; ++i) {
+        newRow += "| ";
+    }
+    if (!newRow.endsWith('\n'))
+        newRow += '\n';
+
+    if (above) {
+        cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+        cursor.insertText(newRow);
+    } else {
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+        cursor.insertText("\n" + newRow);
+    }
+}
+
+void Editor::insertTableCol(bool left)
+{
+    QTextCursor cursor = textCursor();
+    QString line = currentLineText();
+    if (!line.startsWith('|'))
+        return;
+
+    int pos = cursor.positionInBlock();
+    QList<int> pipes;
+    for (int i = 0; i < line.size(); ++i)
+        if (line[i] == '|') pipes.append(i);
+
+    int insertAfterPipe = -1;
+    for (int i = 0; i < pipes.size() - 1; ++i) {
+        if (pos >= pipes[i] && pos <= pipes[i + 1]) {
+            insertAfterPipe = i;
+            break;
+        }
+    }
+    if (insertAfterPipe < 0)
+        return;
+
+    int colOffset = pipes[insertAfterPipe] + 1;
+
+    QTextBlock block = cursor.block();
+    while (block.isValid() && block.text().startsWith('|')) {
+        QString text = block.text();
+        QList<int> bPipes;
+        for (int i = 0; i < text.size(); ++i)
+            if (text[i] == '|') bPipes.append(i);
+
+        if (insertAfterPipe < bPipes.size() - 1) {
+            int insertPos = bPipes[insertAfterPipe] + 1;
+            bool isSep = text.contains("---");
+            QString insert = isSep ? " --- " : "  ";
+            QTextCursor tc(document());
+            tc.setPosition(block.position() + insertPos);
+            tc.insertText(insert);
+        }
+        block = block.next();
+    }
+}
+
+void Editor::deleteTableRow()
+{
+    QTextCursor cursor = textCursor();
+    QString line = currentLineText();
+    if (!line.startsWith('|'))
+        return;
+
+    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+    if (line.contains("---")) {
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+    } else {
+        cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor);
+    }
+    cursor.removeSelectedText();
+    setTextCursor(cursor);
+}
+
+void Editor::deleteTableCol()
+{
+    QTextCursor cursor = textCursor();
+    QString line = currentLineText();
+    if (!line.startsWith('|'))
+        return;
+
+    int pos = cursor.positionInBlock();
+    QList<int> pipes;
+    for (int i = 0; i < line.size(); ++i)
+        if (line[i] == '|') pipes.append(i);
+
+    int colIdx = -1;
+    for (int i = 0; i < pipes.size() - 1; ++i) {
+        if (pos >= pipes[i] && pos <= pipes[i + 1]) {
+            colIdx = i;
+            break;
+        }
+    }
+    if (colIdx < 0)
+        return;
+
+    QTextBlock b = document()->firstBlock();
+    while (b.isValid()) {
+        if (b.text().startsWith('|')) {
+            QList<int> bPipes;
+            QString text = b.text();
+            for (int i = 0; i < text.size(); ++i)
+                if (text[i] == '|') bPipes.append(i);
+
+            if (colIdx < bPipes.size() - 1) {
+                int start = bPipes[colIdx];
+                int end = (colIdx + 1 < bPipes.size()) ? bPipes[colIdx + 1] : text.size();
+                if (bPipes[colIdx + 1] == bPipes.last() && colIdx + 1 == bPipes.size() - 1) {
+                    end = text.size() - 1;
+                }
+                QTextCursor tc(document());
+                tc.setPosition(b.position() + start);
+                tc.setPosition(b.position() + end, QTextCursor::KeepAnchor);
+                tc.removeSelectedText();
+            }
+        }
+        b = b.next();
+    }
+}
+
+void Editor::changeCodeLanguage()
+{
+    QTextCursor cursor = textCursor();
+    int blockNum = cursor.blockNumber();
+
+    QTextBlock fenceBlock;
+    QTextBlock block = document()->firstBlock();
+    bool foundOpen = false;
+    while (block.isValid() && block.blockNumber() < blockNum) {
+        if (block.text().trimmed().startsWith("```")) {
+            if (!foundOpen) {
+                fenceBlock = block;
+                foundOpen = true;
+            } else {
+                foundOpen = false;
+            }
+        }
+        block = block.next();
+    }
+
+    if (!foundOpen || !fenceBlock.isValid())
+        return;
+
+    QString fenceText = fenceBlock.text().trimmed();
+    QString currentLang = fenceText.mid(3).trimmed();
+
+    bool ok;
+    QString lang = QInputDialog::getText(this, tr("Change Language"),
+        tr("Language:"), QLineEdit::Normal, currentLang, &ok);
+    if (!ok)
+        return;
+
+    QTextCursor tc(document());
+    tc.setPosition(fenceBlock.position() + 3);
+    tc.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+    tc.removeSelectedText();
+    if (!lang.isEmpty())
+        tc.insertText(lang);
+    setTextCursor(cursor);
+}
+
+void Editor::contextMenuEvent(QContextMenuEvent *event)
+{
+    QMenu menu(this);
+
+    for (QAction *action : m_insertActions)
+        menu.addAction(action);
+
+    CursorContext ctx = detectCursorContext();
+
+    if (ctx == CursorContext::ListItem) {
+        menu.addSeparator();
+        QAction *indentAction = menu.addAction("Increase Indent");
+        connect(indentAction, &QAction::triggered, this, [this]() {
+            QTextCursor cursor = textCursor();
+            QString line = currentLineText();
+            QString indented = indentListLine(line);
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            cursor.removeSelectedText();
+            cursor.insertText(indented);
+        });
+
+        QAction *dedentAction = menu.addAction("Decrease Indent");
+        connect(dedentAction, &QAction::triggered, this, [this]() {
+            QTextCursor cursor = textCursor();
+            QString line = currentLineText();
+            QString outdented = outdentListLine(line);
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            cursor.removeSelectedText();
+            cursor.insertText(outdented);
+        });
+
+        static const QRegularExpression taskRe(R"(^\s*[-*+]\s\[)");
+        if (taskRe.match(currentLineText()).hasMatch()) {
+            QAction *toggleAction = menu.addAction("Toggle Checkbox");
+            connect(toggleAction, &QAction::triggered, this, &Editor::toggleCheckbox);
+        }
+    }
+
+    if (ctx == CursorContext::TableRow) {
+        menu.addSeparator();
+        QAction *above = menu.addAction("Insert Row Above");
+        connect(above, &QAction::triggered, this, [this]() { insertTableRow(true); });
+
+        QAction *below = menu.addAction("Insert Row Below");
+        connect(below, &QAction::triggered, this, [this]() { insertTableRow(false); });
+
+        menu.addSeparator();
+
+        QAction *colLeft = menu.addAction("Insert Column Left");
+        connect(colLeft, &QAction::triggered, this, [this]() { insertTableCol(true); });
+
+        QAction *colRight = menu.addAction("Insert Column Right");
+        connect(colRight, &QAction::triggered, this, [this]() { insertTableCol(false); });
+
+        menu.addSeparator();
+
+        QAction *delRow = menu.addAction("Delete Row");
+        connect(delRow, &QAction::triggered, this, &Editor::deleteTableRow);
+
+        QAction *delCol = menu.addAction("Delete Column");
+        connect(delCol, &QAction::triggered, this, &Editor::deleteTableCol);
+    }
+
+    if (ctx == CursorContext::CodeBlock) {
+        menu.addSeparator();
+        QAction *langAction = menu.addAction("Change Language...");
+        connect(langAction, &QAction::triggered, this, &Editor::changeCodeLanguage);
+    }
+
+    if (cursorHasUrlSelection()) {
+        menu.addSeparator();
+        QAction *makeLink = menu.addAction("Make Link");
+        connect(makeLink, &QAction::triggered, this, [this]() {
+            QTextCursor cursor = textCursor();
+            QString url = cursor.selectedText();
+            cursor.insertText("[](" + url + ")");
+            cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, url.size() + 3);
+            setTextCursor(cursor);
+        });
+    }
+
+    if (cursorHasImagePathSelection()) {
+        menu.addSeparator();
+        QAction *insertImg = menu.addAction("Insert Image");
+        connect(insertImg, &QAction::triggered, this, [this]() {
+            QTextCursor cursor = textCursor();
+            QString path = cursor.selectedText();
+            cursor.insertText("![](" + path + ")");
+            cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, path.size() + 4);
+            setTextCursor(cursor);
+        });
+    }
+
+    if (!menu.isEmpty())
+        menu.exec(event->globalPos());
 }
 
 void Editor::resizeEvent(QResizeEvent *event)
