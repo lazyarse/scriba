@@ -118,7 +118,7 @@ if(BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/vendor/md4c
         ${CMAKE_SOURCE_DIR}/src
     )
-    target_link_libraries(scriba_core PUBLIC Qt6::Core Qt6::Gui)
+    target_link_libraries(scriba_core PUBLIC Qt6::Core Qt6::Gui Qt6::Svg)
 
     add_executable(test_markdown_parser tests/test_markdown_parser.cpp)
     target_link_libraries(test_markdown_parser PRIVATE scriba_core GTest::gtest_main)

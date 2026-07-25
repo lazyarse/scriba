@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QTextCursor>
+#include <QIcon>
 
 QString escapeJsString(const QString &s);
 int extractContentWidth(const QString &css);
@@ -18,5 +19,7 @@ QString firstFontFamily(const QString &cssFontStack);
 int countSentences(const QString &text);
 int estimateSyllables(const QString &word);
 double fleschKincaidGrade(int words, int sentences, int syllables);
+
+QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28);
 
 #endif
