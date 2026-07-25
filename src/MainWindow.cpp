@@ -57,6 +57,7 @@
 #include <QHBoxLayout>
 #include <QToolButton>
 #include <QCloseEvent>
+#include <QDesktopServices>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QInputDialog>
@@ -81,6 +82,25 @@ MainWindow::MainWindow(QWidget *parent)
         if (ok) {
             m_previewInitialized = true;
             syncPreviewScroll();
+        }
+    });
+
+    connect(m_preview->page(), &QWebEnginePage::urlChanged, this, [this](const QUrl &url) {
+        QString frag = url.fragment(QUrl::FullyDecoded);
+        if (frag.startsWith("scriba-open:")) {
+            QUrl target(frag.mid(12));
+            if (target.isLocalFile()) {
+                QString localPath = target.toLocalFile();
+                QFileInfo fi(localPath);
+                if (fi.suffix().compare("md", Qt::CaseInsensitive) == 0) {
+                    loadFile(localPath);
+                } else {
+                    QDesktopServices::openUrl(target);
+                }
+            } else {
+                QDesktopServices::openUrl(target);
+            }
+            m_preview->page()->runJavaScript("window.location.hash=''");
         }
     });
 
@@ -933,8 +953,14 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});initMermaid();hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
-            "</head><body id=\"preview\">%3</body></html>"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
+            "</head><body id=\"preview\">%3"
+            "<script>document.addEventListener('click',function(e){"
+            "var l=e.target.closest('a');if(!l)return;"
+            "e.preventDefault();"
+            "window.location.hash='scriba-open:'+encodeURIComponent(l.href)"
+            "})</script>"
+            "</body></html>"
         ).arg(baseCss, previewCss, html, stripeInit, centerCss);
         m_preview->setHtml(fullHtml, baseUrl);
     } else {
@@ -948,36 +974,36 @@ void MainWindow::updatePreview()
                 "else{"
                 "var sy = window.scrollY;"
                 "document.getElementById('theme-css').textContent = '%1';"
-                "document.body.innerHTML = '%2';"
-                "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-                "var mermaidPromise=initMermaid();"
-                "initKaTeX();"
-                "var vlPromise=initVegaLite();"
-                "hljs.highlightAll();"
-                "generateHeadingIds();"
-                "setImgTitles();"
-                "replaceEmoji(document.body);"
-                "twemojiParse('" + emojiMode + "');"
-                "window.scrollTo(0, sy);"
-                "(function(){"
-                "var p=[];"
-                "if(typeof mermaidPromise!=='undefined')p.push(mermaidPromise);"
-                "if(typeof vlPromise!=='undefined')p.push(vlPromise);"
-                "var imgs=document.querySelectorAll('img:not(.emoji)');"
-                "if(imgs.length>0){"
-                "p.push(new Promise(function(r){"
-                "var n=0,t=imgs.length;"
-                "function c(){n++;if(n>=t)r();}"
-                "for(var i=0;i<imgs.length;i++){"
-                "if(imgs[i].complete)c();"
-                "else{imgs[i].onload=c;imgs[i].onerror=c;}"
-                "}"
-                "}));"
-                "}"
-                "if(p.length===0)return true;"
-                "return Promise.all(p).then(function(){return true;});"
-                "})()}"
-            ).arg(escapedCss, escapedHtml);
+				"document.body.innerHTML = '%2';"
+				"mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
+				"var mermaidPromise=initMermaid();"
+				"initKaTeX();"
+				"var vlPromise=initVegaLite();"
+				"hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();"
+				"generateHeadingIds();"
+				"setImgTitles();"
+				"replaceEmoji(document.body);"
+				"twemojiParse('" + emojiMode + "');"
+				"window.scrollTo(0, sy);"
+				"(function(){"
+				"var p=[];"
+				"if(typeof mermaidPromise!=='undefined')p.push(mermaidPromise);"
+				"if(typeof vlPromise!=='undefined')p.push(vlPromise);"
+				"var imgs=document.querySelectorAll('img:not(.emoji)');"
+				"if(imgs.length>0){"
+				"p.push(new Promise(function(r){"
+				"var n=0,t=imgs.length;"
+				"function c(){n++;if(n>=t)r();}"
+				"for(var i=0;i<imgs.length;i++){"
+				"if(imgs[i].complete)c();"
+				"else{imgs[i].onload=c;imgs[i].onerror=c;}"
+				"}"
+				"}));"
+				"}"
+				"if(p.length===0)return true;"
+				"return Promise.all(p).then(function(){return true;});"
+				"})()}"
+			).arg(escapedCss, escapedHtml);
         } else {
             js = QString(
                 "if(!document.body){false}"
@@ -988,31 +1014,31 @@ void MainWindow::updatePreview()
                 "var mermaidPromise=initMermaid();"
                 "initKaTeX();"
                 "var vlPromise=initVegaLite();"
-                "hljs.highlightAll();"
-                "generateHeadingIds();"
-                "setImgTitles();"
-                "replaceEmoji(document.body);"
-                "twemojiParse('" + emojiMode + "');"
-                "window.scrollTo(0, sy);"
-                "(function(){"
-                "var p=[];"
-                "if(typeof mermaidPromise!=='undefined')p.push(mermaidPromise);"
-                "if(typeof vlPromise!=='undefined')p.push(vlPromise);"
-                "var imgs=document.querySelectorAll('img:not(.emoji)');"
-                "if(imgs.length>0){"
-                "p.push(new Promise(function(r){"
-                "var n=0,t=imgs.length;"
-                "function c(){n++;if(n>=t)r();}"
-                "for(var i=0;i<imgs.length;i++){"
-                "if(imgs[i].complete)c();"
-                "else{imgs[i].onload=c;imgs[i].onerror=c;}"
-                "}"
-                "}));"
-                "}"
-                "if(p.length===0)return true;"
-                "return Promise.all(p).then(function(){return true;});"
-                "})()}"
-            ).arg(escapedHtml);
+				"hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();"
+				"generateHeadingIds();"
+				"setImgTitles();"
+				"replaceEmoji(document.body);"
+				"twemojiParse('" + emojiMode + "');"
+				"window.scrollTo(0, sy);"
+				"(function(){"
+				"var p=[];"
+				"if(typeof mermaidPromise!=='undefined')p.push(mermaidPromise);"
+				"if(typeof vlPromise!=='undefined')p.push(vlPromise);"
+				"var imgs=document.querySelectorAll('img:not(.emoji)');"
+				"if(imgs.length>0){"
+				"p.push(new Promise(function(r){"
+				"var n=0,t=imgs.length;"
+				"function c(){n++;if(n>=t)r();}"
+				"for(var i=0;i<imgs.length;i++){"
+				"if(imgs[i].complete)c();"
+				"else{imgs[i].onload=c;imgs[i].onerror=c;}"
+				"}"
+				"}));"
+				"}"
+				"if(p.length===0)return true;"
+				"return Promise.all(p).then(function(){return true;});"
+				"})()}"
+			).arg(escapedHtml);
         }
         m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
             if (result.toBool())
@@ -1619,6 +1645,7 @@ void MainWindow::loadFile(const QString &filePath)
         idx = addTab(filePath);
         m_tabs[idx].editor->setPlainText(content);
         m_tabs[idx].dirty = false;
+        updateTabLabel(idx);
         info = &m_tabs[idx];
     }
 
@@ -1699,10 +1726,18 @@ QJsonObject MainWindow::serializeSession() const
 {
     QJsonObject root;
     root["version"] = 1;
-    root["active"] = m_tabWidget->currentIndex();
-
     QJsonArray files;
     QJsonArray cursors;
+
+    int rawActive = m_tabWidget->currentIndex();
+    int fileActive = 0;
+    int activeIndex = -1;
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (m_tabs[i].filePath.isEmpty()) continue;
+        if (i == rawActive) { activeIndex = fileActive; break; }
+        ++fileActive;
+    }
+    root["active"] = activeIndex;
 
     for (int i = 0; i < m_tabs.size(); ++i) {
         const TabInfo &info = m_tabs[i];

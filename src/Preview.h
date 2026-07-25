@@ -13,6 +13,9 @@ class PreviewPage : public QWebEnginePage
 public:
     explicit PreviewPage(QObject *parent = nullptr);
 
+signals:
+    void openLinkRequested(const QUrl &url);
+
 protected:
     void javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
                                   const QString &message,

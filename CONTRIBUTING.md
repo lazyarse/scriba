@@ -85,6 +85,10 @@ pip install Pillow mss
 
 Both scripts expect a pre-built binary at `build/scriba`.
 
+### Keyboard Shortcuts
+
+After adding a new keyboard shortcut, update `resources/shortcuts.html` to document it. The file is loaded via the Help → Keyboard Shortcuts menu item and displayed in a `QTextBrowser`.
+
 ## PDF Printing: Qt Binary Patch Required
 
 ### The Problem
@@ -152,6 +156,35 @@ When creating a new theme, find the closest matching highlight.js theme from the
 3. Source or write a matching highlight.js block and append it at the end
 4. Register the new file in `resources/scriba.qrc` under `<file>themes/your-theme.css</file>`
 5. Rebuild — themes are compiled into the binary via Qt resources
+
+## Preview Link Handling
+
+Clicking a hyperlink in the preview opens local `.md` files in a new editor tab and everything else (http, https, mailto, etc.) in the system browser.
+
+### Why `about:blank#scriba-open:`?
+
+The preview page is loaded via `QWebEnginePage::setHtml()`, which creates an internal `data:` URL. Chromium silently blocks navigation from `data:` to `file:` URLs before Qt ever sees the request in `acceptNavigationRequest()`. However, navigation from `data:` to `http:` and `about:` is allowed.
+
+To work around this, a delegated JavaScript click handler is injected into the preview HTML (`MainWindow.cpp:951-956`) that intercepts every link click, prevents the default navigation, and instead redirects to `about:blank#scriba-open:<encoded-url>`. The `about:` scheme navigation reaches `PreviewPage::acceptNavigationRequest()` (in `Preview.cpp:48-55`), which detects the `scriba-open:` fragment header, extracts the real URL, and emits `openLinkRequested(url)`. No actual navigation to `about:blank` occurs — `acceptNavigationRequest` returns `false`, cancelling it.
+
+### Signal flow
+
+```
+User clicks link in preview
+  → JS handler: e.preventDefault()
+  → JS: window.location.href = 'about:blank#scriba-open:' + encodeURIComponent(link.href)
+  → PreviewPage::acceptNavigationRequest(url, NavigationTypeOther)
+  → detects scriba-open fragment, emits openLinkRequested(realUrl)
+  → MainWindow handler:
+      • realUrl.isLocalFile() && suffix == "md"  →  loadFile(localPath)  [new tab]
+      • otherwise                                →  QDesktopServices::openUrl(realUrl)
+```
+
+### Key files
+
+- `src/Preview.cpp` — `PreviewPage::acceptNavigationRequest` intercepts the fake navigation
+- `src/MainWindow.cpp` — JS injection in the HTML template; signal handler that opens tabs or browser
+- `src/Preview.h` — `openLinkRequested` signal declaration
 
 ## Testing
 

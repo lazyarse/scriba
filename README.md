@@ -3,7 +3,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A configurable, no-nonsense, split-screen, off-line Markdown editor with a *pretentious* Latin name**. An opinionated restricted feature-set: useful; no bloat, and designed to *actually* do what it should without plugin hell.
+**A no-nonsense, configurable, split-screen, off-line Markdown editor with a *pretentious* Latin name**. An opinionated restricted feature-set: useful; no bloat, and designed to *actually* do what it should without plugin hell.
 
 <br />
 <div align="center">
@@ -37,6 +37,7 @@
 - CSS-based theming: editor, preview, and chrome all styled from one file with sample themes for you to moan about. The editor's colours stay in sync with the theme, preferences has separate styling options, Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
 - PDF export with print-specific CSS stylesheets
 - Find and replace with highlighting, regex search and replace with back-references 
+- Up to ten tabs for working in a `session` with load / save session handling for different projects
 - The usual <kbd>Ctrl</kbd>+<kbd>X</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>V</kbd>, <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> do what you'd expect.
 - A shocking 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers like you
 
@@ -61,7 +62,7 @@
 - Emojis + search + autocomplete because all technical documentation now requires them
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` could autocomplete to `![](foo/bar.png)`
 - A debug log window output to see rendering errors
-- A [sample.md](sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
+- A [docs/sample.md](docs/sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 - Selected text + <kbd>Tab</kbd> will indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> will dedent.
 - <kbd>Down</kbd> on the last line will place the cursor at the end of the line
 - hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text.
@@ -76,8 +77,9 @@
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Scriba Preferences |
 | <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Quit |
 | <kbd>Ctrl</kbd>+<kbd>B</kbd> | Toggle Preview Pane Layout |
-| <kbd>F11</kbd> / ![fullscreen icon](resources/icons/fullscreen.svg) | Toggle Fullscreen |
+| <kbd>F11</kbd> | Toggle Fullscreen |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | Show Debug Log |
+| <kbd>Alt</kbd>+<kbd>1-0</kbd> | Switch between open tabs (0 = tab 10) |
 
 ### Files
 
