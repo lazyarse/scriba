@@ -30,6 +30,7 @@ class MermaidTimelineDialog;
 class MermaidJourneyDialog;
 class MermaidQuadrantDialog;
 class MermaidSankeyDialog;
+class KatexHelperDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -64,6 +65,7 @@ private slots:
     void showMermaidJourney();
     void showMermaidQuadrant();
     void showMermaidSankey();
+    void showKatexHelper();
 
     void onFindNext();
     void onFindPrev();

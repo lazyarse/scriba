@@ -27,6 +27,7 @@
 #include "MermaidJourneyDialog.h"
 #include "MermaidQuadrantDialog.h"
 #include "MermaidSankeyDialog.h"
+#include "KatexHelperDialog.h"
 
 #include <QVBoxLayout>
 #include <QTextBrowser>
@@ -319,6 +320,10 @@ void MainWindow::setupMenuBar()
         });
         dlg.exec();
     });
+
+    QAction *katexAction = toolsMenu->addAction("KaTeX &Equation...");
+    katexAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
+    connect(katexAction, &QAction::triggered, this, &MainWindow::showKatexHelper);
 
     toolsMenu->addSeparator();
 
@@ -879,6 +884,16 @@ void MainWindow::showMermaidSankey()
             QString block = "\n```mermaid\n" + diagram + "\n```\n";
             m_editor->insertPlainText(block);
         }
+    }
+}
+
+void MainWindow::showKatexHelper()
+{
+    KatexHelperDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString latex = dlg.generatedLatex();
+        if (!latex.isEmpty())
+            m_editor->insertPlainText(latex);
     }
 }
 

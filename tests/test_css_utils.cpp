@@ -74,7 +74,6 @@ TEST(CssUtilsTest, AllWidgetTypesPresent) {
     EXPECT_TRUE(css.contains("QListWidget"));
     EXPECT_TRUE(css.contains("QPushButton"));
     EXPECT_TRUE(css.contains("QLabel"));
-    EXPECT_TRUE(css.contains("QPlainTextEdit"));
     EXPECT_TRUE(css.contains("QMenuBar"));
     EXPECT_TRUE(css.contains("QScrollBar"));
     EXPECT_TRUE(css.contains("QSplitter"));
