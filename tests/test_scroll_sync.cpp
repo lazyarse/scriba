@@ -152,7 +152,7 @@ protected:
         // stale last-file path or blocking warning dialogs
         QSettings settings;
         settings.remove(Preferences::LastOpenedFile);
-        settings.setValue(Preferences::ReopenLastFile, false);
+        settings.setValue(Preferences::ReopenLastSession, false);
 
         tmpFile = new QTemporaryFile();
         ASSERT_TRUE(tmpFile->open());
@@ -338,7 +338,52 @@ TEST_F(ScrollSyncIntegrationTest, ImageInsertScrollSyncsPreview) {
     EXPECT_GT(scrollY, 0);
 }
 
-/* ========== Test F: togglePreview without initialized preview ========== */
+/* ========== Test F: Single tab preview renders content ========== */
+
+TEST_F(ScrollSyncIntegrationTest, InitialTabRendersPreviewContent) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->editor()->setPlainText("# Hello Tab\n\nThis is the first tab.");
+    QApplication::processEvents();
+
+    // Wait for 80ms debounce timer + preview re-render + async JS
+    QTest::qWait(5000);
+
+    QString html;
+    window->preview()->page()->toHtml([&](const QString &h) { html = h; });
+    QTest::qWait(2000);
+
+    EXPECT_TRUE(html.contains("Hello Tab"));
+    EXPECT_TRUE(html.contains("first tab"));
+}
+
+TEST_F(ScrollSyncIntegrationTest, SingleFileTabRendersPreviewAfterOpen) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    QTest::qWait(300);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i)
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    while (!loaded) {
+        if (!loadSpy.wait(1000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    ASSERT_TRUE(loaded);
+    QTest::qWait(1000);
+
+    QString html;
+    window->preview()->page()->toHtml([&](const QString &h) { html = h; });
+    QTest::qWait(2000);
+
+    EXPECT_TRUE(html.contains("001"));
+}
+
+/* ========== Test G: togglePreview without initialized preview ========== */
 
 class TogglePreviewTest : public testing::Test {
 protected:
@@ -350,7 +395,7 @@ protected:
     void SetUp() override {
         QSettings settings;
         settings.remove(Preferences::LastOpenedFile);
-        settings.setValue(Preferences::ReopenLastFile, false);
+        settings.setValue(Preferences::ReopenLastSession, false);
         settings.setValue(Preferences::PreviewState, 1);
     }
 

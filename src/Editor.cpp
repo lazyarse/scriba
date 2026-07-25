@@ -430,7 +430,8 @@ bool Editor::isInsideHtmlPathContext(const QTextCursor &cursor, QString &partial
 
 void Editor::showFileCompletion(const QString &partialPath)
 {
-    if (m_currentFile.isEmpty())
+    if (m_currentFile.isEmpty() ||
+        !QSettings().value(Preferences::FileAutoComplete, true).toBool())
         return;
 
     QFileInfo fi(m_currentFile);

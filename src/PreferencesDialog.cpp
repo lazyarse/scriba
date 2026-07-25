@@ -66,7 +66,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         generalLayout->addSpacing(8);
 
         m_reopenCheck = new QCheckBox("Re-open last edited file on startup");
-        m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastFile, true).toBool());
+        m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastSession, true).toBool());
         generalLayout->addWidget(m_reopenCheck);
 
         m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
@@ -74,17 +74,27 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         generalLayout->addWidget(m_syncCheck);
 
         QHBoxLayout *compRow = new QHBoxLayout();
-        compRow->addWidget(new QLabel("File autocomplete limit:"));
+        compRow->addWidget(new QLabel("Filename autocomplete limit:"));
         m_fileCompletionSpin = new QSpinBox();
         m_fileCompletionSpin->setRange(2, 100);
         m_fileCompletionSpin->setValue(settings.value(Preferences::FileCompletionLimit, 20).toInt());
         compRow->addWidget(m_fileCompletionSpin);
         compRow->addStretch();
-        generalLayout->addLayout(compRow);
 
         layout->addWidget(generalGroup);
 
-        QGroupBox *singleViewGroup = new QGroupBox("Single View");
+        QGroupBox *filenameAutoCompleteGroup = new QGroupBox("Filename Autocomplete");
+        QVBoxLayout *filenameAutoCompleteLayout = new QVBoxLayout(filenameAutoCompleteGroup);
+        filenameAutoCompleteLayout->addSpacing(8);
+
+        m_filenameAutoCompleteCheck = new QCheckBox("Enable filename autocomplete");
+        m_filenameAutoCompleteCheck->setChecked(settings.value(Preferences::FileAutoComplete, true).toBool());
+        filenameAutoCompleteLayout->addWidget(m_filenameAutoCompleteCheck);
+
+        filenameAutoCompleteLayout->addLayout(compRow);
+        layout->addWidget(filenameAutoCompleteGroup);
+
+        QGroupBox *singleViewGroup = new QGroupBox("Single Pane View (Editor/Preview-Only View)");
         QVBoxLayout *singleViewLayout = new QVBoxLayout(singleViewGroup);
         singleViewLayout->addSpacing(8);
 
@@ -106,7 +116,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(singleViewGroup);
 
-        QGroupBox *autoSaveGroup = new QGroupBox("Auto Save");
+        QGroupBox *autoSaveGroup = new QGroupBox("Auto-Save");
         QVBoxLayout *autoSaveLayout = new QVBoxLayout(autoSaveGroup);
         autoSaveLayout->addSpacing(8);
 
@@ -130,7 +140,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(autoSaveGroup);
 
-        QGroupBox *emojiGroup = new QGroupBox("Emoji");
+        QGroupBox *emojiGroup = new QGroupBox("Emojis");
         QVBoxLayout *emojiLayout = new QVBoxLayout(emojiGroup);
         emojiLayout->addSpacing(8);
 
@@ -364,7 +374,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     mainLayout->addWidget(buttonBox);
     connect(buttonBox, &QDialogButtonBox::accepted, this, [this]() {
         QSettings settings;
-        settings.setValue(Preferences::ReopenLastFile, m_reopenCheck->isChecked());
+        settings.setValue(Preferences::ReopenLastSession, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         settings.setValue(Preferences::EmojiMode,
@@ -376,6 +386,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
         settings.setValue(Preferences::AutoSaveInterval, interval);
         settings.setValue(Preferences::FileCompletionLimit, m_fileCompletionSpin->value());
+         settings.setValue(Preferences::FileAutoComplete, m_filenameAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::EditorFontFamily, m_editorFontCombo->currentText());
         settings.setValue(Preferences::EditorFontSize, m_editorFontSizeSpin->value());
         settings.setValue(Preferences::EditorLineHeight, m_editorLineHeightSpin->value());
