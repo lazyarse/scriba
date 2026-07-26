@@ -157,6 +157,10 @@ When creating a new theme, find the closest matching highlight.js theme from the
 4. Register the new file in `resources/scriba.qrc` under `<file>themes/your-theme.css</file>`
 5. Rebuild — themes are compiled into the binary via Qt resources
 
+### Qt Widget Chrome
+
+The chrome CSS for Qt widgets (dialogs, buttons, inputs, spinboxes) is generated programmatically in `src/CssUtils.cpp:deriveChromeCss()` by extracting theme background/text colors. Styling `QSpinBox` requires explicit sub-control rules for `up-button`, `down-button`, `up-arrow`, and `down-arrow` — if you style the widget without them, Fusion stops rendering the arrow glyphs and they become invisible. Arrow images (`resources/arrow-up*.svg` / `arrow-down*.svg`) are manually created in light/dark color variants and conditionally loaded via per-theme-brightness variables (same pattern as `checkbox-checked*.svg`). Always mirror the existing spinbox rule when modifying chrome CSS.
+
 ## Preview Link Handling
 
 Clicking a hyperlink in the preview opens local `.md` files in a new editor tab and everything else (http, https, mailto, etc.) in the system browser.
