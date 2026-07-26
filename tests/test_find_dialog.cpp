@@ -286,7 +286,7 @@ TEST_F(FindDialogIntegrationTest, ReplaceAllWithBackreferences)
     auto buttons = dialog->findChildren<QPushButton *>();
     QPushButton *replaceAllBtn = nullptr;
     for (auto *btn : buttons) {
-        if (btn->text() == "Replace All") {
+        if (btn->text().remove('&') == "Replace All") {
             replaceAllBtn = btn;
             break;
         }
@@ -324,7 +324,7 @@ TEST_F(FindDialogIntegrationTest, ReplaceWithBackreferences)
     auto buttons = dialog->findChildren<QPushButton *>();
     QPushButton *replaceBtn = nullptr;
     for (auto *btn : buttons) {
-        if (btn->text() == "Replace") {
+        if (btn->text().remove('&') == "Replace") {
             replaceBtn = btn;
             break;
         }
@@ -365,7 +365,7 @@ TEST_F(FindDialogIntegrationTest, RegexReplaceAllWithoutBackreference)
     auto buttons = dialog->findChildren<QPushButton *>();
     QPushButton *replaceAllBtn = nullptr;
     for (auto *btn : buttons) {
-        if (btn->text() == "Replace All") {
+        if (btn->text().remove('&') == "Replace All") {
             replaceAllBtn = btn;
             break;
         }
@@ -409,7 +409,7 @@ TEST_F(FindDialogIntegrationTest, RegexReplaceAllRespectsCaseSensitivity)
     auto buttons = dialog->findChildren<QPushButton *>();
     QPushButton *replaceAllBtn = nullptr;
     for (auto *btn : buttons) {
-        if (btn->text() == "Replace All") {
+        if (btn->text().remove('&') == "Replace All") {
             replaceAllBtn = btn;
             break;
         }
@@ -447,7 +447,7 @@ TEST_F(FindDialogIntegrationTest, RegexReplaceWithNoMatch)
     auto buttons = dialog->findChildren<QPushButton *>();
     QPushButton *replaceAllBtn = nullptr;
     for (auto *btn : buttons) {
-        if (btn->text() == "Replace All") {
+        if (btn->text().remove('&') == "Replace All") {
             replaceAllBtn = btn;
             break;
         }
