@@ -3,3 +3,4 @@ vendor
 *.deb
 _CPack_Packages
 .demo-content.md
+docs/superpowers
