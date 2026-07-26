@@ -1060,6 +1060,10 @@ void MainWindow::showPreferences()
     applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
     updateAll();
     applyStripeSetting();
+    for (const auto &tab : m_tabs) {
+        if (tab.editor)
+            tab.editor->invalidateEmojiIconCache();
+    }
     m_previewInitialized = false;
     updatePreview();
 
