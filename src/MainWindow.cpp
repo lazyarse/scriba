@@ -526,7 +526,7 @@ void MainWindow::setupMenuBar()
 
     fileMenu->addSeparator();
 
-    QAction *exportPdfAction = fileMenu->addAction("Export &PDF...");
+    QAction *exportPdfAction = fileMenu->addAction("&Print / Export PDF...");
     exportPdfAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_P));
     connect(exportPdfAction, &QAction::triggered, this, &MainWindow::exportPdf);
 
