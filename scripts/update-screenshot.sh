@@ -11,7 +11,7 @@ if [ ! -f "$BUILD_DIR/scriba" ]; then
     cmake --build "$BUILD_DIR" -j"$(nproc)"
 fi
 
-cp "$PROJECT_DIR/resources/sample.md" /tmp/sample.md
+cp "$PROJECT_DIR/docs/sample.md" /tmp/sample.md
 
 xvfb-run -a sh -c '
     '"$BUILD_DIR"'/scriba /tmp/sample.md &
