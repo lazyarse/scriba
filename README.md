@@ -1,11 +1,9 @@
 # Scriba Markdown Editor
-
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A no-nonsense, configurable, split-screen, off-line Markdown editor with a *pretentious* Latin name**. An opinionated restricted feature-set: useful; no bloat, and designed to *actually* do what it should without plugin hell.
+**A privacy-first, no-nonsense, configurable, split-screen Markdown editor with a *pretentious* Latin name**. Designed to *actually* do what it should with an opinionated restricted feature-set: useful; no bloat without plugin hell. No node, React, Angular. Just a right, proper, local C++ application.
 
-<br />
 <div align="center">
   :cucumber:
   <img src="docs/images/badge-opencode.svg" />
@@ -19,54 +17,48 @@
 </span>
 </div>
 
-<div align="center">
-
-![](docs/images/screenshot.png)
-
-![](docs/images/autocomplete-demo.gif)
-<br/><em>I want it known this took way longer than expected to script.</em>
-
-</div>
+- ---
 
 ## Features
-
-### The Basics
-
-- WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions with custom titles and icons (note, tip, important, warning, caution) 
-- Multiple document editor and preview pane with configurable split-screen layout: have the preview on the right, the left, on its own, or hidden
-- CSS-based theming: editor, preview, and chrome all styled from one file with sample themes for you to moan about. The editor's colours stay in sync with the theme, preferences has separate styling options, Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
-- PDF export with print-specific CSS stylesheets
-- Find and replace with highlighting, regex search and replace with back-references 
-- Up to ten tabs for working in a `session` with load / save session handling for different projects
-- The usual <kbd>Ctrl</kbd>+<kbd>X</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>V</kbd>, <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> do what you'd expect.
-- A shocking 80ms debounce timer that causes a little delay in the rendered preview to bother fast typers like you
 
 ### Standing on the shoulders of giants:
 
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
-- [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) and helper
-- [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and a chart helper
-- [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and a chart helper because writing JSON is hard.
-- [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser
+- [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`)and helper
+- [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
+- [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
+- [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser + GFM support
+
+### The Basics
+
+- Image rendering from local files and URLs
+- Admonitions and custom titles and icons (note, tip, important, warning, caution) 
+- Preview pane with configurable split-screen layout: have the preview on the right, the left, on its own, or hidden
+- CSS-based theming: editor, preview, and chrome all styled from one file with sample themes for you to moan about. The editor's colours stay in sync with the theme but you can override them. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
+- Print and PDF export with print-specific CSS stylesheets
+- Find / Replace with highlighting, regex search and replace with back-references 
+- Tabs for working in a `session` with load / save session handling for different projects
+- The usual <kbd>Ctrl</kbd>+<kbd>X</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>V</kbd>, <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> do what you'd expect.
+- A shocking 80ms debounce timer that causes delay in the rendered preview to bother fast typers like you
 
 ### Candy:
 
 - Full-screen mode
 - Cursor and view-port restore on re-start to pick up where you left off
 - Sentence, word count, estimated reading time and reading age to suitably patronise. (Oh look, this `README` is aimed at high-school-educated people)
-- That annoying `<kbd>` css styling to look just like a key. I like it. Feel free to remove it in the `preview-base.css` and `print-base.css`.
-- Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed. 
+- That annoying `<kbd>` css styling to look just like a key. I like it. Feel free to remove it in the `preview-base.css` and `print-base.css`
+- Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed
 - Table auto-completion: <kbd>Enter</kbd> auto creates a new row either in-cell or at end of the row, <kbd>Enter</kbd> on blank row ends autocomplete, <kbd>Tab</kbd> to next cell, <kbd>Shift</kbd>+<kbd>Tab</kbd> to previous cell
 - Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete
 - Optional alternating table row striping
-- Emojis (b+w / colour) + picker + autocomplete because all technical documentation now requires them...and I'm powerless to stop the trend. :chart_with_upwards_trend:
+- Emojis (b+w / colour) + picker + autocomplete because all technical documentation now requires them...and I'm powerless to stop the trend :chart_with_upwards_trend:
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` autocompletes to `![](foo/bar.png)`
 - A debug log window output to see your rendering errors
 - A [docs/sample.md](docs/sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
-- Selected text + <kbd>Tab</kbd> will indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> will dedent.
+- Selected text + <kbd>Tab</kbd> will indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> will dedent
 - <kbd>Down</kbd> on the last line will place the cursor at the end of the line
-- hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text.
-- Duplicate a line with <kbd>Ctrl</kbd>+<kbd>D</kbd> because <kbd>Home</kbd><kbd>Shift</kbd>+<kbd>Down</kbd><kbd>Left</kbd> are too many steps.
+- hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text
+- Duplicate a line with <kbd>Ctrl</kbd>+<kbd>D</kbd> because <kbd>Home</kbd><kbd>Shift</kbd>+<kbd>Down</kbd><kbd>Left</kbd> are too many steps
 
 ## Non-Features
 
@@ -74,7 +66,7 @@
 - No AI features: (*I know. Don't even say it.*)
 - No real-time collaboration: Your Google Doc trauma is safe here.
 - No subscription: It was hard enough convincing you to install Qt6.
-- No Electron. Your RAM has better things to do.
+- No Electron / node. Your RAM has better things to do.
 
 ## Shortcuts
 
@@ -107,7 +99,6 @@
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find / Replace |
 | <kbd>F3</kbd> | Next Search Result |
 | <kbd>Shift</kbd>+<kbd>F3</kbd> | Previous Search Result|
-| <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite Chart Builder |
 | <kbd>Ctrl</kbd>+<kbd>D</kbd> | Duplicate line |
 
 ### Helpers
@@ -118,6 +109,7 @@
 | <kbd>Ctrl</kbd>+<kbd>T</kbd> | Tables |
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> | Katex |
 | <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite |
+| <kbd>Alt</kbd>+<kbd>T</kbd> <kbd>M</kbd> | Mermaid Diagrams |
 
 ## Custom CSS / Themes
 
