@@ -40,22 +40,8 @@ void MermaidSequenceDialog::setupUi()
     m_participantTable->setColumnWidth(partDelCol, 32);
     m_participantTable->verticalHeader()->setDefaultSectionSize(28);
 
-    auto addParticipantDeleteButton = [this](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_participantTable);
-        delBtn->setFixedSize(26, 22);
-        delBtn->setToolTip("Delete row");
-        m_participantTable->setCellWidget(row, partDelCol, delBtn);
-        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
-            int row = m_participantTable->indexAt(delBtn->pos()).row();
-            if (row >= 0 && m_participantTable->rowCount() > 1) {
-                m_participantTable->removeRow(row);
-                refreshMessageCombos();
-                schedulePreviewUpdate();
-            }
-        });
-    };
-    addParticipantDeleteButton(0);
-    addParticipantDeleteButton(1);
+    addDeleteButton(m_participantTable, partDelCol, 0, [this](){ refreshMessageCombos(); });
+    addDeleteButton(m_participantTable, partDelCol, 1, [this](){ refreshMessageCombos(); });
 
     leftLayout->addWidget(m_participantTable);
 
@@ -87,10 +73,10 @@ void MermaidSequenceDialog::setupUi()
     connect(m_messageTable, &QTableWidget::itemChanged,
             this, &MermaidSequenceDialog::schedulePreviewUpdate);
 
-    connect(addParticipantBtn, &QPushButton::clicked, this, [this, addParticipantDeleteButton]() {
+    connect(addParticipantBtn, &QPushButton::clicked, this, [this]() {
         int row = m_participantTable->rowCount();
         m_participantTable->insertRow(row);
-        addParticipantDeleteButton(row);
+        addDeleteButton(m_participantTable, partDelCol, row, [this](){ refreshMessageCombos(); });
         refreshMessageCombos();
         schedulePreviewUpdate();
     });
@@ -128,23 +114,8 @@ void MermaidSequenceDialog::refreshMessageCombos()
         if (item && !item->text().trimmed().isEmpty())
             names.append(item->text().trimmed());
     }
+    populateComboColumns(m_messageTable, {0, 1}, names);
     for (int r = 0; r < m_messageTable->rowCount(); ++r) {
-        for (int col : {0, 1}) {
-            QComboBox *box = qobject_cast<QComboBox*>(m_messageTable->cellWidget(r, col));
-            if (!box) {
-                box = new QComboBox(m_messageTable);
-                m_messageTable->setCellWidget(r, col, box);
-                connect(box, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                        this, &MermaidSequenceDialog::schedulePreviewUpdate);
-            }
-            QString cur = box->currentText();
-            box->blockSignals(true);
-            box->clear();
-            box->addItems(names);
-            int idx = box->findText(cur);
-            if (idx >= 0) box->setCurrentIndex(idx);
-            box->blockSignals(false);
-        }
         QComboBox *arrowBox = qobject_cast<QComboBox*>(m_messageTable->cellWidget(r, 3));
         if (!arrowBox) {
             arrowBox = new QComboBox(m_messageTable);

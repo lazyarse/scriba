@@ -14,6 +14,7 @@
 #include <QLabel>
 #include <QCheckBox>
 #include <QSpinBox>
+#include <QComboBox>
 #include <QTableWidget>
 
 MermaidDialogBase::MermaidDialogBase(const QString &title, const QString &themeCss,
@@ -135,18 +136,47 @@ void MermaidDialogBase::setupMainLayout(QWidget *leftPanel, QVBoxLayout *leftLay
     resize(900, 550);
 }
 
-void MermaidDialogBase::addDeleteButton(QTableWidget *table, int column, int row)
+void MermaidDialogBase::addDeleteButton(QTableWidget *table, int column, int row,
+                                        std::function<void()> onDelete)
 {
     QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", table);
     delBtn->setFixedSize(26, 22);
     delBtn->setToolTip("Delete row");
     table->setCellWidget(row, column, delBtn);
-    connect(delBtn, &QPushButton::clicked, this, [this, table, delBtn]() {
+    connect(delBtn, &QPushButton::clicked, this, [this, table, delBtn, onDelete = std::move(onDelete)]() {
         int row = table->indexAt(delBtn->pos()).row();
-        if (row >= 0 && table->rowCount() > 1)
+        if (row >= 0 && table->rowCount() > 1) {
             table->removeRow(row);
+            if (onDelete)
+                onDelete();
+        }
         schedulePreviewUpdate();
     });
+}
+
+void MermaidDialogBase::populateComboColumns(QTableWidget *table,
+                                              const QList<int> &columns,
+                                              const QStringList &items)
+{
+    for (int r = 0; r < table->rowCount(); ++r) {
+        for (int col : columns) {
+            QComboBox *box = qobject_cast<QComboBox*>(table->cellWidget(r, col));
+            if (!box) {
+                box = new QComboBox(table);
+                table->setCellWidget(r, col, box);
+                connect(box, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                        this, &MermaidDialogBase::schedulePreviewUpdate);
+            }
+            QString cur = box->currentText();
+            box->blockSignals(true);
+            box->clear();
+            box->addItems(items);
+            int idx = box->findText(cur);
+            if (idx >= 0)
+                box->setCurrentIndex(idx);
+            box->blockSignals(false);
+        }
+    }
 }
 
 void MermaidDialogBase::schedulePreviewUpdate()

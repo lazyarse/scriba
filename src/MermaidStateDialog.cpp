@@ -41,22 +41,8 @@ void MermaidStateDialog::setupUi()
     m_stateTable->setColumnWidth(stateDelCol, 32);
     m_stateTable->verticalHeader()->setDefaultSectionSize(28);
 
-    auto addStateDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_stateTable);
-        delBtn->setFixedSize(26, 22);
-        delBtn->setToolTip("Delete row");
-        m_stateTable->setCellWidget(row, stateDelCol, delBtn);
-        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
-            int row = m_stateTable->indexAt(delBtn->pos()).row();
-            if (row >= 0 && m_stateTable->rowCount() > 1) {
-                m_stateTable->removeRow(row);
-                refreshTransitionCombos();
-                schedulePreviewUpdate();
-            }
-        });
-    };
     for (int r = 0; r < m_stateTable->rowCount(); ++r)
-        addStateDeleteButton(r);
+        addDeleteButton(m_stateTable, stateDelCol, r, [this](){ refreshTransitionCombos(); });
 
     leftLayout->addWidget(m_stateTable);
 
@@ -86,10 +72,10 @@ void MermaidStateDialog::setupUi()
     connect(m_stateTable, &QTableWidget::itemChanged, this, &MermaidStateDialog::onStateChanged);
     connect(m_transitionTable, &QTableWidget::itemChanged, this, &MermaidStateDialog::schedulePreviewUpdate);
 
-    connect(addStateBtn, &QPushButton::clicked, this, [this, addStateDeleteButton]() {
+    connect(addStateBtn, &QPushButton::clicked, this, [this]() {
         int row = m_stateTable->rowCount();
         m_stateTable->insertRow(row);
-        addStateDeleteButton(row);
+        addDeleteButton(m_stateTable, stateDelCol, row, [this](){ refreshTransitionCombos(); });
         refreshTransitionCombos();
         schedulePreviewUpdate();
     });
@@ -118,24 +104,7 @@ void MermaidStateDialog::refreshTransitionCombos()
         if (item && !item->text().trimmed().isEmpty())
             stateNames.append(item->text().trimmed());
     }
-    for (int r = 0; r < m_transitionTable->rowCount(); ++r) {
-        for (int col : {0, 1}) {
-            QComboBox *box = qobject_cast<QComboBox*>(m_transitionTable->cellWidget(r, col));
-            if (!box) {
-                box = new QComboBox(m_transitionTable);
-                m_transitionTable->setCellWidget(r, col, box);
-                connect(box, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                        this, &MermaidStateDialog::schedulePreviewUpdate);
-            }
-            QString cur = box->currentText();
-            box->blockSignals(true);
-            box->clear();
-            box->addItems(stateNames);
-            int idx = box->findText(cur);
-            if (idx >= 0) box->setCurrentIndex(idx);
-            box->blockSignals(false);
-        }
-    }
+    populateComboColumns(m_transitionTable, {0, 1}, stateNames);
 }
 
 QString MermaidStateDialog::buildDiagram() const
