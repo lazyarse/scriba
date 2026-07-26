@@ -11,6 +11,7 @@
 #include <QLoggingCategory>
 #include <QMenu>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -184,6 +185,7 @@ void Preview::contextMenuEvent(QContextMenuEvent *event)
             textEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
             layout->addWidget(textEdit);
             auto *btnBox = new QDialogButtonBox(QDialogButtonBox::Close);
+            btnBox->button(QDialogButtonBox::Close)->setText(tr("&Close"));
             for (auto *btn : btnBox->buttons()) btn->setIcon(QIcon());
             connect(btnBox, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);
             layout->addWidget(btnBox);

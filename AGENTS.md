@@ -6,6 +6,8 @@ C++17 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown
 
 ## Build
 
+Full build is heavy (WebEngine resources, JS bundles, many test targets). Use `timeout 300000` with bash or pass a large timeout value — the default 120s may not be enough.
+
 ```bash
 mkdir -p build
 cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs after branch switches

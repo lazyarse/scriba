@@ -686,6 +686,7 @@ void MainWindow::setupMenuBar()
             browser->setHtml(f.readAll());
         layout->addWidget(browser);
         auto *btnBox = new QDialogButtonBox(QDialogButtonBox::Close);
+        btnBox->button(QDialogButtonBox::Close)->setText(tr("&Close"));
         for (auto *btn : btnBox->buttons()) btn->setIcon(QIcon());
         connect(btnBox, &QDialogButtonBox::rejected, &dlg, &QDialog::close);
         layout->addWidget(btnBox);

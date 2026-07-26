@@ -68,6 +68,7 @@ AboutDialog::AboutDialog(QWidget *parent)
     mainLayout->addStretch();
 
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Close);
+    buttonBox->button(QDialogButtonBox::Close)->setText(tr("&Close"));
     for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::accept);
     mainLayout->addWidget(buttonBox);

@@ -116,8 +116,9 @@ void MermaidDialogBase::setupMainLayout(QWidget *leftPanel, QVBoxLayout *leftLay
     mainLayout->addWidget(splitter);
 
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    QPushButton *copyBtn = buttonBox->addButton("Copy", QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Ca&ncel"));
+    QPushButton *copyBtn = buttonBox->addButton(tr("&Copy"), QDialogButtonBox::ActionRole);
+    QPushButton *insertBtn = buttonBox->addButton(tr("&Insert"), QDialogButtonBox::AcceptRole);
     Q_UNUSED(insertBtn);
     for (auto *btn : buttonBox->buttons())
         btn->setIcon(QIcon());

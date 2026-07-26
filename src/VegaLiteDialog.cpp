@@ -109,8 +109,9 @@ void VegaLiteDialog::setupUi()
 
     QDialogButtonBox *buttonBox = new QDialogButtonBox(
         QDialogButtonBox::Cancel, this);
-    QPushButton *copyBtn = buttonBox->addButton("Copy JSON", QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Ca&ncel"));
+    QPushButton *copyBtn = buttonBox->addButton(tr("Cop&y JSON"), QDialogButtonBox::ActionRole);
+    QPushButton *insertBtn = buttonBox->addButton(tr("&Insert"), QDialogButtonBox::AcceptRole);
     Q_UNUSED(insertBtn);
     for (auto *btn : buttonBox->buttons())
         btn->setIcon(QIcon());
@@ -372,6 +373,8 @@ void VegaLiteDialog::pasteCsv()
     layout->addWidget(edit);
     QDialogButtonBox *box = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    box->button(QDialogButtonBox::Ok)->setText(tr("&OK"));
+    box->button(QDialogButtonBox::Cancel)->setText(tr("&Cancel"));
     for (auto *btn : box->buttons())
         btn->setIcon(QIcon());
     layout->addWidget(box);
@@ -415,6 +418,8 @@ void VegaLiteDialog::pasteJson()
     layout->addWidget(edit);
     QDialogButtonBox *box = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    box->button(QDialogButtonBox::Ok)->setText(tr("&OK"));
+    box->button(QDialogButtonBox::Cancel)->setText(tr("&Cancel"));
     for (auto *btn : box->buttons())
         btn->setIcon(QIcon());
     layout->addWidget(box);

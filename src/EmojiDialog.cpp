@@ -54,7 +54,8 @@ EmojiDialog::EmojiDialog(QWidget *parent)
     layout->addWidget(m_selectedLabel);
 
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel);
-    m_insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
+    buttonBox->button(QDialogButtonBox::Cancel)->setText("&Cancel");
+    m_insertBtn = buttonBox->addButton("&Insert", QDialogButtonBox::AcceptRole);
     m_insertBtn->setEnabled(false);
     layout->addWidget(buttonBox);
 

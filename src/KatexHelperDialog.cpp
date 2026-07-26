@@ -213,8 +213,9 @@ void KatexHelperDialog::setupUi()
     mainLayout->addWidget(scrollArea, 1);
 
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    QPushButton *copyBtn = buttonBox->addButton("Copy", QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton("Insert", QDialogButtonBox::AcceptRole);
+    buttonBox->button(QDialogButtonBox::Cancel)->setText("Ca&ncel");
+    QPushButton *copyBtn = buttonBox->addButton("&Copy", QDialogButtonBox::ActionRole);
+    QPushButton *insertBtn = buttonBox->addButton("&Insert", QDialogButtonBox::AcceptRole);
     Q_UNUSED(insertBtn);
     for (auto *btn : buttonBox->buttons())
         btn->setIcon(QIcon());

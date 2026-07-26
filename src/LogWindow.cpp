@@ -54,6 +54,7 @@ LogWindow::LogWindow(QWidget *parent)
     layout->addWidget(m_output);
 
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+    buttons->button(QDialogButtonBox::Close)->setText(tr("&Close"));
     QPushButton *clearBtn = buttons->addButton("C&lear", QDialogButtonBox::ActionRole);
     connect(clearBtn, &QPushButton::clicked, m_output, &QTextEdit::clear);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::hide);
