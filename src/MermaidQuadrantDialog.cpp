@@ -94,20 +94,8 @@ void MermaidQuadrantDialog::setupUi()
     m_table->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_table);
 
-    auto addDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_table);
-        delBtn->setFixedSize(26, 22);
-        delBtn->setToolTip("Delete row");
-        m_table->setCellWidget(row, delCol, delBtn);
-        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
-            int row = m_table->indexAt(delBtn->pos()).row();
-            if (row >= 0 && m_table->rowCount() > 1)
-                m_table->removeRow(row);
-            schedulePreviewUpdate();
-        });
-    };
     for (int r = 0; r < m_table->rowCount(); ++r)
-        addDeleteButton(r);
+        addDeleteButton(m_table, delCol, r);
 
     leftLayout->addStretch();
 
@@ -124,10 +112,10 @@ void MermaidQuadrantDialog::setupUi()
     connect(m_xAxisRightEdit, &QLineEdit::textChanged, this, triggerUpdate);
     connect(m_yAxisTopEdit, &QLineEdit::textChanged, this, triggerUpdate);
     connect(m_table, &QTableWidget::itemChanged, this, triggerUpdate);
-    connect(addBtn, &QPushButton::clicked, this, [this, addDeleteButton]() {
+    connect(addBtn, &QPushButton::clicked, this, [this]() {
         int row = m_table->rowCount();
         m_table->insertRow(row);
-        addDeleteButton(row);
+        addDeleteButton(m_table, delCol, row);
     });
 }
 

@@ -2,6 +2,7 @@
 #include "CssEditorDialog.h"
 #include "CssLoader.h"
 #include "CssUtils.h"
+#include "JsSnippets.h"
 #include "Preview.h"
 #include "Preferences.h"
 #include <QVBoxLayout>
@@ -189,62 +190,6 @@ QSizeF ExportPdfDialog::parsePageSize(const QString &css)
 {
     return doParsePageSize(css);
 }
-
-static const char *mermaidInitJs = R"(
-function initMermaid(){
-var els=document.querySelectorAll('code.language-mermaid');
-if(!els.length)return;
-els.forEach(function(el){
-var div=document.createElement('div');
-div.className='mermaid';
-div.textContent=el.textContent;
-el.parentElement.parentElement.replaceChild(div,el.parentElement);
-});
-mermaid.run({querySelector:'.mermaid'});
-}
-)";
-
-static const char *headingIdJs = R"(
-function generateHeadingIds(){
-document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h){
-if(!h.id){
-h.id=h.textContent.toLowerCase().replace(/[^\w\s-]/g,'').replace(/\s+/g,'-').replace(/^-+|-+$/g,'');
-}
-});
-}
-)";
-
-static const char *katexInitJs = R"(
-function initKaTeX(){
-if(typeof renderMathInElement==='function')
-renderMathInElement(document.body,{
-delimiters:[
-{left:'$$',right:'$$',display:true},
-{left:'$',right:'$',display:false}
-]});
-}
-)";
-
-static const char *vegaLiteInitJs = R"(
-function initVegaLite(){
-var els=document.querySelectorAll('code.language-vl');
-if(!els.length)return Promise.resolve();
-return Promise.all(Array.from(els).map(function(el){
-try{
-var spec=JSON.parse(el.textContent);
-var container=el.parentElement;
-var div=document.createElement('div');
-div.className='vega-lite-chart';
-div.style.width='100%';
-div.style.minHeight='300px';
-div.style.overflow='visible';
-container.parentElement.replaceChild(div,container);
-return vegaEmbed(div,spec,{actions:false}).catch(function(){});
-}
-catch(e){return Promise.resolve();}
-}));
-}
-)";
 
 QMarginsF ExportPdfDialog::parsePageMargins(const QString &css)
 {

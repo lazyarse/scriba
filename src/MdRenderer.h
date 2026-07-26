@@ -1,5 +1,4 @@
-#ifndef MDRENDERER_H
-#define MDRENDERER_H
+#pragma once
 
 #include <QString>
 #include <md4c.h>
@@ -42,4 +41,3 @@ private:
     ImageState m_img;
 };
 
-#endif

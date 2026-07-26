@@ -131,19 +131,7 @@ void MermaidFlowchartDialog::setupUi()
         arrowCombo->addItem(kArrowTypes[i].display);
     m_edgeTable->setCellWidget(0, 3, arrowCombo);
 
-    auto addEdgeDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_edgeTable);
-        delBtn->setFixedSize(26, 22);
-        delBtn->setToolTip("Delete row");
-        m_edgeTable->setCellWidget(row, edgeDelCol, delBtn);
-        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
-            int row = m_edgeTable->indexAt(delBtn->pos()).row();
-            if (row >= 0 && m_edgeTable->rowCount() > 1)
-                m_edgeTable->removeRow(row);
-            schedulePreviewUpdate();
-        });
-    };
-    addEdgeDeleteButton(0);
+    addDeleteButton(m_edgeTable, edgeDelCol, 0);
 
     edgeLayout->addWidget(m_edgeTable);
     leftLayout->addWidget(edgeGroup);
@@ -177,13 +165,15 @@ void MermaidFlowchartDialog::setupUi()
         m_nodeTable->setCellWidget(row, 2, shapeCombo);
         addNodeDeleteButton(row);
         refreshEdgeNodeCombos();
+        schedulePreviewUpdate();
     });
-    connect(addEdgeBtn, &QPushButton::clicked, this, [this, addEdgeDeleteButton]() {
+    connect(addEdgeBtn, &QPushButton::clicked, this, [this]() {
         int row = m_edgeTable->rowCount();
         m_edgeTable->insertRow(row);
         m_edgeTable->setItem(row, 2, new QTableWidgetItem(""));
-        addEdgeDeleteButton(row);
+        addDeleteButton(m_edgeTable, edgeDelCol, row);
         refreshEdgeNodeCombos();
+        schedulePreviewUpdate();
     });
 }
 

@@ -1,5 +1,4 @@
-#ifndef EXPORTPDFDIALOG_H
-#define EXPORTPDFDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include <QByteArray>
@@ -77,4 +76,3 @@ private:
     int m_generationId = 0;
 };
 
-#endif

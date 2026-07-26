@@ -1,5 +1,4 @@
-#ifndef CSSUTILS_H
-#define CSSUTILS_H
+#pragma once
 
 #include <QString>
 #include <QColor>
@@ -15,4 +14,3 @@ bool isDarkTheme(const QString &themeCss);
 
 } // namespace CssUtils
 
-#endif

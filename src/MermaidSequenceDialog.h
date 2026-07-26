@@ -1,5 +1,4 @@
-#ifndef MERMAIDSEQUENCEDIALOG_H
-#define MERMAIDSEQUENCEDIALOG_H
+#pragma once
 
 #include "MermaidDialogBase.h"
 
@@ -25,4 +24,3 @@ private:
     QTableWidget *m_messageTable;
 };
 
-#endif

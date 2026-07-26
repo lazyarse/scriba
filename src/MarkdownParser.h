@@ -1,5 +1,4 @@
-#ifndef MARKDOWNPARSER_H
-#define MARKDOWNPARSER_H
+#pragma once
 
 #include <QString>
 
@@ -9,4 +8,3 @@ public:
     static QString toHtml(const QString &markdown);
 };
 
-#endif

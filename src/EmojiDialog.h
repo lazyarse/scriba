@@ -1,5 +1,4 @@
-#ifndef EMOJIDIALOG_H
-#define EMOJIDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include <QString>
@@ -48,4 +47,3 @@ private:
     bool m_colorMode = false;
 };
 
-#endif

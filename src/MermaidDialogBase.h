@@ -1,10 +1,10 @@
-#ifndef MERMAIDDIALOGBASE_H
-#define MERMAIDDIALOGBASE_H
+#pragma once
 
 #include <QDialog>
 
 class QCheckBox;
 class QSpinBox;
+class QTableWidget;
 class QWebEngineView;
 class QTimer;
 class QVBoxLayout;
@@ -30,6 +30,7 @@ protected:
                          const QList<int> &sizes = {350, 550});
 
     QColor iconColor() const { return m_iconColor; }
+    void addDeleteButton(QTableWidget *table, int column, int row);
 
     QWebEngineView *m_preview;
     QTimer *m_previewTimer;
@@ -48,4 +49,3 @@ private:
     QColor m_iconColor;
 };
 
-#endif

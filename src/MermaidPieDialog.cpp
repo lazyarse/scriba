@@ -47,20 +47,8 @@ void MermaidPieDialog::setupUi()
     m_table->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_table);
 
-    auto addDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_table);
-        delBtn->setFixedSize(26, 22);
-        delBtn->setToolTip("Delete row");
-        m_table->setCellWidget(row, delCol, delBtn);
-        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
-            int row = m_table->indexAt(delBtn->pos()).row();
-            if (row >= 0 && m_table->rowCount() > 1)
-                m_table->removeRow(row);
-            schedulePreviewUpdate();
-        });
-    };
-    addDeleteButton(0);
-    addDeleteButton(1);
+    addDeleteButton(m_table, delCol, 0);
+    addDeleteButton(m_table, delCol, 1);
 
     leftLayout->addStretch();
 
@@ -68,10 +56,13 @@ void MermaidPieDialog::setupUi()
 
     connect(m_titleEdit, &QLineEdit::textChanged, this, &MermaidPieDialog::schedulePreviewUpdate);
     connect(m_table, &QTableWidget::itemChanged, this, &MermaidPieDialog::schedulePreviewUpdate);
-    connect(addBtn, &QPushButton::clicked, this, [this, addDeleteButton]() {
+    connect(addBtn, &QPushButton::clicked, this, [this]() {
         int row = m_table->rowCount();
         m_table->insertRow(row);
-        addDeleteButton(row);
+        m_table->setItem(row, 0, new QTableWidgetItem(""));
+        m_table->setItem(row, 1, new QTableWidgetItem("0"));
+        addDeleteButton(m_table, delCol, row);
+        schedulePreviewUpdate();
     });
 }
 

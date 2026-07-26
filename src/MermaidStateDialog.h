@@ -1,5 +1,4 @@
-#ifndef MERMAIDSTATEDIALOG_H
-#define MERMAIDSTATEDIALOG_H
+#pragma once
 
 #include "MermaidDialogBase.h"
 
@@ -25,4 +24,3 @@ private:
     QTableWidget *m_transitionTable;
 };
 
-#endif

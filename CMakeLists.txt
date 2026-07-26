@@ -43,6 +43,7 @@ add_executable(scriba
     src/MermaidSankeyDialog.cpp
     src/KatexHelperDialog.cpp
     src/StaticHelpers.cpp
+    src/JsSnippets.cpp
     vendor/md4c/md4c.c
     vendor/md4c/md4c-html.c
     vendor/md4c/entity.c
@@ -91,7 +92,7 @@ if(GIT_VERSION)
 else()
     set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 endif()
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor with charts, latex support, code highlighting, pdf export, and configurable")
 set(CPACK_PACKAGE_CONTACT "TODO <fixme@example.com>")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 include(CPack)
@@ -115,6 +116,7 @@ if(BUILD_TESTS)
         src/MdRenderer.cpp
         src/CssUtils.cpp
         src/StaticHelpers.cpp
+        src/JsSnippets.cpp
         vendor/md4c/md4c.c
         vendor/md4c/entity.c
     )
@@ -157,57 +159,31 @@ if(BUILD_TESTS)
     target_link_libraries(test_readability PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_readability COMMAND ${_TEST_PREFIX} ./test_readability)
 
-    add_executable(test_vegalite_dialog tests/test_vegalite_dialog.cpp src/VegaLiteDialog.cpp src/Preview.cpp)
-    target_link_libraries(test_vegalite_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_vegalite_dialog COMMAND ${_TEST_PREFIX} ./test_vegalite_dialog)
+    function(add_mermaid_test name)
+        string(TOLOWER "${name}" lname)
+        add_executable(test_mermaid_${lname}_dialog
+            tests/test_mermaid_${lname}_dialog.cpp
+            src/Mermaid${name}Dialog.cpp
+            src/MermaidDialogBase.cpp
+            src/Preview.cpp)
+        target_link_libraries(test_mermaid_${lname}_dialog
+            PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+        add_test(NAME test_mermaid_${lname}_dialog
+            COMMAND ${_TEST_PREFIX} ./test_mermaid_${lname}_dialog)
+    endfunction()
 
-    add_executable(test_mermaid_pie_dialog tests/test_mermaid_pie_dialog.cpp src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_pie_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_pie_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_pie_dialog)
-
-    add_executable(test_mermaid_flowchart_dialog tests/test_mermaid_flowchart_dialog.cpp src/MermaidFlowchartDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_flowchart_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_flowchart_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_flowchart_dialog)
-
-    add_executable(test_mermaid_sankey_dialog tests/test_mermaid_sankey_dialog.cpp src/MermaidSankeyDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_sankey_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_sankey_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_sankey_dialog)
-
-    add_executable(test_mermaid_timeline_dialog tests/test_mermaid_timeline_dialog.cpp src/MermaidTimelineDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_timeline_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_timeline_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_timeline_dialog)
-
-    add_executable(test_mermaid_quadrant_dialog tests/test_mermaid_quadrant_dialog.cpp src/MermaidQuadrantDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_quadrant_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_quadrant_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_quadrant_dialog)
-
-    add_executable(test_mermaid_journey_dialog tests/test_mermaid_journey_dialog.cpp src/MermaidJourneyDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_journey_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_journey_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_journey_dialog)
-
-    add_executable(test_mermaid_state_dialog tests/test_mermaid_state_dialog.cpp src/MermaidStateDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_state_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_state_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_state_dialog)
-
-    add_executable(test_mermaid_sequence_dialog tests/test_mermaid_sequence_dialog.cpp src/MermaidSequenceDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_sequence_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_sequence_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_sequence_dialog)
-
-    add_executable(test_mermaid_gantt_dialog tests/test_mermaid_gantt_dialog.cpp src/MermaidGanttDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_gantt_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_gantt_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_gantt_dialog)
-
-    add_executable(test_mermaid_mindmap_dialog tests/test_mermaid_mindmap_dialog.cpp src/MermaidMindmapDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_mindmap_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_mindmap_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_mindmap_dialog)
-
-    add_executable(test_mermaid_er_dialog tests/test_mermaid_er_dialog.cpp src/MermaidErDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_er_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_er_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_er_dialog)
-
-    add_executable(test_mermaid_class_dialog tests/test_mermaid_class_dialog.cpp src/MermaidClassDialog.cpp src/MermaidDialogBase.cpp src/Preview.cpp)
-    target_link_libraries(test_mermaid_class_dialog PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-    add_test(NAME test_mermaid_class_dialog COMMAND ${_TEST_PREFIX} ./test_mermaid_class_dialog)
+    add_mermaid_test(Pie)
+    add_mermaid_test(Flowchart)
+    add_mermaid_test(Sankey)
+    add_mermaid_test(Timeline)
+    add_mermaid_test(Quadrant)
+    add_mermaid_test(Journey)
+    add_mermaid_test(State)
+    add_mermaid_test(Sequence)
+    add_mermaid_test(Gantt)
+    add_mermaid_test(Mindmap)
+    add_mermaid_test(Er)
+    add_mermaid_test(Class)
 
     add_executable(test_katex_helper_dialog
         tests/test_katex_helper_dialog.cpp

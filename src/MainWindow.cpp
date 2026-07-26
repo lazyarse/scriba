@@ -10,6 +10,7 @@
 #include "ExportPdfDialog.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
+#include "JsSnippets.h"
 #include "TableDialog.h"
 #include "VegaLiteDialog.h"
 #include "EmojiDialog.h"
@@ -28,6 +29,26 @@
 #include "MermaidQuadrantDialog.h"
 #include "MermaidSankeyDialog.h"
 #include "KatexHelperDialog.h"
+
+static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
+static constexpr const char *kOpenMdFilter = "Markdown Files (*.md *.markdown *.txt);;All Files (*)";
+static constexpr int kMsPerMinute = 60000;
+
+namespace {
+
+template<typename T>
+void showMermaidDialog(MainWindow *win, CssLoader *loader)
+{
+    T dlg(loader->themeCss(), win);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString block = dlg.mermaidBlock();
+        Editor *ed = win->editor();
+        if (!block.isEmpty() && ed)
+            ed->insertPlainText(block);
+    }
+}
+
+}
 
 #include <QVBoxLayout>
 #include <QTextBrowser>
@@ -132,7 +153,7 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
     QSettings settings;
     int asInterval = settings.value(Preferences::AutoSaveInterval, 0).toInt();
     if (asInterval > 0)
-        m_autoSaveTimer->start(asInterval * 60000);
+        m_autoSaveTimer->start(asInterval * kMsPerMinute);
 
     connect(m_tabWidget, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
     connect(m_tabWidget, &QTabWidget::tabCloseRequested, this, &MainWindow::onTabCloseRequested);
@@ -454,7 +475,7 @@ void MainWindow::showSaveDiscardDialog(int index)
     int ret = msgBox.exec();
     if (ret == QMessageBox::Save) {
         if (info.filePath.isEmpty()) {
-            QString file = QFileDialog::getSaveFileName(this, "Save File", QString(), "Markdown Files (*.md);;All Files (*)");
+                        QString file = QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter);
             if (file.isEmpty())
                 return;
             info.filePath = file;
@@ -485,7 +506,7 @@ void MainWindow::setupMenuBar()
     QAction *openAction = fileMenu->addAction("&Open...");
     openAction->setShortcut(QKeySequence::Open);
     connect(openAction, &QAction::triggered, this, [this]() {
-        QStringList files = QFileDialog::getOpenFileNames(this, "Open Markdown File(s)", QString(), "Markdown Files (*.md *.markdown *.txt);;All Files (*)");
+        QStringList files = QFileDialog::getOpenFileNames(this, "Open Markdown File(s)", QString(), kOpenMdFilter);
         for (const QString &file : files)
             loadFile(file);
     });
@@ -506,7 +527,7 @@ void MainWindow::setupMenuBar()
         TabInfo *info = activeTabInfo();
         if (!info) return;
         if (info->filePath.isEmpty()) {
-            QString file = QFileDialog::getSaveFileName(this, "Save Markdown File", QString(), "Markdown Files (*.md);;All Files (*)");
+            QString file = QFileDialog::getSaveFileName(this, "Save Markdown File", QString(), kMdFilter);
             if (!file.isEmpty()) saveFile(file);
         } else {
             saveFile(info->filePath);
@@ -516,7 +537,7 @@ void MainWindow::setupMenuBar()
     QAction *saveAsAction = fileMenu->addAction("Save &As...");
     saveAsAction->setShortcut(QKeySequence::SaveAs);
     connect(saveAsAction, &QAction::triggered, this, [this]() {
-        QString file = QFileDialog::getSaveFileName(this, "Save Markdown File As", QString(), "Markdown Files (*.md);;All Files (*)");
+        QString file = QFileDialog::getSaveFileName(this, "Save Markdown File As", QString(), kMdFilter);
         if (!file.isEmpty()) saveFile(file);
     });
 
@@ -637,31 +658,31 @@ void MainWindow::setupMenuBar()
 
     QMenu *mermaidMenu = toolsMenu->addMenu("Mermaid &Charts");
     QAction *pieAction = mermaidMenu->addAction("&Pie Chart...");
-    connect(pieAction, &QAction::triggered, this, &MainWindow::showMermaidPie);
+    connect(pieAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidPieDialog>(this, m_cssLoader); });
     QAction *flowchartAction = mermaidMenu->addAction("&Flowchart...");
-    connect(flowchartAction, &QAction::triggered, this, &MainWindow::showMermaidFlowchart);
+    connect(flowchartAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidFlowchartDialog>(this, m_cssLoader); });
     QAction *sequenceAction = mermaidMenu->addAction("&Sequence Diagram...");
-    connect(sequenceAction, &QAction::triggered, this, &MainWindow::showMermaidSequence);
+    connect(sequenceAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidSequenceDialog>(this, m_cssLoader); });
     QAction *ganttAction = mermaidMenu->addAction("&Gantt Chart...");
-    connect(ganttAction, &QAction::triggered, this, &MainWindow::showMermaidGantt);
+    connect(ganttAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidGanttDialog>(this, m_cssLoader); });
     QAction *classAction = mermaidMenu->addAction("&Class Diagram...");
-    connect(classAction, &QAction::triggered, this, &MainWindow::showMermaidClass);
+    connect(classAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidClassDialog>(this, m_cssLoader); });
     QAction *erAction = mermaidMenu->addAction("&ER Diagram...");
-    connect(erAction, &QAction::triggered, this, &MainWindow::showMermaidEr);
+    connect(erAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidErDialog>(this, m_cssLoader); });
     mermaidMenu->addSeparator();
     QAction *stateAction = mermaidMenu->addAction("S&tate Diagram...");
-    connect(stateAction, &QAction::triggered, this, &MainWindow::showMermaidState);
+    connect(stateAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidStateDialog>(this, m_cssLoader); });
     QAction *mindmapAction = mermaidMenu->addAction("&Mind Map...");
-    connect(mindmapAction, &QAction::triggered, this, &MainWindow::showMermaidMindmap);
+    connect(mindmapAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidMindmapDialog>(this, m_cssLoader); });
     mermaidMenu->addSeparator();
     QAction *timelineAction = mermaidMenu->addAction("&Timeline...");
-    connect(timelineAction, &QAction::triggered, this, &MainWindow::showMermaidTimeline);
+    connect(timelineAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidTimelineDialog>(this, m_cssLoader); });
     QAction *journeyAction = mermaidMenu->addAction("User &Journey...");
-    connect(journeyAction, &QAction::triggered, this, &MainWindow::showMermaidJourney);
+    connect(journeyAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidJourneyDialog>(this, m_cssLoader); });
     QAction *quadrantAction = mermaidMenu->addAction("&Quadrant Chart...");
-    connect(quadrantAction, &QAction::triggered, this, &MainWindow::showMermaidQuadrant);
+    connect(quadrantAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidQuadrantDialog>(this, m_cssLoader); });
     QAction *sankeyAction = mermaidMenu->addAction("&Sankey...");
-    connect(sankeyAction, &QAction::triggered, this, &MainWindow::showMermaidSankey);
+    connect(sankeyAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidSankeyDialog>(this, m_cssLoader); });
 
     toolsMenu->addSeparator();
 
@@ -859,70 +880,7 @@ void MainWindow::updatePreview()
         baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
     }
 
-    static const QString mermaidInitJs = QStringLiteral(
-        "function initMermaid(){"
-        "var els=document.querySelectorAll('code.language-mermaid');"
-        "if(!els.length)return;"
-        "els.forEach(function(el){"
-        "var div=document.createElement('div');"
-        "div.className='mermaid';"
-        "div.textContent=el.textContent;"
-        "el.parentElement.parentElement.replaceChild(div,el.parentElement);"
-        "});"
-        "return mermaid.run({querySelector:'.mermaid'});"
-        "}"
-    );
 
-    static const QString headingIdJs = QStringLiteral(
-        "function generateHeadingIds(){"
-        "document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h){"
-        "if(!h.id){"
-        "h.id=h.textContent.toLowerCase().replace(/[^\\w\\s-]/g,'').replace(/\\s+/g,'-').replace(/^-+|-+$/g,'');"
-        "}"
-        "});"
-        "}"
-    );
-
-    static const QString katexInitJs = QStringLiteral(
-        "function initKaTeX(){"
-        "if(typeof renderMathInElement==='function')"
-        "renderMathInElement(document.body,{"
-        "delimiters:["
-        "{left:'$$',right:'$$',display:true},"
-        "{left:'$',right:'$',display:false}"
-        "]"
-        "});"
-        "}"
-    );
-
-    static const QString vegaLiteInitJs = QStringLiteral(
-        "function initVegaLite(){"
-        "var els=document.querySelectorAll('code.language-vl');"
-        "if(!els.length)return Promise.resolve();"
-        "return Promise.all(Array.from(els).map(function(el){"
-        "try{"
-        "var spec=JSON.parse(el.textContent);"
-        "var container=el.parentElement;"
-        "var div=document.createElement('div');"
-        "div.className='vega-lite-chart';"
-        "div.style.width='100%';"
-        "div.style.minHeight='300px';"
-        "div.style.overflow='visible';"
-        "container.parentElement.replaceChild(div,container);"
-        "return vegaEmbed(div,spec,{actions:false}).catch(function(){});"
-        "}"
-        "catch(e){return Promise.resolve();}"
-        "}));"
-        "}"
-    );
-
-    static const QString setImgTitlesJs = QStringLiteral(
-        "function setImgTitles(){"
-        "document.querySelectorAll('img:not([title])').forEach(function(img){"
-        "if(img.alt)img.title=img.alt;"
-        "});"
-        "}"
-    );
 
     QString emojiMode = QSettings().value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
@@ -1104,7 +1062,7 @@ void MainWindow::showPreferences()
 
     int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
     if (interval > 0)
-        m_autoSaveTimer->start(interval * 60000);
+        m_autoSaveTimer->start(interval * kMsPerMinute);
     else
         m_autoSaveTimer->stop();
 }
@@ -1117,138 +1075,6 @@ void MainWindow::showChartBuilder()
         Editor *ed = currentEditor();
         if (!spec.isEmpty() && ed)
             ed->insertPlainText(spec);
-    }
-}
-
-void MainWindow::showMermaidPie()
-{
-    MermaidPieDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidFlowchart()
-{
-    MermaidFlowchartDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidSequence()
-{
-    MermaidSequenceDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidGantt()
-{
-    MermaidGanttDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidClass()
-{
-    MermaidClassDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidEr()
-{
-    MermaidErDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidState()
-{
-    MermaidStateDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidMindmap()
-{
-    MermaidMindmapDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidTimeline()
-{
-    MermaidTimelineDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidJourney()
-{
-    MermaidJourneyDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidQuadrant()
-{
-    MermaidQuadrantDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-void MainWindow::showMermaidSankey()
-{
-    MermaidSankeyDialog dlg(m_cssLoader->themeCss(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = currentEditor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
     }
 }
 
@@ -1912,7 +1738,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
             for (TabInfo &info : m_tabs) {
                 if (info.dirty) {
                     if (info.filePath.isEmpty()) {
-                        QString file = QFileDialog::getSaveFileName(this, "Save File", QString(), "Markdown Files (*.md);;All Files (*)");
+            QString file = QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter);
                         if (file.isEmpty()) continue;
                         info.filePath = file;
                     }

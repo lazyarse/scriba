@@ -1,5 +1,4 @@
-#ifndef LOGWINDOW_H
-#define LOGWINDOW_H
+#pragma once
 
 #include <QDialog>
 #include <QTextEdit>
@@ -21,4 +20,3 @@ private:
     QTextEdit *m_output;
 };
 
-#endif

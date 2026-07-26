@@ -1,5 +1,4 @@
-#ifndef MERMAIDGANTTDIALOG_H
-#define MERMAIDGANTTDIALOG_H
+#pragma once
 
 #include "MermaidDialogBase.h"
 
@@ -25,4 +24,3 @@ private:
     QTableWidget *m_taskTable;
 };
 
-#endif

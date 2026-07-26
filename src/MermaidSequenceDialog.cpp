@@ -40,7 +40,7 @@ void MermaidSequenceDialog::setupUi()
     m_participantTable->setColumnWidth(partDelCol, 32);
     m_participantTable->verticalHeader()->setDefaultSectionSize(28);
 
-    auto addParticipantDeleteButton = [&](int row) {
+    auto addParticipantDeleteButton = [this](int row) {
         QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_participantTable);
         delBtn->setFixedSize(26, 22);
         delBtn->setToolTip("Delete row");
@@ -75,18 +75,8 @@ void MermaidSequenceDialog::setupUi()
     m_messageTable->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_messageTable);
 
-    auto addMessageDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_messageTable);
-        delBtn->setFixedSize(26, 22);
-        delBtn->setToolTip("Delete row");
-        m_messageTable->setCellWidget(row, msgDelCol, delBtn);
-        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
-            int row = m_messageTable->indexAt(delBtn->pos()).row();
-            if (row >= 0 && m_messageTable->rowCount() > 1)
-                m_messageTable->removeRow(row);
-            schedulePreviewUpdate();
-        });
-    };
+    addDeleteButton(m_messageTable, msgDelCol, 0);
+    addDeleteButton(m_messageTable, msgDelCol, 1);
 
     leftLayout->addStretch();
 
@@ -104,11 +94,11 @@ void MermaidSequenceDialog::setupUi()
         refreshMessageCombos();
         schedulePreviewUpdate();
     });
-    connect(addMessageBtn, &QPushButton::clicked, this, [this, addMessageDeleteButton]() {
+    connect(addMessageBtn, &QPushButton::clicked, this, [this]() {
         int row = m_messageTable->rowCount();
         m_messageTable->insertRow(row);
         m_messageTable->setItem(row, 2, new QTableWidgetItem(""));
-        addMessageDeleteButton(row);
+        addDeleteButton(m_messageTable, msgDelCol, row);
         refreshMessageCombos();
         schedulePreviewUpdate();
     });

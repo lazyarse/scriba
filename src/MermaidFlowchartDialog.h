@@ -1,5 +1,4 @@
-#ifndef MERMAIDFLOWCHARTDIALOG_H
-#define MERMAIDFLOWCHARTDIALOG_H
+#pragma once
 
 #include "MermaidDialogBase.h"
 
@@ -29,4 +28,3 @@ private:
     QTableWidget *m_edgeTable;
 };
 
-#endif

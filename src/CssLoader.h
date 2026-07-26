@@ -1,5 +1,4 @@
-#ifndef CSSLOADER_H
-#define CSSLOADER_H
+#pragma once
 
 #include <QString>
 
@@ -13,7 +12,7 @@ public:
     QString themeCss();
     QString previewBaseCss();
     QString printBaseCss();
-    QString printCss() const;
+    QString printCss();
 
     void setPreviewBaseCss(const QString &css);
     void setPrintBaseCss(const QString &css);
@@ -32,4 +31,3 @@ private:
     bool m_cacheDirty = true;
 };
 
-#endif

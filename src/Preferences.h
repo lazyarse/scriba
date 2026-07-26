@@ -1,5 +1,4 @@
-#ifndef PREFERENCES_H
-#define PREFERENCES_H
+#pragma once
 
 #include <QString>
 
@@ -52,4 +51,3 @@ namespace Preferences {
     }
 }
 
-#endif

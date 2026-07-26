@@ -1,5 +1,4 @@
-#ifndef CSSEDITORDIALOG_H
-#define CSSEDITORDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include <QPlainTextEdit>
@@ -26,4 +25,3 @@ private:
     QSpinBox *m_fontSizeSpin;
 };
 
-#endif
