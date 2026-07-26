@@ -51,24 +51,32 @@
 
 ### Candy:
 
-- Full-screen mode (<kbd>F11</kbd> or ![fullscreen icon](resources/icons/fullscreen.svg) in the menubar)
-- Cursor restore on application start to pick up where you left off
-- Sentence, word count, estimated reading time, and age-level to suitably patronise
+- Full-screen mode
+- Cursor and view-port restore on re-start to pick up where you left off
+- Sentence, word count, estimated reading time and reading age to suitably patronise. (Oh look, this `README` is aimed at high-school-educated people)
 - That annoying `<kbd>` css styling to look just like a key. I like it. Feel free to remove it in the `preview-base.css` and `print-base.css`.
 - Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed. 
 - Table auto-completion: <kbd>Enter</kbd> auto creates a new row either in-cell or at end of the row, <kbd>Enter</kbd> on blank row ends autocomplete, <kbd>Tab</kbd> to next cell, <kbd>Shift</kbd>+<kbd>Tab</kbd> to previous cell
 - Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete
 - Optional alternating table row striping
-- Emojis (b+w / colour) + picker + autocomplete because all technical documentation now requires them :rocket:
-- File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` could autocomplete to `![](foo/bar.png)`
-- A debug log window output to see rendering errors
+- Emojis (b+w / colour) + picker + autocomplete because all technical documentation now requires them...and I'm powerless to stop the trend. :chart_with_upwards_trend:
+- File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` autocompletes to `![](foo/bar.png)`
+- A debug log window output to see your rendering errors
 - A [docs/sample.md](docs/sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
 - Selected text + <kbd>Tab</kbd> will indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> will dedent.
 - <kbd>Down</kbd> on the last line will place the cursor at the end of the line
 - hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text.
-- Duplicate a line with <kbd>Ctrl</kbd>+<kbd>D</kbd>
+- Duplicate a line with <kbd>Ctrl</kbd>+<kbd>D</kbd> because <kbd>Home</kbd><kbd>Shift</kbd>+<kbd>Down</kbd><kbd>Left</kbd> are too many steps.
 
-## Shortcuts for All Features
+## Non-Features
+
+- No plugins: You will not spend three hours evaluating whether `scriba-vim-mode` is worth it.
+- No AI features: (*I know. Don't even say it.*)
+- No real-time collaboration: Your Google Doc trauma is safe here.
+- No subscription: It was hard enough convincing you to install Qt6.
+- No Electron. Your RAM has better things to do.
+
+## Shortcuts
 
 ### Scriba
 
@@ -135,6 +143,7 @@ Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root`
   ```
   If Chromium is not found, PDF export falls back to Qt's built-in renderer
   (cannot suppress default page headers/footers).
+- Approximately 10 minutes of your time that you will never get back.
 
 
 ## Building
@@ -167,7 +176,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build buil
 cd build && ctest --output-on-failure -j1
 ```
 
-Tests auto-wrap in `xvfb-run` when available (CMake detects it).
+Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't crash on your headless CI.
 
 ## Running
 
