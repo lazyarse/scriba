@@ -728,6 +728,7 @@ QPixmap Editor::renderEmojiIcon(const QString &emojiStr) const
             }
             parts.append(QString::number(code, 16));
         }
+        parts.removeAll("fe0f");
         QSvgRenderer renderer(QString(":/twemoji/svg/%1.svg").arg(parts.join("-")));
         if (renderer.isValid())
             renderer.render(&painter, QRectF(0, 0, 18, 18));
