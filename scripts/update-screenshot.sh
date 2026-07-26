@@ -18,6 +18,8 @@ xvfb-run -a sh -c '
     PID=$!
     sleep 3
     WID=$(xdotool search --onlyvisible --name "Scriba" | head -1)
+    xdotool windowsize "$WID" 1280 800
+    sleep 3
     import -window "$WID" '"$PROJECT_DIR"'/docs/images/screenshot.png
     kill $PID 2>/dev/null
     wait $PID 2>/dev/null
