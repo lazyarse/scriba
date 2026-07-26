@@ -3,7 +3,6 @@
 #include <QHash>
 #include <QPixmap>
 #include <QTextEdit>
-#include <QPoint>
 #include <QStringList>
 
 class QCompleter;
@@ -41,7 +40,6 @@ private:
     void acceptEmojiCompletion(const QString &completion);
     QPixmap renderEmojiIcon(const QString &emojiStr) const;
 
-    void repositionPopup();
     void updateViewportMargins();
 
     enum class CursorContext { None, ListItem, TableRow, CodeBlock };

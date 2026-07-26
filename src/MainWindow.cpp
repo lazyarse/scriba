@@ -269,6 +269,7 @@ int MainWindow::addTab(const QString &filePath)
     auto *editor = new Editor();
     editor->setInsertActions(m_insertActions);
     editor->setMermaidActions(m_mermaidActions);
+    editor->setCurrentFile(filePath);
 
     QString label = filePath.isEmpty() ? QStringLiteral("Untitled")
                                        : QFileInfo(filePath).fileName();
@@ -1470,6 +1471,7 @@ void MainWindow::loadFile(const QString &filePath)
     if (idx >= 0 && idx < m_tabs.size() && m_tabs[idx].filePath.isEmpty() && !m_tabs[idx].dirty && m_tabs[idx].editor->toPlainText().isEmpty()) {
         m_tabs[idx].filePath = filePath;
         m_tabs[idx].editor->setPlainText(content);
+        m_tabs[idx].editor->setCurrentFile(filePath);
         m_tabs[idx].dirty = false;
         info = &m_tabs[idx];
         updateTabLabel(idx);
@@ -1512,6 +1514,7 @@ void MainWindow::saveFile(const QString &filePath)
 
     bool pathChanged = (info->filePath != filePath);
     info->filePath = filePath;
+    ed->setCurrentFile(filePath);
     info->dirty = false;
 
     int idx = m_tabWidget->currentIndex();
