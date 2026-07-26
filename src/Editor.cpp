@@ -220,9 +220,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 // No next row — create a new empty row
                 int cols = line.count('|') - 1;
                 if (cols > 0) {
-                    QString newRow = "|";
-                    for (int c = 0; c < cols; ++c)
-                        newRow += "  |";
+                    QString newRow = makeEmptyTableRow(cols);
                     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
                     cursor.insertText("\n" + newRow);
                     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
@@ -275,10 +273,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 // No next row — create a new empty row
                 int cols = line.count("<td>");
                 if (cols > 0) {
-                    QString newRow = "<tr>";
-                    for (int c = 0; c < cols; ++c)
-                        newRow += "<td></td>";
-                    newRow += "</tr>";
+                    QString newRow = makeEmptyHtmlTableRow(cols);
                     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
                     cursor.insertText("\n" + newRow);
                     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
