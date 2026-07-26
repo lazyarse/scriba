@@ -1,6 +1,7 @@
 #include "Editor.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
+#include <algorithm>
 #include <QAbstractItemView>
 #include <QCompleter>
 #include <QContextMenuEvent>
@@ -644,14 +645,27 @@ bool Editor::isInsideEmojiContext(const QTextCursor &cursor, QString &partialCod
 
 void Editor::showEmojiCompletion(const QString &partialCode)
 {
-    QStringList matches;
+    QStringList matchedCodes;
     for (const QString &sc : m_emojiShortcodes) {
-        if (sc.startsWith(partialCode, Qt::CaseInsensitive))
-            matches.append(QString(":%1:").arg(sc));
+        if (sc.contains(partialCode, Qt::CaseInsensitive))
+            matchedCodes.append(sc);
     }
 
-    if (matches.isEmpty())
+    if (matchedCodes.isEmpty())
         return;
+
+    std::sort(matchedCodes.begin(), matchedCodes.end(),
+        [&partialCode](const QString &a, const QString &b) {
+            bool aPrefix = a.startsWith(partialCode, Qt::CaseInsensitive);
+            bool bPrefix = b.startsWith(partialCode, Qt::CaseInsensitive);
+            if (aPrefix != bPrefix)
+                return aPrefix;
+            return a < b;
+        });
+
+    QStringList matches;
+    for (const QString &sc : matchedCodes)
+        matches.append(QString(":%1:").arg(sc));
 
     if (!m_completer) {
         m_completer = new QCompleter(this);
@@ -664,17 +678,10 @@ void Editor::showEmojiCompletion(const QString &partialCode)
     }
 
     QStandardItemModel *model = new QStandardItemModel(m_completer);
-    for (const QString &sc : m_emojiShortcodes) {
-        if (sc.startsWith(partialCode, Qt::CaseInsensitive)) {
-            auto *item = new QStandardItem(QString(":%1:").arg(sc));
-            item->setIcon(QIcon(renderEmojiIcon(m_emojiUnicode.value(sc))));
-            model->appendRow(item);
-        }
-    }
-
-    if (model->rowCount() == 0) {
-        delete model;
-        return;
+    for (const QString &sc : matchedCodes) {
+        auto *item = new QStandardItem(QString(":%1:").arg(sc));
+        item->setIcon(QIcon(renderEmojiIcon(m_emojiUnicode.value(sc))));
+        model->appendRow(item);
     }
 
     m_completer->setModel(model);
@@ -754,12 +761,21 @@ void Editor::acceptEmojiCompletion(const QString &completion)
     else
         return;
 
+    int endPos = pos;
+    if (pos < line.size() && line[pos] == ':')
+        ++endPos;
+
     int blockStart = cursor.block().position();
     cursor.setPosition(blockStart + colonPos, QTextCursor::MoveAnchor);
-    cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
+    cursor.setPosition(blockStart + endPos, QTextCursor::KeepAnchor);
     cursor.removeSelectedText();
     cursor.insertText(completion);
     setTextCursor(cursor);
+}
+
+void Editor::invalidateEmojiIconCache()
+{
+    m_emojiIconCache.clear();
 }
 
 void Editor::centerCursor()

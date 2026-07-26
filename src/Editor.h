@@ -19,6 +19,7 @@ public:
     void setCurrentFile(const QString &path);
     void setCenterContent(bool enabled, int width);
     void centerCursor();
+    void invalidateEmojiIconCache();
     QCompleter *completer() const { return m_completer; }
     void setInsertActions(const QList<QAction *> &actions);
     void setMermaidActions(const QList<QAction *> &actions);
