@@ -86,7 +86,7 @@ QString deriveChromeCss(const QString &themeCss)
     bool dark = bg.lightness() < 128;
     QColor track, thumb, hover, sideBg, selBg, txt, selTxt, dim;
     QColor chkBg, chkCheckedBg;
-    QString chkImg;
+    QString chkImg, upArrowImg, downArrowImg;
     txt = chromeTextColor(themeCss);
     if (dark) {
         track = bg.lighter(160);
@@ -98,6 +98,8 @@ QString deriveChromeCss(const QString &themeCss)
         dim = QColor(QStringLiteral("#999999"));
         chkBg = track;
         chkImg = QStringLiteral("url(:/checkbox-checked.svg)");
+        upArrowImg = QStringLiteral("url(:/arrow-up.svg)");
+        downArrowImg = QStringLiteral("url(:/arrow-down.svg)");
     } else {
         track = bg.darker(105);
         thumb = bg.darker(125);
@@ -108,6 +110,8 @@ QString deriveChromeCss(const QString &themeCss)
         dim = QColor(QStringLiteral("#777777"));
         chkBg = bg;
         chkImg = QStringLiteral("url(:/checkbox-checked-dark.svg)");
+        upArrowImg = QStringLiteral("url(:/arrow-up-dark.svg)");
+        downArrowImg = QStringLiteral("url(:/arrow-down-dark.svg)");
     }
     chkCheckedBg = dark ? hover : bg.darker(120);
     if (!chkBgStr.isEmpty()) {
@@ -163,6 +167,15 @@ QString deriveChromeCss(const QString &themeCss)
         "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }\n"
         "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }\n"
         "QLineEdit { background-color: %2; color: %3; border: 1px solid %4; padding: 2px 4px; }\n"
+        "QSpinBox, QDoubleSpinBox { background-color: %2; color: %3; border: 1px solid %4; padding: 2px 4px; }\n"
+        "QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 20px; background-color: %10; border-left: 1px solid %4; border-bottom: 1px solid %4; }\n"
+        "QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover { background-color: %1; }\n"
+        "QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed { background-color: %5; }\n"
+        "QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 20px; background-color: %10; border-left: 1px solid %4; }\n"
+        "QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover { background-color: %1; }\n"
+        "QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed { background-color: %5; }\n"
+        "QSpinBox::up-arrow, QDoubleSpinBox::up-arrow { image: %14; width: 8px; height: 8px; }\n"
+        "QSpinBox::down-arrow, QDoubleSpinBox::down-arrow { image: %15; width: 8px; height: 8px; }\n"
         "QComboBox QAbstractItemView { background-color: %10; color: %3; selection-background-color: %5; selection-color: %6; outline: none; }\n"
         "QTableWidget, QTableView { background-color: %2; color: %3; border: 1px solid %4; gridline-color: %4; }\n"
         "QTableCornerButton::section { background-color: %2; border: 1px solid %4; }\n"
@@ -191,6 +204,10 @@ QString deriveChromeCss(const QString &themeCss)
         chkBg.name()   // %12 — checkbox indicator background
     ).arg(
         chkCheckedBg.name() // %13 — checkbox checked background
+    ).arg(
+        upArrowImg   // %14 — spinbox up arrow
+    ).arg(
+        downArrowImg // %15 — spinbox down arrow
     );
 }
 
