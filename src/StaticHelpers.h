@@ -9,6 +9,8 @@ QString escapeJsString(const QString &s);
 int extractContentWidth(const QString &css);
 QString handleListReturn(const QString &line);
 QString handleTableReturn(const QString &line, const QString &prevLine);
+QString makeEmptyTableRow(int cols);
+QString makeEmptyHtmlTableRow(int cols);
 int tableNavCell(const QString &line, int cursorPos, bool forward);
 int tableNavHtmlCell(const QString &line, int cursorPos, bool forward);
 QString indentListLine(const QString &line);

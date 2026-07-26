@@ -112,21 +112,11 @@ QString handleTableReturn(const QString &line, const QString &prevLine)
         }
 
         // Previous line is also a table row → data row continuation
-        if (prevLine.startsWith('|')) {
-            QString result = "|";
-            for (int c = 0; c < cols; ++c)
-                result += "  |";
-            return result;
-        }
+        if (prevLine.startsWith('|'))
+            return makeEmptyTableRow(cols);
 
         // First row of a new table → separator + data row
-        QString result = "|";
-        for (int c = 0; c < cols; ++c)
-            result += "---|";
-        result += "\n|";
-        for (int c = 0; c < cols; ++c)
-            result += "  |";
-        return result;
+        return "|" + QString("---|").repeated(cols) + "\n" + makeEmptyTableRow(cols);
     }
 
     if (line.contains("<tr>") && line.contains("<td>")) {
@@ -150,14 +140,20 @@ QString handleTableReturn(const QString &line, const QString &prevLine)
             }
         }
 
-        QString result = "<tr>";
-        for (int c = 0; c < cols; ++c)
-            result += "<td></td>";
-        result += "</tr>";
-        return result;
+        return makeEmptyHtmlTableRow(cols);
     }
 
     return {};
+}
+
+QString makeEmptyTableRow(int cols)
+{
+    return "|" + QString("  |").repeated(cols);
+}
+
+QString makeEmptyHtmlTableRow(int cols)
+{
+    return "<tr>" + QString("<td></td>").repeated(cols) + "</tr>";
 }
 
 /* Returns block-relative cursor position of next/previous cell in a markdown table row.
