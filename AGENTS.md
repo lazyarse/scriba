@@ -10,7 +10,9 @@ Full build is heavy (WebEngine resources, JS bundles, many test targets). Use `t
 
 ```bash
 mkdir -p build
-cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs after branch switches
+# clean only needed after branch switches (stale _autogen dirs);
+# normal incremental rebuilds: skip clean, just configure + build
+cmake --build build --target clean 2>/dev/null
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4
 ```
 
