@@ -217,6 +217,19 @@ void Editor::keyPressEvent(QKeyEvent *event)
                     }
                     block = block.next();
                 }
+                // No next row — create a new empty row
+                int cols = line.count('|') - 1;
+                if (cols > 0) {
+                    QString newRow = "|";
+                    for (int c = 0; c < cols; ++c)
+                        newRow += "  |";
+                    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+                    cursor.insertText("\n" + newRow);
+                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
+                    setTextCursor(cursor);
+                    return;
+                }
             } else {
                 QTextBlock block = cursor.block().previous();
                 while (block.isValid()) {
@@ -246,6 +259,33 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
                 setTextCursor(cursor);
                 return;
+            }
+            if (!shift) {
+                QTextBlock block = cursor.block().next();
+                while (block.isValid()) {
+                    QString t = block.text();
+                    if (t.contains("<tr>") && t.contains("<td>")) {
+                        int p = t.indexOf("<td>") + 4;
+                        cursor.setPosition(block.position() + p, QTextCursor::MoveAnchor);
+                        setTextCursor(cursor);
+                        return;
+                    }
+                    block = block.next();
+                }
+                // No next row — create a new empty row
+                int cols = line.count("<td>");
+                if (cols > 0) {
+                    QString newRow = "<tr>";
+                    for (int c = 0; c < cols; ++c)
+                        newRow += "<td></td>";
+                    newRow += "</tr>";
+                    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+                    cursor.insertText("\n" + newRow);
+                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, newRow.indexOf("<td>") + 4);
+                    setTextCursor(cursor);
+                    return;
+                }
             }
         }
 
