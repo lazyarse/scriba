@@ -2322,6 +2322,7 @@
         <file alias="1f6d5.svg">twemoji/svg/1f6d5.svg</file>
         <file alias="1f6d6.svg">twemoji/svg/1f6d6.svg</file>
         <file alias="1f6d7.svg">twemoji/svg/1f6d7.svg</file>
+        <file alias="1f6dc.svg">twemoji/svg/1f6dc.svg</file>
         <file alias="1f6dd.svg">twemoji/svg/1f6dd.svg</file>
         <file alias="1f6de.svg">twemoji/svg/1f6de.svg</file>
         <file alias="1f6df.svg">twemoji/svg/1f6df.svg</file>
@@ -3304,6 +3305,9 @@
         <file alias="1fa72.svg">twemoji/svg/1fa72.svg</file>
         <file alias="1fa73.svg">twemoji/svg/1fa73.svg</file>
         <file alias="1fa74.svg">twemoji/svg/1fa74.svg</file>
+        <file alias="1fa75.svg">twemoji/svg/1fa75.svg</file>
+        <file alias="1fa76.svg">twemoji/svg/1fa76.svg</file>
+        <file alias="1fa77.svg">twemoji/svg/1fa77.svg</file>
         <file alias="1fa78.svg">twemoji/svg/1fa78.svg</file>
         <file alias="1fa79.svg">twemoji/svg/1fa79.svg</file>
         <file alias="1fa7a.svg">twemoji/svg/1fa7a.svg</file>
@@ -3316,6 +3320,10 @@
         <file alias="1fa84.svg">twemoji/svg/1fa84.svg</file>
         <file alias="1fa85.svg">twemoji/svg/1fa85.svg</file>
         <file alias="1fa86.svg">twemoji/svg/1fa86.svg</file>
+        <file alias="1fa87.svg">twemoji/svg/1fa87.svg</file>
+        <file alias="1fa88.svg">twemoji/svg/1fa88.svg</file>
+        <file alias="1fa89.svg">twemoji/svg/1fa89.svg</file>
+        <file alias="1fa8f.svg">twemoji/svg/1fa8f.svg</file>
         <file alias="1fa90.svg">twemoji/svg/1fa90.svg</file>
         <file alias="1fa91.svg">twemoji/svg/1fa91.svg</file>
         <file alias="1fa92.svg">twemoji/svg/1fa92.svg</file>
@@ -3345,6 +3353,9 @@
         <file alias="1faaa.svg">twemoji/svg/1faaa.svg</file>
         <file alias="1faab.svg">twemoji/svg/1faab.svg</file>
         <file alias="1faac.svg">twemoji/svg/1faac.svg</file>
+        <file alias="1faad.svg">twemoji/svg/1faad.svg</file>
+        <file alias="1faae.svg">twemoji/svg/1faae.svg</file>
+        <file alias="1faaf.svg">twemoji/svg/1faaf.svg</file>
         <file alias="1fab0.svg">twemoji/svg/1fab0.svg</file>
         <file alias="1fab1.svg">twemoji/svg/1fab1.svg</file>
         <file alias="1fab2.svg">twemoji/svg/1fab2.svg</file>
@@ -3356,6 +3367,11 @@
         <file alias="1fab8.svg">twemoji/svg/1fab8.svg</file>
         <file alias="1fab9.svg">twemoji/svg/1fab9.svg</file>
         <file alias="1faba.svg">twemoji/svg/1faba.svg</file>
+        <file alias="1fabb.svg">twemoji/svg/1fabb.svg</file>
+        <file alias="1fabc.svg">twemoji/svg/1fabc.svg</file>
+        <file alias="1fabd.svg">twemoji/svg/1fabd.svg</file>
+        <file alias="1fabe.svg">twemoji/svg/1fabe.svg</file>
+        <file alias="1fabf.svg">twemoji/svg/1fabf.svg</file>
         <file alias="1fac0.svg">twemoji/svg/1fac0.svg</file>
         <file alias="1fac1.svg">twemoji/svg/1fac1.svg</file>
         <file alias="1fac2.svg">twemoji/svg/1fac2.svg</file>
@@ -3377,6 +3393,9 @@
         <file alias="1fac5-1f3fe.svg">twemoji/svg/1fac5-1f3fe.svg</file>
         <file alias="1fac5-1f3ff.svg">twemoji/svg/1fac5-1f3ff.svg</file>
         <file alias="1fac5.svg">twemoji/svg/1fac5.svg</file>
+        <file alias="1fac6.svg">twemoji/svg/1fac6.svg</file>
+        <file alias="1face.svg">twemoji/svg/1face.svg</file>
+        <file alias="1facf.svg">twemoji/svg/1facf.svg</file>
         <file alias="1fad0.svg">twemoji/svg/1fad0.svg</file>
         <file alias="1fad1.svg">twemoji/svg/1fad1.svg</file>
         <file alias="1fad2.svg">twemoji/svg/1fad2.svg</file>
@@ -3387,6 +3406,10 @@
         <file alias="1fad7.svg">twemoji/svg/1fad7.svg</file>
         <file alias="1fad8.svg">twemoji/svg/1fad8.svg</file>
         <file alias="1fad9.svg">twemoji/svg/1fad9.svg</file>
+        <file alias="1fada.svg">twemoji/svg/1fada.svg</file>
+        <file alias="1fadb.svg">twemoji/svg/1fadb.svg</file>
+        <file alias="1fadc.svg">twemoji/svg/1fadc.svg</file>
+        <file alias="1fadf.svg">twemoji/svg/1fadf.svg</file>
         <file alias="1fae0.svg">twemoji/svg/1fae0.svg</file>
         <file alias="1fae1.svg">twemoji/svg/1fae1.svg</file>
         <file alias="1fae2.svg">twemoji/svg/1fae2.svg</file>
@@ -3395,6 +3418,8 @@
         <file alias="1fae5.svg">twemoji/svg/1fae5.svg</file>
         <file alias="1fae6.svg">twemoji/svg/1fae6.svg</file>
         <file alias="1fae7.svg">twemoji/svg/1fae7.svg</file>
+        <file alias="1fae8.svg">twemoji/svg/1fae8.svg</file>
+        <file alias="1fae9.svg">twemoji/svg/1fae9.svg</file>
         <file alias="1faf0-1f3fb.svg">twemoji/svg/1faf0-1f3fb.svg</file>
         <file alias="1faf0-1f3fc.svg">twemoji/svg/1faf0-1f3fc.svg</file>
         <file alias="1faf0-1f3fd.svg">twemoji/svg/1faf0-1f3fd.svg</file>
@@ -3457,6 +3482,8 @@
         <file alias="1faf6-1f3fe.svg">twemoji/svg/1faf6-1f3fe.svg</file>
         <file alias="1faf6-1f3ff.svg">twemoji/svg/1faf6-1f3ff.svg</file>
         <file alias="1faf6.svg">twemoji/svg/1faf6.svg</file>
+        <file alias="1faf7.svg">twemoji/svg/1faf7.svg</file>
+        <file alias="1faf8.svg">twemoji/svg/1faf8.svg</file>
         <file alias="203c.svg">twemoji/svg/203c.svg</file>
         <file alias="2049.svg">twemoji/svg/2049.svg</file>
         <file alias="2122.svg">twemoji/svg/2122.svg</file>
