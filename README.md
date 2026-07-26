@@ -145,7 +145,6 @@ Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root`
   (cannot suppress default page headers/footers).
 - Approximately 10 minutes of your time that you will never get back.
 
-
 ## Building
 
 ```bash
@@ -186,5 +185,3 @@ Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't cr
 ./scriba file1.md file2.md  # open files
 ```
 JS console messages are captured via the Debug Log window (Tools → Debug Log).
-
-

@@ -300,25 +300,6 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 return;
             }
         } else {
-            QString partialPath;
-            if (isInsideLinkContext(cursor, partialPath)) {
-                showFileCompletion(partialPath);
-                return;
-            }
-            {
-                QString htmlPath;
-                if (isInsideHtmlPathContext(cursor, htmlPath)) {
-                    showFileCompletion(htmlPath);
-                    return;
-                }
-            }
-            {
-                QString partialCode;
-                if (isInsideEmojiContext(cursor, partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool()) {
-                    showEmojiCompletion(partialCode);
-                    return;
-                }
-            }
             if (isList) {
                 QString indented = indentListLine(line);
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
@@ -526,10 +507,11 @@ void Editor::showFileCompletion(const QString &partialPath)
 
     QTextBlock block = textCursor().block();
     int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
-    cr.moveTop(cr.y() + lineH + 18);
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + lineH + 18));
+    m_completer->popup()->move(popupPos);
 }
 
 void Editor::acceptCompletion(const QString &completion)
@@ -696,10 +678,11 @@ void Editor::showEmojiCompletion(const QString &partialCode)
 
     QTextBlock block = textCursor().block();
     int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
-    cr.moveTop(cr.y() + lineH + 18);
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + lineH + 18));
+    m_completer->popup()->move(popupPos);
 }
 
 QPixmap Editor::renderEmojiIcon(const QString &emojiStr) const
