@@ -1,4 +1,5 @@
 #include "Preview.h"
+#include "StaticHelpers.h"
 #include <QAbstractButton>
 #include <QClipboard>
 #include <QContextMenuEvent>
@@ -186,7 +187,7 @@ void Preview::contextMenuEvent(QContextMenuEvent *event)
             layout->addWidget(textEdit);
             auto *btnBox = new QDialogButtonBox(QDialogButtonBox::Close);
             btnBox->button(QDialogButtonBox::Close)->setText(tr("&Close"));
-            for (auto *btn : btnBox->buttons()) btn->setIcon(QIcon());
+            stripButtonIcons(btnBox);
             connect(btnBox, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);
             layout->addWidget(btnBox);
             dlg.exec();
@@ -194,4 +195,11 @@ void Preview::contextMenuEvent(QContextMenuEvent *event)
     });
 
     menu.exec(event->globalPos());
+}
+
+QWebEngineView *createPreviewView(QWidget *parent)
+{
+    auto *view = new QWebEngineView(parent);
+    view->setPage(new PreviewPage(view));
+    return view;
 }

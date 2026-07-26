@@ -1,4 +1,5 @@
 #include "PreferencesDialog.h"
+#include "StaticHelpers.h"
 #include "CssConfig.h"
 #include "CssLoader.h"
 #include "CssEditorDialog.h"
@@ -364,8 +365,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     buttonBox->button(QDialogButtonBox::Ok)->setText(tr("&OK"));
     buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("&Cancel"));
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(buttonBox);
     mainLayout->addWidget(buttonBox);
     connect(buttonBox, &QDialogButtonBox::accepted, this, [this]() {
         QSettings settings;
@@ -441,18 +441,10 @@ void PreferencesDialog::removeStylesheet()
     emit stylesheetChanged();
 }
 
-static QString loadResourceCss(const QString &path)
-{
-    QFile f(path);
-    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return QString::fromUtf8(f.readAll());
-    return {};
-}
-
 void PreferencesDialog::editPreviewBaseCss()
 {
     CssEditorDialog dlg("Edit Preview Base CSS", m_loader->previewBaseCss(),
-        loadResourceCss(":/preview-base.css"), m_loader->themeCss(), this);
+        readResourceFile(":/preview-base.css"), m_loader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         m_loader->setPreviewBaseCss(dlg.css());
         emit stylesheetChanged();

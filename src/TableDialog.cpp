@@ -1,4 +1,5 @@
 #include "TableDialog.h"
+#include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QSpinBox>
@@ -29,8 +30,7 @@ TableDialog::TableDialog(QWidget *parent)
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     buttons->button(QDialogButtonBox::Ok)->setText("&Insert");
     buttons->button(QDialogButtonBox::Cancel)->setText("&Cancel");
-    for (auto *btn : buttons->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(buttons);
     layout->addWidget(buttons);
 
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);

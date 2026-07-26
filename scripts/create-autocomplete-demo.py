@@ -109,7 +109,7 @@ class DemoScribe:
         )
 
     def capture(self):
-        time.sleep(0.02)
+        time.sleep(0.12)
         raw = self._sct.grab(REGION)
         img = Image.frombytes("RGB", raw.size, raw.rgb)
         self.frames.append(img)
@@ -183,14 +183,14 @@ class DemoScribe:
 
         for ch in ["r", "e", "s", "o"]:
             self.press(ch); self.capture()
-        time.sleep(0.08)
+        time.sleep(0.2)
         self.capture()
 
         self.press("Return"); self.pause(3)
 
         for ch in ["i", "c"]:
             self.press(ch); self.capture()
-        time.sleep(0.08)
+        time.sleep(0.2)
         self.capture()
 
         self.press("Return"); self.pause(3)
@@ -198,7 +198,7 @@ class DemoScribe:
         for ch in ["s", "c", "r"]:
             self.press(ch); self.capture()
         self.press("i")
-        time.sleep(0.08)
+        time.sleep(0.2)
         self.capture()
 
         self.press("Return"); self.pause(3)
@@ -223,7 +223,7 @@ class DemoScribe:
         for ch in ["colon", "s", "m"]:
             self.press(ch); self.capture()
         self.press("i")
-        time.sleep(0.08)
+        time.sleep(0.2)
         self.capture()
 
         self.press("Down"); self.capture(); self.capture()

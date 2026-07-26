@@ -1,5 +1,6 @@
 #include "CssEditorDialog.h"
 #include "CssHighlighter.h"
+#include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -59,15 +60,15 @@ CssEditorDialog::CssEditorDialog(const QString &title, const QString &css, const
     QHBoxLayout *btnLayout = new QHBoxLayout();
 
     QPushButton *resetBtn = new QPushButton(tr("&Reset"), this);
-    resetBtn->setIcon(QIcon());
+    stripButtonIcon(resetBtn);
     btnLayout->addWidget(resetBtn);
 
     btnLayout->addStretch();
 
     QPushButton *saveBtn = new QPushButton(tr("&Save"), this);
-    saveBtn->setIcon(QIcon());
+    stripButtonIcon(saveBtn);
     QPushButton *cancelBtn = new QPushButton(tr("&Cancel"), this);
-    cancelBtn->setIcon(QIcon());
+    stripButtonIcon(cancelBtn);
 
     btnLayout->addWidget(saveBtn);
     btnLayout->addWidget(cancelBtn);

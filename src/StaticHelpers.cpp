@@ -7,6 +7,7 @@
 #include <QPixmap>
 #include <QPainter>
 #include <QSvgRenderer>
+#include <QAbstractButton>
 
 QString escapeJsString(const QString &s)
 {
@@ -299,3 +300,36 @@ QIcon themedIcon(const QString &svgPath, const QColor &color, int size)
     painter.end();
     return QIcon(pix);
 }
+
+void stripButtonIcon(QAbstractButton *btn)
+{
+    btn->setIcon(QIcon());
+}
+
+void stripButtonIcons(QDialogButtonBox *box)
+{
+    for (auto *btn : box->buttons())
+        stripButtonIcon(btn);
+}
+
+QString readResourceFile(const QString &path)
+{
+    QFile f(path);
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QString::fromUtf8(f.readAll());
+    return {};
+}
+
+DebounceTimer::DebounceTimer(int interval, QObject *parent)
+    : QTimer(parent)
+{
+    setSingleShot(true);
+    setInterval(interval);
+}
+
+void DebounceTimer::arm()
+{
+    start();
+}
+
+

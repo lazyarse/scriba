@@ -4,6 +4,9 @@
 #include <QTextCursor>
 #include <QIcon>
 #include <QChar>
+#include <QAbstractButton>
+#include <QDialogButtonBox>
+#include <QTimer>
 
 inline const QChar clearSentinel(0x2412);
 
@@ -23,3 +26,18 @@ int estimateSyllables(const QString &word);
 double fleschKincaidGrade(int words, int sentences, int syllables);
 
 QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28);
+
+void stripButtonIcon(QAbstractButton *btn);
+void stripButtonIcons(QDialogButtonBox *box);
+
+QString readResourceFile(const QString &path);
+
+class DebounceTimer : public QTimer
+{
+    Q_OBJECT
+public:
+    explicit DebounceTimer(int interval, QObject *parent = nullptr);
+    void arm();
+};
+
+class QWebEngineView;

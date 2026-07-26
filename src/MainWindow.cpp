@@ -131,9 +131,7 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
     setWindowTitle("Scriba");
     showMaximized();
 
-    m_updateTimer = new QTimer(this);
-    m_updateTimer->setSingleShot(true);
-    m_updateTimer->setInterval(80);
+    m_updateTimer = new DebounceTimer(80, this);
     connect(m_updateTimer, &QTimer::timeout, this, &MainWindow::updatePreview);
 
     m_autoSaveTimer = new QTimer(this);
@@ -713,7 +711,7 @@ void MainWindow::setupMenuBar()
         layout->addWidget(browser);
         auto *btnBox = new QDialogButtonBox(QDialogButtonBox::Close);
         btnBox->button(QDialogButtonBox::Close)->setText(tr("&Close"));
-        for (auto *btn : btnBox->buttons()) btn->setIcon(QIcon());
+        stripButtonIcons(btnBox);
         connect(btnBox, &QDialogButtonBox::rejected, &dlg, &QDialog::close);
         layout->addWidget(btnBox);
         dlg.exec();

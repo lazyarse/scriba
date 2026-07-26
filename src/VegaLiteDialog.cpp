@@ -1,4 +1,5 @@
 #include "VegaLiteDialog.h"
+#include "StaticHelpers.h"
 #include "Preview.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -72,9 +73,7 @@ VegaLiteDialog::VegaLiteDialog(QWidget *parent)
     setWindowTitle("Chart Builder");
     resize(1100, 700);
 
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
+    m_previewTimer = new DebounceTimer(300, this);
     connect(m_previewTimer, &QTimer::timeout, this, &VegaLiteDialog::updatePreview);
 
     setupUi();
@@ -95,8 +94,7 @@ void VegaLiteDialog::setupUi()
     QWidget *leftPanel = new QWidget(this);
     setupLeftPanel(leftPanel);
 
-    m_preview = new QWebEngineView(this);
-    m_preview->setPage(new PreviewPage(m_preview));
+    m_preview = createPreviewView(this);
 
     splitter->addWidget(leftPanel);
     splitter->addWidget(m_preview);
@@ -113,8 +111,7 @@ void VegaLiteDialog::setupUi()
     QPushButton *copyBtn = buttonBox->addButton(tr("Cop&y JSON"), QDialogButtonBox::ActionRole);
     QPushButton *insertBtn = buttonBox->addButton(tr("&Insert"), QDialogButtonBox::AcceptRole);
     Q_UNUSED(insertBtn);
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(buttonBox);
     mainLayout->addWidget(buttonBox);
 
     connect(copyBtn, &QPushButton::clicked, this, [this]() {

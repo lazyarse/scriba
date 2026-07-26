@@ -1,4 +1,5 @@
 #include "KatexHelperDialog.h"
+#include "StaticHelpers.h"
 #include "Preview.h"
 #include "CssUtils.h"
 
@@ -151,9 +152,7 @@ KatexHelperDialog::KatexHelperDialog(const QString &themeCss, QWidget *parent)
     setWindowTitle("Insert Equation");
     resize(640, 700);
 
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
+    m_previewTimer = new DebounceTimer(300, this);
     connect(m_previewTimer, &QTimer::timeout, this, &KatexHelperDialog::updatePreview);
 
     setupUi();
@@ -167,8 +166,7 @@ void KatexHelperDialog::setupUi()
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(8);
 
-    m_preview = new QWebEngineView(this);
-    m_preview->setPage(new PreviewPage(m_preview));
+    m_preview = createPreviewView(this);
     m_preview->setFixedHeight(150);
     mainLayout->addWidget(m_preview);
 
@@ -217,8 +215,7 @@ void KatexHelperDialog::setupUi()
     QPushButton *copyBtn = buttonBox->addButton("&Copy", QDialogButtonBox::ActionRole);
     QPushButton *insertBtn = buttonBox->addButton("&Insert", QDialogButtonBox::AcceptRole);
     Q_UNUSED(insertBtn);
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(buttonBox);
     mainLayout->addWidget(buttonBox);
 
     connect(copyBtn, &QPushButton::clicked, this, [this]() {

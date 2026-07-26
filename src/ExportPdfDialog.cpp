@@ -1,4 +1,5 @@
 #include "ExportPdfDialog.h"
+#include "StaticHelpers.h"
 #include "CssEditorDialog.h"
 #include "CssLoader.h"
 #include "CssUtils.h"
@@ -416,8 +417,7 @@ void ExportPdfDialog::setupUi()
     leftLayout->addWidget(exportGroup);
     leftLayout->addStretch();
 
-    m_preview = new QWebEngineView(this);
-    m_preview->setPage(new PreviewPage(m_preview));
+    m_preview = createPreviewView(this);
     m_preview->settings()->setAttribute(QWebEngineSettings::PdfViewerEnabled, true);
     m_preview->settings()->setAttribute(QWebEngineSettings::PluginsEnabled, true);
 
@@ -437,9 +437,9 @@ void ExportPdfDialog::setupUi()
     auto *cancelBtn = new QPushButton(tr("&Cancel"));
     auto *exportPdfBtn = new QPushButton(tr("E&xport PDF"));
     auto *printBtn = new QPushButton(tr("&Print..."));
-    cancelBtn->setIcon(QIcon());
-    exportPdfBtn->setIcon(QIcon());
-    printBtn->setIcon(QIcon());
+    stripButtonIcon(cancelBtn);
+    stripButtonIcon(exportPdfBtn);
+    stripButtonIcon(printBtn);
 
     connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
     connect(exportPdfBtn, &QPushButton::clicked, this, [this]() { accept(); });
@@ -505,18 +505,10 @@ void ExportPdfDialog::browseCustomCss()
     onCssModeChanged();
 }
 
-static QString loadResourceCss(const QString &path)
-{
-    QFile f(path);
-    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return QString::fromUtf8(f.readAll());
-    return {};
-}
-
 void ExportPdfDialog::editPrintBaseCss()
 {
     CssEditorDialog dlg("Edit Print Base CSS", m_loader->printBaseCss(),
-        loadResourceCss(":/print-base.css"), m_loader->themeCss(), this);
+        readResourceFile(":/print-base.css"), m_loader->themeCss(), this);
     if (dlg.exec() == QDialog::Accepted) {
         m_loader->setPrintBaseCss(dlg.css());
         onCssModeChanged();

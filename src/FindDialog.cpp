@@ -1,4 +1,5 @@
 #include "FindDialog.h"
+#include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
@@ -22,8 +23,8 @@ FindDialog::FindDialog(QWidget *parent)
     grid->addWidget(m_searchInput, 0, 1);
     auto *findPrevBtn = new QPushButton("< &Prev");
     auto *findNextBtn = new QPushButton("&Next >");
-    findPrevBtn->setIcon(QIcon());
-    findNextBtn->setIcon(QIcon());
+    stripButtonIcon(findPrevBtn);
+    stripButtonIcon(findNextBtn);
     grid->addWidget(findPrevBtn, 0, 2);
     grid->addWidget(findNextBtn, 0, 3);
     grid->addWidget(replaceLabel, 1, 0);
@@ -32,8 +33,8 @@ FindDialog::FindDialog(QWidget *parent)
     grid->addWidget(m_replaceInput, 1, 1);
     auto *replaceBtn = new QPushButton("&Replace");
     auto *replaceAllBtn = new QPushButton("Replace &All");
-    replaceBtn->setIcon(QIcon());
-    replaceAllBtn->setIcon(QIcon());
+    stripButtonIcon(replaceBtn);
+    stripButtonIcon(replaceAllBtn);
     grid->addWidget(replaceBtn, 1, 2);
     grid->addWidget(replaceAllBtn, 1, 3);
     layout->addLayout(grid);
