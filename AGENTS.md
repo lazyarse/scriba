@@ -63,7 +63,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - New source files must be added to both `src/` and the `add_executable(scriba ...)` list in `CMakeLists.txt`. If `MainWindow.cpp` uses the new class, also add it to the `test_scroll_sync` target (which compiles `MainWindow.cpp` directly)
 - New resource files must be added to both `resources/` and `resources/scriba.qrc`
 - Post-build step deletes `~/.config/scriba/{editor,preview}-base.css` — don't rely on those persisting across builds
-- QDialogButtonBox buttons must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`
+- Dialog buttons (QDialogButtonBox and standalone QPushButton) must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`. Add `&` keyboard shortcuts to all dialog buttons where possible (unique per dialog).
 - Always rebuild after making changes — CSS, resource, or source files all require a rebuild to take effect
 - After building, run the application briefly to check for segfaults: `timeout 3 build/scriba || true`
 - Only rebuild the .deb package when explicitly asked to — do not rebuild it automatically after changes
