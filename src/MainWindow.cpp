@@ -63,7 +63,7 @@
 #include <QInputDialog>
 #include <QJsonObject>
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
     : QMainWindow(parent)
     , m_parser(new MarkdownParser())
     , m_cssConfig(new CssConfig())
@@ -139,13 +139,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     addTab();
 
-    bool reopen = settings.value(Preferences::ReopenLastSession, true).toBool();
-    if (reopen) {
-        QString raw = settings.value(Preferences::SessionData).toString();
-        if (!raw.isEmpty()) {
-            QJsonDocument doc = QJsonDocument::fromJson(raw.toUtf8());
-            if (doc.isObject())
-                restoreSession(doc.object());
+    if (!skipSessionRestore) {
+        bool reopen = settings.value(Preferences::ReopenLastSession, true).toBool();
+        if (reopen) {
+            QString raw = settings.value(Preferences::SessionData).toString();
+            if (!raw.isEmpty()) {
+                QJsonDocument doc = QJsonDocument::fromJson(raw.toUtf8());
+                if (doc.isObject())
+                    restoreSession(doc.object());
+            }
         }
     }
 

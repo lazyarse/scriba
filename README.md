@@ -33,7 +33,7 @@
 ### The Basics
 
 - WOW! It's 2004 again with full CommonMark + GFM support (tables, strikethrough, task lists), image rendering from local files and URLs, and admonitions with custom titles and icons (note, tip, important, warning, caution) 
-- Editor and preview pane with configurable split-screen layout: have the preview on the right, the left, on its own, or hidden
+- Multiple document editor and preview pane with configurable split-screen layout: have the preview on the right, the left, on its own, or hidden
 - CSS-based theming: editor, preview, and chrome all styled from one file with sample themes for you to moan about. The editor's colours stay in sync with the theme, preferences has separate styling options, Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
 - PDF export with print-specific CSS stylesheets
 - Find and replace with highlighting, regex search and replace with back-references 
@@ -172,9 +172,10 @@ Tests auto-wrap in `xvfb-run` when available (CMake detects it).
 ## Running
 
 ```bash
-./scriba              # empty editor
-./scriba file.md      # open file
-./scriba --debug      # enable JS console logging via Qt logging system
+./scriba                    # empty editor
+./scriba file.md            # open file
+./scriba file1.md file2.md  # open files
+./scriba --debug            # enable JS console logging via Qt logging system
 ```
 JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
 

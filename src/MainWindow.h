@@ -46,7 +46,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(QWidget *parent = nullptr, bool skipSessionRestore = false);
     ~MainWindow() = default;
     void loadFile(const QString &filePath);
     Editor *editor() const { return currentEditor(); }
