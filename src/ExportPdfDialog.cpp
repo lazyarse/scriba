@@ -565,7 +565,7 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
         "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
         "document.addEventListener('DOMContentLoaded',function(){"
         "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();"
+        "window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();"
         "replaceEmoji(document.body);twemojiParse('%7');"
         "});</script>"
         "</head><body id=\"preview\">%8</body></html>"
@@ -585,7 +585,7 @@ void ExportPdfDialog::onPageLoaded(bool ok)
     // immediately so this is a no-op for documents without vega.
     QString css = m_currentPrintCss;
     m_hiddenEngine->page()->runJavaScript(
-        QStringLiteral("(window.vegaLiteReady||Promise.resolve()).then(function(){return true;})"),
+        QStringLiteral("Promise.all([window.vegaLiteReady||Promise.resolve(),window.mermaidReady||Promise.resolve()]).then(function(){return true;})"),
         [this, genId, css](const QVariant &) {
             if (genId != m_generationId) return;
 

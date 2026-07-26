@@ -3,7 +3,7 @@
 const QString mermaidInitJs = QStringLiteral(
     "function initMermaid(){"
     "var els=document.querySelectorAll('code.language-mermaid');"
-    "if(!els.length)return;"
+    "if(!els.length)return Promise.resolve();"
     "els.forEach(function(el){"
     "var div=document.createElement('div');"
     "div.className='mermaid';"
