@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDialog>
+#include <functional>
 
 class QCheckBox;
 class QSpinBox;
@@ -30,7 +31,10 @@ protected:
                          const QList<int> &sizes = {350, 550});
 
     QColor iconColor() const { return m_iconColor; }
-    void addDeleteButton(QTableWidget *table, int column, int row);
+    void addDeleteButton(QTableWidget *table, int column, int row,
+                         std::function<void()> onDelete = nullptr);
+    void populateComboColumns(QTableWidget *table, const QList<int> &columns,
+                              const QStringList &items);
 
     QWebEngineView *m_preview;
     QTimer *m_previewTimer;

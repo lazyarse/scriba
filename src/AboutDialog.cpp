@@ -43,6 +43,11 @@ AboutDialog::AboutDialog(QWidget *parent)
     titleLabel->setFont(titleFont);
     textCol->addWidget(titleLabel);
 
+    auto *urlLabel = new QLabel("<a href=\"https://www.github.com/lazyarse/scriba\">github.com/lazyarse/scriba</a>");
+    urlLabel->setOpenExternalLinks(true);
+    urlLabel->setTextFormat(Qt::RichText);
+    textCol->addWidget(urlLabel);
+
     auto *versionLabel = new QLabel(QString("Version %1").arg(SCRIBA_VERSION));
     auto verPalette = versionLabel->palette();
     verPalette.setColor(versionLabel->foregroundRole(), verPalette.color(QPalette::PlaceholderText));

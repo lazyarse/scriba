@@ -78,22 +78,8 @@ void MermaidFlowchartDialog::setupUi()
     shapeCombo1->setCurrentIndex(1);
     m_nodeTable->setCellWidget(1, 2, shapeCombo1);
 
-    auto addNodeDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_nodeTable);
-        delBtn->setFixedSize(26, 22);
-        delBtn->setToolTip("Delete row");
-        m_nodeTable->setCellWidget(row, nodeDelCol, delBtn);
-        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
-            int row = m_nodeTable->indexAt(delBtn->pos()).row();
-            if (row >= 0 && m_nodeTable->rowCount() > 1) {
-                m_nodeTable->removeRow(row);
-                refreshEdgeNodeCombos();
-                schedulePreviewUpdate();
-            }
-        });
-    };
-    addNodeDeleteButton(0);
-    addNodeDeleteButton(1);
+    addDeleteButton(m_nodeTable, nodeDelCol, 0, [this](){ refreshEdgeNodeCombos(); });
+    addDeleteButton(m_nodeTable, nodeDelCol, 1, [this](){ refreshEdgeNodeCombos(); });
 
     nodeLayout->addWidget(m_nodeTable);
     leftLayout->addWidget(nodeGroup);
@@ -152,7 +138,7 @@ void MermaidFlowchartDialog::setupUi()
     connect(toCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, onComboChange);
     connect(arrowCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, onComboChange);
 
-    connect(addNodeBtn, &QPushButton::clicked, this, [this, addNodeDeleteButton]() {
+    connect(addNodeBtn, &QPushButton::clicked, this, [this]() {
         int row = m_nodeTable->rowCount();
         m_nodeTable->insertRow(row);
         QString id = QString(QChar('A' + row));
@@ -163,7 +149,7 @@ void MermaidFlowchartDialog::setupUi()
         connect(shapeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &MermaidDialogBase::schedulePreviewUpdate);
         m_nodeTable->setCellWidget(row, 2, shapeCombo);
-        addNodeDeleteButton(row);
+        addDeleteButton(m_nodeTable, nodeDelCol, row, [this](){ refreshEdgeNodeCombos(); });
         refreshEdgeNodeCombos();
         schedulePreviewUpdate();
     });
@@ -192,53 +178,15 @@ void MermaidFlowchartDialog::refreshEdgeNodeCombos()
             nodeIds.append(item->text().trimmed());
     }
 
+    populateComboColumns(m_edgeTable, {0, 1}, nodeIds);
+
     for (int r = 0; r < m_edgeTable->rowCount(); ++r) {
-        QComboBox *fromBox = qobject_cast<QComboBox*>(m_edgeTable->cellWidget(r, 0));
-        QComboBox *toBox = qobject_cast<QComboBox*>(m_edgeTable->cellWidget(r, 1));
-
-        if (fromBox) {
-            QString cur = fromBox->currentText();
-            fromBox->blockSignals(true);
-            fromBox->clear();
-            fromBox->addItems(nodeIds);
-            int idx = fromBox->findText(cur);
-            if (idx >= 0) fromBox->setCurrentIndex(idx);
-            fromBox->blockSignals(false);
-        }
-        if (toBox) {
-            QString cur = toBox->currentText();
-            toBox->blockSignals(true);
-            toBox->clear();
-            toBox->addItems(nodeIds);
-            int idx = toBox->findText(cur);
-            if (idx >= 0) toBox->setCurrentIndex(idx);
-            else if (!toBox->currentText().isEmpty()) {}
-            toBox->blockSignals(false);
-        }
-
-        if (!fromBox || !toBox) {
-            QComboBox *newFrom = new QComboBox(m_edgeTable);
-            newFrom->addItems(nodeIds);
-            m_edgeTable->setCellWidget(r, 0, newFrom);
-            connect(newFrom, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, &MermaidDialogBase::schedulePreviewUpdate);
-
-            QComboBox *newTo = new QComboBox(m_edgeTable);
-            newTo->addItems(nodeIds);
-            m_edgeTable->setCellWidget(r, 1, newTo);
-            connect(newTo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, &MermaidDialogBase::schedulePreviewUpdate);
-        }
-    }
-
-    int arrowCol = 3;
-    for (int r = 0; r < m_edgeTable->rowCount(); ++r) {
-        QComboBox *arrowBox = qobject_cast<QComboBox*>(m_edgeTable->cellWidget(r, arrowCol));
+        QComboBox *arrowBox = qobject_cast<QComboBox*>(m_edgeTable->cellWidget(r, 3));
         if (!arrowBox) {
             arrowBox = new QComboBox(m_edgeTable);
             for (int i = 0; i < kArrowCount; ++i)
                 arrowBox->addItem(kArrowTypes[i].display);
-            m_edgeTable->setCellWidget(r, arrowCol, arrowBox);
+            m_edgeTable->setCellWidget(r, 3, arrowBox);
             connect(arrowBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
                     this, &MermaidDialogBase::schedulePreviewUpdate);
         }
