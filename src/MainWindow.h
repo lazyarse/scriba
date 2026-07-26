@@ -137,6 +137,7 @@ private:
     QTimer *m_updateTimer = nullptr;
 
 protected:
+    void updateTabBarVisibility();
     void closeEvent(QCloseEvent *event) override;
 };
 

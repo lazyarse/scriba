@@ -79,6 +79,7 @@ void showMermaidDialog(MainWindow *win, CssLoader *loader)
 #include <QToolButton>
 #include <QCloseEvent>
 #include <QDesktopServices>
+#include <QTabBar>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QInputDialog>
@@ -291,6 +292,7 @@ int MainWindow::addTab(const QString &filePath)
         }
     });
 
+    updateTabBarVisibility();
     return idx;
 }
 
@@ -306,6 +308,7 @@ void MainWindow::removeTab(int index)
     m_tabs.removeAt(index);
     m_tabWidget->removeTab(index);
     delete editor;
+    updateTabBarVisibility();
 }
 
 int MainWindow::findTabByPath(const QString &filePath) const
@@ -1641,6 +1644,7 @@ void MainWindow::restoreSession(const QJsonObject &session)
     if (active >= 0 && active < m_tabWidget->count())
         m_tabWidget->setCurrentIndex(active);
 
+    updateTabBarVisibility();
     if (auto *ed = currentEditor())
         ed->setFocus();
 }
@@ -1705,6 +1709,11 @@ void MainWindow::loadSessionAction()
 
     restoreSession(doc.object());
     statusBar()->showMessage("Session loaded", 2000);
+}
+
+void MainWindow::updateTabBarVisibility()
+{
+    m_tabWidget->tabBar()->setVisible(m_tabs.size() > 1);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
