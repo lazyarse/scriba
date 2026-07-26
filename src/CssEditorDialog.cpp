@@ -130,24 +130,24 @@ void CssEditorDialog::applyFontPreset()
     QString fontSizeStr = QString("%1px").arg(fontSize);
 
     QRegularExpression familyRe(
-        R"(body\s*\{[^}]*font-family\s*:\s*)([^;}]+)");
+        R"((body\s*\{[^}]*font-family\s*:\s*)([^;}]+))");
     auto fm = familyRe.match(css);
     if (fm.hasMatch()) {
         bool imp = fm.captured(2).contains("!important");
         css.replace(familyRe, "\\1" + fontFamily + (imp ? " !important" : ""));
     } else {
-        css.replace(QRegularExpression(R"(body\s*\{)"),
+        css.replace(QRegularExpression(R"((body\s*\{))"),
                     "\\1\n    font-family: " + fontFamily + ";");
     }
 
     QRegularExpression sizeRe(
-        R"(body\s*\{[^}]*font-size\s*:\s*)([^;}]+)");
+        R"((body\s*\{[^}]*font-size\s*:\s*)([^;}]+))");
     auto sm = sizeRe.match(css);
     if (sm.hasMatch()) {
         bool imp = sm.captured(2).contains("!important");
         css.replace(sizeRe, "\\1" + fontSizeStr + (imp ? " !important" : ""));
     } else {
-        css.replace(QRegularExpression(R"(body\s*\{)"),
+        css.replace(QRegularExpression(R"((body\s*\{))"),
                     "\\1\n    font-size: " + fontSizeStr + ";");
     }
 
