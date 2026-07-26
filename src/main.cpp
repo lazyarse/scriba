@@ -29,16 +29,24 @@ int main(int argc, char *argv[])
     if (app.arguments().contains("--debug"))
         QLoggingCategory::setFilterRules("scriba.*=true");
 
-    MainWindow window;
-    window.show();
-
     QStringList args = app.arguments();
     bool hasFiles = false;
     for (int i = 1; i < args.size(); ++i) {
         if (args[i] == "--debug")
             continue;
-        window.loadFile(args[i]);
         hasFiles = true;
+        break;
+    }
+
+    MainWindow window(nullptr, hasFiles);
+    window.show();
+
+    if (hasFiles) {
+        for (int i = 1; i < args.size(); ++i) {
+            if (args[i] == "--debug")
+                continue;
+            window.loadFile(args[i]);
+        }
     }
 
     return app.exec();
