@@ -63,7 +63,6 @@ void Editor::keyPressEvent(QKeyEvent *event)
 
         QTextCursor cursor = textCursor();
         QString line = cursor.block().text();
-        static const QChar clearSentinel(0x2412);
         QString result = handleListReturn(line);
         if (!result.isEmpty()) {
             if (result == QString(clearSentinel)) {
@@ -284,8 +283,10 @@ void Editor::keyPressEvent(QKeyEvent *event)
             }
         }
 
-        auto matchUnordered = QRegularExpression(R"(^\s*[-*+]\s?)").match(line);
-        auto matchOrdered = QRegularExpression(R"(^\s*\d+\.\s?)").match(line);
+        static const QRegularExpression unorderedRe(R"(^\s*[-*+]\s?)");
+        static const QRegularExpression orderedRe(R"(^\s*\d+\.\s?)");
+        auto matchUnordered = unorderedRe.match(line);
+        auto matchOrdered = orderedRe.match(line);
         bool isList = matchUnordered.hasMatch() || matchOrdered.hasMatch();
 
         if (event->key() == Qt::Key_Backtab || shift) {
@@ -599,7 +600,7 @@ void Editor::loadEmojiShortcodes()
         return;
 
     QString content = QString::fromUtf8(file.readAll());
-    QRegularExpression re(R"('([^']+)'\s*:\s*'([^']+)')");
+    static const QRegularExpression re(R"('([^']+)'\s*:\s*'([^']+)')");
     auto it = re.globalMatch(content);
     while (it.hasNext()) {
         auto match = it.next();

@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
 #include "StaticHelpers.h"
 
-static const QChar clearSentinel(0x2412);
-
 TEST(ListContinuation, DashPrefix) {
     EXPECT_EQ(handleListReturn("- hello"), "- ");
 }

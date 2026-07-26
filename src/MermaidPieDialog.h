@@ -1,5 +1,4 @@
-#ifndef MERMAIDPIEDIALOG_H
-#define MERMAIDPIEDIALOG_H
+#pragma once
 
 #include "MermaidDialogBase.h"
 
@@ -23,4 +22,3 @@ private:
     QTableWidget *m_table;
 };
 
-#endif

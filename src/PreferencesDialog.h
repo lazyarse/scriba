@@ -1,5 +1,4 @@
-#ifndef PREFERENCESDIALOG_H
-#define PREFERENCESDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include <QListWidget>
@@ -67,4 +66,3 @@ private:
     QPushButton *m_editorFontBtn;
 };
 
-#endif

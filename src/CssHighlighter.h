@@ -1,5 +1,4 @@
-#ifndef CSSHIGHLIGHTER_H
-#define CSSHIGHLIGHTER_H
+#pragma once
 
 #include <QSyntaxHighlighter>
 #include <QTextCharFormat>
@@ -26,4 +25,3 @@ private:
     QTextCharFormat m_punctFormat;
 };
 
-#endif

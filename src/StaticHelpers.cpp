@@ -11,38 +11,17 @@
 QString escapeJsString(const QString &s)
 {
     QString r = s;
-    r.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
+    r.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"").replace("`", "\\`").replace("\n", "\\n").replace("\r", "\\r");
     return r;
 }
 
-int extractContentWidth(const QString &css)
-{
-    QRegularExpression mwRe(R"(\bbody\s*\{[^}]*\bmax-width\s*:\s*(\d+)\s*px)");
-    auto mw = mwRe.match(css);
-    int maxW = mw.hasMatch() ? mw.captured(1).toInt() : 800;
-
-    auto px = [&](const QString &p) -> int {
-        QRegularExpression re(R"(\bbody\s*\{[^}]*\b)" + p + R"(\s*:\s*(\d+)\s*px)");
-        auto m = re.match(css);
-        return m.hasMatch() ? m.captured(1).toInt() : 0;
-    };
-    int pl = px("padding-left"), pr = px("padding-right");
-    if (pl || pr) return maxW + pl + pr;
-
-    QRegularExpression padRe(R"(\bbody\s*\{[^}]*\bpadding\s*:\s*(\d+)\s*px)");
-    auto pad = padRe.match(css);
-    if (pad.hasMatch()) return maxW + pad.captured(1).toInt() * 2;
-
-    return maxW + 40;
-}
-
-static const QRegularExpression &listUnorderedRe()
+static const QRegularExpression &unorderedListRe()
 {
     static QRegularExpression re(R"(^(\s*)([-*+])\s?)");
     return re;
 }
 
-static const QRegularExpression &listOrderedRe()
+static const QRegularExpression &orderedListRe()
 {
     static QRegularExpression re(R"(^(\s*)(\d+)\.\s?)");
     return re;
@@ -50,7 +29,6 @@ static const QRegularExpression &listOrderedRe()
 
 QString handleListReturn(const QString &line)
 {
-    static const QChar clearSentinel(0x2412);
     static QRegularExpression taskRe(R"(^(\s*)([-*+])\s+\[[ xX]\]\s?)");
     auto taskMatch = taskRe.match(line);
     if (taskMatch.hasMatch()) {
@@ -59,14 +37,14 @@ QString handleListReturn(const QString &line)
             return QString(clearSentinel);
         return taskMatch.captured(1) + taskMatch.captured(2) + " [ ] ";
     }
-    auto match = listUnorderedRe().match(line);
+    auto match = unorderedListRe().match(line);
     if (match.hasMatch()) {
         QString rest = line.mid(match.capturedEnd()).trimmed();
         if (rest.isEmpty())
             return QString(clearSentinel);
         return match.captured(1) + match.captured(2) + " ";
     }
-    match = listOrderedRe().match(line);
+    match = orderedListRe().match(line);
     if (match.hasMatch()) {
         QString rest = line.mid(match.capturedEnd()).trimmed();
         if (rest.isEmpty())
@@ -107,7 +85,6 @@ QString handleTableReturn(const QString &line, const QString &prevLine)
             }
         }
         if (allEmpty) {
-            static const QChar clearSentinel(0x2412);
             return QString(clearSentinel);
         }
 
@@ -135,7 +112,6 @@ QString handleTableReturn(const QString &line, const QString &prevLine)
                 }
             }
             if (allEmpty) {
-                static const QChar clearSentinel(0x2412);
                 return QString(clearSentinel);
             }
         }
@@ -225,9 +201,9 @@ int tableNavHtmlCell(const QString &line, int cursorPos, bool forward)
 
 QString indentListLine(const QString &line)
 {
-    auto match = listUnorderedRe().match(line);
+    auto match = unorderedListRe().match(line);
     if (!match.hasMatch())
-        match = listOrderedRe().match(line);
+        match = orderedListRe().match(line);
     if (!match.hasMatch())
         return line;
     int indent = listIndentWidth(line);
@@ -236,9 +212,9 @@ QString indentListLine(const QString &line)
 
 QString outdentListLine(const QString &line)
 {
-    auto match = listUnorderedRe().match(line);
+    auto match = unorderedListRe().match(line);
     if (!match.hasMatch())
-        match = listOrderedRe().match(line);
+        match = orderedListRe().match(line);
     if (!match.hasMatch())
         return line;
     int indent = listIndentWidth(line);
@@ -253,17 +229,6 @@ QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column)
     cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, block);
     cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, column);
     return cursor;
-}
-
-QString firstFontFamily(const QString &cssFontStack)
-{
-    QString first = cssFontStack.section(QLatin1Char(','), 0, 0).trimmed();
-    if (first.startsWith(QLatin1Char('\'')) || first.startsWith(QLatin1Char('"'))) {
-        int end = first.indexOf(first[0], 1);
-        if (end > 1)
-            first = first.mid(1, end - 1);
-    }
-    return first;
 }
 
 int countSentences(const QString &text)

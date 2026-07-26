@@ -76,20 +76,8 @@ void MermaidStateDialog::setupUi()
     m_transitionTable->verticalHeader()->setDefaultSectionSize(28);
     leftLayout->addWidget(m_transitionTable);
 
-    auto addTransitionDeleteButton = [&](int row) {
-        QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", m_transitionTable);
-        delBtn->setFixedSize(26, 22);
-        delBtn->setToolTip("Delete row");
-        m_transitionTable->setCellWidget(row, transDelCol, delBtn);
-        connect(delBtn, &QPushButton::clicked, this, [this, delBtn]() {
-            int row = m_transitionTable->indexAt(delBtn->pos()).row();
-            if (row >= 0 && m_transitionTable->rowCount() > 1)
-                m_transitionTable->removeRow(row);
-            schedulePreviewUpdate();
-        });
-    };
     for (int r = 0; r < m_transitionTable->rowCount(); ++r)
-        addTransitionDeleteButton(r);
+        addDeleteButton(m_transitionTable, transDelCol, r);
 
     leftLayout->addStretch();
 
@@ -105,10 +93,10 @@ void MermaidStateDialog::setupUi()
         refreshTransitionCombos();
         schedulePreviewUpdate();
     });
-    connect(addTransBtn, &QPushButton::clicked, this, [this, addTransitionDeleteButton]() {
+    connect(addTransBtn, &QPushButton::clicked, this, [this]() {
         int row = m_transitionTable->rowCount();
         m_transitionTable->insertRow(row);
-        addTransitionDeleteButton(row);
+        addDeleteButton(m_transitionTable, transDelCol, row);
         refreshTransitionCombos();
         schedulePreviewUpdate();
     });

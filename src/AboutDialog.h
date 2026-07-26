@@ -1,5 +1,4 @@
-#ifndef ABOUTDIALOG_H
-#define ABOUTDIALOG_H
+#pragma once
 
 #include <QDialog>
 
@@ -11,4 +10,3 @@ public:
     explicit AboutDialog(QWidget *parent = nullptr);
 };
 
-#endif

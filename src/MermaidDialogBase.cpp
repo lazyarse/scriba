@@ -1,6 +1,7 @@
 #include "MermaidDialogBase.h"
 #include "Preview.h"
 #include "CssUtils.h"
+#include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QSplitter>
 #include <QWebEngineView>
@@ -13,6 +14,7 @@
 #include <QLabel>
 #include <QCheckBox>
 #include <QSpinBox>
+#include <QTableWidget>
 
 MermaidDialogBase::MermaidDialogBase(const QString &title, const QString &themeCss,
                                      QWidget *parent)
@@ -131,6 +133,20 @@ void MermaidDialogBase::setupMainLayout(QWidget *leftPanel, QVBoxLayout *leftLay
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     resize(900, 550);
+}
+
+void MermaidDialogBase::addDeleteButton(QTableWidget *table, int column, int row)
+{
+    QPushButton *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", iconColor(), 16), "", table);
+    delBtn->setFixedSize(26, 22);
+    delBtn->setToolTip("Delete row");
+    table->setCellWidget(row, column, delBtn);
+    connect(delBtn, &QPushButton::clicked, this, [this, table, delBtn]() {
+        int row = table->indexAt(delBtn->pos()).row();
+        if (row >= 0 && table->rowCount() > 1)
+            table->removeRow(row);
+        schedulePreviewUpdate();
+    });
 }
 
 void MermaidDialogBase::schedulePreviewUpdate()

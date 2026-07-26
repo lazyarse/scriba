@@ -1,5 +1,4 @@
-#ifndef VEGALITEDIALOG_H
-#define VEGALITEDIALOG_H
+#pragma once
 
 #include <QDialog>
 
@@ -55,4 +54,3 @@ private:
     QTimer *m_previewTimer;
 };
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSSCONFIG_H
-#define CSSCONFIG_H
+#pragma once
 
 #include <QString>
 #include <QStringList>
@@ -22,4 +21,3 @@ private:
     QString m_activeStylesheet;
 };
 
-#endif

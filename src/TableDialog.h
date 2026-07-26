@@ -1,5 +1,4 @@
-#ifndef TABLEDIALOG_H
-#define TABLEDIALOG_H
+#pragma once
 
 #include <QDialog>
 
@@ -21,4 +20,3 @@ private:
     QCheckBox *m_includeHeader;
 };
 
-#endif

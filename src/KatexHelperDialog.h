@@ -1,5 +1,4 @@
-#ifndef KATEXHELPERDIALOG_H
-#define KATEXHELPERDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include <QColor>
@@ -36,4 +35,3 @@ private:
     QColor m_themeTxt;
 };
 
-#endif

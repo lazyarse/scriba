@@ -1,5 +1,4 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QMainWindow>
 #include <QSplitter>
@@ -62,18 +61,6 @@ private slots:
     void updateStats();
     void showChartBuilder();
     void showLogWindow();
-    void showMermaidPie();
-    void showMermaidFlowchart();
-    void showMermaidSequence();
-    void showMermaidGantt();
-    void showMermaidClass();
-    void showMermaidEr();
-    void showMermaidState();
-    void showMermaidMindmap();
-    void showMermaidTimeline();
-    void showMermaidJourney();
-    void showMermaidQuadrant();
-    void showMermaidSankey();
     void showKatexHelper();
 
     void onFindNext();
@@ -153,4 +140,3 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 };
 
-#endif

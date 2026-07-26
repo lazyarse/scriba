@@ -1,32 +1,62 @@
 # Codebase Tidy-Up Plan
 
 ## Priority 1: Bugfixes (behavior-changing)
-- **MermaidSequenceDialog** — missing `connect(delBtn, ...)` calls after rows are added; delete buttons don't work
-- **MermaidFlowchartDialog** — add-row logic issue
-- **ExportPdfDialog** `mermaidInitJs` — doesn't return the `mermaid.run()` promise, differing from MainWindow version
-- **`escapeJsString()`** — doesn't escape `"` or backticks, fragile for double-quoted JS contexts
+### 1.1 MermaidSequenceDialog — message table rows missing delete buttons
+- Lines 70-78: `m_messageTable` created with 2 rows, `addMessageDeleteButton` lambda defined, but never called for the 2 initial rows
+- **Fix**: Add `addMessageDeleteButton(0); addMessageDeleteButton(1);` after line 89
 
-## Priority 2: Remove Stale Artifacts (~1.5 GB)
-- Delete 17 accumulated `.deb` files from repo root (v1.4.1 → v1.9.0)
-- Remove unused `resources/icons/scriba-inverted.svg` (not in QRC)
+### 1.2 MermaidFlowchartDialog — missing `schedulePreviewUpdate()` in add-row lambdas
+- Add-node lambda (line 176): missing `schedulePreviewUpdate()`
+- Add-edge lambda (line 185): missing `schedulePreviewUpdate()`
+- **Fix**: Add call at end of both lambdas
+
+### 1.3 MermaidPieDialog — missing `schedulePreviewUpdate()` + column init in add-row
+- Add-row lambda (lines 71-75): missing both the update call and `setItem()` for new row cells
+- **Fix**: Add `schedulePreviewUpdate()` and initialize label/value columns with empty items
+
+### 1.4 ExportPdfDialog — mermaidInitJs doesn't return promise (deferred)
+- Needs investigation — deferred for now
+
+### 1.5 `escapeJsString()` — missing `"` and `` ` `` escaping
+- StaticHelpers.cpp:11-16: only escapes `\`, `'`, `\n`, `\r`
+- **Fix**: Add `.replace("\"", "\\\"").replace("`", "\\`")`
+
+## Priority 2: Remove Stale Artifacts (done)
+- Delete 17 accumulated `.deb` files from repo root
+- Remove unused `resources/icons/scriba-inverted.svg`
 - Remove dead code: `extractContentWidth()`, `firstFontFamily()` in `StaticHelpers`
 
 ## Priority 3: Major Duplication Reduction
-- **JS snippets** (`mermaidInitJs`, `headingIdJs`, `katexInitJs`, `vegaLiteInitJs`, `setImgTitlesJs`) — copy-pasted in both `MainWindow.cpp` and `ExportPdfDialog.cpp` with subtle differences. Extract to a shared source file (e.g. `JsSnippets.h/cpp`)
-- **12 `showMermaid*` methods** in `MainWindow.cpp` — identical body, only dialog class changes. Replace with a template method or macro
-- **Delete-button lambda** — duplicated ~20× across 12 Mermaid dialog files. Move into `MermaidDialogBase`
-- **3 Mermaid dialogs bypassing `setupMainLayout()`** — `MermaidClassDialog`, `MermaidErDialog`, `MermaidMindmapDialog` manually duplicate the right-panel + button-bar code. Refactor to use base class
+### 3.1 Extract 5 shared JS snippets into `JsSnippets.h/cpp`
+- mermaidInitJs, headingIdJs, katexInitJs, vegaLiteInitJs, setImgTitlesJs
+- currently copy-pasted in MainWindow.cpp and ExportPdfDialog.cpp with subtle differences
+- Create shared source with `extern const QString` constants
+- Register in CMakeLists.txt add_executable and scriba_core
 
-## Priority 4: Consistency & Modernization
-- **Header guards**: Unify all 34 `.h` files to `#pragma once` (currently 31x `#ifndef`, 3x `pragma once`)
-- **`CssLoader::printCss()`**: Remove `const_cast` by making cache members `mutable` or removing `const`
-- **`clearSentinel` (0x2412)**: Currently defined as `static const QChar` in 4 places. Move to a shared location (`StaticHelpers`)
-- **Make local `QRegularExpression` objects `static const`** where possible (Editor.cpp creates some on every keypress)
+### 3.2 Collapse 12 `showMermaid*()` methods into a template
+- 12 methods in MainWindow.cpp with identical body, only dialog class changes
+- Replace with `template<typename T> void showMermaidDialog()`
+- Remove 12 individual slot declarations from MainWindow.h
 
-## Priority 5: CMakeLists.txt Cleanup
-- Test target list is massively repetitive — define a helper function/loop for the Mermaid dialog test targets
+### 3.3 Move delete-button lambda into `MermaidDialogBase`
+- Add `void addDeleteButton(QTableWidget *table, int column, int row)`
+- Update all 12 Mermaid dialogs
+- Handle 3 dialogs with post-delete refresh (Flowchart, Sequence, State)
 
-## Priority 6: Minor Polish
-- Deduplicate file dialog filter strings (`"Markdown Files (*.md);;All Files (*)"` appears in 3 places with a 4th variant)
-- Extract magic numbers (splitter sizes, debounce intervals, font sizes, button sizes) into named constants
-- Strip `QIcon()` from dialog buttons (existing pattern, verify all dialogs follow it)
+### 3.4 Refactor MermaidClass/Er/Mindmap to use `setupMainLayout()`
+- 3 dialogs bypass setupMainLayout(), duplicating ~50-70 lines each
+- Refactor constructor to call setupUi() + setupMainLayout() pattern
+
+## Priority 4: Consistency & Modernization (done)
+- Header guards: all 34 files now use `#pragma once`
+- CssLoader::printCss(): removed const_cast
+- clearSentinel: moved to shared location
+- QRegularExpression objects made static const
+
+## Priority 5: CMakeLists.txt Cleanup (done)
+- add_mermaid_test() function replaces 12 repetitive test targets
+
+## Priority 6: Minor Polish (done)
+- Deduplicated file dialog filter strings
+- Extracted auto-save magic number
+- Button icon stripping verified across all dialogs

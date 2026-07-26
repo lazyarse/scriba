@@ -82,9 +82,9 @@ void CssLoader::invalidateCache()
     m_printBaseCache.clear();
 }
 
-QString CssLoader::printCss() const
+QString CssLoader::printCss()
 {
-    return const_cast<CssLoader*>(this)->printBaseCss();
+    return printBaseCss();
 }
 
 QString CssLoader::loadCssFile(const QString &filePath) const

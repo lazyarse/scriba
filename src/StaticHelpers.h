@@ -1,12 +1,13 @@
-#ifndef STATICHELPERS_H
-#define STATICHELPERS_H
+#pragma once
 
 #include <QString>
 #include <QTextCursor>
 #include <QIcon>
+#include <QChar>
+
+inline const QChar clearSentinel(0x2412);
 
 QString escapeJsString(const QString &s);
-int extractContentWidth(const QString &css);
 QString handleListReturn(const QString &line);
 QString handleTableReturn(const QString &line, const QString &prevLine);
 QString makeEmptyTableRow(int cols);
@@ -17,11 +18,8 @@ QString indentListLine(const QString &line);
 QString outdentListLine(const QString &line);
 QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column);
 
-QString firstFontFamily(const QString &cssFontStack);
 int countSentences(const QString &text);
 int estimateSyllables(const QString &word);
 double fleschKincaidGrade(int words, int sentences, int syllables);
 
 QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28);
-
-#endif

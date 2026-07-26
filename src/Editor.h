@@ -1,5 +1,4 @@
-#ifndef EDITOR_H
-#define EDITOR_H
+#pragma once
 
 #include <QHash>
 #include <QPixmap>
@@ -69,4 +68,3 @@ private:
     QList<QAction *> m_mermaidActions;
 };
 
-#endif

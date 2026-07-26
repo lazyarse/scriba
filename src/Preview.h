@@ -1,5 +1,4 @@
-#ifndef PREVIEW_H
-#define PREVIEW_H
+#pragma once
 
 #include <QWebEnginePage>
 #include <QWebEngineView>
@@ -43,4 +42,3 @@ private:
     QString m_documentPath;
 };
 
-#endif
