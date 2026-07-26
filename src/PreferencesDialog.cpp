@@ -362,6 +362,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
     /* --- Dialog Buttons --- */
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    buttonBox->button(QDialogButtonBox::Ok)->setText(tr("&OK"));
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("&Cancel"));
     for (auto *btn : buttonBox->buttons())
         btn->setIcon(QIcon());
     mainLayout->addWidget(buttonBox);

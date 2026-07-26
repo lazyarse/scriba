@@ -121,8 +121,9 @@ MermaidErDialog::MermaidErDialog(const QString &themeCss, QWidget *parent)
 
     // Buttons
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    QPushButton *copyBtn = buttonBox->addButton(tr("Copy"), QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton(tr("Insert"), QDialogButtonBox::AcceptRole);
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Ca&ncel"));
+    QPushButton *copyBtn = buttonBox->addButton(tr("&Copy"), QDialogButtonBox::ActionRole);
+    QPushButton *insertBtn = buttonBox->addButton(tr("&Insert"), QDialogButtonBox::AcceptRole);
     for (auto *btn : buttonBox->buttons())
         btn->setIcon(QIcon());
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

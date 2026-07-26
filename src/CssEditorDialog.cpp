@@ -58,13 +58,16 @@ CssEditorDialog::CssEditorDialog(const QString &title, const QString &css, const
 
     QHBoxLayout *btnLayout = new QHBoxLayout();
 
-    QPushButton *resetBtn = new QPushButton("Reset", this);
+    QPushButton *resetBtn = new QPushButton(tr("&Reset"), this);
+    resetBtn->setIcon(QIcon());
     btnLayout->addWidget(resetBtn);
 
     btnLayout->addStretch();
 
-    QPushButton *saveBtn = new QPushButton("Save", this);
-    QPushButton *cancelBtn = new QPushButton("Cancel", this);
+    QPushButton *saveBtn = new QPushButton(tr("&Save"), this);
+    saveBtn->setIcon(QIcon());
+    QPushButton *cancelBtn = new QPushButton(tr("&Cancel"), this);
+    cancelBtn->setIcon(QIcon());
 
     btnLayout->addWidget(saveBtn);
     btnLayout->addWidget(cancelBtn);

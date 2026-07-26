@@ -20,8 +20,8 @@ FindDialog::FindDialog(QWidget *parent)
     m_searchInput = new QLineEdit();
     m_searchInput->setPlaceholderText("Search text...");
     grid->addWidget(m_searchInput, 0, 1);
-    auto *findPrevBtn = new QPushButton("< Prev");
-    auto *findNextBtn = new QPushButton("Next >");
+    auto *findPrevBtn = new QPushButton("< &Prev");
+    auto *findNextBtn = new QPushButton("&Next >");
     findPrevBtn->setIcon(QIcon());
     findNextBtn->setIcon(QIcon());
     grid->addWidget(findPrevBtn, 0, 2);
@@ -30,8 +30,8 @@ FindDialog::FindDialog(QWidget *parent)
     m_replaceInput = new QLineEdit();
     m_replaceInput->setPlaceholderText("Replace with... (\\1, \\2 for regex groups)");
     grid->addWidget(m_replaceInput, 1, 1);
-    auto *replaceBtn = new QPushButton("Replace");
-    auto *replaceAllBtn = new QPushButton("Replace All");
+    auto *replaceBtn = new QPushButton("&Replace");
+    auto *replaceAllBtn = new QPushButton("Replace &All");
     replaceBtn->setIcon(QIcon());
     replaceAllBtn->setIcon(QIcon());
     grid->addWidget(replaceBtn, 1, 2);

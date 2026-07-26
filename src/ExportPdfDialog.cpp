@@ -489,9 +489,12 @@ void ExportPdfDialog::setupUi()
     QHBoxLayout *bottomLayout = new QHBoxLayout();
     bottomLayout->addStretch();
 
-    auto *cancelBtn = new QPushButton("Cancel");
-    auto *exportPdfBtn = new QPushButton("Export PDF");
-    auto *printBtn = new QPushButton("Print...");
+    auto *cancelBtn = new QPushButton(tr("&Cancel"));
+    auto *exportPdfBtn = new QPushButton(tr("E&xport PDF"));
+    auto *printBtn = new QPushButton(tr("&Print..."));
+    cancelBtn->setIcon(QIcon());
+    exportPdfBtn->setIcon(QIcon());
+    printBtn->setIcon(QIcon());
 
     connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
     connect(exportPdfBtn, &QPushButton::clicked, this, [this]() { accept(); });
