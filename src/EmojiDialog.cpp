@@ -1,4 +1,5 @@
 #include "EmojiDialog.h"
+#include "StaticHelpers.h"
 #include "Preferences.h"
 
 #include <QVBoxLayout>
@@ -59,7 +60,7 @@ EmojiDialog::EmojiDialog(QWidget *parent)
     m_insertBtn->setEnabled(false);
     layout->addWidget(buttonBox);
 
-    for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());
+    stripButtonIcons(buttonBox);
 
     connect(m_searchBox, &QLineEdit::textChanged, this, &EmojiDialog::filterEmoji);
     connect(m_list, &QListWidget::itemClicked, this, &EmojiDialog::onItemClicked);

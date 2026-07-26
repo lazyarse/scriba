@@ -30,9 +30,7 @@ MermaidDialogBase::MermaidDialogBase(const QString &title, const QString &themeC
 
     setWindowTitle(title);
 
-    m_previewTimer = new QTimer(this);
-    m_previewTimer->setSingleShot(true);
-    m_previewTimer->setInterval(300);
+    m_previewTimer = new DebounceTimer(300, this);
     connect(m_previewTimer, &QTimer::timeout, this, &MermaidDialogBase::updatePreview);
 }
 
@@ -105,8 +103,7 @@ void MermaidDialogBase::setupMainLayout(QWidget *leftPanel, QVBoxLayout *leftLay
     widthRow->addStretch();
     rightLayout->addLayout(widthRow);
 
-    m_preview = new QWebEngineView(rightWidget);
-    m_preview->setPage(new PreviewPage(m_preview));
+    m_preview = createPreviewView(rightWidget);
     rightLayout->addWidget(m_preview, 1);
 
     splitter->addWidget(leftPanel);
@@ -123,8 +120,7 @@ void MermaidDialogBase::setupMainLayout(QWidget *leftPanel, QVBoxLayout *leftLay
     QPushButton *copyBtn = buttonBox->addButton(tr("&Copy"), QDialogButtonBox::ActionRole);
     QPushButton *insertBtn = buttonBox->addButton(tr("&Insert"), QDialogButtonBox::AcceptRole);
     Q_UNUSED(insertBtn);
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(buttonBox);
     mainLayout->addWidget(buttonBox);
 
     connect(copyBtn, &QPushButton::clicked, this, [this]() {

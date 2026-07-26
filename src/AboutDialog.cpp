@@ -1,4 +1,5 @@
 #include "AboutDialog.h"
+#include "StaticHelpers.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -74,7 +75,7 @@ AboutDialog::AboutDialog(QWidget *parent)
 
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Close);
     buttonBox->button(QDialogButtonBox::Close)->setText(tr("&Close"));
-    for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());
+    stripButtonIcons(buttonBox);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::accept);
     mainLayout->addWidget(buttonBox);
 }

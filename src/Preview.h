@@ -23,6 +23,8 @@ protected:
     bool acceptNavigationRequest(const QUrl &url, NavigationType type, bool isMainFrame) override;
 };
 
+QWebEngineView *createPreviewView(QWidget *parent);
+
 class Preview : public QWebEngineView
 {
     Q_OBJECT

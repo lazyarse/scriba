@@ -1,4 +1,5 @@
 #include "LogWindow.h"
+#include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
 #include <QPushButton>
@@ -80,8 +81,7 @@ LogWindow::LogWindow(QWidget *parent)
     QPushButton *clearBtn = buttons->addButton("C&lear", QDialogButtonBox::ActionRole);
     connect(clearBtn, &QPushButton::clicked, m_output, &QTextEdit::clear);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::hide);
-    for (auto *btn : buttons->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(buttons);
     layout->addWidget(buttons);
 
     s_logWindowInstance = this;
