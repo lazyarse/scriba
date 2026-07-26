@@ -93,7 +93,7 @@ else()
     set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 endif()
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor with charts, latex support, code highlighting, pdf export, and configurable")
-set(CPACK_PACKAGE_CONTACT "LazyArse <lazyarse000@proton.me>")
+set(CPACK_PACKAGE_CONTACT "LazyArse <lazyarse000@protonmail.com>")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 include(CPack)
 
