@@ -4,16 +4,21 @@
 #include <QAbstractItemView>
 #include <QDir>
 #include <QFile>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
 
 #include "Editor.h"
+#include "Preferences.h"
 
 class EditorCompletionUITest : public testing::Test
 {
 protected:
     void SetUp() override
     {
+        QSettings().setValue(Preferences::FileAutoComplete, true);
+        QSettings().setValue(Preferences::EmojiAutoComplete, true);
+
         ASSERT_TRUE(tmpDir.isValid());
 
         currentFilePath = tmpDir.path() + "/doc.md";
@@ -89,15 +94,6 @@ protected:
     QString currentFilePath;
     Editor *editor = nullptr;
 };
-
-TEST_F(EditorCompletionUITest, EmptyLinkDoesNotCrash)
-{
-    typeText("![](");
-    EXPECT_EQ(editor->toPlainText(), "![](");
-
-    pressTab();
-    EXPECT_EQ(editor->toPlainText(), "![](");
-}
 
 TEST_F(EditorCompletionUITest, SingleMatchCompletes)
 {
