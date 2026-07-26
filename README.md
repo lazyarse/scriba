@@ -184,8 +184,7 @@ Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't cr
 ./scriba                    # empty editor
 ./scriba file.md            # open file
 ./scriba file1.md file2.md  # open files
-./scriba --debug            # enable JS console logging via Qt logging system
 ```
-JS console messages are routed through Qt's `QLoggingCategory` system. By default they're silent; pass `--debug` or set `QT_LOGGING_RULES="scriba.preview.debug=true"` to see them.
+JS console messages are captured via the Debug Log window (Tools → Debug Log).
 
 
