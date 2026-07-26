@@ -59,12 +59,21 @@ class DemoScribe:
             [str(BUILD_DIR / "scriba"), str(DEMO_FILE)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        time.sleep(1.5)
-        out = subprocess.run(
-            ["xdotool", "search", "--onlyvisible", "--name", "Scriba"],
-            capture_output=True, text=True,
-        )
-        self.wid = out.stdout.strip().split("\n")[0]
+        time.sleep(4)
+        deadline = time.time() + 10
+        self.wid = ""
+        while time.time() < deadline:
+            out = subprocess.run(
+                ["xdotool", "search", "--onlyvisible", "--name", "Scriba"],
+                capture_output=True, text=True,
+            )
+            wids = out.stdout.strip().split("\n")
+            if wids and wids[0]:
+                self.wid = wids[0]
+                break
+            time.sleep(0.1)
+        if not self.wid:
+            raise RuntimeError("Scriba window not found within 10s timeout")
         subprocess.run(["xdotool", "windowsize", self.wid, "800", "400"])
         subprocess.run(["xdotool", "windowmove", self.wid, "0", "0"])
         time.sleep(0.15)

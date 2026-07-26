@@ -1,12 +1,10 @@
 #include <QApplication>
 #include <QIcon>
-#include <QLoggingCategory>
 #include <QMessageBox>
 #include <QStyleFactory>
 #include <unistd.h>
 #include "MainWindow.h"
-
-Q_LOGGING_CATEGORY(lcApp, "scriba")
+#include "LogWindow.h"
 
 int main(int argc, char *argv[])
 {
@@ -26,14 +24,11 @@ int main(int argc, char *argv[])
     app.setApplicationVersion("1.0.0");
     app.setWindowIcon(QIcon(":/icons/scriba.svg"));
 
-    if (app.arguments().contains("--debug"))
-        QLoggingCategory::setFilterRules("scriba.*=true");
+    LogWindow::initDebugLogging();
 
     QStringList args = app.arguments();
     bool hasFiles = false;
     for (int i = 1; i < args.size(); ++i) {
-        if (args[i] == "--debug")
-            continue;
         hasFiles = true;
         break;
     }
@@ -42,11 +37,8 @@ int main(int argc, char *argv[])
     window.show();
 
     if (hasFiles) {
-        for (int i = 1; i < args.size(); ++i) {
-            if (args[i] == "--debug")
-                continue;
+        for (int i = 1; i < args.size(); ++i)
             window.loadFile(args[i]);
-        }
     }
 
     return app.exec();

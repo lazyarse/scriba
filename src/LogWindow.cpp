@@ -8,36 +8,58 @@
 #include <QLoggingCategory>
 #include <QMessageLogContext>
 
-static QtMessageHandler s_originalHandler = nullptr;
+static constexpr int kMaxEntries = 1000;
+
+struct CachedEntry {
+    LogWindow::Level level;
+    QString source;
+    QString message;
+    QString timestamp;
+};
+
+static QtMessageHandler s_prevHandler = nullptr;
 static LogWindow *s_logWindowInstance = nullptr;
+static QVector<CachedEntry> s_buffer;
 
-static void logMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+static void globalHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
-    if (s_logWindowInstance) {
-        QString src = QString::fromLatin1(context.category);
-        if (src.startsWith("scriba."))
-            src = src.mid(7);
-        else if (src.startsWith("scriba"))
-            src = "app";
-        else
-            src = src;
+    QString category = QString::fromLatin1(context.category);
+    bool isScriba = category.startsWith("scriba");
 
-        LogWindow::Level lvl;
-        switch (type) {
-        case QtDebugMsg:      lvl = LogWindow::Info;    break;
-        case QtWarningMsg:    lvl = LogWindow::Warning; break;
-        case QtCriticalMsg:
-        case QtFatalMsg:      lvl = LogWindow::Error;   break;
-        default:              lvl = LogWindow::Info;    break;
-        }
-
-        s_logWindowInstance->addEntry(lvl, src, msg);
+    LogWindow::Level lvl;
+    switch (type) {
+    case QtDebugMsg:      lvl = LogWindow::Info;    break;
+    case QtWarningMsg:    lvl = LogWindow::Warning; break;
+    case QtCriticalMsg:
+    case QtFatalMsg:      lvl = LogWindow::Error;   break;
+    default:              lvl = LogWindow::Info;    break;
     }
 
-    QString cat = QString::fromLatin1(context.category);
-    bool isScriba = cat.startsWith("scriba");
-    if (!isScriba && s_originalHandler)
-        s_originalHandler(type, context, msg);
+    QString src = category;
+    if (src.startsWith("scriba."))
+        src = src.mid(7);
+    else if (src.startsWith("scriba"))
+        src = "app";
+
+    if (!isScriba && s_prevHandler) {
+        s_prevHandler(type, context, msg);
+        return;
+    }
+
+    if (s_logWindowInstance) {
+        s_logWindowInstance->addEntry(lvl, src, msg);
+    } else {
+        QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
+        if (s_buffer.size() >= kMaxEntries)
+            s_buffer.removeFirst();
+        s_buffer.append({lvl, src, msg, ts});
+    }
+}
+
+void LogWindow::initDebugLogging()
+{
+    QLoggingCategory::setFilterRules("scriba.*=true");
+    s_prevHandler = qInstallMessageHandler(globalHandler);
 }
 
 LogWindow::LogWindow(QWidget *parent)
@@ -62,11 +84,11 @@ LogWindow::LogWindow(QWidget *parent)
         btn->setIcon(QIcon());
     layout->addWidget(buttons);
 
-    if (!s_originalHandler)
-        s_originalHandler = qInstallMessageHandler(logMessageHandler);
     s_logWindowInstance = this;
 
-    QLoggingCategory::setFilterRules("scriba.*=true");
+    for (auto &e : s_buffer)
+        addEntry(e.level, e.source, e.message);
+    s_buffer.clear();
 }
 
 LogWindow::~LogWindow()

@@ -14,9 +14,9 @@ public:
     explicit LogWindow(QWidget *parent = nullptr);
     ~LogWindow() override;
 
+    static void initDebugLogging();
     void addEntry(Level level, const QString &source, const QString &message);
 
 private:
     QTextEdit *m_output;
 };
-
