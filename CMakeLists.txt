@@ -62,6 +62,7 @@ target_link_libraries(scriba PRIVATE
     Qt6::Network
     Qt6::WebEngineWidgets
     Qt6::Svg
+    Qt6::PrintSupport
 )
 
 add_custom_command(TARGET scriba POST_BUILD
@@ -309,7 +310,7 @@ if(BUILD_TESTS)
         resources/scriba.qrc)
     target_include_directories(test_pdf_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_pdf_export PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Test)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::PrintSupport Qt6::Test)
     add_test(NAME test_pdf_export COMMAND ${_TEST_PREFIX} ./test_pdf_export)
 endif()
 

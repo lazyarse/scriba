@@ -90,9 +90,9 @@
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Save |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Save As |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reload `.md` |
-| <kbd>Ctrl</kbd>+<kbd>P</kbd> | Export PDF |
+| <kbd>Ctrl</kbd>+<kbd>P</kbd> | Print / Export PDF |
 
-### `.md` Creation
+### Editor
 
 | Shortcut | Action |
 |---|---|

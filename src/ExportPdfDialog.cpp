@@ -41,6 +41,9 @@ Q_LOGGING_CATEGORY(lcPdf, "scriba.pdf", QtWarningMsg)
 #include <QStandardPaths>
 #include <QSharedPointer>
 #include <QMimeDatabase>
+#include <QPrinter>
+#include <QPrintDialog>
+#include <QEventLoop>
 
 static QString replaceQrcUrls(const QString &html)
 {
@@ -293,7 +296,7 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, const QString &defaultFile
     , m_html(html)
     , m_defaultFilePath(defaultFilePath)
 {
-    setWindowTitle("Export PDF");
+    setWindowTitle("Print / Export PDF");
     resize(1100, 700);
 
     setupUi();
@@ -483,18 +486,25 @@ void ExportPdfDialog::setupUi()
 
     mainLayout->addWidget(splitter);
 
-    QDialogButtonBox *buttonBox = new QDialogButtonBox(
-        QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
-    buttonBox->button(QDialogButtonBox::Save)->setText("Export PDF");
-    for (auto *btn : buttonBox->buttons())
-        btn->setIcon(QIcon());
-    mainLayout->addWidget(buttonBox);
+    QHBoxLayout *bottomLayout = new QHBoxLayout();
+    bottomLayout->addStretch();
+
+    auto *cancelBtn = new QPushButton("Cancel");
+    auto *exportPdfBtn = new QPushButton("Export PDF");
+    auto *printBtn = new QPushButton("Print...");
+
+    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+    connect(exportPdfBtn, &QPushButton::clicked, this, [this]() { accept(); });
+    connect(printBtn, &QPushButton::clicked, this, &ExportPdfDialog::printDocument);
+
+    bottomLayout->addWidget(cancelBtn);
+    bottomLayout->addWidget(exportPdfBtn);
+    bottomLayout->addWidget(printBtn);
+    mainLayout->addLayout(bottomLayout);
 
     connect(m_defaultRadio, &QRadioButton::toggled, this, &ExportPdfDialog::onCssModeChanged);
     connect(m_customRadio, &QRadioButton::toggled, this, &ExportPdfDialog::onCssModeChanged);
     connect(m_browseBtn, &QPushButton::clicked, this, &ExportPdfDialog::browseCustomCss);
-    connect(buttonBox, &QDialogButtonBox::accepted, this, [this]() { accept(); });
-    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
 void ExportPdfDialog::onCssModeChanged()
@@ -817,6 +827,34 @@ void ExportPdfDialog::reloadPdfPreview()
     if (!m_showPdfToolbar->isChecked())
         url.setFragment(QStringLiteral("toolbar=0&navpanes=0"));
     m_preview->load(url);
+}
+
+void ExportPdfDialog::printDocument()
+{
+    if (m_pdfData.isEmpty())
+        return;
+
+    QPrinter printer;
+    QSizeF pagePt = parsePageSize(m_currentPrintCss);
+    if (pagePt.isValid() && pagePt.width() > 0 && pagePt.height() > 0) {
+        QPageSize ps(pagePt, QPageSize::Point);
+        if (ps.isValid())
+            printer.setPageSize(ps);
+    }
+
+    QPrintDialog dialog(&printer, this);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    QEventLoop loop;
+    connect(m_hiddenEngine, &QWebEngineView::printFinished,
+            &loop, [&loop](bool success) {
+                if (!success)
+                    qCDebug(lcPdf, "print job failed");
+                loop.quit();
+            });
+    m_hiddenEngine->print(&printer);
+    loop.exec(QEventLoop::ExcludeUserInputEvents);
 }
 
 void ExportPdfDialog::accept()

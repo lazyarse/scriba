@@ -13,6 +13,7 @@ class QPushButton;
 class QPlainTextEdit;
 class QLabel;
 class QTemporaryFile;
+class QPrinter;
 class CssLoader;
 
 class ExportPdfDialog : public QDialog
@@ -32,6 +33,7 @@ private slots:
     void editPrintBaseCss();
     void onPageLoaded(bool ok);
     void reloadPdfPreview();
+    void printDocument();
 
 private:
     friend class PrintExportAccess;
