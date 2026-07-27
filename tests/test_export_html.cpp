@@ -271,6 +271,56 @@ TEST_F(HtmlExportTest, RenderSyncKaTeXDisplayMath)
     EXPECT_TRUE(rendered.contains("katex-display")) << "Display math should use .katex-display class";
 }
 
+TEST_F(HtmlExportTest, DocxOmmlPipelineSetsDataTexOnDisplayMath)
+{
+    // Simulate the full OMML export pipeline: body HTML with already-rendered
+    // KaTeX display math (as it comes from the main preview) goes through
+    // buildFullHtmlForDocxOmml → renderSync. The JS must set data-tex
+    // on display math spans using getElementsByTagNameNS for MathML annotation.
+    QString bodyHtml =
+        "<p>Display math:</p>"
+        "<div class=\"katex-display\">"
+        "<span class=\"katex\">"
+        "<span class=\"katex-mathml\">"
+        "<math display=\"block\" xmlns=\"http://www.w3.org/1998/Math/MathML\">"
+        "<semantics>"
+        "<mrow><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></mrow>"
+        "<annotation encoding=\"application/x-tex\">E=mc^2</annotation>"
+        "</semantics>"
+        "</math>"
+        "</span>"
+        "<span class=\"katex-html\" aria-hidden=\"true\"><span class=\"base\">E=mc²</span></span>"
+        "</span>"
+        "</div>"
+        "<p>After display math</p>";
+
+    QString fullHtml = JsRenderEngine::buildFullHtmlForDocxOmml(
+        bodyHtml, "body{}", "bw", "default");
+
+    QString rendered = JsRenderEngine::renderSync(fullHtml, "file:///tmp/", 15000);
+    ASSERT_FALSE(rendered.isEmpty()) << "OMML pipeline must produce output";
+
+    // The .katex span must have a data-tex attribute set by the JS
+    // (via getElementsByTagNameNS annotation extraction)
+    EXPECT_TRUE(rendered.contains("data-tex"))
+        << "KaTeX span must have data-tex attribute from MathML annotation";
+
+    // The data-tex value must contain the TeX source, not "math" fallback
+    EXPECT_TRUE(rendered.contains("data-tex=\"E=mc^2\"")
+                || rendered.contains("data-tex=&quot;E=mc^2&quot;"))
+        << "data-tex must contain the actual TeX source, not 'math' fallback";
+
+    // The katex-mathml and katex-html inner spans should be removed
+    EXPECT_FALSE(rendered.contains("katex-mathml"))
+        << "katex-mathml span should be removed by JS";
+    EXPECT_FALSE(rendered.contains("katex-html"))
+        << "katex-html span should be removed by JS";
+
+    // Content after display math must survive
+    EXPECT_TRUE(rendered.contains("After display math"))
+        << "Content after display math must survive";
+}
+
 TEST_F(HtmlExportTest, ExportHtmlStructureIncludesKatexCss)
 {
     // The exported HTML should include KaTeX CSS for offline rendering

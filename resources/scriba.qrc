@@ -20,6 +20,7 @@
         <file>katex.min.js</file>
         <file>katex.min.css</file>
         <file>contrib/auto-render.min.js</file>
+        <file>contrib/mhchem.min.js</file>
         <file>fonts/KaTeX_AMS-Regular.woff2</file>
         <file>fonts/KaTeX_Caligraphic-Bold.woff2</file>
         <file>fonts/KaTeX_Caligraphic-Regular.woff2</file>

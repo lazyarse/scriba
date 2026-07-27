@@ -11,6 +11,12 @@ public:
     static QString buildFullHtml(const QString &bodyHtml, const QString &css,
                                  const QString &emojiMode, const QString &mermaidTheme);
 
+    static QString buildFullHtmlForDocx(const QString &bodyHtml, const QString &css,
+                                        const QString &emojiMode, const QString &mermaidTheme);
+
+    static QString buildFullHtmlForDocxOmml(const QString &bodyHtml, const QString &css,
+                                            const QString &emojiMode, const QString &mermaidTheme);
+
     static QString replaceQrcUrls(const QString &html);
 
     static QString renderSync(const QString &fullHtml, const QString &baseUrl,

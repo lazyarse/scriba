@@ -5,6 +5,7 @@
 #include <QMap>
 #include <QPainter>
 #include <QRegularExpression>
+#include <QSet>
 #include <QSvgRenderer>
 #include <QXmlStreamWriter>
 
@@ -19,6 +20,8 @@ struct FormatState {
 static QXmlStreamWriter *bodyWriter = nullptr;
 static QVector<OoxmlImage> *g_images = nullptr;
 static int g_imageCounter = 0;
+static QVector<OoxmlHyperlink> *g_hyperlinks = nullptr;
+static int g_hyperlinkCounter = 0;
 
 // ── Simple HTML tag scanner ──────────────────────────────────────────────────
 
@@ -73,8 +76,16 @@ class SimpleHtmlParser {
 
         while (pos_ < html_.size() && html_[pos_] == '<') {
             lastTagStart_ = pos_;
-            int close = html_.indexOf('>', pos_);
-            if (close == -1) { t.type = HtmlToken::Done; return t; }
+            // Find closing >, skipping > inside quoted attribute values
+            int close = pos_;
+            bool dq = false, sq = false;
+            while (close < html_.size()) {
+                if (!dq && !sq && html_[close] == '>') break;
+                if (html_[close] == '"' && !sq) dq = !dq;
+                if (html_[close] == '\'' && !dq) sq = !sq;
+                ++close;
+            }
+            if (close >= html_.size()) { t.type = HtmlToken::Done; return t; }
             int nameStart = pos_ + 1;
             bool isClose = (nameStart < html_.size() && html_[nameStart] == '/');
             if (isClose) ++nameStart;
@@ -157,31 +168,16 @@ public:
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-static void writeRun(QXmlStreamWriter &w, const QString &text, const FormatState &fs)
+static bool isVoidElement(const QString &name)
 {
-    if (text.isEmpty()) return;
-    w.writeStartElement("w:r");
-    if (fs.bold || fs.italic || fs.code) {
-        w.writeStartElement("w:rPr");
-        if (fs.bold) w.writeEmptyElement("w:b");
-        if (fs.italic) w.writeEmptyElement("w:i");
-        if (fs.code) {
-            w.writeStartElement("w:rFonts");
-            w.writeAttribute("w:ascii", "Courier New");
-            w.writeAttribute("w:hAnsi", "Courier New");
-            w.writeEndElement();
-            w.writeStartElement("w:sz");
-            w.writeAttribute("w:val", "18");
-            w.writeEndElement();
-        }
-        w.writeEndElement();
-    }
-    w.writeStartElement("w:t");
-    if (!text.isEmpty() && (text[0] == ' ' || text.back() == ' '))
-        w.writeAttribute("xml:space", "preserve");
-    w.writeCharacters(text);
-    w.writeEndElement();
-    w.writeEndElement();
+    static const QSet<QString> voids = {
+        QStringLiteral("area"),   QStringLiteral("base"),  QStringLiteral("col"),
+        QStringLiteral("embed"),  QStringLiteral("hr"),    QStringLiteral("input"),
+        QStringLiteral("keygen"), QStringLiteral("link"),  QStringLiteral("meta"),
+        QStringLiteral("param"),  QStringLiteral("source"), QStringLiteral("track"),
+        QStringLiteral("wbr"),
+    };
+    return voids.contains(name);
 }
 
 static void writeBreak(QXmlStreamWriter &w)
@@ -190,6 +186,124 @@ static void writeBreak(QXmlStreamWriter &w)
     w.writeEmptyElement("w:br");
     w.writeEndElement();
 }
+
+// Extract plain text from a KaTeX HTML span tree, ignoring structure
+static QString extractKatexText(SimpleHtmlParser &parser, const QString &endTag)
+{
+    QString result;
+    int depth = 1;
+    while (!parser.atEnd() && depth > 0) {
+        parser.readNext();
+        const auto &tok = parser.current();
+        if (tok.type == HtmlToken::TagClose && tok.name == endTag) {
+            --depth;
+            continue;
+        }
+        if (tok.type == HtmlToken::TagOpen || tok.type == HtmlToken::SelfClose) {
+            const QString &n = tok.name;
+            if (isVoidElement(n)) continue;
+            if (n == "annotation" && tok.attrs.value("encoding") == "application/x-tex") {
+                // KaTeX stores the original TeX in <annotation encoding="application/x-tex">
+                // This is the most faithful representation
+                while (!parser.atEnd()) {
+                    parser.readNext();
+                    if (parser.current().type == HtmlToken::Text) {
+                        return parser.current().text.trimmed();
+                    }
+                    if (parser.current().type == HtmlToken::TagClose && parser.current().name == "annotation")
+                        break;
+                }
+            }
+            ++depth;
+        } else if (tok.type == HtmlToken::Text) {
+            result += tok.text;
+        }
+    }
+    return result.trimmed();
+}
+
+// Write KaTeX math as OMML <m:oMath> with TeX from data-tex attribute
+static void writeKatexAsOmml(SimpleHtmlParser &parser, const QString &endTag,
+                             const QString &texSource)
+{
+    // Consume everything until the matching closing tag
+    int depth = 1;
+    while (!parser.atEnd() && depth > 0) {
+        parser.readNext();
+        const auto &tok = parser.current();
+        if (tok.type == HtmlToken::TagClose && tok.name == endTag) {
+            --depth;
+        } else if (tok.type == HtmlToken::TagOpen && tok.name == "span"
+                   && tok.type != HtmlToken::SelfClose) {
+            ++depth;
+        }
+    }
+
+    QString tex = texSource.trimmed();
+    if (tex.isEmpty())
+        tex = QStringLiteral("math");
+
+    bodyWriter->writeStartElement("m:oMath");
+    bodyWriter->writeStartElement("m:r");
+    bodyWriter->writeStartElement("m:rPr");
+    bodyWriter->writeStartElement("m:sty");
+    bodyWriter->writeAttribute("m:val", "p");
+    bodyWriter->writeEndElement();
+    bodyWriter->writeEndElement();
+    bodyWriter->writeStartElement("m:t");
+    bodyWriter->writeAttribute("xml:space", "preserve");
+    bodyWriter->writeCharacters(tex);
+    bodyWriter->writeEndElement();
+    bodyWriter->writeEndElement();
+    bodyWriter->writeEndElement();
+}
+
+static void writeRunWithBreaks(QXmlStreamWriter &w, const QString &text, const FormatState &fs)
+{
+    if (text.isEmpty()) return;
+
+    auto writeRpr = [&]() {
+        if (fs.bold || fs.italic || fs.code) {
+            w.writeStartElement("w:rPr");
+            if (fs.bold) w.writeEmptyElement("w:b");
+            if (fs.italic) w.writeEmptyElement("w:i");
+            if (fs.code) {
+                w.writeStartElement("w:rFonts");
+                w.writeAttribute("w:ascii", "Courier New");
+                w.writeAttribute("w:hAnsi", "Courier New");
+                w.writeEndElement();
+                w.writeStartElement("w:sz");
+                w.writeAttribute("w:val", "18");
+                w.writeEndElement();
+            }
+            w.writeEndElement();
+        }
+    };
+
+    // Split on newlines so OOXML preserves line breaks in code blocks
+    QStringList parts = text.split(QLatin1Char('\n'));
+    for (int i = 0; i < parts.size(); ++i) {
+        if (i > 0) {
+            // Emit a line break between segments
+            writeBreak(w);
+        }
+        if (parts[i].isEmpty()) continue;
+        w.writeStartElement("w:r");
+        writeRpr();
+        w.writeStartElement("w:t");
+        if (!parts[i].isEmpty() && (parts[i][0] == ' ' || parts[i].back() == ' '))
+            w.writeAttribute("xml:space", "preserve");
+        w.writeCharacters(parts[i]);
+        w.writeEndElement();
+        w.writeEndElement();
+    }
+}
+
+static void writeRun(QXmlStreamWriter &w, const QString &text, const FormatState &fs)
+{
+    writeRunWithBreaks(w, text, fs);
+}
+
 
 // ── forward declarations ────────────────────────────────────────────────────
 
@@ -520,13 +634,30 @@ static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTa
                 s.code = true;
                 processInlineChildren(parser, n, s);
             } else if (n == "a") {
+                QString href = tok.attrs.value(QStringLiteral("href"));
+                QString relId;
+                if (!href.isEmpty() && g_hyperlinks) {
+                    int id = ++g_hyperlinkCounter;
+                    relId = QStringLiteral("rIdLink%1").arg(id);
+                    g_hyperlinks->push_back({relId, href});
+                    bodyWriter->writeStartElement("w:hyperlink");
+                    bodyWriter->writeAttribute(
+                        QStringLiteral("r:id"), relId);
+                }
                 processInlineChildren(parser, QStringLiteral("a"), state);
+                if (!relId.isEmpty())
+                    bodyWriter->writeEndElement(); // w:hyperlink
             } else if (n == "br") {
                 writeBreak(*bodyWriter);
             } else if (n == "img") {
                 handleImgTag(tok);
             } else if (n == "svg") {
                 handleSvgInline(parser);
+            } else if (n == "span" && tok.attrs.value("class").split(' ').contains("katex")) {
+                // KaTeX math — convert to OMML using data-tex attribute
+                writeKatexAsOmml(parser, n, tok.attrs.value(QStringLiteral("data-tex")));
+            } else if (isVoidElement(n)) {
+                // Void elements (input, hr, col, etc.) have no closing tag — skip
             } else {
                 processInlineChildren(parser, n, state);
             }
@@ -695,7 +826,13 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
         if (tag.startsWith('h') && tag.length() == 2 && tag[1] >= '1' && tag[1] <= '6') {
             handleParagraph("Heading" + tag.mid(1), parser, tag, state);
         } else if (tag == "p") {
-            handleParagraph("Normal", parser, tag, state);
+            // Check if this is an admonition title paragraph
+            QString pClass = tok.attrs.value(QStringLiteral("class"));
+            QString styleId = "Normal";
+            if (pClass.contains("admonition-title")) {
+                styleId = "AdmonitionTitle";
+            }
+            handleParagraph(styleId, parser, tag, state);
         } else if (tag == "pre") {
             handlePre(parser);
         } else if (tag == "blockquote") {
@@ -710,6 +847,15 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
             handleDiv(parser, tag);
         } else if (tag == "svg") {
             handleSvgBlock(parser);
+        } else if (tag == "span" && tok.attrs.value("class").split(' ').contains("katex")) {
+            // KaTeX math at block level (e.g. inside katex-display div)
+            bodyWriter->writeStartElement("w:p");
+            writeKatexAsOmml(parser, tag, tok.attrs.value(QStringLiteral("data-tex")));
+            bodyWriter->writeEndElement();
+        } else if (tag == "img") {
+            handleImgTag(tok);
+        } else if (isVoidElement(tag)) {
+            // Void elements have no closing tag — skip
         } else {
             processBlockChildren(parser, tag, state);
         }
@@ -739,10 +885,15 @@ OoxmlResult HtmlToOoxml::convert(const QString &html, const QString &themeCss)
     w.writeNamespace(
         QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
         QStringLiteral("r"));
+    w.writeNamespace(
+        QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/math"),
+        QStringLiteral("m"));
 
     OoxmlResult result;
     g_images = &result.images;
     g_imageCounter = 0;
+    g_hyperlinks = &result.hyperlinks;
+    g_hyperlinkCounter = 0;
 
     w.writeStartElement("x");
 
@@ -759,6 +910,7 @@ OoxmlResult HtmlToOoxml::convert(const QString &html, const QString &themeCss)
         result.bodyXml = raw.mid(start + 1, end - start - 1);
 
     g_images = nullptr;
+    g_hyperlinks = nullptr;
     return result;
 }
 
@@ -915,6 +1067,39 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
     w.writeEndElement();
     w.writeStartElement("w:color");
     w.writeAttribute("w:val", "555555");
+    w.writeEndElement();
+    w.writeEndElement();
+    w.writeEndElement();
+
+    // AdmonitionTitle style: bold text with light blue background
+    w.writeStartElement("w:style");
+    w.writeAttribute("w:type", "paragraph");
+    w.writeAttribute("w:styleId", "AdmonitionTitle");
+    w.writeTextElement("w:name", "Admonition Title");
+    w.writeTextElement("w:basedOn", "Normal");
+    w.writeStartElement("w:pPr");
+    w.writeStartElement("w:spacing");
+    w.writeAttribute("w:before", "120");
+    w.writeAttribute("w:after", "60");
+    w.writeEndElement();
+    w.writeStartElement("w:shd");
+    w.writeAttribute("w:val", "clear");
+    w.writeAttribute("w:fill", "E8F4FD");
+    w.writeEndElement();
+    w.writeStartElement("w:pBdr");
+    w.writeStartElement("w:left");
+    w.writeAttribute("w:val", "single");
+    w.writeAttribute("w:sz", "24");
+    w.writeAttribute("w:space", "8");
+    w.writeAttribute("w:color", "2B579A");
+    w.writeEndElement();
+    w.writeEndElement();
+    w.writeEndElement();
+    w.writeStartElement("w:rPr");
+    w.writeStartElement("w:b");
+    w.writeEndElement();
+    w.writeStartElement("w:color");
+    w.writeAttribute("w:val", "2B579A");
     w.writeEndElement();
     w.writeEndElement();
     w.writeEndElement();

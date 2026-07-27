@@ -4,6 +4,32 @@
 #include <QString>
 #include <QVector>
 
+enum class OoxmlRelType {
+    Styles,
+    Numbering,
+    Image,
+    Hyperlink
+};
+
+inline QString ooxmlRelTypeUri(OoxmlRelType t)
+{
+    switch (t) {
+    case OoxmlRelType::Styles:
+        return QStringLiteral(
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
+    case OoxmlRelType::Numbering:
+        return QStringLiteral(
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering");
+    case OoxmlRelType::Image:
+        return QStringLiteral(
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
+    case OoxmlRelType::Hyperlink:
+        return QStringLiteral(
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink");
+    }
+    return {};
+}
+
 struct OoxmlImage {
     QString relId;
     QString fileName;
@@ -12,9 +38,15 @@ struct OoxmlImage {
     int cyEmu = 0;  // height in EMUs
 };
 
+struct OoxmlHyperlink {
+    QString relId;
+    QString target;
+};
+
 struct OoxmlResult {
     QString bodyXml;
     QVector<OoxmlImage> images;
+    QVector<OoxmlHyperlink> hyperlinks;
 };
 
 class HtmlToOoxml

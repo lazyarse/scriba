@@ -23,6 +23,7 @@ add_executable(scriba
     src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp
     src/ExportHtmlDialog.cpp
+    src/ExportDocxDialog.cpp
     src/DocxExporter.cpp
     src/HtmlToOoxml.cpp
     src/FindDialog.cpp
@@ -45,6 +46,7 @@ add_executable(scriba
     src/MermaidQuadrantDialog.cpp
     src/MermaidSankeyDialog.cpp
     src/KatexHelperDialog.cpp
+    src/MchemHelperDialog.cpp
     src/StaticHelpers.cpp
     src/JsSnippets.cpp
     src/JsRenderEngine.cpp
@@ -197,6 +199,14 @@ if(BUILD_TESTS)
         PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
     add_test(NAME test_katex_helper_dialog COMMAND ${_TEST_PREFIX} ./test_katex_helper_dialog)
 
+    add_executable(test_mchem_helper_dialog
+        tests/test_mchem_helper_dialog.cpp
+        src/MchemHelperDialog.cpp
+        src/Preview.cpp)
+    target_link_libraries(test_mchem_helper_dialog
+        PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mchem_helper_dialog COMMAND ${_TEST_PREFIX} ./test_mchem_helper_dialog)
+
     add_executable(test_editor_autocomplete tests/test_editor_autocomplete.cpp)
     target_link_libraries(test_editor_autocomplete PRIVATE GTest::gtest_main Qt6::Core)
     add_test(NAME test_editor_autocomplete COMMAND ${_TEST_PREFIX} ./test_editor_autocomplete)
@@ -211,7 +221,7 @@ if(BUILD_TESTS)
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp
         src/FindDialog.cpp
         src/LogWindow.cpp
@@ -229,6 +239,7 @@ if(BUILD_TESTS)
     src/MermaidQuadrantDialog.cpp
     src/MermaidSankeyDialog.cpp
     src/KatexHelperDialog.cpp
+    src/MchemHelperDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -241,7 +252,7 @@ if(BUILD_TESTS)
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -251,6 +262,7 @@ if(BUILD_TESTS)
         src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
         src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
         src/KatexHelperDialog.cpp
+        src/MchemHelperDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -262,7 +274,7 @@ if(BUILD_TESTS)
     src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
     src/CssConfig.cpp src/CssLoader.cpp
     src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-    src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
+    src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
     src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
     src/LogWindow.cpp
     src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -272,6 +284,7 @@ if(BUILD_TESTS)
     src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
     src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
     src/KatexHelperDialog.cpp
+    src/MchemHelperDialog.cpp
     src/TableDialog.cpp
     resources/scriba.qrc)
 target_include_directories(test_editor_initial_css PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -284,7 +297,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -294,6 +307,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
         src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
         src/KatexHelperDialog.cpp
+        src/MchemHelperDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -323,5 +337,17 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
     target_link_libraries(test_export_html PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Network Qt6::Test)
     add_test(NAME test_export_html COMMAND ${_TEST_PREFIX} ./test_export_html)
+
+    add_executable(test_docx_export tests/test_docx_export.cpp
+        src/HtmlToOoxml.cpp)
+    target_include_directories(test_docx_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_docx_export PRIVATE
+        scriba_core GTest::gtest Qt6::Gui Qt6::Svg)
+    add_test(NAME test_docx_export COMMAND ${_TEST_PREFIX} ./test_docx_export)
+
+    add_executable(test_mchem_integration tests/test_mchem_integration.cpp)
+    target_compile_definitions(test_mchem_integration PRIVATE RESOURCE_DIR="${CMAKE_SOURCE_DIR}/resources")
+    target_link_libraries(test_mchem_integration PRIVATE GTest::gtest_main Qt6::Core)
+    add_test(NAME test_mchem_integration COMMAND ${_TEST_PREFIX} ./test_mchem_integration)
 endif()
 
