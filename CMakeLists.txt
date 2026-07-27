@@ -345,6 +345,15 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         scriba_core GTest::gtest Qt6::Gui Qt6::Svg)
     add_test(NAME test_docx_export COMMAND ${_TEST_PREFIX} ./test_docx_export)
 
+    add_executable(test_docx_image_export tests/test_docx_image_export.cpp
+        src/JsRenderEngine.cpp src/Preview.cpp
+        src/CssConfig.cpp src/CssLoader.cpp src/HtmlToOoxml.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_docx_image_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_docx_image_export PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Network Qt6::Svg)
+    add_test(NAME test_docx_image_export COMMAND ${_TEST_PREFIX} ./test_docx_image_export)
+
     add_executable(test_mchem_integration tests/test_mchem_integration.cpp)
     target_compile_definitions(test_mchem_integration PRIVATE RESOURCE_DIR="${CMAKE_SOURCE_DIR}/resources")
     target_link_libraries(test_mchem_integration PRIVATE GTest::gtest_main Qt6::Core)

@@ -492,7 +492,7 @@ static void handleSvgBlock(SimpleHtmlParser &parser)
     if (relId.isEmpty()) return;
 
     bodyWriter->writeStartElement("w:p");
-    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu);
+    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu, g_imageCounter);
     bodyWriter->writeEndElement();
 }
 
@@ -538,7 +538,7 @@ static void handleSvgInline(SimpleHtmlParser &parser)
     QString relId = registerImage(pngData, cxEmu, cyEmu);
     if (relId.isEmpty()) return;
 
-    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu);
+    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu, g_imageCounter);
 }
 
 static void handleImgTag(const HtmlToken &tok)
@@ -560,6 +560,32 @@ static void handleImgTag(const HtmlToken &tok)
     int imgW = image.width();
     int imgH = image.height();
     if (imgW <= 0 || imgH <= 0) return;
+
+    // Crop transparent margins (display math often has large transparent padding
+    // from KaTeX block elements stretching to the full container width)
+    {
+        int firstX = imgW, lastX = 0, firstY = imgH, lastY = 0;
+        for (int y = 0; y < imgH; ++y) {
+            const QRgb *line = reinterpret_cast<const QRgb *>(image.constScanLine(y));
+            for (int x = 0; x < imgW; ++x) {
+                if (qAlpha(line[x]) > 0) {
+                    if (x < firstX) firstX = x;
+                    if (x > lastX)  lastX = x;
+                    if (y < firstY) firstY = y;
+                    if (y > lastY)  lastY = y;
+                }
+            }
+        }
+        if (firstX <= lastX && firstY <= lastY) {
+            int cropW = lastX - firstX + 1;
+            int cropH = lastY - firstY + 1;
+            if (cropW < imgW || cropH < imgH) {
+                image = image.copy(firstX, firstY, cropW, cropH);
+                imgW = cropW;
+                imgH = cropH;
+            }
+        }
+    }
 
     // Apply max-width / max-height from style attribute (set by #WxH markdown suffix)
     static const QRegularExpression maxRe(
@@ -590,10 +616,12 @@ static void handleImgTag(const HtmlToken &tok)
     image.save(&buf, "PNG");
 
     // EMUs: 1 inch = 914400 EMUs. Cap width to 5.5 inches.
+    // Canvas captured at 2× CSS pixels (HiDPI in convertKatexToImages).
+    // CSS pixels are at 96 DPI → 192 canvas-pixels per inch.
     static constexpr int kMaxEmu = 5029200;
-    double scale = 150.0 / 96.0;  // assume 96 DPI source, render at 150 DPI
-    int cxEmu = qMax(1, static_cast<int>(imgW * scale / 96.0 * 914400.0));
-    int cyEmu = qMax(1, static_cast<int>(imgH * scale / 96.0 * 914400.0));
+    static constexpr double kPxToEmu = 914400.0 / 192.0;
+    int cxEmu = qMax(1, static_cast<int>(imgW * kPxToEmu));
+    int cyEmu = qMax(1, static_cast<int>(imgH * kPxToEmu));
     if (cxEmu > kMaxEmu) {
         cyEmu = static_cast<int>(static_cast<qint64>(cyEmu) * kMaxEmu / cxEmu);
         cxEmu = kMaxEmu;
@@ -602,9 +630,7 @@ static void handleImgTag(const HtmlToken &tok)
     QString relId = registerImage(pngData, cxEmu, cyEmu);
     if (relId.isEmpty()) return;
 
-    bodyWriter->writeStartElement("w:p");
-    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu);
-    bodyWriter->writeEndElement();
+    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu, g_imageCounter);
 }
 
 static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTag,
@@ -853,7 +879,9 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
             writeKatexAsOmml(parser, tag, tok.attrs.value(QStringLiteral("data-tex")));
             bodyWriter->writeEndElement();
         } else if (tag == "img") {
+            bodyWriter->writeStartElement("w:p");
             handleImgTag(tok);
+            bodyWriter->writeEndElement();
         } else if (isVoidElement(tag)) {
             // Void elements have no closing tag — skip
         } else {
