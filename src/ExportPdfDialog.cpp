@@ -3,7 +3,6 @@
 #include "CssEditorDialog.h"
 #include "CssLoader.h"
 #include "CssUtils.h"
-#include "JsSnippets.h"
 #include "Preview.h"
 #include "Preferences.h"
 #include <QVBoxLayout>
@@ -46,32 +45,7 @@ Q_LOGGING_CATEGORY(lcPdf, "scriba.pdf", QtWarningMsg)
 #include <QPrinter>
 #include <QPrintDialog>
 #include <QEventLoop>
-
-static QString replaceQrcUrls(const QString &html)
-{
-    QMimeDatabase mimeDb;
-    static const QRegularExpression re(QStringLiteral("qrc:///[^\"' )]+"),
-                                       QRegularExpression::CaseInsensitiveOption);
-    QString result = html;
-    int offset = 0;
-    auto it = re.globalMatch(html);
-    while (it.hasNext()) {
-        auto match = it.next();
-        QString qrcUrl = match.captured(0);
-        // qrc:///twemoji/svg/1f600.svg -> :/twemoji/svg/1f600.svg
-        QString resPath = QStringLiteral(":") + qrcUrl.mid(6);
-        QFile f(resPath);
-        if (!f.open(QIODevice::ReadOnly))
-            continue;
-        QByteArray data = f.readAll();
-        QString mime = mimeDb.mimeTypeForFileNameAndData(qrcUrl, data).name();
-        QString dataUri = QStringLiteral("data:%1;base64,%2")
-                              .arg(mime, QString::fromLatin1(data.toBase64()));
-        result.replace(match.capturedStart(0) + offset, match.capturedLength(0), dataUri);
-        offset += dataUri.size() - match.capturedLength(0);
-    }
-    return result;
-}
+#include "JsRenderEngine.h"
 
 enum class CssUnit { Mm, Cm, In, Pt, Px, Pc };
 
@@ -532,38 +506,17 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
     QString stripeCss = striping ? QString()
         : QLatin1String(Preferences::TableStripePdfCss);
 
+    QString mergedCss = printCss;
+    if (!stripeCss.isEmpty())
+        mergedCss += QStringLiteral("\n") + stripeCss;
+
     QString emojiMode = settings.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
 
     QString mermaidTheme = CssUtils::isDarkTheme(m_loader->themeCss())
         ? QStringLiteral("dark") : QStringLiteral("default");
 
-    return QString(
-        "<!DOCTYPE html><html><head>"
-        "<style>%1</style>"
-        "<style>%2</style>"
-        "<style>#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
-        "<script src=\"qrc:///highlight.min.js\"></script>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
-        "<script src=\"qrc:///katex.min.js\"></script>"
-        "<script src=\"qrc:///contrib/auto-render.min.js\"></script>"
-        "<script src=\"qrc:///vega.min.js\"></script>"
-        "<script src=\"qrc:///vega-lite.min.js\"></script>"
-        "<script src=\"qrc:///vega-embed.min.js\"></script>"
-        "<script src=\"qrc:///twemoji.min.js\"></script>"
-        "<script src=\"qrc:///emoji.js\"></script>"
-        "<script>%3%4%5%6"
-        "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
-        "document.addEventListener('DOMContentLoaded',function(){"
-        "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();"
-        "replaceEmoji(document.body);twemojiParse('%7');"
-        "});</script>"
-        "</head><body id=\"preview\">%8</body></html>"
-    ).arg(printCss, stripeCss,
-          mermaidInitJs, headingIdJs, katexInitJs, vegaLiteInitJs,
-          emojiMode, m_html);
+    return JsRenderEngine::buildFullHtml(m_html, mergedCss, emojiMode, mermaidTheme);
 }
 
 void ExportPdfDialog::onPageLoaded(bool ok)
@@ -642,7 +595,7 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
         qCDebug(lcPdf, "extracted body HTML: %zu bytes",
                 static_cast<size_t>(bodyHtml.size()));
 
-        bodyHtml = replaceQrcUrls(bodyHtml);
+        bodyHtml = JsRenderEngine::replaceQrcUrls(bodyHtml);
 
         QString metaHead = QStringLiteral(
             "<meta charset=\"utf-8\">"

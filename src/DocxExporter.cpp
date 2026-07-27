@@ -59,7 +59,7 @@ static uint32_t zipCrc32(const QByteArray &data)
     return crc ^ 0xFFFFFFFF;
 }
 
-static QByteArray buildContentTypes()
+static QByteArray buildContentTypes(int imageCount)
 {
     QByteArray out;
     QXmlStreamWriter w(&out);
@@ -87,24 +87,33 @@ static QByteArray buildContentTypes()
     w.writeAttribute("ContentType",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml");
     w.writeEndElement();
+    if (imageCount > 0) {
+        w.writeStartElement("Default");
+        w.writeAttribute("Extension", "png");
+        w.writeAttribute("ContentType", "image/png");
+        w.writeEndElement();
+    }
     w.writeEndElement();
     w.writeEndDocument();
     return out;
 }
 
-static QByteArray buildDocumentXml(const QString &html, const QString &css)
+static QByteArray buildDocumentXml(const OoxmlResult &ooxml)
 {
-    QString body = HtmlToOoxml::convert(html, css);
     return QByteArray(
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
-        "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">\n"
+        "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\""
+        " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""
+        " xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+        " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\""
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">\n"
         "<w:body>\n"
-    ).append(body.toUtf8()).append(
+    ).append(ooxml.bodyXml.toUtf8()).append(
         "</w:body>\n</w:document>\n"
     );
 }
 
-static QByteArray buildRels()
+static QByteArray buildRels(const QVector<OoxmlImage> &images)
 {
     QByteArray out;
     QXmlStreamWriter w(&out);
@@ -124,6 +133,14 @@ static QByteArray buildRels()
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering");
     w.writeAttribute("Target", "numbering.xml");
     w.writeEndElement();
+    for (const auto &img : images) {
+        w.writeStartElement("Relationship");
+        w.writeAttribute("Id", img.relId);
+        w.writeAttribute("Type",
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
+        w.writeAttribute("Target", img.fileName);
+        w.writeEndElement();
+    }
     w.writeEndElement();
     w.writeEndDocument();
     return out;
@@ -246,6 +263,8 @@ static bool writeZip(QFile &out, const QVector<ZipEntry> &entries)
 bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
                                 const QString &css)
 {
+    OoxmlResult ooxml = HtmlToOoxml::convert(html, css);
+
     QVector<ZipEntry> entries;
 
     // Build all parts in memory
@@ -259,7 +278,7 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
     {
         ZipEntry e;
         e.name = "[Content_Types].xml";
-        e.data = buildContentTypes();
+        e.data = buildContentTypes(ooxml.images.size());
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }
@@ -273,14 +292,14 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
     {
         ZipEntry e;
         e.name = "word/document.xml";
-        e.data = buildDocumentXml(html, css);
+        e.data = buildDocumentXml(ooxml);
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }
     {
         ZipEntry e;
         e.name = "word/_rels/document.xml.rels";
-        e.data = buildRels();
+        e.data = buildRels(ooxml.images);
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }
@@ -302,6 +321,15 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
         ZipEntry e;
         e.name = "docProps/core.xml";
         e.data = buildCoreProps();
+        e.crc32 = zipCrc32(e.data);
+        entries.append(e);
+    }
+
+    // Add images
+    for (const auto &img : ooxml.images) {
+        ZipEntry e;
+        e.name = "word/" + img.fileName;
+        e.data = img.pngData;
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }

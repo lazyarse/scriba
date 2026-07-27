@@ -1,7 +1,11 @@
 #include "HtmlToOoxml.h"
+#include <QBuffer>
+#include <QImage>
 #include <QLoggingCategory>
 #include <QMap>
+#include <QPainter>
 #include <QRegularExpression>
+#include <QSvgRenderer>
 #include <QXmlStreamWriter>
 
 Q_LOGGING_CATEGORY(lcH2O, "scriba.html2ooxml")
@@ -13,6 +17,8 @@ struct FormatState {
 };
 
 static QXmlStreamWriter *bodyWriter = nullptr;
+static QVector<OoxmlImage> *g_images = nullptr;
+static int g_imageCounter = 0;
 
 // ── Simple HTML tag scanner ──────────────────────────────────────────────────
 
@@ -27,6 +33,7 @@ struct HtmlToken {
 class SimpleHtmlParser {
     const QString &html_;
     int pos_ = 0;
+    int lastTagStart_ = 0;
     HtmlToken cur_;
 
     static QString decodeEntities(const QString &raw)
@@ -65,6 +72,7 @@ class SimpleHtmlParser {
         if (pos_ >= html_.size()) { t.type = HtmlToken::Done; return t; }
 
         while (pos_ < html_.size() && html_[pos_] == '<') {
+            lastTagStart_ = pos_;
             int close = html_.indexOf('>', pos_);
             if (close == -1) { t.type = HtmlToken::Done; return t; }
             int nameStart = pos_ + 1;
@@ -141,6 +149,10 @@ public:
     const HtmlToken &current() const { return cur_; }
     void readNext() { cur_ = fetch(); started_ = true; }
     bool atEnd() const { return started_ && cur_.type == HtmlToken::Done; }
+    int tagStart() const { return lastTagStart_; }
+    int pos() const { return pos_; }
+    const QString &rawHtml() const { return html_; }
+    void seekTo(int p) { if (p > pos_) pos_ = p; }
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -184,6 +196,237 @@ static void writeBreak(QXmlStreamWriter &w)
 static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag,
                                  FormatState state);
 
+// ── SVG / image helpers ────────────────────────────────────────────────────
+
+static std::tuple<QByteArray, int, int> rasterizeSvg(const QString &svgXml)
+{
+    if (svgXml.isEmpty())
+        return {QByteArray(), 0, 0};
+
+    QSvgRenderer renderer(svgXml.toUtf8());
+    if (!renderer.isValid())
+        return {QByteArray(), 0, 0};
+
+    QRectF vb = renderer.viewBox();
+    if (vb.isEmpty())
+        vb = QRectF(QPointF(0, 0), renderer.defaultSize());
+    if (vb.isEmpty() || vb.width() <= 0 || vb.height() <= 0)
+        return {QByteArray(), 0, 0};
+
+    // Rasterize at 150 DPI for good print quality (SVG default is ~72-96 DPI)
+    double scale = 150.0 / 72.0;
+    int w = qMax(1, static_cast<int>(vb.width() * scale));
+    int h = qMax(1, static_cast<int>(vb.height() * scale));
+
+    QImage image(w, h, QImage::Format_ARGB32);
+    image.fill(Qt::white);
+    QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
+    renderer.render(&painter);
+    painter.end();
+
+    QByteArray pngData;
+    QBuffer buffer(&pngData);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+
+    // EMUs: 1 inch = 914400 EMUs. Cap width to 5.5 inches for printable fit.
+    static constexpr int kMaxEmu = 5029200; // 5.5 inches
+    double inchesW = vb.width() / 72.0;
+    double inchesH = vb.height() / 72.0;
+    int cxEmu = qMax(1, static_cast<int>(inchesW * 914400.0));
+    int cyEmu = qMax(1, static_cast<int>(inchesH * 914400.0));
+    if (cxEmu > kMaxEmu) {
+        cyEmu = static_cast<int>(static_cast<qint64>(cyEmu) * kMaxEmu / cxEmu);
+        cxEmu = kMaxEmu;
+    }
+
+    return {pngData, cxEmu, cyEmu};
+}
+
+static QString registerImage(const QByteArray &pngData, int cxEmu, int cyEmu)
+{
+    if (!g_images || pngData.isEmpty())
+        return {};
+    int id = ++g_imageCounter;
+    QString relId = QStringLiteral("rIdImg%1").arg(id);
+    QString fileName = QStringLiteral("media/image%1.png").arg(id);
+    g_images->push_back({relId, fileName, pngData, cxEmu, cyEmu});
+    return relId;
+}
+
+static void writeDrawingRun(QXmlStreamWriter &w, const QString &relId,
+                            int cxEmu, int cyEmu, int docPrId = 1)
+{
+    w.writeStartElement("w:r");
+    w.writeStartElement("w:drawing");
+    w.writeStartElement("wp:inline");
+    w.writeAttribute("distT", "0");
+    w.writeAttribute("distB", "0");
+    w.writeAttribute("distL", "0");
+    w.writeAttribute("distR", "0");
+
+    w.writeStartElement("wp:extent");
+    w.writeAttribute("cx", QString::number(cxEmu));
+    w.writeAttribute("cy", QString::number(cyEmu));
+    w.writeEndElement();
+
+    w.writeStartElement("wp:effectExtent");
+    w.writeAttribute("l", "0");
+    w.writeAttribute("t", "0");
+    w.writeAttribute("r", "0");
+    w.writeAttribute("b", "0");
+    w.writeEndElement();
+
+    w.writeStartElement("wp:docPr");
+    w.writeAttribute("id", QString::number(docPrId));
+    w.writeAttribute("name", "Picture");
+    w.writeEndElement();
+
+    w.writeEmptyElement("wp:cNvGraphicFramePr");
+
+    w.writeStartElement("a:graphic");
+    w.writeStartElement("a:graphicData");
+    w.writeAttribute("uri", "http://schemas.openxmlformats.org/drawingml/2006/picture");
+
+    w.writeStartElement("pic:pic");
+    w.writeStartElement("pic:nvPicPr");
+    w.writeStartElement("pic:cNvPr");
+    w.writeAttribute("id", "0");
+    w.writeAttribute("name", "Picture");
+    w.writeEndElement();
+    w.writeEmptyElement("pic:cNvPicPr");
+    w.writeEndElement();
+
+    w.writeStartElement("pic:blipFill");
+    w.writeStartElement("a:blip");
+    w.writeAttribute("r:embed", relId);
+    w.writeEndElement();
+    w.writeStartElement("a:stretch");
+    w.writeEmptyElement("a:fillRect");
+    w.writeEndElement();
+    w.writeEndElement();
+
+    w.writeStartElement("pic:spPr");
+    w.writeStartElement("a:xfrm");
+    w.writeStartElement("a:off");
+    w.writeAttribute("x", "0");
+    w.writeAttribute("y", "0");
+    w.writeEndElement();
+    w.writeStartElement("a:ext");
+    w.writeAttribute("cx", QString::number(cxEmu));
+    w.writeAttribute("cy", QString::number(cyEmu));
+    w.writeEndElement();
+    w.writeEndElement();
+    w.writeStartElement("a:prstGeom");
+    w.writeAttribute("prst", "rect");
+    w.writeEndElement();
+    w.writeEndElement();
+
+    w.writeEndElement(); // pic:pic
+    w.writeEndElement(); // a:graphicData
+    w.writeEndElement(); // a:graphic
+
+    w.writeEndElement(); // wp:inline
+    w.writeEndElement(); // w:drawing
+    w.writeEndElement(); // w:r
+}
+
+static void handleSvgBlock(SimpleHtmlParser &parser)
+{
+    // Capture raw SVG XML by scanning the original HTML string
+    int startPos = parser.tagStart();
+    int depth = 1;
+    int p = startPos;
+    const QString &raw = parser.rawHtml();
+
+    // Find the closing > of <svg ...>
+    int openEnd = raw.indexOf('>', p);
+    if (openEnd == -1) return;
+    p = openEnd + 1;
+
+    while (p < raw.size() && depth > 0) {
+        int lt = raw.indexOf('<', p);
+        if (lt == -1) break;
+        int gt = raw.indexOf('>', lt);
+        if (gt == -1) break;
+
+        bool isClose = (lt + 1 < raw.size() && raw[lt + 1] == '/');
+        bool isSelfClose = (gt > 0 && raw[gt - 1] == '/');
+
+        int ns = lt + 1 + (isClose ? 1 : 0);
+        int ne = ns;
+        while (ne < gt && !raw[ne].isSpace() && raw[ne] != '/' && raw[ne] != '>')
+            ++ne;
+        QString tn = raw.mid(ns, ne - ns).toLower();
+
+        if (tn == "svg") {
+            if (isClose) --depth;
+            else if (!isSelfClose) ++depth;
+        }
+        p = gt + 1;
+    }
+
+    QString svgXml = raw.mid(startPos, p - startPos);
+    parser.seekTo(p);
+
+    auto [pngData, cxEmu, cyEmu] = rasterizeSvg(svgXml);
+    if (pngData.isEmpty()) return;
+
+    QString relId = registerImage(pngData, cxEmu, cyEmu);
+    if (relId.isEmpty()) return;
+
+    bodyWriter->writeStartElement("w:p");
+    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu);
+    bodyWriter->writeEndElement();
+}
+
+static void handleSvgInline(SimpleHtmlParser &parser)
+{
+    int startPos = parser.tagStart();
+    int depth = 1;
+    int p = startPos;
+    const QString &raw = parser.rawHtml();
+
+    int openEnd = raw.indexOf('>', p);
+    if (openEnd == -1) return;
+    p = openEnd + 1;
+
+    while (p < raw.size() && depth > 0) {
+        int lt = raw.indexOf('<', p);
+        if (lt == -1) break;
+        int gt = raw.indexOf('>', lt);
+        if (gt == -1) break;
+
+        bool isClose = (lt + 1 < raw.size() && raw[lt + 1] == '/');
+        bool isSelfClose = (gt > 0 && raw[gt - 1] == '/');
+
+        int ns = lt + 1 + (isClose ? 1 : 0);
+        int ne = ns;
+        while (ne < gt && !raw[ne].isSpace() && raw[ne] != '/' && raw[ne] != '>')
+            ++ne;
+        QString tn = raw.mid(ns, ne - ns).toLower();
+
+        if (tn == "svg") {
+            if (isClose) --depth;
+            else if (!isSelfClose) ++depth;
+        }
+        p = gt + 1;
+    }
+
+    QString svgXml = raw.mid(startPos, p - startPos);
+    parser.seekTo(p);
+
+    auto [pngData, cxEmu, cyEmu] = rasterizeSvg(svgXml);
+    if (pngData.isEmpty()) return;
+
+    QString relId = registerImage(pngData, cxEmu, cyEmu);
+    if (relId.isEmpty()) return;
+
+    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu);
+}
+
 // ── inline-content processor ─────────────────────────────────────────────────
 
 static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTag,
@@ -218,6 +461,8 @@ static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTa
                 writeBreak(*bodyWriter);
             } else if (n == "img") {
                 // skip images for now
+            } else if (n == "svg") {
+                handleSvgInline(parser);
             } else {
                 processInlineChildren(parser, n, state);
             }
@@ -399,6 +644,8 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
             handleTable(parser);
         } else if (tag == "div") {
             handleDiv(parser, tag);
+        } else if (tag == "svg") {
+            handleSvgBlock(parser);
         } else {
             processBlockChildren(parser, tag, state);
         }
@@ -407,16 +654,33 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
 
 // ── public API ──────────────────────────────────────────────────────────────
 
-QString HtmlToOoxml::convert(const QString &html, const QString &themeCss)
+OoxmlResult HtmlToOoxml::convert(const QString &html, const QString &themeCss)
 {
     QByteArray buf;
     QXmlStreamWriter w(&buf);
     bodyWriter = &w;
 
-    w.writeStartElement("x");
     w.writeNamespace(
         QStringLiteral("http://schemas.openxmlformats.org/wordprocessingml/2006/main"),
         QStringLiteral("w"));
+    w.writeNamespace(
+        QStringLiteral("http://schemas.openxmlformats.org/wordprocessingml/2006/main"),
+        QStringLiteral("wp"));
+    w.writeNamespace(
+        QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main"),
+        QStringLiteral("a"));
+    w.writeNamespace(
+        QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/picture"),
+        QStringLiteral("pic"));
+    w.writeNamespace(
+        QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+        QStringLiteral("r"));
+
+    OoxmlResult result;
+    g_images = &result.images;
+    g_imageCounter = 0;
+
+    w.writeStartElement("x");
 
     SimpleHtmlParser parser(html);
     FormatState state;
@@ -424,14 +688,13 @@ QString HtmlToOoxml::convert(const QString &html, const QString &themeCss)
 
     w.writeEndElement(); // x
 
-    QString result = QString::fromUtf8(buf);
-    int start = result.indexOf('>');
-    int end = result.lastIndexOf('<');
+    QString raw = QString::fromUtf8(buf);
+    int start = raw.indexOf('>');
+    int end = raw.lastIndexOf('<');
     if (start >= 0 && end > start)
-        result = result.mid(start + 1, end - start - 1);
-    else
-        result.clear();
+        result.bodyXml = raw.mid(start + 1, end - start - 1);
 
+    g_images = nullptr;
     return result;
 }
 
@@ -540,16 +803,30 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
     w.writeAttribute("w:styleId", "SourceCode");
     w.writeTextElement("w:name", "Source Code");
     w.writeTextElement("w:basedOn", "Normal");
+    w.writeStartElement("w:pPr");
+    w.writeStartElement("w:spacing");
+    w.writeAttribute("w:before", "120");
+    w.writeAttribute("w:after", "120");
+    w.writeEndElement();
+    w.writeStartElement("w:ind");
+    w.writeAttribute("w:left", "240");
+    w.writeAttribute("w:right", "240");
+    w.writeEndElement();
+    w.writeStartElement("w:shd");
+    w.writeAttribute("w:val", "clear");
+    w.writeAttribute("w:fill", "F2F2F2");
+    w.writeEndElement();
+    w.writeEndElement();
     w.writeStartElement("w:rPr");
     w.writeStartElement("w:rFonts");
-    w.writeAttribute("w:ascii", "Courier New");
-    w.writeAttribute("w:hAnsi", "Courier New");
+    w.writeAttribute("w:ascii", "Consolas");
+    w.writeAttribute("w:hAnsi", "Consolas");
     w.writeEndElement();
     w.writeStartElement("w:sz");
-    w.writeAttribute("w:val", "18");
+    w.writeAttribute("w:val", "20");
     w.writeEndElement();
     w.writeStartElement("w:szCs");
-    w.writeAttribute("w:val", "18");
+    w.writeAttribute("w:val", "20");
     w.writeEndElement();
     w.writeEndElement();
     w.writeEndElement();
