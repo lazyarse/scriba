@@ -70,6 +70,10 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
         layout->addWidget(m_syncCheck);
 
+        m_stripPreviewScriptsCheck = new QCheckBox("Strip <script> tags from markdown content in preview");
+        m_stripPreviewScriptsCheck->setChecked(settings.value(Preferences::StripPreviewScripts, true).toBool());
+        layout->addWidget(m_stripPreviewScriptsCheck);
+
         QGroupBox *filenameAutoCompleteGroup = new QGroupBox("Filename Autocomplete");
         QVBoxLayout *filenameAutoCompleteLayout = new QVBoxLayout(filenameAutoCompleteGroup);
         filenameAutoCompleteLayout->addSpacing(8);
@@ -371,6 +375,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QSettings settings;
         settings.setValue(Preferences::ReopenLastSession, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
+        settings.setValue(Preferences::StripPreviewScripts, m_stripPreviewScriptsCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         settings.setValue(Preferences::EmojiMode,
     Preferences::emojiRenderingToString(m_emojiBw->isChecked() ? Preferences::EmojiRendering::Bw : Preferences::EmojiRendering::Color));

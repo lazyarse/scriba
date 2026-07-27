@@ -82,12 +82,15 @@ private:
     void saveFile(const QString &filePath);
     void exportPdf();
     void exportDocx();
+    void exportHtml();
     void syncPreviewScroll();
     void syncCssWatcher();
     void refreshPreviewCss();
     QString applyEditorSettings();
     QString applyEditorSettings(const QString &fontFamily, int fontSize, int padding);
     void applyEditorLineHeight(int lineHeight);
+    void applyStyleSheetToAllEditors();
+    void applyStyleSheetToAllEditors(const QString &fontFamily, int fontSize, int padding);
     void applyStripeSetting();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);
     bool findText(const QString &text, bool backward, bool useRegex, bool caseSensitive);

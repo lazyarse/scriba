@@ -8,6 +8,7 @@
 #include "PreferencesDialog.h"
 #include "FindDialog.h"
 #include "ExportPdfDialog.h"
+#include "ExportHtmlDialog.h"
 #include "DocxExporter.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
@@ -161,6 +162,10 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
 
     addTab();
 
+    applyStyleSheetToAllEditors();
+    QSettings s;
+    applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
+
     if (!skipSessionRestore) {
         bool reopen = settings.value(Preferences::ReopenLastSession, true).toBool();
         if (reopen) {
@@ -292,6 +297,22 @@ int MainWindow::addTab(const QString &filePath)
             }
         }
     });
+
+    if (!m_cachedFullCss.isEmpty()) {
+        editor->setStyleSheet(m_cachedFullCss + applyEditorSettings());
+        editor->update();
+    }
+    {
+        QSettings s;
+        QTextBlockFormat fmt;
+        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt(),
+                          QTextBlockFormat::ProportionalHeight);
+        QTextCursor cursor(editor->document());
+        cursor.select(QTextCursor::Document);
+        cursor.mergeBlockFormat(fmt);
+    }
+    m_tabs[idx].dirty = false;
+    updateTabLabel(idx);
 
     updateTabBarVisibility();
     return idx;
@@ -473,8 +494,10 @@ void MainWindow::showSaveDiscardDialog(int index)
         .arg(info.filePath.isEmpty() ? QStringLiteral("Untitled")
                                      : QFileInfo(info.filePath).fileName()));
     msgBox.setInformativeText("Your changes will be lost if you don't save them.");
-    msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+    msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
+    auto *discardBtn = msgBox.addButton(tr("&Discard"), QMessageBox::DestructiveRole);
     msgBox.setDefaultButton(QMessageBox::Save);
+    msgBox.setEscapeButton(QMessageBox::Cancel);
 
     int ret = msgBox.exec();
     if (ret == QMessageBox::Save) {
@@ -486,7 +509,7 @@ void MainWindow::showSaveDiscardDialog(int index)
         }
         saveFile(info.filePath);
         removeTab(index);
-    } else if (ret == QMessageBox::Discard) {
+    } else if (msgBox.clickedButton() == discardBtn) {
         removeTab(index);
     }
 }
@@ -553,13 +576,19 @@ void MainWindow::setupMenuBar()
 
     fileMenu->addSeparator();
 
-    QAction *exportPdfAction = fileMenu->addAction("&Print / Export PDF...");
+    QMenu *exportMenu = fileMenu->addMenu("&Export");
+
+    QAction *exportPdfAction = exportMenu->addAction("&Print / Export PDF...");
     exportPdfAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_P));
     connect(exportPdfAction, &QAction::triggered, this, &MainWindow::exportPdf);
 
-    QAction *exportDocxAction = fileMenu->addAction("Export as &Word (DOCX)...");
+    QAction *exportDocxAction = exportMenu->addAction("Export as &Word (DOCX)...");
     exportDocxAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_W));
     connect(exportDocxAction, &QAction::triggered, this, &MainWindow::exportDocx);
+
+    QAction *exportHtmlAction = exportMenu->addAction("Export as &HTML...");
+    exportHtmlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H));
+    connect(exportHtmlAction, &QAction::triggered, this, &MainWindow::exportHtml);
 
     fileMenu->addSeparator();
 
@@ -771,11 +800,7 @@ void MainWindow::refreshPreviewCss()
 
     if (needChromeUpdate) {
         m_cachedFullCss = chromeCss;
-        Editor *ed = currentEditor();
-        if (ed) {
-            ed->setStyleSheet(chromeCss + applyEditorSettings());
-            ed->update();
-        }
+        applyStyleSheetToAllEditors();
         QSettings s;
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
         if (!m_chromeUpdateScheduled) {
@@ -836,13 +861,38 @@ QString MainWindow::applyEditorSettings(const QString &fontFamily, int fontSize,
 
 void MainWindow::applyEditorLineHeight(int lineHeight)
 {
-    Editor *ed = currentEditor();
-    if (!ed) return;
     QTextBlockFormat fmt;
     fmt.setLineHeight(lineHeight, QTextBlockFormat::ProportionalHeight);
-    QTextCursor cursor(ed->document());
-    cursor.select(QTextCursor::Document);
-    cursor.mergeBlockFormat(fmt);
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (!m_tabs[i].editor) continue;
+        bool wasDirty = m_tabs[i].dirty;
+        QTextCursor cursor(m_tabs[i].editor->document());
+        cursor.select(QTextCursor::Document);
+        cursor.mergeBlockFormat(fmt);
+        m_tabs[i].dirty = wasDirty;
+    }
+}
+
+void MainWindow::applyStyleSheetToAllEditors()
+{
+    QString css = m_cachedFullCss + applyEditorSettings();
+    for (const auto &tab : m_tabs) {
+        if (tab.editor) {
+            tab.editor->setStyleSheet(css);
+            tab.editor->update();
+        }
+    }
+}
+
+void MainWindow::applyStyleSheetToAllEditors(const QString &fontFamily, int fontSize, int padding)
+{
+    QString css = m_cachedFullCss + applyEditorSettings(fontFamily, fontSize, padding);
+    for (const auto &tab : m_tabs) {
+        if (tab.editor) {
+            tab.editor->setStyleSheet(css);
+            tab.editor->update();
+        }
+    }
 }
 
 void MainWindow::applyStripeSetting()
@@ -868,6 +918,9 @@ void MainWindow::updatePreview()
     QString markdown = ed->toPlainText();
     updateStats();
     QString html = m_parser->toHtml(markdown);
+
+    if (QSettings().value(Preferences::StripPreviewScripts, true).toBool())
+        html = JsRenderEngine::stripScriptTags(html);
 
     QString rawThemeCss = m_cssLoader->themeCss();
     QString baseCss = m_cssLoader->previewBaseCss();
@@ -1045,22 +1098,14 @@ void MainWindow::showPreferences()
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
     connect(&dlg, &PreferencesDialog::editorSettingsChanged, this,
         [this](const QString &f, int s, int lh, int p) {
-            Editor *ed = currentEditor();
-            if (ed) {
-                ed->setStyleSheet(m_cachedFullCss + applyEditorSettings(f, s, p));
-                ed->update();
-            }
+            applyStyleSheetToAllEditors(f, s, p);
             applyEditorLineHeight(lh);
         });
     if (dlg.exec() == QDialog::Rejected) {
         m_cssConfig->setActiveStylesheet(oldStylesheet);
         m_cssLoader->invalidateCache();
     }
-    Editor *ed = currentEditor();
-    if (ed) {
-        ed->setStyleSheet(m_cachedFullCss + applyEditorSettings());
-        ed->update();
-    }
+    applyStyleSheetToAllEditors();
     QSettings s;
     applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
     updateAll();
@@ -1598,6 +1643,14 @@ void MainWindow::exportDocx()
     }
 
     renderedHtml = JsRenderEngine::replaceQrcUrls(renderedHtml);
+    renderedHtml = JsRenderEngine::embedImages(renderedHtml, baseUrl);
+    renderedHtml = JsRenderEngine::embedResources(renderedHtml, ScriptHandling::Strip);
+
+    // Include KaTeX CSS so HtmlToOoxml can resolve font metrics for math spans
+    QString katexCss = JsRenderEngine::katexCss();
+    QString docxCss = css;
+    if (!katexCss.isEmpty())
+        docxCss += QStringLiteral("\n") + katexCss;
 
     QString defaultName = info->filePath.isEmpty()
         ? "document.docx"
@@ -1607,11 +1660,109 @@ void MainWindow::exportDocx()
         this, "Export as Word (DOCX)", defaultName, "Word Documents (*.docx)");
     if (path.isEmpty()) return;
 
-    if (!DocxExporter::exportToDocx(renderedHtml, path, css)) {
+    if (!DocxExporter::exportToDocx(renderedHtml, path, docxCss)) {
         showCenteredWarning("Export Failed",
             "Could not export the document as DOCX.",
             "Check that the file is not open in another application and that the path is writable.");
     }
+}
+
+void MainWindow::exportHtml()
+{
+    Editor *ed = currentEditor();
+    if (!ed) return;
+    TabInfo *info = activeTabInfo();
+    if (!info) return;
+
+    ExportHtmlDialog dlg(m_cssConfig, m_cssLoader, info->filePath, this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    QString themePath = dlg.selectedThemePath();
+    if (themePath.isEmpty())
+        return;
+
+    // Load the selected theme CSS
+    QFile themeFile(themePath);
+    QString themeCss;
+    if (themeFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        themeCss = QString::fromUtf8(themeFile.readAll());
+
+    QString baseCss = m_cssLoader->previewBaseCss();
+    QString combinedCss = baseCss + "\n" + themeCss;
+
+    QString markdown = ed->toPlainText();
+    QString bodyHtml = m_parser->toHtml(markdown);
+
+    QSettings s;
+    QString emojiMode = s.value(Preferences::EmojiMode,
+        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
+
+    QString mermaidTheme = CssUtils::isDarkTheme(themeCss)
+        ? QStringLiteral("dark") : QStringLiteral("default");
+
+    QUrl baseUrl;
+    if (!info->filePath.isEmpty())
+        baseUrl = QUrl::fromLocalFile(QFileInfo(info->filePath).absolutePath() + "/");
+
+    QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, combinedCss, emojiMode, mermaidTheme);
+    QString renderedBody = JsRenderEngine::renderSync(fullHtml, baseUrl.toString());
+
+    if (renderedBody.isEmpty()) {
+        showCenteredWarning("Export Failed",
+            "Could not render the document for HTML export.",
+            "The JavaScript rendering step timed out or failed.");
+        return;
+    }
+
+    renderedBody = JsRenderEngine::replaceQrcUrls(renderedBody);
+    renderedBody = JsRenderEngine::embedImages(renderedBody, baseUrl);
+    renderedBody = JsRenderEngine::embedResources(renderedBody, dlg.selectedScriptHandling());
+
+    // Strip #editor rule from theme CSS for the export (editor-only styling)
+    QString exportCss = themeCss;
+    exportCss.remove(QRegularExpression(R"(#editor\s*\{[^}]*\})"));
+    exportCss = baseCss + "\n" + exportCss;
+
+    // Responsive SVG rule for Vega-Lite charts (baked-in SVG width needs to scale)
+    exportCss += QStringLiteral(
+        "\n.vega-lite-chart svg{max-width:100%;height:auto;width:auto!important}");
+
+    // Include KaTeX CSS so math renders correctly without external dependencies
+    QString katexCss = JsRenderEngine::katexCss();
+
+    QString output = QString(
+        "<!DOCTYPE html>\n"
+        "<html>\n"
+        "<head>\n"
+        "<meta charset=\"utf-8\">\n"
+        "<style>%1</style>\n"
+        "<style>%3</style>\n"
+        "</head>\n"
+        "<body>%2</body>\n"
+        "</html>\n"
+    ).arg(exportCss, renderedBody, katexCss);
+
+    QString defaultName = info->filePath.isEmpty()
+        ? "document.html"
+        : QFileInfo(info->filePath).completeBaseName() + ".html";
+
+    QString path = QFileDialog::getSaveFileName(
+        this, "Export as HTML", defaultName, "HTML Files (*.html);;All Files (*)");
+    if (path.isEmpty())
+        return;
+
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        showCenteredWarning("Export Failed",
+            "Could not write the HTML file.",
+            "Check that the path is writable.");
+        return;
+    }
+
+    f.write(output.toUtf8());
+    f.close();
+    statusBar()->showMessage("Exported as HTML", 2000);
 }
 
 QJsonObject MainWindow::serializeSession() const
@@ -1792,11 +1943,16 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
 
     if (hasUntitledDirty) {
-        auto ret = QMessageBox::question(this, "Unsaved Changes",
-            "There are unsaved changes in untitled tabs.\n"
-            "Save all before closing?",
-            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
-            QMessageBox::Save);
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Question);
+        msgBox.setWindowTitle("Unsaved Changes");
+        msgBox.setText("There are unsaved changes in untitled tabs.\n"
+            "Save all before closing?");
+        msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
+        auto *discardBtn = msgBox.addButton(tr("&Discard"), QMessageBox::DestructiveRole);
+        msgBox.setDefaultButton(QMessageBox::Save);
+        msgBox.setEscapeButton(QMessageBox::Cancel);
+        auto ret = msgBox.exec();
 
         if (ret == QMessageBox::Cancel) {
             event->ignore();

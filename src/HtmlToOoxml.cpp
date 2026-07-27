@@ -427,7 +427,71 @@ static void handleSvgInline(SimpleHtmlParser &parser)
     writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu);
 }
 
-// ── inline-content processor ─────────────────────────────────────────────────
+static void handleImgTag(const HtmlToken &tok)
+{
+    QString src = tok.attrs.value(QStringLiteral("src"));
+    if (!src.startsWith(QStringLiteral("data:")))
+        return;
+
+    // Parse "data:<mime>;base64,<data>"
+    int b64Pos = src.indexOf(QStringLiteral(";base64,"));
+    if (b64Pos < 0) return;
+    QByteArray imgData = QByteArray::fromBase64(src.mid(b64Pos + 8).toLatin1());
+    if (imgData.isEmpty()) return;
+
+    QImage image;
+    if (!image.loadFromData(imgData))
+        return;
+
+    int imgW = image.width();
+    int imgH = image.height();
+    if (imgW <= 0 || imgH <= 0) return;
+
+    // Apply max-width / max-height from style attribute (set by #WxH markdown suffix)
+    static const QRegularExpression maxRe(
+        QStringLiteral("max-(?:width|height)\\s*:\\s*(\\d+)px"));
+    int maxW = -1, maxH = -1;
+    QString style = tok.attrs.value(QStringLiteral("style"));
+    auto styleIt = maxRe.globalMatch(style);
+    while (styleIt.hasNext()) {
+        auto m = styleIt.next();
+        if (m.captured(0).contains(QStringLiteral("width")))
+            maxW = m.captured(1).toInt();
+        else
+            maxH = m.captured(1).toInt();
+    }
+    if (maxW > 0 && imgW > maxW) {
+        imgH = static_cast<int>(static_cast<qint64>(imgH) * maxW / imgW);
+        imgW = maxW;
+    }
+    if (maxH > 0 && imgH > maxH) {
+        imgW = static_cast<int>(static_cast<qint64>(imgW) * maxH / imgH);
+        imgH = maxH;
+    }
+
+    // Convert to PNG for DOCX registration
+    QByteArray pngData;
+    QBuffer buf(&pngData);
+    buf.open(QIODevice::WriteOnly);
+    image.save(&buf, "PNG");
+
+    // EMUs: 1 inch = 914400 EMUs. Cap width to 5.5 inches.
+    static constexpr int kMaxEmu = 5029200;
+    double scale = 150.0 / 96.0;  // assume 96 DPI source, render at 150 DPI
+    int cxEmu = qMax(1, static_cast<int>(imgW * scale / 96.0 * 914400.0));
+    int cyEmu = qMax(1, static_cast<int>(imgH * scale / 96.0 * 914400.0));
+    if (cxEmu > kMaxEmu) {
+        cyEmu = static_cast<int>(static_cast<qint64>(cyEmu) * kMaxEmu / cxEmu);
+        cxEmu = kMaxEmu;
+    }
+
+    QString relId = registerImage(pngData, cxEmu, cyEmu);
+    if (relId.isEmpty()) return;
+
+    bodyWriter->writeStartElement("w:p");
+    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu);
+    bodyWriter->writeEndElement();
+}
 
 static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTag,
                                   FormatState state)
@@ -460,7 +524,7 @@ static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTa
             } else if (n == "br") {
                 writeBreak(*bodyWriter);
             } else if (n == "img") {
-                // skip images for now
+                handleImgTag(tok);
             } else if (n == "svg") {
                 handleSvgInline(parser);
             } else {
