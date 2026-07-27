@@ -22,6 +22,8 @@ add_executable(scriba
     src/CssEditorDialog.cpp
     src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp
+    src/DocxExporter.cpp
+    src/HtmlToOoxml.cpp
     src/FindDialog.cpp
     src/TableDialog.cpp
     src/VegaLiteDialog.cpp
@@ -207,7 +209,7 @@ if(BUILD_TESTS)
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp
         src/FindDialog.cpp
         src/LogWindow.cpp
@@ -237,7 +239,7 @@ if(BUILD_TESTS)
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -258,7 +260,7 @@ if(BUILD_TESTS)
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp

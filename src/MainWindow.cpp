@@ -8,6 +8,7 @@
 #include "PreferencesDialog.h"
 #include "FindDialog.h"
 #include "ExportPdfDialog.h"
+#include "DocxExporter.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
 #include "JsSnippets.h"
@@ -554,6 +555,10 @@ void MainWindow::setupMenuBar()
     QAction *exportPdfAction = fileMenu->addAction("&Print / Export PDF...");
     exportPdfAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_P));
     connect(exportPdfAction, &QAction::triggered, this, &MainWindow::exportPdf);
+
+    QAction *exportDocxAction = fileMenu->addAction("Export as &Word (DOCX)...");
+    exportDocxAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_W));
+    connect(exportDocxAction, &QAction::triggered, this, &MainWindow::exportDocx);
 
     fileMenu->addSeparator();
 
@@ -1557,6 +1562,32 @@ void MainWindow::exportPdf()
 
     ExportPdfDialog dlg(html, info->filePath, m_cssLoader, this);
     dlg.exec();
+}
+
+void MainWindow::exportDocx()
+{
+    Editor *ed = currentEditor();
+    if (!ed) return;
+    TabInfo *info = activeTabInfo();
+    if (!info) return;
+
+    QString markdown = ed->toPlainText();
+    QString html = m_parser->toHtml(markdown);
+    QString css = m_cssLoader->previewBaseCss() + "\n" + m_cssLoader->themeCss();
+
+    QString defaultName = info->filePath.isEmpty()
+        ? "document.docx"
+        : QFileInfo(info->filePath).completeBaseName() + ".docx";
+
+    QString path = QFileDialog::getSaveFileName(
+        this, "Export as Word (DOCX)", defaultName, "Word Documents (*.docx)");
+    if (path.isEmpty()) return;
+
+    if (!DocxExporter::exportToDocx(html, path, css)) {
+        showCenteredWarning("Export Failed",
+            "Could not export the document as DOCX.",
+            "Check that the file is not open in another application and that the path is writable.");
+    }
 }
 
 QJsonObject MainWindow::serializeSession() const
