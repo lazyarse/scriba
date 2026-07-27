@@ -68,12 +68,32 @@ $$
 \mathcal{L}(\theta) = \prod_{i=1}^{n} f(x_i \mid \theta)
 $$
 
+## Chemistry Notation
+
+Powered by [mhchem](https://mhchem.github.io/) for KaTeX. Use `\ce{...}` inside math delimiters.
+
+Inline: $\ce{H2O}$, $\ce{CO2}$, $\ce{H2SO4}$, $\ce{NaCl}$
+
+Reactions: $\ce{CH4 + 2O2 -> CO2 + 2H2O}$
+
+Equilibrium: $\ce{A + B <=> C + D}$
+
+States: $\ce{NaCl(s) ->[\text{H2O}] Na^+(aq) + Cl^-(aq)}$
+
+Ions: $\ce{Fe^{3+}}$, $\ce{SO4^{2-}}$, $\ce{Ca^{2+}}$
+
+Display mode:
+
+$$
+\ce{6CO2 + 6H2O ->[\text{light}] C6H12O6 + 6O2}
+$$
+
 ## Admonitions
 
 > [!note]
 > Useful information you shouldn't overlook.
 
-> [!tip Custom Title]
+> [!tip]
 > This admonition has a custom title instead of the default "Tip".
 
 > [!important]
@@ -86,7 +106,7 @@ $$
 > This could have negative consequences.
 
 > [!warning HIGH VOLTAGE!]
-> Custom titles work too.
+> Custom titles work too. Set different icons via CSS.
 
 ## Mermaid Diagrams
 

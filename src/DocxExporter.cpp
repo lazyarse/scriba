@@ -106,14 +106,16 @@ static QByteArray buildDocumentXml(const OoxmlResult &ooxml)
         " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""
         " xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
         " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\""
-        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">\n"
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""
+        " xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\">\n"
         "<w:body>\n"
     ).append(ooxml.bodyXml.toUtf8()).append(
         "</w:body>\n</w:document>\n"
     );
 }
 
-static QByteArray buildRels(const QVector<OoxmlImage> &images)
+static QByteArray buildRels(const QVector<OoxmlImage> &images,
+                           const QVector<OoxmlHyperlink> &hyperlinks)
 {
     QByteArray out;
     QXmlStreamWriter w(&out);
@@ -123,22 +125,27 @@ static QByteArray buildRels(const QVector<OoxmlImage> &images)
     w.writeDefaultNamespace("http://schemas.openxmlformats.org/package/2006/relationships");
     w.writeStartElement("Relationship");
     w.writeAttribute("Id", "rId1");
-    w.writeAttribute("Type",
-        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
+    w.writeAttribute("Type", ooxmlRelTypeUri(OoxmlRelType::Styles));
     w.writeAttribute("Target", "styles.xml");
     w.writeEndElement();
     w.writeStartElement("Relationship");
     w.writeAttribute("Id", "rId2");
-    w.writeAttribute("Type",
-        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering");
+    w.writeAttribute("Type", ooxmlRelTypeUri(OoxmlRelType::Numbering));
     w.writeAttribute("Target", "numbering.xml");
     w.writeEndElement();
     for (const auto &img : images) {
         w.writeStartElement("Relationship");
         w.writeAttribute("Id", img.relId);
-        w.writeAttribute("Type",
-            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
+        w.writeAttribute("Type", ooxmlRelTypeUri(OoxmlRelType::Image));
         w.writeAttribute("Target", img.fileName);
+        w.writeEndElement();
+    }
+    for (const auto &hl : hyperlinks) {
+        w.writeStartElement("Relationship");
+        w.writeAttribute("Id", hl.relId);
+        w.writeAttribute("Type", ooxmlRelTypeUri(OoxmlRelType::Hyperlink));
+        w.writeAttribute("Target", hl.target);
+        w.writeAttribute("TargetMode", "External");
         w.writeEndElement();
     }
     w.writeEndElement();
@@ -261,7 +268,7 @@ static bool writeZip(QFile &out, const QVector<ZipEntry> &entries)
 }
 
 bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
-                                const QString &css)
+                                const QString &css, DocxMathMode mathMode)
 {
     OoxmlResult ooxml = HtmlToOoxml::convert(html, css);
 
@@ -299,7 +306,7 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
     {
         ZipEntry e;
         e.name = "word/_rels/document.xml.rels";
-        e.data = buildRels(ooxml.images);
+        e.data = buildRels(ooxml.images, ooxml.hyperlinks);
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }

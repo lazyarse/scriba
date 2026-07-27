@@ -33,6 +33,7 @@ class MermaidJourneyDialog;
 class MermaidQuadrantDialog;
 class MermaidSankeyDialog;
 class KatexHelperDialog;
+class MchemHelperDialog;
 
 struct TabInfo {
     Editor *editor = nullptr;
@@ -62,6 +63,7 @@ private slots:
     void showChartBuilder();
     void showLogWindow();
     void showKatexHelper();
+    void showMchemHelper();
 
     void onFindNext();
     void onFindPrev();

@@ -9,6 +9,7 @@
 #include "FindDialog.h"
 #include "ExportPdfDialog.h"
 #include "ExportHtmlDialog.h"
+#include "ExportDocxDialog.h"
 #include "DocxExporter.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
@@ -32,6 +33,7 @@
 #include "MermaidQuadrantDialog.h"
 #include "MermaidSankeyDialog.h"
 #include "KatexHelperDialog.h"
+#include "MchemHelperDialog.h"
 
 static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
 static constexpr const char *kOpenMdFilter = "Markdown Files (*.md *.markdown *.txt);;All Files (*)";
@@ -687,6 +689,10 @@ void MainWindow::setupMenuBar()
     katexAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
     connect(katexAction, &QAction::triggered, this, &MainWindow::showKatexHelper);
 
+    QAction *mchemAction = toolsMenu->addAction("Chemistry &Notation...");
+    mchemAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_K));
+    connect(mchemAction, &QAction::triggered, this, &MainWindow::showMchemHelper);
+
     toolsMenu->addSeparator();
 
     QAction *chartAction = toolsMenu->addAction("Vega-Lite &Charts");
@@ -753,7 +759,7 @@ void MainWindow::setupMenuBar()
         dlg.exec();
     });
 
-    m_insertActions = {tableAction, emojiAction, katexAction, chartAction};
+    m_insertActions = {tableAction, emojiAction, katexAction, mchemAction, chartAction};
     m_mermaidActions = {pieAction, flowchartAction, sequenceAction, ganttAction,
                   classAction, erAction, stateAction, mindmapAction,
                   timelineAction, journeyAction, quadrantAction, sankeyAction};
@@ -969,6 +975,7 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///mermaid.min.js\"></script>"
             "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
             "<script src=\"qrc:///katex.min.js\"></script>"
+            "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
             "<script src=\"qrc:///contrib/auto-render.min.js\"></script>"
             "<script src=\"qrc:///vega.min.js\"></script>"
             "<script src=\"qrc:///vega-lite.min.js\"></script>"
@@ -1143,6 +1150,17 @@ void MainWindow::showKatexHelper()
         Editor *ed = currentEditor();
         if (!latex.isEmpty() && ed)
             ed->insertPlainText(latex);
+    }
+}
+
+void MainWindow::showMchemHelper()
+{
+    MchemHelperDialog dlg(m_cssLoader->themeCss(), this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString notation = dlg.generatedNotation();
+        Editor *ed = currentEditor();
+        if (!notation.isEmpty() && ed)
+            ed->insertPlainText(notation);
     }
 }
 
@@ -1522,6 +1540,15 @@ void MainWindow::loadFile(const QString &filePath)
     if (idx >= 0 && idx < m_tabs.size() && m_tabs[idx].filePath.isEmpty() && !m_tabs[idx].dirty && m_tabs[idx].editor->toPlainText().isEmpty()) {
         m_tabs[idx].filePath = filePath;
         m_tabs[idx].editor->setPlainText(content);
+        {
+            QSettings s;
+            QTextBlockFormat fmt;
+            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt(),
+                              QTextBlockFormat::ProportionalHeight);
+            QTextCursor cursor(m_tabs[idx].editor->document());
+            cursor.select(QTextCursor::Document);
+            cursor.mergeBlockFormat(fmt);
+        }
         m_tabs[idx].editor->setCurrentFile(filePath);
         m_tabs[idx].dirty = false;
         info = &m_tabs[idx];
@@ -1531,6 +1558,15 @@ void MainWindow::loadFile(const QString &filePath)
     } else {
         idx = addTab(filePath);
         m_tabs[idx].editor->setPlainText(content);
+        {
+            QSettings s;
+            QTextBlockFormat fmt;
+            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt(),
+                              QTextBlockFormat::ProportionalHeight);
+            QTextCursor cursor(m_tabs[idx].editor->document());
+            cursor.select(QTextCursor::Document);
+            cursor.mergeBlockFormat(fmt);
+        }
         m_tabs[idx].dirty = false;
         updateTabLabel(idx);
         info = &m_tabs[idx];
@@ -1617,6 +1653,13 @@ void MainWindow::exportDocx()
     TabInfo *info = activeTabInfo();
     if (!info) return;
 
+    // Show export dialog to get math mode preference
+    ExportDocxDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    DocxMathMode mathMode = dlg.selectedMathMode();
+
     QString markdown = ed->toPlainText();
     QString html = m_parser->toHtml(markdown);
     QString css = m_cssLoader->previewBaseCss() + "\n" + m_cssLoader->themeCss();
@@ -1632,7 +1675,14 @@ void MainWindow::exportDocx()
     if (!info->filePath.isEmpty())
         baseUrl = QUrl::fromLocalFile(QFileInfo(info->filePath).absolutePath() + "/");
 
-    QString fullHtml = JsRenderEngine::buildFullHtml(html, css, emojiMode, mermaidTheme);
+    // Use image mode: render KaTeX as PNG images in WebEngine
+    // Use OMML mode: keep KaTeX HTML for conversion in HtmlToOoxml
+    QString fullHtml;
+    if (mathMode == DocxMathMode::Images) {
+        fullHtml = JsRenderEngine::buildFullHtmlForDocx(html, css, emojiMode, mermaidTheme);
+    } else {
+        fullHtml = JsRenderEngine::buildFullHtmlForDocxOmml(html, css, emojiMode, mermaidTheme);
+    }
     QString renderedHtml = JsRenderEngine::renderSync(fullHtml, baseUrl.toString());
 
     if (renderedHtml.isEmpty()) {
@@ -1660,7 +1710,7 @@ void MainWindow::exportDocx()
         this, "Export as Word (DOCX)", defaultName, "Word Documents (*.docx)");
     if (path.isEmpty()) return;
 
-    if (!DocxExporter::exportToDocx(renderedHtml, path, docxCss)) {
+    if (!DocxExporter::exportToDocx(renderedHtml, path, docxCss, mathMode)) {
         showCenteredWarning("Export Failed",
             "Could not export the document as DOCX.",
             "Check that the file is not open in another application and that the path is writable.");
@@ -1835,6 +1885,15 @@ void MainWindow::restoreSession(const QJsonObject &session)
 
         int idx = addTab(path);
         m_tabs[idx].editor->setPlainText(content);
+        {
+            QSettings s;
+            QTextBlockFormat fmt;
+            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt(),
+                              QTextBlockFormat::ProportionalHeight);
+            QTextCursor cursor(m_tabs[idx].editor->document());
+            cursor.select(QTextCursor::Document);
+            cursor.mergeBlockFormat(fmt);
+        }
         m_tabs[idx].dirty = false;
         updateTabLabel(idx);
 
