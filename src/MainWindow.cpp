@@ -12,6 +12,7 @@
 #include "Preferences.h"
 #include "StaticHelpers.h"
 #include "JsSnippets.h"
+#include "JsRenderEngine.h"
 #include "TableDialog.h"
 #include "VegaLiteDialog.h"
 #include "EmojiDialog.h"
@@ -1575,6 +1576,29 @@ void MainWindow::exportDocx()
     QString html = m_parser->toHtml(markdown);
     QString css = m_cssLoader->previewBaseCss() + "\n" + m_cssLoader->themeCss();
 
+    QSettings s;
+    QString emojiMode = s.value(Preferences::EmojiMode,
+        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
+
+    QString mermaidTheme = CssUtils::isDarkTheme(m_cssLoader->themeCss())
+        ? QStringLiteral("dark") : QStringLiteral("default");
+
+    QUrl baseUrl;
+    if (!info->filePath.isEmpty())
+        baseUrl = QUrl::fromLocalFile(QFileInfo(info->filePath).absolutePath() + "/");
+
+    QString fullHtml = JsRenderEngine::buildFullHtml(html, css, emojiMode, mermaidTheme);
+    QString renderedHtml = JsRenderEngine::renderSync(fullHtml, baseUrl.toString());
+
+    if (renderedHtml.isEmpty()) {
+        showCenteredWarning("Export Failed",
+            "Could not render the document for DOCX export.",
+            "The JavaScript rendering step timed out or failed.");
+        return;
+    }
+
+    renderedHtml = JsRenderEngine::replaceQrcUrls(renderedHtml);
+
     QString defaultName = info->filePath.isEmpty()
         ? "document.docx"
         : QFileInfo(info->filePath).completeBaseName() + ".docx";
@@ -1583,7 +1607,7 @@ void MainWindow::exportDocx()
         this, "Export as Word (DOCX)", defaultName, "Word Documents (*.docx)");
     if (path.isEmpty()) return;
 
-    if (!DocxExporter::exportToDocx(html, path, css)) {
+    if (!DocxExporter::exportToDocx(renderedHtml, path, css)) {
         showCenteredWarning("Export Failed",
             "Could not export the document as DOCX.",
             "Check that the file is not open in another application and that the path is writable.");
