@@ -81,6 +81,7 @@ private:
     void setupMenuBar();
     void saveFile(const QString &filePath);
     void exportPdf();
+    void exportDocx();
     void syncPreviewScroll();
     void syncCssWatcher();
     void refreshPreviewCss();
