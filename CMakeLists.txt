@@ -22,6 +22,7 @@ add_executable(scriba
     src/CssEditorDialog.cpp
     src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp
+    src/ExportHtmlDialog.cpp
     src/DocxExporter.cpp
     src/HtmlToOoxml.cpp
     src/FindDialog.cpp
@@ -210,7 +211,7 @@ if(BUILD_TESTS)
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp
         src/FindDialog.cpp
         src/LogWindow.cpp
@@ -240,7 +241,7 @@ if(BUILD_TESTS)
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -257,11 +258,33 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
-    add_executable(test_find_dialog tests/test_find_dialog.cpp
+    add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
+    src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
+    src/CssConfig.cpp src/CssLoader.cpp
+    src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+    src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
+    src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
+    src/LogWindow.cpp
+    src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
+    src/MermaidSequenceDialog.cpp src/MermaidGanttDialog.cpp
+    src/MermaidClassDialog.cpp src/MermaidErDialog.cpp
+    src/MermaidStateDialog.cpp src/MermaidMindmapDialog.cpp
+    src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
+    src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
+    src/KatexHelperDialog.cpp
+    src/TableDialog.cpp
+    resources/scriba.qrc)
+target_include_directories(test_editor_initial_css PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(test_editor_initial_css PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
+target_link_libraries(test_editor_initial_css PRIVATE
+    scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
+add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
+
+add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -291,5 +314,14 @@ if(BUILD_TESTS)
     target_link_libraries(test_pdf_export PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::PrintSupport Qt6::Test)
     add_test(NAME test_pdf_export COMMAND ${_TEST_PREFIX} ./test_pdf_export)
+
+    add_executable(test_export_html tests/test_export_html.cpp
+        src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/Preview.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_export_html PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_export_html PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Network Qt6::Test)
+    add_test(NAME test_export_html COMMAND ${_TEST_PREFIX} ./test_export_html)
 endif()
 

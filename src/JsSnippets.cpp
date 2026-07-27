@@ -50,7 +50,7 @@ const QString vegaLiteInitJs = QStringLiteral(
     "div.style.minHeight='300px';"
     "div.style.overflow='visible';"
     "container.parentElement.replaceChild(div,container);"
-    "return vegaEmbed(div,spec,{actions:false}).catch(function(){});"
+    "return vegaEmbed(div,spec,{actions:false,renderer:'svg'}).catch(function(){});"
     "}"
     "catch(e){return Promise.resolve();}"
     "}));"

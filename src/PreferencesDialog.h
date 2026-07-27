@@ -46,6 +46,7 @@ private:
     QPushButton *m_editPreviewBtn;
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
+    QCheckBox *m_stripPreviewScriptsCheck;
     QCheckBox *m_stripeCheck;
     QCheckBox *m_filenameAutoCompleteCheck;
     QCheckBox *m_autoSaveExitCheck;

@@ -340,7 +340,7 @@ void VegaLiteDialog::updatePreview()
         "<script>"
         "try{"
         "var spec=%1;"
-        "vegaEmbed('#vis',spec,{actions:false}).catch(function(e){"
+        "vegaEmbed('#vis',spec,{actions:false,renderer:'svg'}).catch(function(e){"
         "document.getElementById('vis').innerHTML='<div class=\"error\">'+e+'</div>';"
         "});"
         "}catch(e){"

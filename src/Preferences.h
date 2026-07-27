@@ -35,6 +35,8 @@ namespace Preferences {
 
     constexpr const char *PdfShowHeader = "pdfShowHeader";
 
+    constexpr const char *StripPreviewScripts = "stripPreviewScripts";
+
     constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";
     constexpr const char *TableStripePdfCss = "tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}";
 
