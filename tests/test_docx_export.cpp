@@ -231,8 +231,8 @@ TEST_F(DocxExportTest, AdmonitionTitleUsesAdmonitionTitleStyle)
 
     OoxmlResult result = convert(html);
 
-    EXPECT_TRUE(result.bodyXml.contains("AdmonitionTitle"))
-        << "Admonition title paragraph must use AdmonitionTitle style";
+    EXPECT_TRUE(result.bodyXml.contains("AdmonitionTitlenote"))
+        << "Admonition title paragraph must use AdmonitionTitlenote style";
     EXPECT_TRUE(result.bodyXml.contains("Note"))
         << "Admonition title text must be present";
 }
@@ -256,13 +256,19 @@ TEST_F(DocxExportTest, AdmonitionTitleBodyUsesNormalStyle)
 
 TEST_F(DocxExportTest, StylesXmlContainsAdmonitionTitleStyle)
 {
-    // The styles.xml must contain the AdmonitionTitle style definition
+    // The styles.xml must contain per-type admonition styles
     QString stylesXml = HtmlToOoxml::buildStylesXml("");
 
-    EXPECT_TRUE(stylesXml.contains("AdmonitionTitle"))
-        << "styles.xml must contain AdmonitionTitle style";
-    EXPECT_TRUE(stylesXml.contains("Admonition Title"))
-        << "styles.xml must contain Admonition Title display name";
+    EXPECT_TRUE(stylesXml.contains("AdmonitionTitlenote"))
+        << "styles.xml must contain AdmonitionTitlenote style";
+    EXPECT_TRUE(stylesXml.contains("AdmonitionTextnote"))
+        << "styles.xml must contain AdmonitionTextnote style";
+    EXPECT_TRUE(stylesXml.contains("AdmonitionTextwarning"))
+        << "styles.xml must contain AdmonitionTextwarning style";
+    EXPECT_TRUE(stylesXml.contains("Admonition note Title"))
+        << "styles.xml must contain admonition title display name";
+    EXPECT_TRUE(stylesXml.contains("w:between"))
+        << "styles.xml must have w:between for admonition grouping";
 }
 
 TEST_F(DocxExportTest, KaTeXDisplayMathProducesOmml)
@@ -327,8 +333,8 @@ TEST_F(DocxExportTest, ContentAfterKaTeXPreservedInOmmlMode)
         << "Table after KaTeX must survive";
     EXPECT_TRUE(result.bodyXml.contains("Note"))
         << "Admonition title after KaTeX must survive";
-    EXPECT_TRUE(result.bodyXml.contains("AdmonitionTitle"))
-        << "Admonition title must use AdmonitionTitle style";
+    EXPECT_TRUE(result.bodyXml.contains("AdmonitionTitlenote"))
+        << "Admonition title must use AdmonitionTitlenote style";
 }
 
 TEST_F(DocxExportTest, BlockLevelImgProducesDrawing)
