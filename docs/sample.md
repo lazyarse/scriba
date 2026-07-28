@@ -255,5 +255,3 @@ Use <kbd>Ctrl+F</kbd> to search. Enable **Regex** to use patterns and capture gr
 | `(["'])(.*?)\1` | `[\2]` | Wraps `"quoted"` text in `[quoted]` |
 
 <img src="https://ibin.co/3dktB7jfT3" />
-
-jioj jjjkljljopooo
