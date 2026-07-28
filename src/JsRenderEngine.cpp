@@ -159,15 +159,32 @@ QString JsRenderEngine::renderSync(const QString &fullHtml, const QString &baseU
             return;
         }
         page->runJavaScript(
-            QStringLiteral("Promise.all([window.vegaLiteReady||Promise.resolve(),window.mermaidReady||Promise.resolve(),window.katexReady||Promise.resolve()]).then(function(){return true;})"),
-            [ctx, page](const QVariant &) {
-                page->runJavaScript(
-                    QStringLiteral("document.body.innerHTML"),
-                    [ctx](const QVariant &html) {
-                        ctx->result = html.toString();
-                        ctx->loop.quit();
-                    }
-                );
+            QStringLiteral(
+                "Promise.all([window.vegaLiteReady||Promise.resolve(),"
+                "window.mermaidReady||Promise.resolve(),"
+                "window.katexReady||Promise.resolve()])"
+                ".then(function(){"
+                "document.querySelectorAll('*').forEach(function(el){"
+                "var cs=getComputedStyle(el);"
+                "var parts=[];"
+                "var td=cs.getPropertyValue('text-decoration-line');"
+                "if(td&&td!=='none')parts.push('text-decoration-line:'+td);"
+                "var tds=cs.getPropertyValue('text-decoration-style');"
+                "if(tds&&tds!=='solid')parts.push('text-decoration-style:'+tds);"
+                "var tdc=cs.getPropertyValue('text-decoration-color');"
+                "if(tdc)parts.push('text-decoration-color:'+tdc);"
+                "var ts=cs.getPropertyValue('text-shadow');"
+                "if(ts&&ts!=='none')parts.push('text-shadow:'+ts);"
+                "var ff=cs.getPropertyValue('font-family');"
+                "if(ff)parts.push('font-family:'+ff);"
+                "if(parts.length)el.style.cssText=(el.style.cssText?el.style.cssText+';':'')+parts.join(';');"
+                "});"
+                "return document.body.innerHTML;"
+                "})"
+            ),
+            [ctx](const QVariant &html) {
+                ctx->result = html.toString();
+                ctx->loop.quit();
             }
         );
     });

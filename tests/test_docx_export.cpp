@@ -390,6 +390,124 @@ TEST_F(DocxExportTest, KaTeXDisplayMathFollowedByContent)
         << "Content after display math must survive";
 }
 
+// ── new feature tests ────────────────────────────────────────────────────────
+
+TEST_F(DocxExportTest, InlineStyleUnderlineProducesU)
+{
+    QString html = "<p style=\"text-decoration: underline\">underlined</p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:u"))
+        << "text-decoration:underline must produce w:u element";
+    EXPECT_TRUE(result.bodyXml.contains("underlined"))
+        << "Content must survive";
+}
+
+TEST_F(DocxExportTest, InlineStyleLineThroughProducesStrike)
+{
+    QString html = "<p style=\"text-decoration: line-through\">struck</p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:strike"))
+        << "text-decoration:line-through must produce w:strike element";
+}
+
+TEST_F(DocxExportTest, DelTagProducesStrike)
+{
+    QString html = "<p><del>deleted</del></p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:strike"))
+        << "<del> tag must produce w:strike";
+    EXPECT_TRUE(result.bodyXml.contains("deleted"))
+        << "Content inside <del> must survive";
+}
+
+TEST_F(DocxExportTest, StrikeTagProducesStrike)
+{
+    QString html = "<p><s>struck</s></p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:strike"))
+        << "<s> tag must produce w:strike";
+}
+
+TEST_F(DocxExportTest, UTagProducesUnderline)
+{
+    QString html = "<p><u>underlined</u></p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:u"))
+        << "<u> tag must produce w:u element";
+}
+
+TEST_F(DocxExportTest, InsTagProducesUnderline)
+{
+    QString html = "<p><ins>inserted</ins></p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:u"))
+        << "<ins> tag must produce w:u element";
+}
+
+TEST_F(DocxExportTest, FontFamilyFromInlineStyle)
+{
+    QString html = "<p style=\"font-family: 'Roboto', sans-serif\">Roboto text</p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("Roboto text"))
+        << "Content with font-family must survive";
+    EXPECT_TRUE(result.bodyXml.contains("w:rFonts"))
+        << "font-family must produce w:rFonts element";
+}
+
+TEST_F(DocxExportTest, TextShadowProducesShadow)
+{
+    QString html = "<p style=\"text-shadow: 2px 2px 4px #000\">shadowed</p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:shadow"))
+        << "text-shadow must produce w:shadow element";
+    EXPECT_TRUE(result.bodyXml.contains("shadowed"))
+        << "Content must survive";
+}
+
+TEST_F(DocxExportTest, UnderlineAndLineThroughTogether)
+{
+    // Both must appear in the output when both CSS properties are set
+    QString html = "<p style=\"text-decoration: underline line-through\">both</p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:u"))
+        << "underline must be present";
+    EXPECT_TRUE(result.bodyXml.contains("w:strike"))
+        << "line-through must be present";
+}
+
+TEST_F(DocxExportTest, WPPrSpecOrdering)
+{
+    // Verify that w:rPr children appear in ECMA-376 spec order
+    QString html = "<p><strong><em style=\"text-decoration: underline\">text</em></strong></p>";
+    OoxmlResult result = convert(html);
+    // Check that w:b comes before w:i before w:u in the serialized XML
+    QString body = result.bodyXml;
+    int posB = body.indexOf("w:b");
+    int posI = body.indexOf("w:i");
+    int posU = body.indexOf("w:u");
+    // w:b (slot 3), w:i (slot 5), w:u (slot 27) — must be in order
+    EXPECT_LT(posB, posI) << "w:b must come before w:i in spec order";
+    EXPECT_LT(posI, posU) << "w:i must come before w:u in spec order";
+}
+
+TEST_F(DocxExportTest, MarginLeftProducesIndent)
+{
+    QString html = "<p style=\"margin-left: 40px\">indented</p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:ind"))
+        << "margin-left must produce w:ind element";
+    EXPECT_TRUE(result.bodyXml.contains("indented"))
+        << "Content must survive";
+}
+
+TEST_F(DocxExportTest, MarginBottomProducesSpacing)
+{
+    QString html = "<p style=\"margin-bottom: 12pt\">spaced</p>";
+    OoxmlResult result = convert(html);
+    EXPECT_TRUE(result.bodyXml.contains("w:spacing"))
+        << "margin-bottom must produce w:spacing element";
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
