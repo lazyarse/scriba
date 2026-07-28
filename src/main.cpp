@@ -2,7 +2,9 @@
 #include <QIcon>
 #include <QMessageBox>
 #include <QStyleFactory>
+#ifndef Q_OS_WIN
 #include <unistd.h>
+#endif
 #include "MainWindow.h"
 #include "LogWindow.h"
 
@@ -10,6 +12,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+#ifndef Q_OS_WIN
     if (geteuid() == 0) {
         QMessageBox::critical(nullptr, "Scriba",
             "Scriba should not be run as root.\n\n"
@@ -17,6 +20,7 @@ int main(int argc, char *argv[])
             "edit a protected file, use: sudo -e file.md");
         return 1;
     }
+#endif
 
     app.setStyle(QStyleFactory::create("Fusion"));
     app.setOrganizationName("scriba");
