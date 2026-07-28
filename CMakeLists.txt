@@ -58,15 +58,15 @@ add_executable(scriba
     src/JsRenderEngine.cpp
     src/UnitConverter.cpp
     src/CssValueParser.cpp
-    vendor/md4c/md4c.c
-    vendor/md4c/md4c-html.c
-    vendor/md4c/entity.c
+    vendor/md4c/src/md4c.c
+    vendor/md4c/src/md4c-html.c
+    vendor/md4c/src/entity.c
     resources/scriba.qrc
     resources/twemoji-svg.qrc
 )
 
 target_include_directories(scriba PRIVATE
-    ${CMAKE_SOURCE_DIR}/vendor/md4c
+    ${CMAKE_SOURCE_DIR}/vendor/md4c/src
     ${CMAKE_SOURCE_DIR}/src
 )
 
@@ -132,11 +132,11 @@ if(BUILD_TESTS)
         src/CssUtils.cpp
         src/StaticHelpers.cpp
         src/JsSnippets.cpp
-        vendor/md4c/md4c.c
-        vendor/md4c/entity.c
+        vendor/md4c/src/md4c.c
+        vendor/md4c/src/entity.c
     )
     target_include_directories(scriba_core PUBLIC
-        ${CMAKE_SOURCE_DIR}/vendor/md4c
+        ${CMAKE_SOURCE_DIR}/vendor/md4c/src
         ${CMAKE_SOURCE_DIR}/src
     )
     target_link_libraries(scriba_core PUBLIC Qt6::Core Qt6::Gui Qt6::Svg Qt6::Widgets)

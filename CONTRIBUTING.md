@@ -52,7 +52,7 @@ scriba/
 │   ├── test_editor_completion_ui.cpp
 │   └── test_scroll_sync.cpp
 └── vendor/
-    └── md4c/                   — Markdown parser library (MIT, gitignored)
+    └── md4c/                   — Markdown parser library (MIT, tracked in repo, src/ has local patches in patches/)
 ```
 
 ## Documentation Assets
@@ -156,6 +156,15 @@ When creating a new theme, find the closest matching highlight.js theme from the
 3. Source or write a matching highlight.js block and append it at the end
 4. Register the new file in `resources/scriba.qrc` under `<file>themes/your-theme.css</file>`
 5. Rebuild — themes are compiled into the binary via Qt resources
+
+## Upgrading md4c
+
+The vendored markdown parser at `vendor/md4c/` has local patches in `vendor/md4c/patches/`. To upgrade:
+
+1. Copy new upstream `src/*` into `vendor/md4c/src/`
+2. From the repo root: `git apply vendor/md4c/patches/*.patch`
+3. If patches fail, rework and update the .patch files
+4. Commit updated files and patches
 
 ### Qt Widget Chrome
 

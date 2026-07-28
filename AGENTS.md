@@ -43,7 +43,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 ## Structure
 
 - `src/` — all application code (headers + cpp), flat layout
-- `vendor/md4c/` — vendored markdown parser (gitignored, must exist at build time)
+- `vendor/md4c/` — vendored markdown parser (tracked in repo, with patches in `vendor/md4c/patches/`)
 - `resources/` — Qt QRC resources: CSS themes, JS libraries (mermaid, KaTeX, highlight.js, vega), print styles
 - `resources/themes/` — bundled CSS themes (15 themes: Catppuccin, Dracula, Nord, etc.)
 - `tests/` — Qt Test-based test suites
@@ -81,7 +81,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 ## Gotchas
 
-- `vendor/` is gitignored. Clone with submodules or ensure `vendor/md4c/` exists before building.
+- `vendor/md4c/` contains the vendored markdown parser with local patches in `vendor/md4c/patches/`. To upgrade md4c: copy new upstream `src/*` into `vendor/md4c/src/`, then `git apply vendor/md4c/patches/*.patch` from the repo root. If patches fail, rework and update the .patch files.
 - Tests exist in `tests/` — run with `cd build && ctest --output-on-failure -j1` after building with `-DBUILD_TESTS=ON`. Tests auto-wrap in `xvfb-run` when available. Run with `-j1` (not parallel) to avoid WebEngine fork contention causing flaky failures.
 - `Qt6::WebEngineWidgets` is a heavy dependency; requires `xvfb` for headless/CI — install with `sudo apt install xvfb`.
 - Admonition support is CSS-only (`::before` pseudo-elements), not markdown parser extensions.

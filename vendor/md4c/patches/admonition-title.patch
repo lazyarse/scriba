@@ -1,0 +1,111 @@
+--- /tmp/md4c-tmp/src/md4c.h	2026-07-28 23:53:31.017249965 +0100
++++ /home/tpa/code/scriba/vendor/md4c/src/md4c.h	2026-07-28 23:54:29.319168740 +0100
+@@ -329,6 +329,7 @@
+ /* Detailed info for MD_BLOCK_ADMONITION. */
+ typedef struct MD_BLOCK_ADMONITION_DETAIL {
+     MD_ATTRIBUTE type;          /* One of "note", "tip", "important", "warning", "caution" */
++    MD_ATTRIBUTE title;         /* Optional custom title (text after "[!TYPE] ") */
+ } MD_BLOCK_ADMONITION_DETAIL;
+ 
+ /* Detailed info for MD_SPAN_A. */
+--- /tmp/md4c-tmp/src/md4c.c	2026-07-28 23:53:31.017249965 +0100
++++ /home/tpa/code/scriba/vendor/md4c/src/md4c.c	2026-07-28 23:55:12.553285750 +0100
+@@ -5304,6 +5304,7 @@
+     unsigned is_admonition      : 1;
+     unsigned admonition_type    : 3;
+     unsigned start;
++    OFF admonition_title_off;   /* Offset of title after "[!TYPE] ", or 0 */
+     unsigned mark_indent;
+     unsigned contents_indent;
+     OFF block_byte_off;
+@@ -5588,6 +5589,22 @@
+                 det.adm.type.size = adm_substr_offsets[1];
+                 det.adm.type.substr_types = adm_substr_types;
+                 det.adm.type.substr_offsets = adm_substr_offsets;
++
++                det.adm.title.text = NULL;
++                det.adm.title.size = 0;
++                if(block->n_lines > 0) {
++                    OFF title_off = (OFF)block->n_lines;
++                    OFF title_end = title_off;
++                    while(title_end < ctx->size && CH(title_end) != _T('\n'))
++                        title_end++;
++                    /* Trim trailing spaces */
++                    while(title_end > title_off && CH(title_end-1) == _T(' '))
++                        title_end--;
++                    if(title_end > title_off) {
++                        det.adm.title.text = STR(title_off);
++                        det.adm.title.size = (MD_SIZE)(title_end - title_off);
++                    }
++                }
+                 break;
+ 
+             default:
+@@ -6353,7 +6370,8 @@
+             case _T('>'):
+                 MD_CHECK(md_push_container_bytes(ctx,
+                                 (c->is_admonition ? MD_BLOCK_ADMONITION : MD_BLOCK_QUOTE),
+-                                0, c->admonition_type, MD_BLOCK_CONTAINER_OPENER));
++                                (c->is_admonition ? c->admonition_title_off : 0),
++                                c->admonition_type, MD_BLOCK_CONTAINER_OPENER));
+                 break;
+ 
+             default:
+@@ -6953,20 +6971,45 @@
+     if(n_children > 0) {
+         /* Check for admonition tag. */
+         if((ctx->parser.flags & MD_FLAG_ADMONITIONS)  &&  n_children > 0  &&
+-           ctx->containers[ctx->n_containers-1].ch == _T('>')  &&  line->type == MD_LINE_TEXT  &&
+-           3 < line->end - line->beg  && line->end - line->beg < 16  &&
+-           CH(line->beg) == _T('[') && CH(line->beg+1) == _T('!') && CH(line->end-1) == _T(']'))
++           ctx->containers[ctx->n_containers-1].ch == _T('>')  &&  line->type == MD_LINE_TEXT)
+         {
+-            unsigned i;
++            OFF tag_beg = line->beg;
+ 
+-            for(i = 0; i < SIZEOF_ARRAY(MD_ADMONITION_TAGS); i++) {
+-                if(line->end - line->beg == md_strlen(MD_ADMONITION_TAGS[i]) + 3  &&
+-                   md_ascii_case_eq(STR(line->beg+2), MD_ADMONITION_TAGS[i], line->end - line->beg - 3))
+-                {
+-                    ctx->containers[ctx->n_containers-1].is_admonition = TRUE;
+-                    ctx->containers[ctx->n_containers-1].admonition_type = i;
+-                    line->type = MD_LINE_BLANK;
+-                    break;
++            /* Find "[!" in line */
++            while(tag_beg + 2 < line->end &&
++                  !(CH(tag_beg) == _T('[') && CH(tag_beg+1) == _T('!')))
++                tag_beg++;
++
++            if(tag_beg + 2 < line->end) {
++                OFF tag_end = tag_beg + 2;
++                while(tag_end < line->end && CH(tag_end) != _T(']'))
++                    tag_end++;
++
++                if(tag_end < line->end) {
++                    unsigned i;
++                    OFF type_beg = tag_beg + 2;
++                    OFF type_end = type_beg;
++                    while(type_end < tag_end && CH(type_end) != _T(' '))
++                        type_end++;
++
++                    for(i = 0; i < SIZEOF_ARRAY(MD_ADMONITION_TAGS); i++) {
++                        if(type_end - type_beg == (OFF)md_strlen(MD_ADMONITION_TAGS[i])  &&
++                           md_ascii_case_eq(STR(type_beg), MD_ADMONITION_TAGS[i], type_end - type_beg))
++                        {
++                            ctx->containers[ctx->n_containers-1].is_admonition = TRUE;
++                            ctx->containers[ctx->n_containers-1].admonition_type = i;
++
++                            /* Capture title: text after "] " to end of line */
++                            OFF title_off = tag_end + 1;
++                            while(title_off < line->end && CH(title_off) == _T(' '))
++                                title_off++;
++                            ctx->containers[ctx->n_containers-1].admonition_title_off =
++                                (title_off < line->end ? title_off : 0);
++
++                            line->type = MD_LINE_BLANK;
++                            break;
++                        }
++                    }
++                }
+             }
+         }

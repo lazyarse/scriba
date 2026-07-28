@@ -105,7 +105,7 @@ $$
 > [!caution]
 > This could have negative consequences.
 
-> [!warning HIGH VOLTAGE!]
+> [!warning] HIGH VOLTAGE!
 > Custom titles work too. Set different icons via CSS.
 
 ## Mermaid Diagrams
