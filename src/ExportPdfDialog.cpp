@@ -357,7 +357,7 @@ void ExportPdfDialog::setupUi()
     fieldGrid->setColumnStretch(3, 1);
     groupLayout->addLayout(fieldGrid);
 
-    auto enableFields = [=](bool on) {
+    auto enableFields = [=, this](bool on) {
         m_headerLeft->setEnabled(on);
         m_headerCenter->setEnabled(on);
         m_headerRight->setEnabled(on);
