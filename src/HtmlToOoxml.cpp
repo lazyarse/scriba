@@ -994,10 +994,14 @@ QString styleColor(const QString &themeCss, const QString &tag, const QString &f
 {
     QRegularExpression re(tag + R"(\s*\{[^}]*\bcolor\s*:\s*([^;}]+))",
                           QRegularExpression::CaseInsensitiveOption);
-    auto m = re.match(themeCss);
-    if (!m.hasMatch()) return fallback;
-
-    QString c = m.captured(1).trimmed();
+    QString c;
+    auto it = re.globalMatch(themeCss);
+    while (it.hasNext()) {
+        auto m = it.next();
+        QString val = m.captured(1).trimmed();
+        if (!val.isEmpty()) c = val;
+    }
+    if (c.isEmpty()) return fallback;
     if (c.startsWith('#')) {
         c = c.mid(1);
         if (c.length() == 3) {
@@ -1014,9 +1018,14 @@ static QString extractCssValue(const QString &themeCss, const QString &selector,
     QRegularExpression re(QRegularExpression::escape(selector)
                           + R"(\s*\{[^}]*\b)" + property + R"(\s*:\s*([^;}]+))",
                           QRegularExpression::CaseInsensitiveOption);
-    auto m = re.match(themeCss);
-    if (!m.hasMatch()) return fallback;
-    QString v = m.captured(1).trimmed();
+    QString v;
+    auto it = re.globalMatch(themeCss);
+    while (it.hasNext()) {
+        auto m = it.next();
+        QString val = m.captured(1).trimmed();
+        if (!val.isEmpty()) v = val;
+    }
+    if (v.isEmpty()) return fallback;
     if (v.startsWith('#')) {
         v = v.mid(1);
         if (v.length() == 3)
@@ -1041,7 +1050,9 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
     w.writeStartElement("w:style");
     w.writeAttribute("w:type", "paragraph");
     w.writeAttribute("w:styleId", "Normal");
-    w.writeTextElement("w:name", "Normal");
+    w.writeStartElement("w:name");
+    w.writeAttribute("w:val", "Normal");
+    w.writeEndElement();
     auto rpr = [&]() {
         w.writeStartElement("w:rPr");
         w.writeStartElement("w:sz");
@@ -1081,7 +1092,9 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
         w.writeStartElement("w:name");
         w.writeAttribute("w:val", "heading " + QString(h.tag[1]));
         w.writeEndElement();
-        w.writeTextElement("w:basedOn", "Normal");
+        w.writeStartElement("w:basedOn");
+        w.writeAttribute("w:val", "Normal");
+        w.writeEndElement();
 
         w.writeStartElement("w:pPr");
         w.writeStartElement("w:spacing");
@@ -1109,8 +1122,12 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
     w.writeStartElement("w:style");
     w.writeAttribute("w:type", "paragraph");
     w.writeAttribute("w:styleId", "SourceCode");
-    w.writeTextElement("w:name", "Source Code");
-    w.writeTextElement("w:basedOn", "Normal");
+    w.writeStartElement("w:name");
+    w.writeAttribute("w:val", "Source Code");
+    w.writeEndElement();
+    w.writeStartElement("w:basedOn");
+    w.writeAttribute("w:val", "Normal");
+    w.writeEndElement();
     w.writeStartElement("w:pPr");
     w.writeStartElement("w:spacing");
     w.writeAttribute("w:before", "120");
@@ -1142,8 +1159,12 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
     w.writeStartElement("w:style");
     w.writeAttribute("w:type", "paragraph");
     w.writeAttribute("w:styleId", "Quote");
-    w.writeTextElement("w:name", "Quote");
-    w.writeTextElement("w:basedOn", "Normal");
+    w.writeStartElement("w:name");
+    w.writeAttribute("w:val", "Quote");
+    w.writeEndElement();
+    w.writeStartElement("w:basedOn");
+    w.writeAttribute("w:val", "Normal");
+    w.writeEndElement();
     w.writeStartElement("w:pPr");
     w.writeStartElement("w:ind");
     w.writeAttribute("w:left", "720");
@@ -1190,8 +1211,12 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
         w.writeStartElement("w:style");
         w.writeAttribute("w:type", "paragraph");
         w.writeAttribute("w:styleId", "AdmonitionTitle" + type);
-        w.writeTextElement("w:name", "Admonition " + type + " Title");
-        w.writeTextElement("w:basedOn", "Normal");
+        w.writeStartElement("w:name");
+        w.writeAttribute("w:val", "Admonition " + type + " Title");
+        w.writeEndElement();
+        w.writeStartElement("w:basedOn");
+        w.writeAttribute("w:val", "Normal");
+        w.writeEndElement();
         w.writeStartElement("w:pPr");
         w.writeStartElement("w:spacing");
         w.writeAttribute("w:before", "120");
@@ -1226,8 +1251,12 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
         w.writeStartElement("w:style");
         w.writeAttribute("w:type", "paragraph");
         w.writeAttribute("w:styleId", "AdmonitionText" + type);
-        w.writeTextElement("w:name", "Admonition " + type + " Text");
-        w.writeTextElement("w:basedOn", "Normal");
+        w.writeStartElement("w:name");
+        w.writeAttribute("w:val", "Admonition " + type + " Text");
+        w.writeEndElement();
+        w.writeStartElement("w:basedOn");
+        w.writeAttribute("w:val", "Normal");
+        w.writeEndElement();
         w.writeStartElement("w:pPr");
         w.writeStartElement("w:spacing");
         w.writeAttribute("w:before", "60");
