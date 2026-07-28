@@ -27,23 +27,18 @@
 - [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
-- [md4c](https://github.com/mity/md4c) — CommonMark-compliant Markdown parser + GFM support
+- [md4c](https://github.com/mity/md4c) — we patched this CommonMark-compliant Markdown parser + GFM support
 
 ### The Basics
 
-- Image rendering from local files and URLs
-- Admonitions and custom titles and icons (note, tip, important, warning, caution) 
-- Preview pane with configurable split-screen layout: have the preview on the right, the left, on its own, or hidden
-- CSS-based theming: editor, preview, and chrome all styled from one file with sample themes for you to moan about. The editor's colours stay in sync with the theme but you can override them. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
-- Print and PDF export with print-specific CSS stylesheets
-- Find / Replace with highlighting, regex search and replace with back-references 
-- Tabs for working in a `session` with load / save session handling for different projects
-- The usual <kbd>Ctrl</kbd>+<kbd>X</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>V</kbd>, <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> do what you'd expect.
+- Handle docsets with a tabbed display across different projects as a `session` with load / save
+- Print and PDF export with print-specific CSS stylesheets because we know you want prints to look different
+- Everything you'd expect a Markdown editor to do, including admonitions with custom titles + icons, Find and Replace with regex back-references, full-screen mode, 
+- Easy accessibility support with CSS-based theming to help you use Scriba: the editor, preview, and chrome all styled from one file with sample themes for you to moan about. The editor's colours stay in sync with the theme but you can override them. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
 - A shocking 80ms debounce timer that causes delay in the rendered preview to bother fast typers like you
 
 ### Candy:
 
-- Full-screen mode
 - Cursor and view-port restore on re-start to pick up where you left off
 - Sentence, word count, estimated reading time and reading age to suitably patronise. (Oh look, this `README` is aimed at high-school-educated people)
 - That annoying `<kbd>` css styling to look just like a key. I like it. Feel free to remove it in the `preview-base.css` and `print-base.css`
@@ -55,10 +50,7 @@
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` autocompletes to `![](foo/bar.png)`
 - A debug log window output to see your rendering errors
 - A [docs/sample.md](docs/sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
-- Selected text + <kbd>Tab</kbd> will indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> will dedent
-- <kbd>Down</kbd> on the last line will place the cursor at the end of the line
 - hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text
-- Duplicate a line with <kbd>Ctrl</kbd>+<kbd>D</kbd> because <kbd>Home</kbd><kbd>Shift</kbd>+<kbd>Down</kbd><kbd>Left</kbd> are too many steps
 
 ## Non-Features
 
@@ -100,6 +92,15 @@
 | <kbd>F3</kbd> | Next Search Result |
 | <kbd>Shift</kbd>+<kbd>F3</kbd> | Previous Search Result|
 | <kbd>Ctrl</kbd>+<kbd>D</kbd> | Duplicate line |
+| <kbd>Ctrl</kbd>+<kbd>Z</kbd> | Undo |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | Redo |
+| <kbd>Ctrl</kbd>+<kbd>X</kbd> | Cut |
+| <kbd>Ctrl</kbd>+<kbd>C</kbd> | Copy |
+| <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste |
+| <kbd>Ctrl</kbd>+<kbd>A</kbd> | Select All |
+| <kbd>Down</kbd> | On the last line will place the cursor at the end of the line |
+| <kbd>Tab</kbd> | Indent selected text |
+| <kbd>Shift</kbd>+<kbd>Tab</kbd> | Dedent selected text |
 
 ### Helpers
 
