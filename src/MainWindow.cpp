@@ -180,6 +180,9 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
         }
     }
 
+    if (m_tabs.isEmpty())
+        addTab();
+
     connectActiveEditor();
 }
 
