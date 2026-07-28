@@ -129,7 +129,8 @@ Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root`
   ```bash
   sudo apt install qt6-base-dev qt6-webengine-dev
   ```
-- GCC/Clang with C++17 support
+- GCC/Clang with C++17 support (Linux) or Visual Studio 2022 with "Desktop development with C++" workload (Windows)
+- On Windows: Qt 6.8+ (MSVC 2022 64-bit) from qt.io, CMake, Git for Windows
 - **Chromium ≥ 140** (for PDF export). Install on Debian/Ubuntu:
   ```bash
   sudo apt install chromium
@@ -147,6 +148,17 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
 The post-build step automatically removes cached base stylesheets (`~/.config/scriba/*.css`), so no manual cleanup needed on rebuild.
+
+### Build on Windows
+
+In an **x64 Native Tools Command Prompt for VS 2022**:
+
+```cmd
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.10.3\msvc2022_64"
+cmake --build build -j4 --config Release
+```
+
+Binary: `build\Release\scriba.exe`
 
 ### Build .deb package
 
@@ -177,4 +189,15 @@ Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't cr
 ./scriba file.md            # open file
 ./scriba file1.md file2.md  # open files
 ```
+
+On Windows, add Qt's bin directory to PATH first:
+
+```cmd
+set PATH=C:\Qt\6.10.3\msvc2022_64\bin;%PATH%
+build\Release\scriba.exe
+build\Release\scriba.exe file.md
+```
+
+For a permanent fix, add `C:\Qt\6.10.3\msvc2022_64\bin` to your system PATH.
+
 JS console messages are captured via the Debug Log window (Tools → Debug Log).

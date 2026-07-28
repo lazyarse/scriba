@@ -33,6 +33,13 @@ build/scriba              # empty editor
 build/scriba file.md      # open file
 ```
 
+On Windows (x64 Native Tools Command Prompt for VS 2022):
+```cmd
+set PATH=C:\Qt\6.10.3\msvc2022_64\bin;%PATH%
+build\Release\scriba.exe
+build\Release\scriba.exe file.md
+```
+
 ## Dependencies
 
 Qt6: Core, Gui, Widgets, Network, WebEngineWidgets. Install on Debian/Ubuntu:
