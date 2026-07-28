@@ -1588,6 +1588,14 @@ void MainWindow::exportDocx()
         return;
 
     DocxMathMode mathMode = dlg.selectedMathMode();
+    DocxExportOptions opts;
+    opts.mathMode = mathMode;
+    opts.landscape = dlg.isLandscape();
+    opts.marginTopCm = dlg.marginTop();
+    opts.marginBottomCm = dlg.marginBottom();
+    opts.marginLeftCm = dlg.marginLeft();
+    opts.marginRightCm = dlg.marginRight();
+    opts.pageNumbers = dlg.hasPageNumbers();
 
     QString markdown = ed->toPlainText();
     QString html = m_parser->toHtml(markdown);
@@ -1639,7 +1647,7 @@ void MainWindow::exportDocx()
         this, "Export as Word (DOCX)", defaultName, "Word Documents (*.docx)");
     if (path.isEmpty()) return;
 
-    if (!DocxExporter::exportToDocx(renderedHtml, path, docxCss, mathMode)) {
+    if (!DocxExporter::exportToDocx(renderedHtml, path, docxCss, opts)) {
         showCenteredWarning("Export Failed",
             "Could not export the document as DOCX.",
             "Check that the file is not open in another application and that the path is writable.");

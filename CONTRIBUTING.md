@@ -190,6 +190,15 @@ User clicks link in preview
 - `src/MainWindow.cpp` — JS injection in the HTML template; signal handler that opens tabs or browser
 - `src/Preview.h` — `openLinkRequested` signal declaration
 
+## Preview Rendering: Dual Debounce
+
+Every keystroke in the editor triggers `updatePreview()` in `MainWindow.cpp`, which calls `scribaUpdate()` in the preview page's JS context. To keep typing responsive while still rendering heavy visualizations, there are two debounce delays:
+
+- **80ms** — `MainWindow` debounces `updatePreview()` calls so fast typing doesn't flood the WebEngine. On each call, `scribaUpdate()` sets `document.body.innerHTML` immediately for a snappy text preview.
+- **1500ms** — After the HTML update, `scribaUpdate()` sets a `setTimeout` that runs Mermaid, KaTeX, Vega-Lite, highlight.js, and twemoji. If the user types again within 1500ms, the timer is reset and the previous render is discarded (via a generation counter `window._scribaGen`).
+
+This split avoids re-running expensive JS libraries on every character while keeping text updates instant. Scroll position is restored using a percentage (`pct = scrollY / scrollHeight`) saved before innerHTML, so diagram height changes don't drift the viewport.
+
 ## Testing
 
 Test suites set `QCoreApplication::setOrganizationName("scribaTest")` / `setApplicationName("scribaTest")` so their QSettings data (and default CSS files written by `CssLoader`) land in `~/.config/scribaTest/scribaTest/` instead of the real app's `~/.config/scriba/scriba/`. This keeps test config isolated from the user's config.

@@ -1,4 +1,6 @@
 #include "HtmlToOoxml.h"
+#include "CssValueParser.h"
+#include "UnitConverter.h"
 #include <mathml2omml.h>
 #include <string>
 #include <QBuffer>
@@ -17,6 +19,12 @@ struct FormatState {
     bool bold = false;
     bool italic = false;
     bool code = false;
+    bool strike = false;
+    bool shadow = false;
+    bool underline = false;
+    QString underlineStyle = QStringLiteral("single");
+    QString underlineColor;
+    QString fontFamily;
 };
 
 static QXmlStreamWriter *bodyWriter = nullptr;
@@ -292,27 +300,49 @@ static void writeKatexAsOmml(SimpleHtmlParser &parser, const QString &endTag,
     bodyWriter->writeEndElement();
 }
 
+static void writeRunProperties(QXmlStreamWriter &w, const FormatState &fs)
+{
+    // Emit <w:rPr> children in ECMA-376 EG_RPrBase slot order so Word
+    // does not silently drop out-of-sequence elements.
+    if (!fs.bold && !fs.italic && !fs.code && !fs.strike && !fs.shadow
+        && !fs.underline && fs.fontFamily.isEmpty())
+        return;
+    w.writeStartElement("w:rPr");
+    // Slot 2: rFonts
+    if (fs.code || !fs.fontFamily.isEmpty()) {
+        w.writeStartElement("w:rFonts");
+        w.writeAttribute("w:ascii", fs.code ? "Courier New" : fs.fontFamily);
+        w.writeAttribute("w:hAnsi", fs.code ? "Courier New" : fs.fontFamily);
+        w.writeEndElement();
+    }
+    // Slot 3: b
+    if (fs.bold) w.writeEmptyElement("w:b");
+    // Slot 5: i
+    if (fs.italic) w.writeEmptyElement("w:i");
+    // Slot 9: strike
+    if (fs.strike) w.writeEmptyElement("w:strike");
+    // Slot 12: shadow
+    if (fs.shadow) w.writeEmptyElement("w:shadow");
+    // Slot 24: sz (code font size)
+    if (fs.code) {
+        w.writeStartElement("w:sz");
+        w.writeAttribute("w:val", "18");
+        w.writeEndElement();
+    }
+    // Slot 27: u
+    if (fs.underline) {
+        w.writeStartElement("w:u");
+        w.writeAttribute("w:val", fs.underlineStyle);
+        if (!fs.underlineColor.isEmpty())
+            w.writeAttribute("w:color", fs.underlineColor);
+        w.writeEndElement();
+    }
+    w.writeEndElement();
+}
+
 static void writeRunWithBreaks(QXmlStreamWriter &w, const QString &text, const FormatState &fs)
 {
     if (text.isEmpty()) return;
-
-    auto writeRpr = [&]() {
-        if (fs.bold || fs.italic || fs.code) {
-            w.writeStartElement("w:rPr");
-            if (fs.bold) w.writeEmptyElement("w:b");
-            if (fs.italic) w.writeEmptyElement("w:i");
-            if (fs.code) {
-                w.writeStartElement("w:rFonts");
-                w.writeAttribute("w:ascii", "Courier New");
-                w.writeAttribute("w:hAnsi", "Courier New");
-                w.writeEndElement();
-                w.writeStartElement("w:sz");
-                w.writeAttribute("w:val", "18");
-                w.writeEndElement();
-            }
-            w.writeEndElement();
-        }
-    };
 
     // Split on newlines so OOXML preserves line breaks in code blocks
     QStringList parts = text.split(QLatin1Char('\n'));
@@ -323,7 +353,7 @@ static void writeRunWithBreaks(QXmlStreamWriter &w, const QString &text, const F
         }
         if (parts[i].isEmpty()) continue;
         w.writeStartElement("w:r");
-        writeRpr();
+        writeRunProperties(w, fs);
         w.writeStartElement("w:t");
         if (!parts[i].isEmpty() && (parts[i][0] == ' ' || parts[i].back() == ' '))
             w.writeAttribute("xml:space", "preserve");
@@ -667,6 +697,29 @@ static void handleImgTag(const HtmlToken &tok)
     writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu, g_imageCounter);
 }
 
+// ── style-attribute helper ────────────────────────────────────────────────────
+
+static FormatState applyInlineStyle(const FormatState &base, const QMap<QString, QString> &attrs)
+{
+    FormatState s = base;
+    QString style = attrs.value(QStringLiteral("style"));
+    if (style.isEmpty()) return s;
+
+    auto td = CssValueParser::parseTextDecoration(style);
+    if (td.lineThrough) s.strike = true;
+    if (td.underline) {
+        s.underline = true;
+        s.underlineStyle = td.style;
+        s.underlineColor = td.color;
+    }
+    QString ff = CssValueParser::parseFontFamily(style);
+    if (!ff.isEmpty()) s.fontFamily = ff;
+    QString ts = CssValueParser::extractCssProperty(style, QStringLiteral("text-shadow"));
+    if (!ts.isEmpty() && ts.compare(QStringLiteral("none"), Qt::CaseInsensitive) != 0)
+        s.shadow = true;
+    return s;
+}
+
 static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTag,
                                   FormatState state)
 {
@@ -682,16 +735,24 @@ static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTa
         if (tok.type == HtmlToken::TagOpen || tok.type == HtmlToken::SelfClose) {
             const QString &n = tok.name;
             if (n == "strong" || n == "b") {
-                FormatState s = state;
+                FormatState s = applyInlineStyle(state, tok.attrs);
                 s.bold = true;
                 processInlineChildren(parser, n, s);
             } else if (n == "em" || n == "i") {
-                FormatState s = state;
+                FormatState s = applyInlineStyle(state, tok.attrs);
                 s.italic = true;
                 processInlineChildren(parser, n, s);
             } else if (n == "code") {
-                FormatState s = state;
+                FormatState s = applyInlineStyle(state, tok.attrs);
                 s.code = true;
+                processInlineChildren(parser, n, s);
+            } else if (n == "del" || n == "s" || n == "strike") {
+                FormatState s = applyInlineStyle(state, tok.attrs);
+                s.strike = true;
+                processInlineChildren(parser, n, s);
+            } else if (n == "u" || n == "ins") {
+                FormatState s = applyInlineStyle(state, tok.attrs);
+                s.underline = true;
                 processInlineChildren(parser, n, s);
             } else if (n == "a") {
                 QString href = tok.attrs.value(QStringLiteral("href"));
@@ -717,10 +778,13 @@ static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTa
                 // KaTeX math — convert to OMML using data-mathml/data-tex
                 writeKatexAsOmml(parser, n, tok.attrs.value(QStringLiteral("data-tex")),
                                  tok.attrs.value(QStringLiteral("data-mathml")));
+            } else if (n == "span") {
+                // Parse style for font-family, text-decoration, text-shadow
+                processInlineChildren(parser, n, applyInlineStyle(state, tok.attrs));
             } else if (isVoidElement(n)) {
                 // Void elements (input, hr, col, etc.) have no closing tag — skip
             } else {
-                processInlineChildren(parser, n, state);
+                processInlineChildren(parser, n, applyInlineStyle(state, tok.attrs));
             }
         } else if (tok.type == HtmlToken::Text) {
             writeRun(*bodyWriter, tok.text, state);
@@ -730,14 +794,35 @@ static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTa
 
 // ── block-level handlers ────────────────────────────────────────────────────
 
-static void writeParaStart(const QString &styleId)
+static void writeParaStart(const QString &styleId, const Margins &margins = {})
 {
     bodyWriter->writeStartElement("w:p");
-    if (!styleId.isEmpty()) {
+    bool hasPPr = !styleId.isEmpty()
+        || margins.top >= 0 || margins.bottom >= 0
+        || margins.left >= 0 || margins.right >= 0;
+    if (hasPPr) {
         bodyWriter->writeStartElement("w:pPr");
-        bodyWriter->writeStartElement("w:pStyle");
-        bodyWriter->writeAttribute("w:val", styleId);
-        bodyWriter->writeEndElement();
+        if (!styleId.isEmpty()) {
+            bodyWriter->writeStartElement("w:pStyle");
+            bodyWriter->writeAttribute("w:val", styleId);
+            bodyWriter->writeEndElement();
+        }
+        if (margins.top >= 0 || margins.bottom >= 0) {
+            bodyWriter->writeStartElement("w:spacing");
+            if (margins.top >= 0)
+                bodyWriter->writeAttribute("w:before", QString::number(margins.top));
+            if (margins.bottom >= 0)
+                bodyWriter->writeAttribute("w:after", QString::number(margins.bottom));
+            bodyWriter->writeEndElement();
+        }
+        if (margins.left >= 0 || margins.right >= 0) {
+            bodyWriter->writeStartElement("w:ind");
+            if (margins.left >= 0)
+                bodyWriter->writeAttribute("w:left", QString::number(margins.left));
+            if (margins.right >= 0)
+                bodyWriter->writeAttribute("w:right", QString::number(margins.right));
+            bodyWriter->writeEndElement();
+        }
         bodyWriter->writeEndElement();
     }
 }
@@ -749,9 +834,16 @@ static void writeParaEnd()
 
 static void handleParagraph(const QString &styleId,
                             SimpleHtmlParser &parser, const QString &endTag,
-                            FormatState state)
+                            FormatState state,
+                            const QMap<QString, QString> &attrs = {})
 {
-    writeParaStart(styleId);
+    Margins margins;
+    auto styleIt = attrs.find(QStringLiteral("style"));
+    if (styleIt != attrs.end()) {
+        margins = CssValueParser::parseMargins(styleIt.value());
+        state = applyInlineStyle(state, attrs);
+    }
+    writeParaStart(styleId, margins);
     processInlineChildren(parser, endTag, state);
     writeParaEnd();
 }
@@ -787,7 +879,32 @@ static void handleDiv(SimpleHtmlParser &parser, const QString &endTag,
 
 // ── table handler ────────────────────────────────────────────────────────────
 
-static void handleTable(SimpleHtmlParser &parser)
+static void writeCellBorders(QXmlStreamWriter &w, const QString &styleAttr)
+{
+    if (styleAttr.isEmpty()) return;
+    QString borderVal = CssValueParser::extractCssProperty(styleAttr, QStringLiteral("border"));
+    if (borderVal.isEmpty() || borderVal == QStringLiteral("none") || borderVal == QStringLiteral("0"))
+        return;
+    auto bs = CssValueParser::parseCssBorder(borderVal);
+    if (bs.stroke == QStringLiteral("nil")) return;
+    w.writeStartElement("w:tcBorders");
+    auto writeSide = [&](const QString &side) {
+        w.writeStartElement("w:" + side);
+        w.writeAttribute("w:val", bs.stroke);
+        w.writeAttribute("w:sz", QString::number(bs.size));
+        w.writeAttribute("w:space", "0");
+        w.writeAttribute("w:color", bs.color);
+        w.writeEndElement();
+    };
+    writeSide(QStringLiteral("top"));
+    writeSide(QStringLiteral("left"));
+    writeSide(QStringLiteral("bottom"));
+    writeSide(QStringLiteral("right"));
+    w.writeEndElement();
+}
+
+static void handleTable(SimpleHtmlParser &parser,
+                        const QMap<QString, QString> &attrs = {})
 {
     bodyWriter->writeStartElement("w:tbl");
 
@@ -796,7 +913,33 @@ static void handleTable(SimpleHtmlParser &parser)
     bodyWriter->writeAttribute("w:w", "9072");
     bodyWriter->writeAttribute("w:type", "dxa");
     bodyWriter->writeEndElement();
-    bodyWriter->writeEndElement();
+
+    // Table-level borders from style attribute
+    QString tableStyle = attrs.value(QStringLiteral("style"));
+    if (!tableStyle.isEmpty()) {
+        QString borderVal = CssValueParser::extractCssProperty(tableStyle, QStringLiteral("border"));
+        if (!borderVal.isEmpty() && borderVal != QStringLiteral("none") && borderVal != QStringLiteral("0")) {
+            auto bs = CssValueParser::parseCssBorder(borderVal);
+            if (bs.stroke != QStringLiteral("nil")) {
+                bodyWriter->writeStartElement("w:tblBorders");
+                auto writeSide = [&](const QString &side) {
+                    bodyWriter->writeStartElement("w:" + side);
+                    bodyWriter->writeAttribute("w:val", bs.stroke);
+                    bodyWriter->writeAttribute("w:sz", QString::number(bs.size));
+                    bodyWriter->writeAttribute("w:space", "0");
+                    bodyWriter->writeAttribute("w:color", bs.color);
+                    bodyWriter->writeEndElement();
+                };
+                writeSide(QStringLiteral("top"));
+                writeSide(QStringLiteral("left"));
+                writeSide(QStringLiteral("bottom"));
+                writeSide(QStringLiteral("right"));
+                bodyWriter->writeEndElement();
+            }
+        }
+    }
+
+    bodyWriter->writeEndElement(); // w:tblPr
 
     while (!parser.atEnd()) {
         parser.readNext();
@@ -824,12 +967,16 @@ static void handleTable(SimpleHtmlParser &parser)
             bodyWriter->writeAttribute("w:fill", "D9E2F3");
             bodyWriter->writeAttribute("w:val", "clear");
             bodyWriter->writeEndElement();
+            writeCellBorders(*bodyWriter, tok.attrs.value(QStringLiteral("style")));
             bodyWriter->writeEndElement();
-            handleParagraph(QString(), parser, QStringLiteral("th"), FormatState{});
+            handleParagraph(QString(), parser, QStringLiteral("th"), FormatState{}, tok.attrs);
             bodyWriter->writeEndElement();
         } else if (n == "td") {
             bodyWriter->writeStartElement("w:tc");
-            handleParagraph(QString(), parser, QStringLiteral("td"), FormatState{});
+            bodyWriter->writeStartElement("w:tcPr");
+            writeCellBorders(*bodyWriter, tok.attrs.value(QStringLiteral("style")));
+            bodyWriter->writeEndElement();
+            handleParagraph(QString(), parser, QStringLiteral("td"), FormatState{}, tok.attrs);
             bodyWriter->writeEndElement();
         }
     }
@@ -894,7 +1041,7 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
         const QString &tag = tok.name;
 
         if (tag.startsWith('h') && tag.length() == 2 && tag[1] >= '1' && tag[1] <= '6') {
-            handleParagraph("Heading" + tag.mid(1), parser, tag, state);
+            handleParagraph("Heading" + tag.mid(1), parser, tag, state, tok.attrs);
         } else if (tag == "p") {
             QString pClass = tok.attrs.value(QStringLiteral("class"));
             QString styleId = "Normal";
@@ -903,17 +1050,17 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
             } else if (!g_admonitionType.isEmpty()) {
                 styleId = "AdmonitionText" + g_admonitionType;
             }
-            handleParagraph(styleId, parser, tag, state);
+            handleParagraph(styleId, parser, tag, state, tok.attrs);
         } else if (tag == "pre") {
             handlePre(parser);
         } else if (tag == "blockquote") {
-            handleParagraph("Quote", parser, tag, state);
+            handleParagraph("Quote", parser, tag, state, tok.attrs);
         } else if (tag == "ul") {
             handleList(parser, false, 0);
         } else if (tag == "ol") {
             handleList(parser, true, 0);
         } else if (tag == "table") {
-            handleTable(parser);
+            handleTable(parser, tok.attrs);
         } else if (tag == "div") {
             handleDiv(parser, tag, tok.attrs);
         } else if (tag == "svg") {

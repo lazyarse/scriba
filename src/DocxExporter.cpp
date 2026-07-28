@@ -3,6 +3,7 @@
 #include <QDataStream>
 #include <QFile>
 #include <QLoggingCategory>
+#include <QtMath>
 #include <QXmlStreamWriter>
 
 Q_LOGGING_CATEGORY(lcDocx, "scriba.docx")
@@ -59,7 +60,7 @@ static uint32_t zipCrc32(const QByteArray &data)
     return crc ^ 0xFFFFFFFF;
 }
 
-static QByteArray buildContentTypes(int imageCount)
+static QByteArray buildContentTypes(int imageCount, bool hasFooter = false)
 {
     QByteArray out;
     QXmlStreamWriter w(&out);
@@ -87,10 +88,22 @@ static QByteArray buildContentTypes(int imageCount)
     w.writeAttribute("ContentType",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml");
     w.writeEndElement();
+    w.writeStartElement("Override");
+    w.writeAttribute("PartName", "/word/fontTable.xml");
+    w.writeAttribute("ContentType",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml");
+    w.writeEndElement();
     if (imageCount > 0) {
         w.writeStartElement("Default");
         w.writeAttribute("Extension", "png");
         w.writeAttribute("ContentType", "image/png");
+        w.writeEndElement();
+    }
+    if (hasFooter) {
+        w.writeStartElement("Override");
+        w.writeAttribute("PartName", "/word/footer1.xml");
+        w.writeAttribute("ContentType",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml");
         w.writeEndElement();
     }
     w.writeEndElement();
@@ -98,9 +111,24 @@ static QByteArray buildContentTypes(int imageCount)
     return out;
 }
 
-static QByteArray buildDocumentXml(const OoxmlResult &ooxml)
+static QByteArray buildDocumentXml(const OoxmlResult &ooxml,
+                                   bool landscape,
+                                   double marginTopCm,
+                                   double marginBottomCm,
+                                   double marginLeftCm,
+                                   double marginRightCm,
+                                   const QString &footerRelId = {})
 {
-    return QByteArray(
+    // A4 page size: 11906 TWIP wide, 16838 TWIP tall (21cm x 29.7cm)
+    int pageW = landscape ? 16838 : 11906;
+    int pageH = landscape ? 11906 : 16838;
+
+    int marginT = qRound(marginTopCm * 567.0);
+    int marginB = qRound(marginBottomCm * 567.0);
+    int marginL = qRound(marginLeftCm * 567.0);
+    int marginR = qRound(marginRightCm * 567.0);
+
+    QByteArray doc(
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
         "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\""
         " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""
@@ -109,13 +137,112 @@ static QByteArray buildDocumentXml(const OoxmlResult &ooxml)
         " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""
         " xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\">\n"
         "<w:body>\n"
-    ).append(ooxml.bodyXml.toUtf8()).append(
-        "</w:body>\n</w:document>\n"
+    );
+    doc.append(ooxml.bodyXml.toUtf8());
+    doc.append("<w:sectPr>");
+    if (!footerRelId.isEmpty()) {
+        doc.append("<w:footerReference w:type=\"default\" r:id=\"");
+        doc.append(footerRelId.toUtf8());
+        doc.append("\"/>");
+    }
+    doc.append("<w:pgSz w:w=\"");
+    doc.append(QByteArray::number(pageW));
+    doc.append("\" w:h=\"");
+    doc.append(QByteArray::number(pageH));
+    doc.append("\"/>");
+    doc.append("<w:pgMar w:top=\"");
+    doc.append(QByteArray::number(marginT));
+    doc.append("\" w:right=\"");
+    doc.append(QByteArray::number(marginR));
+    doc.append("\" w:bottom=\"");
+    doc.append(QByteArray::number(marginB));
+    doc.append("\" w:left=\"");
+    doc.append(QByteArray::number(marginL));
+    doc.append("\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>");
+    doc.append("</w:sectPr>\n");
+    doc.append("</w:body>\n</w:document>\n");
+    return doc;
+}
+
+static QByteArray buildFooterXml()
+{
+    return QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+        "<w:ftr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">\n"
+        "  <w:p>\n"
+        "    <w:pPr>\n"
+        "      <w:jc w:val=\"center\"/>\n"
+        "    </w:pPr>\n"
+        "    <w:r>\n"
+        "      <w:fldSimple w:instr=\" PAGE   \\* MERGEFORMAT \"/>\n"
+        "    </w:r>\n"
+        "  </w:p>\n"
+        "</w:ftr>\n"
     );
 }
 
+static QByteArray buildFontTableXml(const QVector<QString> &fontFamilies)
+{
+    QByteArray out;
+    QXmlStreamWriter w(&out);
+    w.setAutoFormatting(true);
+    w.writeStartDocument();
+    w.writeStartElement("w:fonts");
+    w.writeDefaultNamespace("http://schemas.openxmlformats.org/wordprocessingml/2006/main");
+
+    struct FontDef { QString name; QString altName; QString family; bool fixed; };
+    const FontDef defaults[] = {
+        {"Calibri", "Arial", "swiss", false},
+        {"Calibri Light", {}, "swiss", false},
+        {"Arial", {}, "swiss", false},
+        {"Times New Roman", {}, "roman", false},
+        {"Courier New", {}, "modern", true},
+        {"Symbol", {}, "roman", false},
+    };
+
+    for (const auto &fd : defaults) {
+        w.writeStartElement("w:font");
+        w.writeAttribute("w:name", fd.name);
+        if (!fd.altName.isEmpty()) {
+            w.writeStartElement("w:altName");
+            w.writeAttribute("w:val", fd.altName);
+            w.writeEndElement();
+        }
+        w.writeStartElement("w:family");
+        w.writeAttribute("w:val", fd.family);
+        w.writeEndElement();
+        w.writeStartElement("w:pitch");
+        w.writeAttribute("w:val", fd.fixed ? "fixed" : "variable");
+        w.writeEndElement();
+        w.writeEndElement();
+    }
+
+    for (const auto &f : fontFamilies) {
+        QString lower = f.toLower();
+        QString family = QStringLiteral("swiss");
+        if (lower.contains("mono") || lower.contains("courier") || lower == "consolas" || lower == "menlo")
+            family = QStringLiteral("modern");
+        else if (lower.contains("serif") || lower.contains("times") || lower.contains("roman") || lower == "georgia")
+            family = QStringLiteral("roman");
+        w.writeStartElement("w:font");
+        w.writeAttribute("w:name", f);
+        w.writeStartElement("w:family");
+        w.writeAttribute("w:val", family);
+        w.writeEndElement();
+        w.writeStartElement("w:pitch");
+        w.writeAttribute("w:val", family == "modern" ? "fixed" : "variable");
+        w.writeEndElement();
+        w.writeEndElement();
+    }
+
+    w.writeEndElement();
+    w.writeEndDocument();
+    return out;
+}
+
 static QByteArray buildRels(const QVector<OoxmlImage> &images,
-                           const QVector<OoxmlHyperlink> &hyperlinks)
+                            const QVector<OoxmlHyperlink> &hyperlinks,
+                            bool hasFooter = false)
 {
     QByteArray out;
     QXmlStreamWriter w(&out);
@@ -133,6 +260,14 @@ static QByteArray buildRels(const QVector<OoxmlImage> &images,
     w.writeAttribute("Type", ooxmlRelTypeUri(OoxmlRelType::Numbering));
     w.writeAttribute("Target", "numbering.xml");
     w.writeEndElement();
+    if (hasFooter) {
+        w.writeStartElement("Relationship");
+        w.writeAttribute("Id", "rId3");
+        w.writeAttribute("Type",
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer");
+        w.writeAttribute("Target", "footer1.xml");
+        w.writeEndElement();
+    }
     for (const auto &img : images) {
         w.writeStartElement("Relationship");
         w.writeAttribute("Id", img.relId);
@@ -268,9 +403,14 @@ static bool writeZip(QFile &out, const QVector<ZipEntry> &entries)
 }
 
 bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
-                                const QString &css, DocxMathMode mathMode)
+                                const QString &css, const DocxExportOptions &options)
 {
     OoxmlResult ooxml = HtmlToOoxml::convert(html, css);
+
+    bool hasFooter = options.pageNumbers;
+    QString footerRelId;
+    if (hasFooter)
+        footerRelId = QStringLiteral("rId3");
 
     QVector<ZipEntry> entries;
 
@@ -285,7 +425,7 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
     {
         ZipEntry e;
         e.name = "[Content_Types].xml";
-        e.data = buildContentTypes(ooxml.images.size());
+        e.data = buildContentTypes(ooxml.images.size(), hasFooter);
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }
@@ -299,14 +439,17 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
     {
         ZipEntry e;
         e.name = "word/document.xml";
-        e.data = buildDocumentXml(ooxml);
+        e.data = buildDocumentXml(ooxml, options.landscape,
+                                  options.marginTopCm, options.marginBottomCm,
+                                  options.marginLeftCm, options.marginRightCm,
+                                  footerRelId);
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }
     {
         ZipEntry e;
         e.name = "word/_rels/document.xml.rels";
-        e.data = buildRels(ooxml.images, ooxml.hyperlinks);
+        e.data = buildRels(ooxml.images, ooxml.hyperlinks, hasFooter);
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }
@@ -326,8 +469,24 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
     }
     {
         ZipEntry e;
+        e.name = "word/fontTable.xml";
+        e.data = buildFontTableXml({});
+        e.crc32 = zipCrc32(e.data);
+        entries.append(e);
+    }
+    {
+        ZipEntry e;
         e.name = "docProps/core.xml";
         e.data = buildCoreProps();
+        e.crc32 = zipCrc32(e.data);
+        entries.append(e);
+    }
+
+    // Add footer if needed
+    if (hasFooter) {
+        ZipEntry e;
+        e.name = "word/footer1.xml";
+        e.data = buildFooterXml();
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }
