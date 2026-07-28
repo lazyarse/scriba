@@ -271,6 +271,26 @@ TEST_F(DocxExportTest, StylesXmlContainsAdmonitionTitleStyle)
         << "styles.xml must have w:between for admonition grouping";
 }
 
+TEST_F(DocxExportTest, StyleNameUsesValAttribute)
+{
+    // w:name is CT_String and must use w:val attribute, not text content
+    QString stylesXml = HtmlToOoxml::buildStylesXml("");
+    EXPECT_TRUE(stylesXml.contains("w:name w:val="))
+        << "w:name must use w:val attribute per OOXML spec";
+    EXPECT_FALSE(stylesXml.contains("<w:name>Normal<"))
+        << "w:name must not use text content";
+}
+
+TEST_F(DocxExportTest, StyleBasedOnUsesValAttribute)
+{
+    // w:basedOn is CT_String and must use w:val attribute, not text content
+    QString stylesXml = HtmlToOoxml::buildStylesXml("");
+    EXPECT_TRUE(stylesXml.contains("w:basedOn w:val="))
+        << "w:basedOn must use w:val attribute per OOXML spec";
+    EXPECT_FALSE(stylesXml.contains("<w:basedOn>Normal<"))
+        << "w:basedOn must not use text content";
+}
+
 TEST_F(DocxExportTest, KaTeXDisplayMathProducesOmml)
 {
     // Display math inside katex-display div should produce OMML with w:p wrapper
