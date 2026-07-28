@@ -11,7 +11,7 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebEngineWidgets S
 include(FetchContent)
 FetchContent_Declare(mathml2omml
     GIT_REPOSITORY https://github.com/lazyarse/mathml2omml.git
-    GIT_TAG v1.0.0)
+    GIT_TAG v2.0.1)
 FetchContent_MakeAvailable(mathml2omml)
 
 add_executable(scriba

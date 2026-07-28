@@ -24,10 +24,11 @@ static QVector<OoxmlImage> *g_images = nullptr;
 static int g_imageCounter = 0;
 static QVector<OoxmlHyperlink> *g_hyperlinks = nullptr;
 static int g_hyperlinkCounter = 0;
+static QString g_admonitionType;
 
 // ── Qt adapter for OmmlSink ───────────────────────────────────────────────────
 
-struct QtOmmlSink : OmmlSink {
+struct QtOmmlSink : XmlSink {
     QXmlStreamWriter *w;
     explicit QtOmmlSink(QXmlStreamWriter *writer) : w(writer) {}
 
@@ -770,8 +771,17 @@ static void handlePre(SimpleHtmlParser &parser)
     writeParaEnd();
 }
 
-static void handleDiv(SimpleHtmlParser &parser, const QString &endTag)
+static void handleDiv(SimpleHtmlParser &parser, const QString &endTag,
+                      const QMap<QString, QString> &attrs = {})
 {
+    QString cls = attrs.value(QStringLiteral("class"));
+    if (cls.startsWith(QStringLiteral("admonition "))) {
+        QString prev = g_admonitionType;
+        g_admonitionType = cls.section(' ', 1, 1);
+        processBlockChildren(parser, endTag, FormatState{});
+        g_admonitionType = prev;
+        return;
+    }
     processBlockChildren(parser, endTag, FormatState{});
 }
 
@@ -886,11 +896,12 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
         if (tag.startsWith('h') && tag.length() == 2 && tag[1] >= '1' && tag[1] <= '6') {
             handleParagraph("Heading" + tag.mid(1), parser, tag, state);
         } else if (tag == "p") {
-            // Check if this is an admonition title paragraph
             QString pClass = tok.attrs.value(QStringLiteral("class"));
             QString styleId = "Normal";
             if (pClass.contains("admonition-title")) {
-                styleId = "AdmonitionTitle";
+                styleId = "AdmonitionTitle" + g_admonitionType;
+            } else if (!g_admonitionType.isEmpty()) {
+                styleId = "AdmonitionText" + g_admonitionType;
             }
             handleParagraph(styleId, parser, tag, state);
         } else if (tag == "pre") {
@@ -904,7 +915,7 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
         } else if (tag == "table") {
             handleTable(parser);
         } else if (tag == "div") {
-            handleDiv(parser, tag);
+            handleDiv(parser, tag, tok.attrs);
         } else if (tag == "svg") {
             handleSvgBlock(parser);
         } else if (tag == "span" && tok.attrs.value("class").split(' ').contains("katex")) {
@@ -993,6 +1004,24 @@ QString styleColor(const QString &themeCss, const QString &tag, const QString &f
             c = QString(c[0]) + c[0] + c[1] + c[1] + c[2] + c[2];
         }
         return c.toUpper();
+    }
+    return fallback;
+}
+
+static QString extractCssValue(const QString &themeCss, const QString &selector,
+                                const QString &property, const QString &fallback)
+{
+    QRegularExpression re(QRegularExpression::escape(selector)
+                          + R"(\s*\{[^}]*\b)" + property + R"(\s*:\s*([^;}]+))",
+                          QRegularExpression::CaseInsensitiveOption);
+    auto m = re.match(themeCss);
+    if (!m.hasMatch()) return fallback;
+    QString v = m.captured(1).trimmed();
+    if (v.startsWith('#')) {
+        v = v.mid(1);
+        if (v.length() == 3)
+            v = QString(v[0]) + v[0] + v[1] + v[1] + v[2] + v[2];
+        return v.toUpper();
     }
     return fallback;
 }
@@ -1134,38 +1163,94 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
     w.writeEndElement();
     w.writeEndElement();
 
-    // AdmonitionTitle style: bold text with light blue background
-    w.writeStartElement("w:style");
-    w.writeAttribute("w:type", "paragraph");
-    w.writeAttribute("w:styleId", "AdmonitionTitle");
-    w.writeTextElement("w:name", "Admonition Title");
-    w.writeTextElement("w:basedOn", "Normal");
-    w.writeStartElement("w:pPr");
-    w.writeStartElement("w:spacing");
-    w.writeAttribute("w:before", "120");
-    w.writeAttribute("w:after", "60");
-    w.writeEndElement();
-    w.writeStartElement("w:shd");
-    w.writeAttribute("w:val", "clear");
-    w.writeAttribute("w:fill", "E8F4FD");
-    w.writeEndElement();
-    w.writeStartElement("w:pBdr");
-    w.writeStartElement("w:left");
-    w.writeAttribute("w:val", "single");
-    w.writeAttribute("w:sz", "24");
-    w.writeAttribute("w:space", "8");
-    w.writeAttribute("w:color", "2B579A");
-    w.writeEndElement();
-    w.writeEndElement();
-    w.writeEndElement();
-    w.writeStartElement("w:rPr");
-    w.writeStartElement("w:b");
-    w.writeEndElement();
-    w.writeStartElement("w:color");
-    w.writeAttribute("w:val", "2B579A");
-    w.writeEndElement();
-    w.writeEndElement();
-    w.writeEndElement();
+    // Per-type admonition styles
+    struct AdmonitionDef {
+        const char *type;
+        const char *titleColor;
+        const char *accentColor;
+        const char *bgColor;
+    };
+    AdmonitionDef ad[] = {
+        {"note",      "2B579A", "2B579A", "E8F4FD"},
+        {"tip",       "1A7F37", "1A7F37", "DAFBE1"},
+        {"important", "9A6700", "9A6700", "FFF8C5"},
+        {"warning",   "CF222E", "CF222E", "FFEBE9"},
+        {"caution",   "CF222E", "CF222E", "FFEBE9"},
+    };
+    for (auto &a : ad) {
+        QString type = QString::fromLatin1(a.type);
+        QString tCol = extractCssValue(themeCss,
+            ".admonition." + type + " .admonition-title", "color", a.titleColor);
+        QString aCol = extractCssValue(themeCss,
+            ".admonition." + type, "border-left-color", a.accentColor);
+        QString bg = extractCssValue(themeCss,
+            ".admonition." + type, "background-color", a.bgColor);
+
+        // Title style
+        w.writeStartElement("w:style");
+        w.writeAttribute("w:type", "paragraph");
+        w.writeAttribute("w:styleId", "AdmonitionTitle" + type);
+        w.writeTextElement("w:name", "Admonition " + type + " Title");
+        w.writeTextElement("w:basedOn", "Normal");
+        w.writeStartElement("w:pPr");
+        w.writeStartElement("w:spacing");
+        w.writeAttribute("w:before", "120");
+        w.writeAttribute("w:after", "60");
+        w.writeEndElement();
+        w.writeStartElement("w:shd");
+        w.writeAttribute("w:val", "clear");
+        w.writeAttribute("w:fill", bg);
+        w.writeEndElement();
+        w.writeStartElement("w:pBdr");
+        w.writeStartElement("w:left");
+        w.writeAttribute("w:val", "single");
+        w.writeAttribute("w:sz", "24");
+        w.writeAttribute("w:space", "8");
+        w.writeAttribute("w:color", aCol);
+        w.writeEndElement();
+        w.writeStartElement("w:between");
+        w.writeAttribute("w:val", "none");
+        w.writeEndElement();
+        w.writeEndElement();
+        w.writeEndElement();
+        w.writeStartElement("w:rPr");
+        w.writeStartElement("w:b");
+        w.writeEndElement();
+        w.writeStartElement("w:color");
+        w.writeAttribute("w:val", tCol);
+        w.writeEndElement();
+        w.writeEndElement();
+        w.writeEndElement();
+
+        // Text/content style
+        w.writeStartElement("w:style");
+        w.writeAttribute("w:type", "paragraph");
+        w.writeAttribute("w:styleId", "AdmonitionText" + type);
+        w.writeTextElement("w:name", "Admonition " + type + " Text");
+        w.writeTextElement("w:basedOn", "Normal");
+        w.writeStartElement("w:pPr");
+        w.writeStartElement("w:spacing");
+        w.writeAttribute("w:before", "60");
+        w.writeAttribute("w:after", "60");
+        w.writeEndElement();
+        w.writeStartElement("w:shd");
+        w.writeAttribute("w:val", "clear");
+        w.writeAttribute("w:fill", bg);
+        w.writeEndElement();
+        w.writeStartElement("w:pBdr");
+        w.writeStartElement("w:left");
+        w.writeAttribute("w:val", "single");
+        w.writeAttribute("w:sz", "24");
+        w.writeAttribute("w:space", "8");
+        w.writeAttribute("w:color", aCol);
+        w.writeEndElement();
+        w.writeStartElement("w:between");
+        w.writeAttribute("w:val", "none");
+        w.writeEndElement();
+        w.writeEndElement();
+        w.writeEndElement();
+        w.writeEndElement();
+    }
 
     w.writeEndElement();
     w.writeEndDocument();
