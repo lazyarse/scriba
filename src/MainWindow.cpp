@@ -950,8 +950,6 @@ void MainWindow::updatePreview()
         baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
     }
 
-
-
     QString emojiMode = QSettings().value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
     if (!m_previewInitialized) {
@@ -985,7 +983,7 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode){if(!document.body)return false;var sy=window.scrollY;if(themeCss)document.getElementById('theme-css').textContent=themeCss;document.body.innerHTML=html;window.scrollTo(0,sy);clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(function(){window.scrollTo(0,sy);});else window.scrollTo(0,sy);},1500);return true;}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
             "</head><body id=\"preview\">%3"
             "<script>document.addEventListener('click',function(e){"
             "var l=e.target.closest('a');if(!l)return;"
@@ -997,81 +995,9 @@ void MainWindow::updatePreview()
         m_preview->setHtml(fullHtml, baseUrl);
     } else {
         QString escapedHtml = escapeJsString(html);
-
-        QString js;
-        if (cssChanged) {
-            QString escapedCss = escapeJsString(previewCss);
-            js = QString(
-                "if(!document.body){false}"
-                "else{"
-                "var sy = window.scrollY;"
-                "document.getElementById('theme-css').textContent = '%1';"
-				"document.body.innerHTML = '%2';"
-				"mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-				"var mermaidPromise=initMermaid();"
-				"initKaTeX();"
-				"var vlPromise=initVegaLite();"
-				"hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();"
-				"generateHeadingIds();"
-				"setImgTitles();"
-				"replaceEmoji(document.body);"
-				"twemojiParse('" + emojiMode + "');"
-				"window.scrollTo(0, sy);"
-				"(function(){"
-				"var p=[];"
-				"if(typeof mermaidPromise!=='undefined')p.push(mermaidPromise);"
-				"if(typeof vlPromise!=='undefined')p.push(vlPromise);"
-				"var imgs=document.querySelectorAll('img:not(.emoji)');"
-				"if(imgs.length>0){"
-				"p.push(new Promise(function(r){"
-				"var n=0,t=imgs.length;"
-				"function c(){n++;if(n>=t)r();}"
-				"for(var i=0;i<imgs.length;i++){"
-				"if(imgs[i].complete)c();"
-				"else{imgs[i].onload=c;imgs[i].onerror=c;}"
-				"}"
-				"}));"
-				"}"
-				"if(p.length===0)return true;"
-				"return Promise.all(p).then(function(){return true;});"
-				"})()}"
-			).arg(escapedCss, escapedHtml);
-        } else {
-            js = QString(
-                "if(!document.body){false}"
-                "else{"
-                "var sy = window.scrollY;"
-                "document.body.innerHTML = '%1';"
-                "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-                "var mermaidPromise=initMermaid();"
-                "initKaTeX();"
-                "var vlPromise=initVegaLite();"
-				"hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();"
-				"generateHeadingIds();"
-				"setImgTitles();"
-				"replaceEmoji(document.body);"
-				"twemojiParse('" + emojiMode + "');"
-				"window.scrollTo(0, sy);"
-				"(function(){"
-				"var p=[];"
-				"if(typeof mermaidPromise!=='undefined')p.push(mermaidPromise);"
-				"if(typeof vlPromise!=='undefined')p.push(vlPromise);"
-				"var imgs=document.querySelectorAll('img:not(.emoji)');"
-				"if(imgs.length>0){"
-				"p.push(new Promise(function(r){"
-				"var n=0,t=imgs.length;"
-				"function c(){n++;if(n>=t)r();}"
-				"for(var i=0;i<imgs.length;i++){"
-				"if(imgs[i].complete)c();"
-				"else{imgs[i].onload=c;imgs[i].onerror=c;}"
-				"}"
-				"}));"
-				"}"
-				"if(p.length===0)return true;"
-				"return Promise.all(p).then(function(){return true;});"
-				"})()}"
-			).arg(escapedHtml);
-        }
+        QString escapedCss = cssChanged ? escapeJsString(previewCss) : QString();
+        QString js = QString("scribaUpdate('%1','%2','%3','%4')")
+            .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode);
         m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
             if (result.toBool())
                 syncPreviewScroll();
