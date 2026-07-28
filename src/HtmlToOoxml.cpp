@@ -1,5 +1,6 @@
 #include "HtmlToOoxml.h"
-#include "MathmlToOmml.h"
+#include <mathml2omml.h>
+#include <string>
 #include <QBuffer>
 #include <QImage>
 #include <QLoggingCategory>
@@ -23,6 +24,29 @@ static QVector<OoxmlImage> *g_images = nullptr;
 static int g_imageCounter = 0;
 static QVector<OoxmlHyperlink> *g_hyperlinks = nullptr;
 static int g_hyperlinkCounter = 0;
+
+// ── Qt adapter for OmmlSink ───────────────────────────────────────────────────
+
+struct QtOmmlSink : OmmlSink {
+    QXmlStreamWriter *w;
+    explicit QtOmmlSink(QXmlStreamWriter *writer) : w(writer) {}
+
+    void startElement(const std::string &name) override {
+        w->writeStartElement(QString::fromStdString(name));
+    }
+
+    void endElement() override {
+        w->writeEndElement();
+    }
+
+    void attribute(const std::string &name, const std::string &value) override {
+        w->writeAttribute(QString::fromStdString(name), QString::fromStdString(value));
+    }
+
+    void characters(const std::string &text) override {
+        w->writeCharacters(QString::fromStdString(text));
+    }
+};
 
 // ── Simple HTML tag scanner ──────────────────────────────────────────────────
 
@@ -243,7 +267,8 @@ static void writeKatexAsOmml(SimpleHtmlParser &parser, const QString &endTag,
 
     QString mathml = mathmlSource.trimmed();
     if (!mathml.isEmpty()) {
-        if (MathmlToOmml::convert(mathml, *bodyWriter))
+        QtOmmlSink sink{bodyWriter};
+        if (MathmlToOmml::convert(mathml.toStdString(), sink))
             return;
     }
 
