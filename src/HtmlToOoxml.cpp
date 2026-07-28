@@ -1,4 +1,5 @@
 #include "HtmlToOoxml.h"
+#include "MathmlToOmml.h"
 #include <QBuffer>
 #include <QImage>
 #include <QLoggingCategory>
@@ -222,9 +223,10 @@ static QString extractKatexText(SimpleHtmlParser &parser, const QString &endTag)
     return result.trimmed();
 }
 
-// Write KaTeX math as OMML <m:oMath> with TeX from data-tex attribute
+// Write KaTeX math as OMML <m:oMath> using MathML from data-mathml attribute,
+// falling back to TeX text from data-tex attribute.
 static void writeKatexAsOmml(SimpleHtmlParser &parser, const QString &endTag,
-                             const QString &texSource)
+                             const QString &texSource, const QString &mathmlSource = {})
 {
     // Consume everything until the matching closing tag
     int depth = 1;
@@ -237,6 +239,12 @@ static void writeKatexAsOmml(SimpleHtmlParser &parser, const QString &endTag,
                    && tok.type != HtmlToken::SelfClose) {
             ++depth;
         }
+    }
+
+    QString mathml = mathmlSource.trimmed();
+    if (!mathml.isEmpty()) {
+        if (MathmlToOmml::convert(mathml, *bodyWriter))
+            return;
     }
 
     QString tex = texSource.trimmed();
@@ -680,8 +688,9 @@ static void processInlineChildren(SimpleHtmlParser &parser, const QString &endTa
             } else if (n == "svg") {
                 handleSvgInline(parser);
             } else if (n == "span" && tok.attrs.value("class").split(' ').contains("katex")) {
-                // KaTeX math — convert to OMML using data-tex attribute
-                writeKatexAsOmml(parser, n, tok.attrs.value(QStringLiteral("data-tex")));
+                // KaTeX math — convert to OMML using data-mathml/data-tex
+                writeKatexAsOmml(parser, n, tok.attrs.value(QStringLiteral("data-tex")),
+                                 tok.attrs.value(QStringLiteral("data-mathml")));
             } else if (isVoidElement(n)) {
                 // Void elements (input, hr, col, etc.) have no closing tag — skip
             } else {
@@ -876,7 +885,8 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
         } else if (tag == "span" && tok.attrs.value("class").split(' ').contains("katex")) {
             // KaTeX math at block level (e.g. inside katex-display div)
             bodyWriter->writeStartElement("w:p");
-            writeKatexAsOmml(parser, tag, tok.attrs.value(QStringLiteral("data-tex")));
+            writeKatexAsOmml(parser, tag, tok.attrs.value(QStringLiteral("data-tex")),
+                             tok.attrs.value(QStringLiteral("data-mathml")));
             bodyWriter->writeEndElement();
         } else if (tag == "img") {
             bodyWriter->writeStartElement("w:p");

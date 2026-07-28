@@ -102,6 +102,8 @@ QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const 
         "for(var i=0;i<anns.length;i++){if(anns[i].getAttribute('encoding')==='application/x-tex'){a=anns[i];break;}}"
         "}catch(e){}"
         "if(a)el.setAttribute('data-tex',a.textContent);"
+        "var mml=el.querySelector('.katex-mathml');"
+        "if(mml&&mml.innerHTML)el.setAttribute('data-mathml',mml.innerHTML);"
         "});"
         "document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});"
         "document.querySelectorAll('.katex-html').forEach(function(el){el.remove()});"
