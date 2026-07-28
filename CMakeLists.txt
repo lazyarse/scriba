@@ -8,6 +8,12 @@ set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebEngineWidgets Svg)
 
+include(FetchContent)
+FetchContent_Declare(mathml2omml
+    GIT_REPOSITORY https://github.com/lazyarse/mathml2omml.git
+    GIT_TAG v1.0.0)
+FetchContent_MakeAvailable(mathml2omml)
+
 add_executable(scriba
     src/main.cpp
     src/MainWindow.cpp
@@ -26,7 +32,6 @@ add_executable(scriba
     src/ExportDocxDialog.cpp
     src/DocxExporter.cpp
     src/HtmlToOoxml.cpp
-    src/MathmlToOmml.cpp
     src/FindDialog.cpp
     src/TableDialog.cpp
     src/VegaLiteDialog.cpp
@@ -71,6 +76,7 @@ target_link_libraries(scriba PRIVATE
     Qt6::WebEngineWidgets
     Qt6::Svg
     Qt6::PrintSupport
+    mathml2omml
 )
 
 add_custom_command(TARGET scriba POST_BUILD
@@ -222,7 +228,7 @@ if(BUILD_TESTS)
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/MathmlToOmml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp
         src/FindDialog.cpp
         src/LogWindow.cpp
@@ -246,14 +252,14 @@ if(BUILD_TESTS)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(test_scroll_sync PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
     target_link_libraries(test_scroll_sync PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/MathmlToOmml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -268,14 +274,14 @@ if(BUILD_TESTS)
         resources/scriba.qrc)
     target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_auto_save PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
     src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
     src/CssConfig.cpp src/CssLoader.cpp
     src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-    src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/MathmlToOmml.cpp src/VegaLiteDialog.cpp
+    src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
     src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
     src/LogWindow.cpp
     src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -291,14 +297,14 @@ if(BUILD_TESTS)
 target_include_directories(test_editor_initial_css PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(test_editor_initial_css PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
 target_link_libraries(test_editor_initial_css PRIVATE
-    scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
+    scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml)
 add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
-        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/MathmlToOmml.cpp src/VegaLiteDialog.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
         src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
@@ -313,7 +319,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_find_dialog PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml)
     add_test(NAME test_find_dialog COMMAND ${_TEST_PREFIX} ./test_find_dialog)
 
     add_executable(test_print_css_file tests/test_print_css_file.cpp)
@@ -340,21 +346,19 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
     add_test(NAME test_export_html COMMAND ${_TEST_PREFIX} ./test_export_html)
 
     add_executable(test_docx_export tests/test_docx_export.cpp
-        src/HtmlToOoxml.cpp
-        src/MathmlToOmml.cpp)
+        src/HtmlToOoxml.cpp)
     target_include_directories(test_docx_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_docx_export PRIVATE
-        scriba_core GTest::gtest Qt6::Gui Qt6::Svg)
+        scriba_core GTest::gtest Qt6::Gui Qt6::Svg mathml2omml)
     add_test(NAME test_docx_export COMMAND ${_TEST_PREFIX} ./test_docx_export)
 
     add_executable(test_docx_image_export tests/test_docx_image_export.cpp
         src/JsRenderEngine.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp src/HtmlToOoxml.cpp
-        src/MathmlToOmml.cpp
         resources/scriba.qrc)
     target_include_directories(test_docx_image_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_docx_image_export PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Network Qt6::Svg)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Network Qt6::Svg mathml2omml)
     add_test(NAME test_docx_image_export COMMAND ${_TEST_PREFIX} ./test_docx_image_export)
 
     add_executable(test_mchem_integration tests/test_mchem_integration.cpp)
