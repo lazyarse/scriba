@@ -1,9 +1,11 @@
 #include "TableDialog.h"
 #include "StaticHelpers.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QFormLayout>
 #include <QSpinBox>
 #include <QCheckBox>
+#include <QRadioButton>
 #include <QDialogButtonBox>
 #include <QPushButton>
 #include <QIcon>
@@ -12,7 +14,7 @@ TableDialog::TableDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle("Insert Table");
-    setFixedSize(260, 130);
+    setFixedSize(260, 170);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
 
@@ -27,6 +29,16 @@ TableDialog::TableDialog(QWidget *parent)
     m_includeHeader->setChecked(true);
     layout->addWidget(m_includeHeader);
 
+    m_formatWidget = new QWidget();
+    QHBoxLayout *fmtLayout = new QHBoxLayout(m_formatWidget);
+    fmtLayout->setContentsMargins(0, 0, 0, 0);
+    m_markdownRadio = new QRadioButton("Markdown");
+    m_htmlRadio = new QRadioButton("HTML");
+    m_markdownRadio->setChecked(true);
+    fmtLayout->addWidget(m_markdownRadio);
+    fmtLayout->addWidget(m_htmlRadio);
+    layout->addWidget(m_formatWidget);
+
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     buttons->button(QDialogButtonBox::Ok)->setText("&Insert");
     buttons->button(QDialogButtonBox::Cancel)->setText("&Cancel");
@@ -35,6 +47,14 @@ TableDialog::TableDialog(QWidget *parent)
 
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(m_includeHeader, &QCheckBox::toggled, this, [this](bool checked) {
+        if (!checked) {
+            m_htmlRadio->setChecked(true);
+            m_formatWidget->setEnabled(false);
+        } else {
+            m_formatWidget->setEnabled(true);
+        }
+    });
 
     m_columns->setFocus();
 }
@@ -43,7 +63,7 @@ QString TableDialog::generateTable() const
 {
     int cols = m_columns->value();
 
-    if (m_includeHeader->isChecked()) {
+    if (m_markdownRadio->isChecked()) {
         QString result;
         result += "|";
         for (int c = 0; c < cols; ++c)
@@ -57,9 +77,10 @@ QString TableDialog::generateTable() const
         result += "\n";
         return result;
     } else {
+        QString tag = m_includeHeader->isChecked() ? "th" : "td";
         QString result = "<table>\n<tr>";
         for (int c = 0; c < cols; ++c)
-            result += "<td></td>";
+            result += "<" + tag + "></" + tag + ">";
         result += "</tr>\n</table>\n";
         return result;
     }
@@ -68,4 +89,9 @@ QString TableDialog::generateTable() const
 bool TableDialog::hasHeader() const
 {
     return m_includeHeader->isChecked();
+}
+
+bool TableDialog::isHtml() const
+{
+    return m_htmlRadio->isChecked();
 }

@@ -17,7 +17,7 @@ QString JsRenderEngine::buildFullHtml(const QString &bodyHtml, const QString &cs
     return QString(
         "<!DOCTYPE html><html><head>"
         "<style>%1</style>"
-        "<style>#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
+        "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
         "<style>#preview{width:100%;min-width:800px}</style>"
         "<script src=\"qrc:///highlight.min.js\"></script>"
         "<script src=\"qrc:///mermaid.min.js\"></script>"
@@ -47,7 +47,7 @@ QString JsRenderEngine::buildFullHtmlForDocx(const QString &bodyHtml, const QStr
     return QString(
         "<!DOCTYPE html><html><head>"
         "<style>%1</style>"
-        "<style>#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
+        "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
         "<style>#preview{width:100%;min-width:800px}</style>"
         "<script src=\"qrc:///highlight.min.js\"></script>"
         "<script src=\"qrc:///mermaid.min.js\"></script>"
@@ -77,7 +77,7 @@ QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const 
     return QString(
         "<!DOCTYPE html><html><head>"
         "<style>%1</style>"
-        "<style>#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
+        "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
         "<style>#preview{width:100%;min-width:800px}</style>"
         "<script src=\"qrc:///highlight.min.js\"></script>"
         "<script src=\"qrc:///mermaid.min.js\"></script>"

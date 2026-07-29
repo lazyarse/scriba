@@ -874,11 +874,10 @@ void MainWindow::applyEditorLineHeight(int lineHeight)
     fmt.setLineHeight(lineHeight, QTextBlockFormat::ProportionalHeight);
     for (int i = 0; i < m_tabs.size(); ++i) {
         if (!m_tabs[i].editor) continue;
-        bool wasDirty = m_tabs[i].dirty;
+        QSignalBlocker blocker(m_tabs[i].editor->document());
         QTextCursor cursor(m_tabs[i].editor->document());
         cursor.select(QTextCursor::Document);
         cursor.mergeBlockFormat(fmt);
-        m_tabs[i].dirty = wasDirty;
     }
 }
 
@@ -971,7 +970,7 @@ void MainWindow::updatePreview()
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"stripe-css\">%4</style>"
             "<style id=\"center-css\">%5</style>"
-            "<style>#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
+            "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
             "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
@@ -1037,27 +1036,30 @@ void MainWindow::showPreferences()
             applyStyleSheetToAllEditors(f, s, p);
             applyEditorLineHeight(lh);
         });
-    if (dlg.exec() == QDialog::Rejected) {
+    QSettings s;
+    if (dlg.exec() == QDialog::Accepted) {
+        applyStyleSheetToAllEditors();
+        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
+        updateAll();
+        applyStripeSetting();
+        for (const auto &tab : m_tabs) {
+            if (tab.editor)
+                tab.editor->invalidateEmojiIconCache();
+        }
+        m_previewInitialized = false;
+        updatePreview();
+
+        int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
+        if (interval > 0)
+            m_autoSaveTimer->start(interval * kMsPerMinute);
+        else
+            m_autoSaveTimer->stop();
+    } else {
         m_cssConfig->setActiveStylesheet(oldStylesheet);
         m_cssLoader->invalidateCache();
+        applyStyleSheetToAllEditors();
+        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
     }
-    applyStyleSheetToAllEditors();
-    QSettings s;
-    applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
-    updateAll();
-    applyStripeSetting();
-    for (const auto &tab : m_tabs) {
-        if (tab.editor)
-            tab.editor->invalidateEmojiIconCache();
-    }
-    m_previewInitialized = false;
-    updatePreview();
-
-    int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
-    if (interval > 0)
-        m_autoSaveTimer->start(interval * kMsPerMinute);
-    else
-        m_autoSaveTimer->stop();
 }
 
 void MainWindow::showChartBuilder()
@@ -1103,7 +1105,7 @@ void MainWindow::showTableInsert()
         QTextCursor cursor = ed->textCursor();
         int insertPos = cursor.position();
         cursor.insertText(table);
-        int offset = dlg.hasHeader() ? 2 : 16;
+        int offset = dlg.isHtml() ? 16 : 2;
         cursor.setPosition(insertPos + offset, QTextCursor::MoveAnchor);
         ed->setTextCursor(cursor);
         ed->centerCursor();

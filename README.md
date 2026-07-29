@@ -2,7 +2,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A privacy-first, no-nonsense, configurable, split-screen Markdown editor with a *pretentious* Latin name**. Designed to *actually* do what it should with an opinionated restricted feature-set: useful; no bloat without plugin hell. No node, React, Angular. Just a right, proper, local C++ application.
+**A privacy-first, no-nonsense, configurable Markdown editor for technical people with a *pretentious* Latin name**. Designed to *actually* do what it should; no bloat, no node / react / angular, no plugin hell. . Just a right, proper, local C++ application.
 
 <div align="center">
   :cucumber:
@@ -21,28 +21,26 @@
 
 ## Features
 
-### Standing on the shoulders of giants:
+- Load / Save multiple documents at a time in `session`s and a tabbed interface and pick up exactly where you left off: cursor and view-port restore in the last-edited document at the last position ready for your next edit
+- Print and PDF export with print-specific CSS stylesheets
+- PDF, DOCX, and HTML export
+- Metrics to help you write: sentence, word count, estimated reading time and reading age.
+- Find and Replace with regex search and replacement back-references
+- Useful in-editor autocompletes to help create tables, reference filenames, and emojis
+- Lots of helpers to create charts and visualations because handcoding  JSON at 2am is difficult
+-  First-class accessibility support with CSS-based GUI theming: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
 
+
+### Standing on the shoulders of giants:
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
 - [md4c](https://github.com/mity/md4c) — we patched this CommonMark-compliant Markdown parser + GFM support
 
-### The Basics
+### And a few more things...
 
-- Handle docsets with a tabbed display across different projects as a `session` with load / save
-- Print and PDF export with print-specific CSS stylesheets because we know you want prints to look different
-- Everything you'd expect a Markdown editor to do, including admonitions with custom titles + icons, Find and Replace with regex back-references, full-screen mode, 
-- Easy accessibility support with CSS-based theming to help you use Scriba: the editor, preview, and chrome all styled from one file with sample themes for you to moan about. The editor's colours stay in sync with the theme but you can override them. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
-- A shocking 80ms debounce timer that causes delay in the rendered preview to bother fast typers like you
-
-### Candy:
-
-- Cursor and view-port restore on re-start to pick up where you left off
-- Sentence, word count, estimated reading time and reading age to suitably patronise. (Oh look, this `README` is aimed at high-school-educated people)
-- That annoying `<kbd>` css styling to look just like a key. I like it. Feel free to remove it in the `preview-base.css` and `print-base.css`
-- Table generator - Create either a table with a header row in markdown format, or an HTML generated table when no header row is needed
+- That annoying `<kbd>` css styling to look just like a key. If you're a monster, remove it in the `preview-base.css` and `print-base.css`
 - Table auto-completion: <kbd>Enter</kbd> auto creates a new row either in-cell or at end of the row, <kbd>Enter</kbd> on blank row ends autocomplete, <kbd>Tab</kbd> to next cell, <kbd>Shift</kbd>+<kbd>Tab</kbd> to previous cell
 - Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete
 - Optional alternating table row striping
@@ -101,6 +99,7 @@
 | <kbd>Down</kbd> | On the last line will place the cursor at the end of the line |
 | <kbd>Tab</kbd> | Indent selected text |
 | <kbd>Shift</kbd>+<kbd>Tab</kbd> | Dedent selected text |
+| <kbd>Ctrl</kbd>+<kbd>Up / Down</kbd> | Scroll the viewport up / down without moving the cursor |
 
 ### Helpers
 
@@ -140,6 +139,8 @@ Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root`
 - Approximately 10 minutes of your time that you will never get back.
 
 ## Building
+
+### Build on Linux
 
 ```bash
 mkdir -p build

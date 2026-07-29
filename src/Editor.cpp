@@ -325,6 +325,18 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
     }
 
+    if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_Up) {
+        verticalScrollBar()->setValue(verticalScrollBar()->value() - verticalScrollBar()->singleStep());
+        event->accept();
+        return;
+    }
+
+    if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_Down) {
+        verticalScrollBar()->setValue(verticalScrollBar()->value() + verticalScrollBar()->singleStep());
+        event->accept();
+        return;
+    }
+
     if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_D) {
         QTextCursor cursor = textCursor();
         QTextDocument *doc = document();
