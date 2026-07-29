@@ -2,7 +2,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A privacy-first, no-nonsense, configurable Markdown editor for technical people with a *pretentious* Latin name**. Designed to *actually* do what it should; no bloat, no node / react / angular, no plugin hell. . Just a right, proper, local C++ application.
+**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what you want without the need for plugin hell. No bloat / node / react / angular / etc, just a binary that sits on your computer and doesn't like to call outside. Get ready to leave your Google Docs trauma behind!
 
 <div align="center">
   :cucumber:
@@ -21,7 +21,7 @@
 
 ## Features
 
-- Load / Save multiple documents at a time in `session`s and a tabbed interface and pick up exactly where you left off: cursor and view-port restore in the last-edited document at the last position ready for your next edit
+- Load / Save multiple documents in a `session` with a tabbed interface and pick up exactly where you left off with cursor and view-port restore in the last-edited document ready for your next edit
 - Print and PDF export with print-specific CSS stylesheets
 - PDF, DOCX, and HTML export
 - Metrics to help you write: sentence, word count, estimated reading time and reading age.

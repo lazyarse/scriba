@@ -209,7 +209,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 while (block.isValid()) {
                     QString t = block.text();
                     if (t.startsWith('|') && !t.contains("---")) {
-                        int p = t.indexOf('|', 1) + 1;
+                        int p = 1;
                         if (p < t.size() && t[p] == ' ') ++p;
                         cursor.setPosition(block.position() + p, QTextCursor::MoveAnchor);
                         setTextCursor(cursor);

@@ -1041,12 +1041,10 @@ void MainWindow::showPreferences()
         applyStyleSheetToAllEditors();
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
         updateAll();
-        applyStripeSetting();
         for (const auto &tab : m_tabs) {
             if (tab.editor)
                 tab.editor->invalidateEmojiIconCache();
         }
-        m_previewInitialized = false;
         updatePreview();
 
         int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
