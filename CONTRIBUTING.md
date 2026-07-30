@@ -24,7 +24,6 @@ scriba/
 ├── resources/
 │   ├── scriba.qrc              — Qt resource file
 │   ├── default.css             — Default theme
-│   ├── editor-base.css         — Editor base styles
 │   ├── preview-base.css        — Preview base styles
 │   ├── print-base.css          — Print styles
 │   ├── highlight.min.js        — Syntax highlighting
