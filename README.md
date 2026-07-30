@@ -2,7 +2,7 @@
 <div>
     <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what you want without the need for plugin hell. No bloat / node / react / angular / etc, just a binary that sits on your computer and doesn't like to call outside. Get ready to leave your Google Docs trauma behind!
+**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what you want without plugin hell. No node / react / angular / bloat, just a binary that sits on your computer and doesn't call outside. Get ready to leave your Google Docs trauma behind.
 
 <div align="center">
   :cucumber:
