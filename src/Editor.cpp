@@ -798,9 +798,9 @@ void Editor::setInsertActions(const QList<QAction *> &actions)
     m_insertActions = actions;
 }
 
-void Editor::setMermaidActions(const QList<QAction *> &actions)
+void Editor::setMermaidAction(QAction *action)
 {
-    m_mermaidActions = actions;
+    m_mermaidAction = action;
 }
 
 QString Editor::currentLineText() const
@@ -1056,11 +1056,8 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
     for (QAction *action : m_insertActions)
         menu.addAction(action);
 
-    if (!m_mermaidActions.isEmpty()) {
-        QMenu *mermaidSubmenu = menu.addMenu("Mermaid Charts");
-        for (QAction *action : m_mermaidActions)
-            mermaidSubmenu->addAction(action);
-    }
+    if (m_mermaidAction)
+        menu.addAction(m_mermaidAction);
 
     CursorContext ctx = detectCursorContext();
 

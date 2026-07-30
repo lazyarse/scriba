@@ -2,6 +2,7 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <QXmlStreamReader>
+#include <cmath>
 #include <QFile>
 #include <QColor>
 #include <QPixmap>
@@ -283,6 +284,55 @@ double fleschKincaidGrade(int words, int sentences, int syllables)
     return 0.39 * (static_cast<double>(words) / sentences)
          + 11.8 * (static_cast<double>(syllables) / words)
          - 15.59;
+}
+
+int countCharactersWithoutSpaces(const QString &text)
+{
+    int count = 0;
+    for (const QChar &c : text) {
+        if (!c.isSpace())
+            ++count;
+    }
+    return count;
+}
+
+int countComplexWords(const QStringList &words)
+{
+    int count = 0;
+    for (const QString &w : words) {
+        if (estimateSyllables(w) >= 3)
+            ++count;
+    }
+    return count;
+}
+
+double colemanLiauGrade(int words, int sentences, int characters)
+{
+    if (words == 0 || sentences == 0) return 0.0;
+    double L = 100.0 * characters / words;
+    double S = 100.0 * sentences / words;
+    return 0.0588 * L - 0.296 * S - 15.8;
+}
+
+double gunningFogGrade(int words, int sentences, int complexWords)
+{
+    if (words == 0 || sentences == 0) return 0.0;
+    return 0.4 * (static_cast<double>(words) / sentences
+                  + 100.0 * complexWords / words);
+}
+
+double smogGrade(int sentences, int polysyllables)
+{
+    if (sentences == 0) return 0.0;
+    return 1.0430 * std::sqrt(polysyllables * 30.0 / sentences) + 3.1291;
+}
+
+double ariGrade(int words, int sentences, int characters)
+{
+    if (words == 0 || sentences == 0) return 0.0;
+    return 4.71 * (static_cast<double>(characters) / words)
+         + 0.5 * (static_cast<double>(words) / sentences)
+         - 21.43;
 }
 
 QIcon themedIcon(const QString &svgPath, const QColor &color, int size)

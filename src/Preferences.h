@@ -36,11 +36,51 @@ namespace Preferences {
     constexpr const char *PdfShowHeader = "pdfShowHeader";
 
     constexpr const char *StripPreviewScripts = "stripPreviewScripts";
+    constexpr const char *ReadabilityFormula = "readabilityFormula";
 
     constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";
     constexpr const char *TableStripePdfCss = "tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}";
 
     enum class EmojiRendering { Bw, Color };
+
+    enum class Formula {
+        FleschKincaid,
+        ColemanLiau,
+        GunningFog,
+        Smog,
+        ARI
+    };
+
+    inline Formula formulaFromString(const QString &s)
+    {
+        if (s == QLatin1String("coleman-liau")) return Formula::ColemanLiau;
+        if (s == QLatin1String("gunning-fog")) return Formula::GunningFog;
+        if (s == QLatin1String("smog")) return Formula::Smog;
+        if (s == QLatin1String("ari")) return Formula::ARI;
+        return Formula::FleschKincaid;
+    }
+
+    inline QString formulaToString(Formula f)
+    {
+        switch (f) {
+        case Formula::ColemanLiau: return QStringLiteral("coleman-liau");
+        case Formula::GunningFog: return QStringLiteral("gunning-fog");
+        case Formula::Smog: return QStringLiteral("smog");
+        case Formula::ARI: return QStringLiteral("ari");
+        default: return QStringLiteral("flesch-kincaid");
+        }
+    }
+
+    inline const char *formulaLabel(Formula f)
+    {
+        switch (f) {
+        case Formula::ColemanLiau: return "CL";
+        case Formula::GunningFog: return "Fog";
+        case Formula::Smog: return "SMOG";
+        case Formula::ARI: return "ARI";
+        default: return "FK";
+        }
+    }
 
     inline EmojiRendering emojiRenderingFromString(const QString &s)
     {

@@ -38,6 +38,7 @@ private:
 
     CssConfig *m_config;
     CssLoader *m_loader;
+    QComboBox *m_readabilityCombo = nullptr;
     QListWidget *m_categoryList;
     QStackedWidget *m_pages;
     QListWidget *m_listWidget;

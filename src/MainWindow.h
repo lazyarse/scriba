@@ -20,18 +20,7 @@ class VegaLiteDialog;
 class TableDialog;
 class LogWindow;
 class FindDialog;
-class MermaidPieDialog;
-class MermaidFlowchartDialog;
-class MermaidSequenceDialog;
-class MermaidGanttDialog;
-class MermaidClassDialog;
-class MermaidErDialog;
-class MermaidStateDialog;
-class MermaidMindmapDialog;
-class MermaidTimelineDialog;
-class MermaidJourneyDialog;
-class MermaidQuadrantDialog;
-class MermaidSankeyDialog;
+class MermaidDialog;
 class KatexHelperDialog;
 class MchemHelperDialog;
 
@@ -139,7 +128,7 @@ private:
     int m_previewState = 1;
     FindDialog *m_findDialog = nullptr;
     QList<QAction *> m_insertActions;
-    QList<QAction *> m_mermaidActions;
+    QAction *m_mermaidAction;
     QTimer *m_updateTimer = nullptr;
 
 protected:

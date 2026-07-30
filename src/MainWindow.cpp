@@ -20,18 +20,7 @@
 #include "EmojiDialog.h"
 #include "AboutDialog.h"
 #include "LogWindow.h"
-#include "MermaidPieDialog.h"
-#include "MermaidFlowchartDialog.h"
-#include "MermaidSequenceDialog.h"
-#include "MermaidGanttDialog.h"
-#include "MermaidClassDialog.h"
-#include "MermaidErDialog.h"
-#include "MermaidStateDialog.h"
-#include "MermaidMindmapDialog.h"
-#include "MermaidTimelineDialog.h"
-#include "MermaidJourneyDialog.h"
-#include "MermaidQuadrantDialog.h"
-#include "MermaidSankeyDialog.h"
+#include "MermaidDialog.h"
 #include "KatexHelperDialog.h"
 #include "MchemHelperDialog.h"
 
@@ -39,21 +28,7 @@ static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
 static constexpr const char *kOpenMdFilter = "Markdown Files (*.md *.markdown *.txt);;All Files (*)";
 static constexpr int kMsPerMinute = 60000;
 
-namespace {
 
-template<typename T>
-void showMermaidDialog(MainWindow *win, CssLoader *loader)
-{
-    T dlg(loader->themeCss(), win);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString block = dlg.mermaidBlock();
-        Editor *ed = win->editor();
-        if (!block.isEmpty() && ed)
-            ed->insertPlainText(block);
-    }
-}
-
-}
 
 #include <QVBoxLayout>
 #include <QTextBrowser>
@@ -280,7 +255,7 @@ int MainWindow::addTab(const QString &filePath)
 
     auto *editor = new Editor();
     editor->setInsertActions(m_insertActions);
-    editor->setMermaidActions(m_mermaidActions);
+    editor->setMermaidAction(m_mermaidAction);
     editor->setCurrentFile(filePath);
 
     QString label = filePath.isEmpty() ? QStringLiteral("Untitled")
@@ -702,33 +677,16 @@ void MainWindow::setupMenuBar()
     chartAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
     connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
 
-    QMenu *mermaidMenu = toolsMenu->addMenu("Mermaid &Charts");
-    QAction *pieAction = mermaidMenu->addAction("&Pie Chart...");
-    connect(pieAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidPieDialog>(this, m_cssLoader); });
-    QAction *flowchartAction = mermaidMenu->addAction("&Flowchart...");
-    connect(flowchartAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidFlowchartDialog>(this, m_cssLoader); });
-    QAction *sequenceAction = mermaidMenu->addAction("&Sequence Diagram...");
-    connect(sequenceAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidSequenceDialog>(this, m_cssLoader); });
-    QAction *ganttAction = mermaidMenu->addAction("&Gantt Chart...");
-    connect(ganttAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidGanttDialog>(this, m_cssLoader); });
-    QAction *classAction = mermaidMenu->addAction("&Class Diagram...");
-    connect(classAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidClassDialog>(this, m_cssLoader); });
-    QAction *erAction = mermaidMenu->addAction("&ER Diagram...");
-    connect(erAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidErDialog>(this, m_cssLoader); });
-    mermaidMenu->addSeparator();
-    QAction *stateAction = mermaidMenu->addAction("S&tate Diagram...");
-    connect(stateAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidStateDialog>(this, m_cssLoader); });
-    QAction *mindmapAction = mermaidMenu->addAction("&Mind Map...");
-    connect(mindmapAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidMindmapDialog>(this, m_cssLoader); });
-    mermaidMenu->addSeparator();
-    QAction *timelineAction = mermaidMenu->addAction("&Timeline...");
-    connect(timelineAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidTimelineDialog>(this, m_cssLoader); });
-    QAction *journeyAction = mermaidMenu->addAction("User &Journey...");
-    connect(journeyAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidJourneyDialog>(this, m_cssLoader); });
-    QAction *quadrantAction = mermaidMenu->addAction("&Quadrant Chart...");
-    connect(quadrantAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidQuadrantDialog>(this, m_cssLoader); });
-    QAction *sankeyAction = mermaidMenu->addAction("&Sankey...");
-    connect(sankeyAction, &QAction::triggered, this, [this]() { showMermaidDialog<MermaidSankeyDialog>(this, m_cssLoader); });
+    QAction *mermaidAction = toolsMenu->addAction("Mermaid &Chart...");
+    connect(mermaidAction, &QAction::triggered, this, [this]() {
+        MermaidDialog dlg(m_cssLoader->themeCss(), this);
+        if (dlg.exec() == QDialog::Accepted) {
+            QString block = dlg.mermaidBlock();
+            Editor *ed = editor();
+            if (!block.isEmpty() && ed)
+                ed->insertPlainText(block);
+        }
+    });
 
     toolsMenu->addSeparator();
 
@@ -763,14 +721,12 @@ void MainWindow::setupMenuBar()
     });
 
     m_insertActions = {tableAction, emojiAction, katexAction, mchemAction, chartAction};
-    m_mermaidActions = {pieAction, flowchartAction, sequenceAction, ganttAction,
-                  classAction, erAction, stateAction, mindmapAction,
-                  timelineAction, journeyAction, quadrantAction, sankeyAction};
+    m_mermaidAction = mermaidAction;
 
     for (TabInfo &info : m_tabs) {
         if (info.editor) {
             info.editor->setInsertActions(m_insertActions);
-            info.editor->setMermaidActions(m_mermaidActions);
+            info.editor->setMermaidAction(m_mermaidAction);
         }
     }
 }
@@ -1041,6 +997,7 @@ void MainWindow::showPreferences()
         applyStyleSheetToAllEditors();
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
         updateAll();
+        updateStats();
         for (const auto &tab : m_tabs) {
             if (tab.editor)
                 tab.editor->invalidateEmojiIconCache();
@@ -1436,12 +1393,42 @@ void MainWindow::updateStats()
     for (const QString &w : words)
         totalSyllables += estimateSyllables(w);
     int minutes = (wordCount + 199) / 200;
-    double grade = fleschKincaidGrade(wordCount, sentences, totalSyllables);
+
+    QSettings s;
+    auto formula = Preferences::formulaFromString(
+        s.value(Preferences::ReadabilityFormula,
+            Preferences::formulaToString(Preferences::Formula::FleschKincaid)).toString());
+    double grade = 0.0;
+    switch (formula) {
+    case Preferences::Formula::ColemanLiau:
+        grade = colemanLiauGrade(wordCount, sentences, countCharactersWithoutSpaces(text));
+        break;
+    case Preferences::Formula::GunningFog:
+        grade = gunningFogGrade(wordCount, sentences, countComplexWords(words));
+        break;
+    case Preferences::Formula::Smog: {
+        int polysyllables = 0;
+        for (const QString &w : words) {
+            if (estimateSyllables(w) >= 3)
+                ++polysyllables;
+        }
+        grade = smogGrade(sentences, polysyllables);
+        break;
+    }
+    case Preferences::Formula::ARI:
+        grade = ariGrade(wordCount, sentences, countCharactersWithoutSpaces(text));
+        break;
+    default:
+        grade = fleschKincaidGrade(wordCount, sentences, totalSyllables);
+        break;
+    }
     int age = qMax(static_cast<int>(grade) + 5, 5);
-    m_statsLabel->setText(QStringLiteral("%1 sentence%2 · %3 word%4 · ~%5 min read · Age %6+")
+    m_statsLabel->setText(QStringLiteral("%1 sentence%2 · %3 word%4 · ~%5 min read · %6: Age %7+")
         .arg(sentences).arg(sentences == 1 ? "" : "s")
         .arg(wordCount).arg(wordCount == 1 ? "" : "s")
-        .arg(minutes).arg(age));
+        .arg(minutes)
+        .arg(QLatin1String(Preferences::formulaLabel(formula)))
+        .arg(age));
 }
 
 void MainWindow::loadFile(const QString &filePath)

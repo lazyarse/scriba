@@ -355,6 +355,40 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_categoryList->addItem("Editor");
     }
 
+    /* --- Page 3: Writing --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *readabilityGroup = new QGroupBox("Readability");
+        QVBoxLayout *readabilityLayout = new QVBoxLayout(readabilityGroup);
+        readabilityLayout->addSpacing(8);
+
+        QHBoxLayout *formulaRow = new QHBoxLayout();
+        formulaRow->addWidget(new QLabel("Formula:"));
+        m_readabilityCombo = new QComboBox();
+        m_readabilityCombo->addItem("Flesch-Kincaid", static_cast<int>(Preferences::Formula::FleschKincaid));
+        m_readabilityCombo->addItem("Coleman-Liau", static_cast<int>(Preferences::Formula::ColemanLiau));
+        m_readabilityCombo->addItem("Gunning Fog", static_cast<int>(Preferences::Formula::GunningFog));
+        m_readabilityCombo->addItem("SMOG", static_cast<int>(Preferences::Formula::Smog));
+        m_readabilityCombo->addItem("ARI", static_cast<int>(Preferences::Formula::ARI));
+        auto curFormula = Preferences::formulaFromString(
+            settings.value(Preferences::ReadabilityFormula,
+                Preferences::formulaToString(Preferences::Formula::FleschKincaid)).toString());
+        m_readabilityCombo->setCurrentIndex(static_cast<int>(curFormula));
+        formulaRow->addWidget(m_readabilityCombo);
+        formulaRow->addStretch();
+        readabilityLayout->addLayout(formulaRow);
+
+        layout->addWidget(readabilityGroup);
+        layout->addStretch();
+
+        m_pages->addWidget(page);
+        m_categoryList->addItem("Writing");
+    }
+
     /* --- Connections --- */
     connect(m_addButton, &QPushButton::clicked, this, &PreferencesDialog::addStylesheet);
     connect(m_removeButton, &QPushButton::clicked, this, &PreferencesDialog::removeStylesheet);
@@ -394,6 +428,9 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EditorColorOverride, m_overrideGroup->isChecked());
         settings.setValue(Preferences::EditorBgColor, m_editorBgBtn->text());
         settings.setValue(Preferences::EditorFontColor, m_editorFontBtn->text());
+        settings.setValue(Preferences::ReadabilityFormula,
+            Preferences::formulaToString(
+                static_cast<Preferences::Formula>(m_readabilityCombo->currentData().toInt())));
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
