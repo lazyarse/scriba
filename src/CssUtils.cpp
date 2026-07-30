@@ -119,6 +119,7 @@ QString deriveChromeCss(const QString &themeCss)
         if (parsed.isValid())
             chkCheckedBg = parsed;
     }
+    QColor radioCheckedBg = txt;
 
     return QStringLiteral(
         "QDialog { background-color: %2; }\n"
@@ -131,7 +132,7 @@ QString deriveChromeCss(const QString &themeCss)
         "QCheckBox::indicator:checked { background-color: %13; border: 1px solid %13; image: %11; }\n"
         "QRadioButton { color: %3; spacing: 6px; }\n"
         "QRadioButton::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; border-radius: 7px; }\n"
-        "QRadioButton::indicator:checked { background-color: %13; border: 1px solid %13; }\n"
+        "QRadioButton::indicator:checked { background-color: %16; border: 1px solid %16; }\n"
         "QListWidget { background-color: %2; color: %3; border: none; }\n"
         "QListWidget::item:selected { background-color: %5; color: %6; }\n"
         "QListWidget::item:hover { background-color: %1; }\n"
@@ -216,6 +217,8 @@ QString deriveChromeCss(const QString &themeCss)
         upArrowImg   // %14 — spinbox up arrow
     ).arg(
         downArrowImg // %15 — spinbox down arrow
+    ).arg(
+        radioCheckedBg.name() // %16 — radio button checked background
     );
 }
 
