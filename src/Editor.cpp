@@ -206,8 +206,11 @@ void Editor::keyPressEvent(QKeyEvent *event)
             }
             if (!shift) {
                 QTextBlock block = cursor.block().next();
+                bool hasSeparator = false;
                 while (block.isValid()) {
                     QString t = block.text();
+                    if (t.startsWith('|') && t.contains("---"))
+                        hasSeparator = true;
                     if (t.startsWith('|') && !t.contains("---")) {
                         int p = 1;
                         if (p < t.size() && t[p] == ' ') ++p;
@@ -222,7 +225,8 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 if (cols > 0) {
                     QString newRow = makeEmptyTableRow(cols);
                     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
-                    cursor.insertText("\n" + newRow);
+                    QString sep = hasSeparator ? QString() : (QString("|") + QString("---|").repeated(cols) + "\n");
+                    cursor.insertText("\n" + sep + newRow);
                     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
                     cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
                     setTextCursor(cursor);
