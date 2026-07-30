@@ -67,4 +67,4 @@
 | Ctrl+T | Table Insert |
 | Ctrl+K | KaTeX Math |
 | Ctrl+G | Chart Builder (Vega-Lite) |
-| Alt+T M | Mermaid Diagrams |
+| Ctrl+M | Mermaid Diagrams |

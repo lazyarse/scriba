@@ -679,6 +679,7 @@ void MainWindow::setupMenuBar()
     connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
 
     QAction *mermaidAction = toolsMenu->addAction("Mermaid &Chart...");
+    mermaidAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
     connect(mermaidAction, &QAction::triggered, this, [this]() {
         MermaidDialog dlg(m_cssLoader->themeCss(), this);
         if (dlg.exec() == QDialog::Accepted) {
