@@ -21,16 +21,6 @@ QString indentListLine(const QString &line);
 QString outdentListLine(const QString &line);
 QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column);
 
-int countSentences(const QString &text);
-int estimateSyllables(const QString &word);
-int countCharactersWithoutSpaces(const QString &text);
-int countComplexWords(const QStringList &words);
-double fleschKincaidGrade(int words, int sentences, int syllables);
-double colemanLiauGrade(int words, int sentences, int characters);
-double gunningFogGrade(int words, int sentences, int complexWords);
-double smogGrade(int sentences, int polysyllables);
-double ariGrade(int words, int sentences, int characters);
-
 QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28);
 
 void stripButtonIcon(QAbstractButton *btn);

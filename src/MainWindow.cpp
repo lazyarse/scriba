@@ -13,6 +13,7 @@
 #include "DocxExporter.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
+#include "Readability.h"
 #include "JsSnippets.h"
 #include "JsRenderEngine.h"
 #include "TableDialog.h"
@@ -1392,19 +1393,28 @@ void MainWindow::updateStats()
     int totalSyllables = 0;
     for (const QString &w : words)
         totalSyllables += estimateSyllables(w);
-    int minutes = (wordCount + 199) / 200;
+    int charsNoSpace = countCharactersWithoutSpaces(text);
+    int charsWithSpace = countCharactersWithSpaces(text);
+    int paragraphs = countParagraphs(text);
+    int complexWords = countComplexWords(words);
+    double lexDensity = lexicalDensity(words);
+    double readingEase = fleschReadingEase(wordCount, sentences, totalSyllables);
 
     QSettings s;
+    QStringList enabled = s.value(Preferences::StatusBarMetrics).toStringList();
+    double wps = s.value(Preferences::WordsPerSecond, 3.33).toDouble();
+    int spWpm = s.value(Preferences::SpeakingWpm, 150).toInt();
+
     auto formula = Preferences::formulaFromString(
         s.value(Preferences::ReadabilityFormula,
             Preferences::formulaToString(Preferences::Formula::FleschKincaid)).toString());
     double grade = 0.0;
     switch (formula) {
     case Preferences::Formula::ColemanLiau:
-        grade = colemanLiauGrade(wordCount, sentences, countCharactersWithoutSpaces(text));
+        grade = colemanLiauGrade(wordCount, sentences, charsNoSpace);
         break;
     case Preferences::Formula::GunningFog:
-        grade = gunningFogGrade(wordCount, sentences, countComplexWords(words));
+        grade = gunningFogGrade(wordCount, sentences, complexWords);
         break;
     case Preferences::Formula::Smog: {
         int polysyllables = 0;
@@ -1416,19 +1426,44 @@ void MainWindow::updateStats()
         break;
     }
     case Preferences::Formula::ARI:
-        grade = ariGrade(wordCount, sentences, countCharactersWithoutSpaces(text));
+        grade = ariGrade(wordCount, sentences, charsNoSpace);
         break;
     default:
         grade = fleschKincaidGrade(wordCount, sentences, totalSyllables);
         break;
     }
     int age = qMax(static_cast<int>(grade) + 5, 5);
-    m_statsLabel->setText(QStringLiteral("%1 sentence%2 · %3 word%4 · ~%5 min read · %6: Age %7+")
-        .arg(sentences).arg(sentences == 1 ? "" : "s")
-        .arg(wordCount).arg(wordCount == 1 ? "" : "s")
-        .arg(minutes)
-        .arg(QLatin1String(Preferences::formulaLabel(formula)))
-        .arg(age));
+
+    struct Metric {
+        const char *key;
+        QString value;
+    };
+    QVector<Metric> allMetrics;
+    allMetrics.push_back({"words", QStringLiteral("%1 word%2").arg(wordCount).arg(wordCount == 1 ? "" : "s")});
+    allMetrics.push_back({"sentences", QStringLiteral("%1 sentence%2").arg(sentences).arg(sentences == 1 ? "" : "s")});
+    allMetrics.push_back({"paragraphs", QStringLiteral("%1 paragraph%2").arg(paragraphs).arg(paragraphs == 1 ? "" : "s")});
+    allMetrics.push_back({"char-nospace", QStringLiteral("%1 char").arg(charsNoSpace)});
+    allMetrics.push_back({"char-withspace", QStringLiteral("%1 char").arg(charsWithSpace)});
+    allMetrics.push_back({"reading-time", QStringLiteral("~%1 min read").arg(static_cast<int>(wordCount / (wps * 60)) + 1)});
+    allMetrics.push_back({"speaking-time", QStringLiteral("~%1 min speak").arg(wordCount / spWpm + 1)});
+    allMetrics.push_back({"reading-age", QStringLiteral("%1: Age %2+").arg(QLatin1String(Preferences::formulaLabel(formula))).arg(age)});
+    allMetrics.push_back({"flesch-ease", QStringLiteral("RE: %1").arg(static_cast<int>(readingEase))});
+    allMetrics.push_back({"syllables", QStringLiteral("%1 syllable%2").arg(totalSyllables).arg(totalSyllables == 1 ? "" : "s")});
+    allMetrics.push_back({"complex-words", QStringLiteral("%1 complex").arg(complexWords)});
+    allMetrics.push_back({"lexical-density", QStringLiteral("%1% unique").arg(static_cast<int>(lexDensity))});
+    allMetrics.push_back({"avg-wps", QStringLiteral("%1 w/s").arg(static_cast<double>(wordCount) / qMax(sentences, 1), 0, 'f', 1)});
+    allMetrics.push_back({"avg-spw", QStringLiteral("%1 syl/w").arg(static_cast<double>(totalSyllables) / qMax(wordCount, 1), 0, 'f', 2)});
+
+    QStringList parts;
+    int count = 0;
+    for (const auto &m : allMetrics) {
+        if (enabled.contains(QLatin1String(m.key))) {
+            parts << m.value;
+            if (++count >= 5) break;
+        }
+    }
+
+    m_statsLabel->setText(parts.isEmpty() ? QString() : parts.join(" · "));
 }
 
 void MainWindow::loadFile(const QString &filePath)

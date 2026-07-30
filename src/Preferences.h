@@ -37,6 +37,9 @@ namespace Preferences {
 
     constexpr const char *StripPreviewScripts = "stripPreviewScripts";
     constexpr const char *ReadabilityFormula = "readabilityFormula";
+    constexpr const char *StatusBarMetrics = "statusBarMetrics";
+    constexpr const char *WordsPerSecond = "wordsPerSecond";
+    constexpr const char *SpeakingWpm = "speakingWpm";
 
     constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";
     constexpr const char *TableStripePdfCss = "tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}";

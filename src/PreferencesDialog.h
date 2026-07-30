@@ -8,6 +8,9 @@
 #include <QGroupBox>
 #include <QRadioButton>
 #include <QSpinBox>
+#include <QDoubleSpinBox>
+#include <QLabel>
+#include <vector>
 
 
 #include <QComboBox>
@@ -39,6 +42,24 @@ private:
     CssConfig *m_config;
     CssLoader *m_loader;
     QComboBox *m_readabilityCombo = nullptr;
+    QCheckBox *m_wordCountCheck = nullptr;
+    QCheckBox *m_sentenceCountCheck = nullptr;
+    QCheckBox *m_paragraphCountCheck = nullptr;
+    QCheckBox *m_charNoSpaceCheck = nullptr;
+    QCheckBox *m_charWithSpaceCheck = nullptr;
+    QCheckBox *m_readingAgeCheck = nullptr;
+    QCheckBox *m_fleschEaseCheck = nullptr;
+    QCheckBox *m_readingTimeCheck = nullptr;
+    QCheckBox *m_speakingTimeCheck = nullptr;
+    QCheckBox *m_syllableCountCheck = nullptr;
+    QCheckBox *m_complexWordsCheck = nullptr;
+    QCheckBox *m_lexicalDensityCheck = nullptr;
+    QCheckBox *m_avgWordsPerSentenceCheck = nullptr;
+    QCheckBox *m_avgSyllablesPerWordCheck = nullptr;
+    QDoubleSpinBox *m_wpsSpin = nullptr;
+    QSpinBox *m_spWpmSpin = nullptr;
+    QLabel *m_selectionCountLabel = nullptr;
+    std::vector<QCheckBox *> m_metricChecks;
     QListWidget *m_categoryList;
     QStackedWidget *m_pages;
     QListWidget *m_listWidget;

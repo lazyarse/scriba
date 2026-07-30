@@ -42,6 +42,8 @@ add_executable(scriba
     src/KatexHelperDialog.cpp
     src/MchemHelperDialog.cpp
     src/StaticHelpers.cpp
+    src/Readability.h
+    src/Readability.cpp
     src/JsSnippets.cpp
     src/JsRenderEngine.cpp
     src/UnitConverter.cpp
@@ -119,6 +121,7 @@ if(BUILD_TESTS)
         src/MdRenderer.cpp
         src/CssUtils.cpp
         src/StaticHelpers.cpp
+        src/Readability.cpp
         src/JsSnippets.cpp
         vendor/md4c/src/md4c.c
         vendor/md4c/src/entity.c

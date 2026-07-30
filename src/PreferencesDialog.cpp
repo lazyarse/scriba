@@ -18,6 +18,7 @@
 #include <QFile>
 #include <QStackedWidget>
 #include <QColorDialog>
+#include <QDoubleSpinBox>
 
 PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent,
     const QString &themeBgColor, const QString &themeFgColor)
@@ -362,12 +363,48 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
 
-        QGroupBox *readabilityGroup = new QGroupBox("Readability");
-        QVBoxLayout *readabilityLayout = new QVBoxLayout(readabilityGroup);
-        readabilityLayout->addSpacing(8);
+        /* --- Status Bar Metrics --- */
+        QGroupBox *metricsGroup = new QGroupBox("Status Bar Metrics");
+        QVBoxLayout *metricsLayout = new QVBoxLayout(metricsGroup);
+        metricsLayout->addSpacing(8);
 
-        QHBoxLayout *formulaRow = new QHBoxLayout();
-        formulaRow->addWidget(new QLabel("Formula:"));
+        constexpr int kMaxMetrics = 8;
+
+        auto *maxLabel = new QLabel(QString("Select up to %1 metrics").arg(kMaxMetrics));
+        maxLabel->setStyleSheet("color: gray; font-size: 11px;");
+        metricsLayout->addWidget(maxLabel);
+
+        QStringList selected = settings.value(Preferences::StatusBarMetrics).toStringList();
+        if (selected.isEmpty())
+            selected = {"words", "sentences", "reading-age", "reading-time", "speaking-time"};
+
+        auto addMetricCheck = [&](const QString &key, const QString &label, const QString &tooltip = QString()) {
+            auto *cb = new QCheckBox(label);
+            cb->setChecked(selected.contains(key));
+            cb->setProperty("metricKey", key);
+            if (!tooltip.isEmpty())
+                cb->setToolTip(tooltip);
+            metricsLayout->addWidget(cb);
+            return cb;
+        };
+
+        m_wordCountCheck = addMetricCheck("words", "Word count");
+        m_sentenceCountCheck = addMetricCheck("sentences", "Sentence count");
+        m_paragraphCountCheck = addMetricCheck("paragraphs", "Paragraph count");
+        m_charNoSpaceCheck = addMetricCheck("char-nospace", "Character count (no spaces)");
+        m_charWithSpaceCheck = addMetricCheck("char-withspace", "Character count (with spaces)");
+
+        metricsLayout->addSpacing(4);
+        auto *readLabel = new QLabel("<b>Readability</b>");
+        metricsLayout->addWidget(readLabel);
+
+        QHBoxLayout *readingAgeRow = new QHBoxLayout();
+        m_readingAgeCheck = new QCheckBox("Reading age");
+        m_readingAgeCheck->setChecked(selected.contains("reading-age"));
+        m_readingAgeCheck->setProperty("metricKey", "reading-age");
+        readingAgeRow->addWidget(m_readingAgeCheck);
+        readingAgeRow->addSpacing(8);
+        readingAgeRow->addWidget(new QLabel("Formula:"));
         m_readabilityCombo = new QComboBox();
         m_readabilityCombo->addItem("Flesch-Kincaid", static_cast<int>(Preferences::Formula::FleschKincaid));
         m_readabilityCombo->addItem("Coleman-Liau", static_cast<int>(Preferences::Formula::ColemanLiau));
@@ -378,11 +415,104 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
             settings.value(Preferences::ReadabilityFormula,
                 Preferences::formulaToString(Preferences::Formula::FleschKincaid)).toString());
         m_readabilityCombo->setCurrentIndex(static_cast<int>(curFormula));
-        formulaRow->addWidget(m_readabilityCombo);
-        formulaRow->addStretch();
-        readabilityLayout->addLayout(formulaRow);
+        m_readabilityCombo->setEnabled(m_readingAgeCheck->isChecked());
+        readingAgeRow->addWidget(m_readabilityCombo);
+        readingAgeRow->addStretch();
+        metricsLayout->addLayout(readingAgeRow);
+        connect(m_readingAgeCheck, &QCheckBox::toggled, m_readabilityCombo, &QComboBox::setEnabled);
 
-        layout->addWidget(readabilityGroup);
+        m_fleschEaseCheck = addMetricCheck("flesch-ease", "Flesch Reading Ease");
+
+        metricsLayout->addSpacing(4);
+        auto *timeLabel = new QLabel("<b>Time</b>");
+        metricsLayout->addWidget(timeLabel);
+
+        QHBoxLayout *readingTimeRow = new QHBoxLayout();
+        m_readingTimeCheck = new QCheckBox("Reading time");
+        m_readingTimeCheck->setChecked(selected.contains("reading-time"));
+        m_readingTimeCheck->setProperty("metricKey", "reading-time");
+        readingTimeRow->addWidget(m_readingTimeCheck);
+        readingTimeRow->addSpacing(8);
+        readingTimeRow->addWidget(new QLabel("Speed:"));
+        m_wpsSpin = new QDoubleSpinBox();
+        m_wpsSpin->setRange(1.0, 20.0);
+        m_wpsSpin->setSingleStep(0.5);
+        m_wpsSpin->setValue(settings.value(Preferences::WordsPerSecond, 3.33).toDouble());
+        m_wpsSpin->setSuffix(" words/sec");
+        readingTimeRow->addWidget(m_wpsSpin);
+        readingTimeRow->addStretch();
+        metricsLayout->addLayout(readingTimeRow);
+
+        QHBoxLayout *speakingTimeRow = new QHBoxLayout();
+        m_speakingTimeCheck = new QCheckBox("Speaking time");
+        m_speakingTimeCheck->setChecked(selected.contains("speaking-time"));
+        m_speakingTimeCheck->setProperty("metricKey", "speaking-time");
+        speakingTimeRow->addWidget(m_speakingTimeCheck);
+        speakingTimeRow->addSpacing(8);
+        speakingTimeRow->addWidget(new QLabel("Speed:"));
+        m_spWpmSpin = new QSpinBox();
+        m_spWpmSpin->setRange(60, 300);
+        m_spWpmSpin->setValue(settings.value(Preferences::SpeakingWpm, 150).toInt());
+        m_spWpmSpin->setSuffix(" words/min");
+        speakingTimeRow->addWidget(m_spWpmSpin);
+        speakingTimeRow->addStretch();
+        metricsLayout->addLayout(speakingTimeRow);
+
+        metricsLayout->addSpacing(4);
+        auto *vocabLabel = new QLabel("<b>Vocabulary</b>");
+        metricsLayout->addWidget(vocabLabel);
+
+        m_syllableCountCheck = addMetricCheck("syllables", "Syllable count");
+        m_complexWordsCheck = addMetricCheck("complex-words", "Complex word count (3+ syllables)");
+        m_lexicalDensityCheck = addMetricCheck("lexical-density", "Lexical density (%)");
+
+        metricsLayout->addSpacing(4);
+        auto *avgLabel = new QLabel("<b>Averages</b>");
+        metricsLayout->addWidget(avgLabel);
+
+        m_avgWordsPerSentenceCheck = addMetricCheck("avg-wps", "Average words per sentence");
+        m_avgSyllablesPerWordCheck = addMetricCheck("avg-spw", "Average syllables per word");
+
+        m_selectionCountLabel = new QLabel;
+        metricsLayout->addWidget(m_selectionCountLabel);
+
+        // connect all checkboxes to limit enforcement
+        auto enforceLimit = [this, kMaxMetrics]() {
+            QStringList selectedKeys;
+            int count = 0;
+            for (auto *cb : this->m_metricChecks) {
+                if (cb->isChecked()) {
+                    ++count;
+                    selectedKeys << cb->property("metricKey").toString();
+                }
+            }
+            bool atLimit = count >= kMaxMetrics;
+            for (auto *cb : this->m_metricChecks) {
+                if (!cb->isChecked())
+                    cb->setEnabled(!atLimit);
+            }
+            m_selectionCountLabel->setText(
+                QStringLiteral("%1 / %2 selected %3")
+                    .arg(count)
+                    .arg(kMaxMetrics)
+                    .arg(atLimit ? QString("(max %1 reached)").arg(kMaxMetrics) : ""));
+        };
+
+        // collect all metric checkboxes
+        m_metricChecks = {
+            m_wordCountCheck, m_sentenceCountCheck, m_paragraphCountCheck,
+            m_charNoSpaceCheck, m_charWithSpaceCheck,
+            m_readingAgeCheck, m_fleschEaseCheck,
+            m_readingTimeCheck, m_speakingTimeCheck,
+            m_syllableCountCheck, m_complexWordsCheck, m_lexicalDensityCheck,
+            m_avgWordsPerSentenceCheck, m_avgSyllablesPerWordCheck
+        };
+        for (auto *cb : m_metricChecks)
+            connect(cb, &QCheckBox::toggled, this, enforceLimit);
+        enforceLimit();
+
+        layout->addWidget(metricsGroup);
+
         layout->addStretch();
 
         m_pages->addWidget(page);
@@ -431,6 +561,14 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::ReadabilityFormula,
             Preferences::formulaToString(
                 static_cast<Preferences::Formula>(m_readabilityCombo->currentData().toInt())));
+        QStringList checkedMetrics;
+        for (auto *cb : m_metricChecks) {
+            if (cb->isChecked())
+                checkedMetrics << cb->property("metricKey").toString();
+        }
+        settings.setValue(Preferences::StatusBarMetrics, checkedMetrics);
+        settings.setValue(Preferences::WordsPerSecond, m_wpsSpin->value());
+        settings.setValue(Preferences::SpeakingWpm, m_spWpmSpin->value());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

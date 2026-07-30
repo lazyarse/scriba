@@ -1,8 +1,6 @@
 #include "StaticHelpers.h"
 #include <QRegularExpression>
-#include <QSet>
 #include <QXmlStreamReader>
-#include <cmath>
 #include <QFile>
 #include <QColor>
 #include <QPixmap>
@@ -231,108 +229,6 @@ QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column)
     cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, block);
     cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, column);
     return cursor;
-}
-
-int countSentences(const QString &text)
-{
-    if (text.isEmpty()) return 1;
-    int count = 0;
-    for (int i = 0; i < text.size(); ++i) {
-        QChar c = text[i];
-        if (c == '!' || c == '?') {
-            ++count;
-        } else if (c == '.') {
-            if (i == text.size() - 1) {
-                ++count;
-            } else {
-                int wordStart = i - 1;
-                while (wordStart >= 0 && text[wordStart] != ' ')
-                    --wordStart;
-                int wordLen = i - wordStart - 1;
-                if (wordLen > 2)
-                    ++count;
-            }
-        }
-    }
-    return qMax(1, count);
-}
-
-int estimateSyllables(const QString &word)
-{
-    if (word.isEmpty()) return 0;
-    static const QSet<QChar> vowels = {'a','e','i','o','u','y'};
-    QString lower = word.toLower();
-    int count = 0;
-    bool inGroup = false;
-    for (int i = 0; i < lower.size(); ++i) {
-        bool isVowel = vowels.contains(lower[i]);
-        if (isVowel && !inGroup) {
-            ++count;
-            inGroup = true;
-        } else if (!isVowel) {
-            inGroup = false;
-        }
-    }
-    if (lower.endsWith('e') && !lower.endsWith("le") && count > 1)
-        --count;
-    return qMax(1, count);
-}
-
-double fleschKincaidGrade(int words, int sentences, int syllables)
-{
-    if (words == 0 || sentences == 0) return 0.0;
-    return 0.39 * (static_cast<double>(words) / sentences)
-         + 11.8 * (static_cast<double>(syllables) / words)
-         - 15.59;
-}
-
-int countCharactersWithoutSpaces(const QString &text)
-{
-    int count = 0;
-    for (const QChar &c : text) {
-        if (!c.isSpace())
-            ++count;
-    }
-    return count;
-}
-
-int countComplexWords(const QStringList &words)
-{
-    int count = 0;
-    for (const QString &w : words) {
-        if (estimateSyllables(w) >= 3)
-            ++count;
-    }
-    return count;
-}
-
-double colemanLiauGrade(int words, int sentences, int characters)
-{
-    if (words == 0 || sentences == 0) return 0.0;
-    double L = 100.0 * characters / words;
-    double S = 100.0 * sentences / words;
-    return 0.0588 * L - 0.296 * S - 15.8;
-}
-
-double gunningFogGrade(int words, int sentences, int complexWords)
-{
-    if (words == 0 || sentences == 0) return 0.0;
-    return 0.4 * (static_cast<double>(words) / sentences
-                  + 100.0 * complexWords / words);
-}
-
-double smogGrade(int sentences, int polysyllables)
-{
-    if (sentences == 0) return 0.0;
-    return 1.0430 * std::sqrt(polysyllables * 30.0 / sentences) + 3.1291;
-}
-
-double ariGrade(int words, int sentences, int characters)
-{
-    if (words == 0 || sentences == 0) return 0.0;
-    return 4.71 * (static_cast<double>(characters) / words)
-         + 0.5 * (static_cast<double>(words) / sentences)
-         - 21.43;
 }
 
 QIcon themedIcon(const QString &svgPath, const QColor &color, int size)
