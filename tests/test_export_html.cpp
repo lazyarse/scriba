@@ -47,7 +47,7 @@ protected:
 
 TEST_F(HtmlExportTest, DialogCreation)
 {
-    ExportHtmlDialog dlg(config, loader, "/tmp/test.md");
+    ExportHtmlDialog dlg(config, loader, QDir::tempPath() + "/test.md");
     dlg.show();
     QApplication::processEvents();
 
@@ -60,7 +60,7 @@ TEST_F(HtmlExportTest, DialogDefaultsToActiveTheme)
 {
     QString activeTheme = config->activeStylesheet();
 
-    ExportHtmlDialog dlg(config, loader, "/tmp/test.md");
+    ExportHtmlDialog dlg(config, loader, QDir::tempPath() + "/test.md");
     dlg.show();
     QApplication::processEvents();
 
@@ -73,7 +73,7 @@ TEST_F(HtmlExportTest, DialogDefaultsToActiveTheme)
 
 TEST_F(HtmlExportTest, DialogPopulatesThemes)
 {
-    ExportHtmlDialog dlg(config, loader, "/tmp/test.md");
+    ExportHtmlDialog dlg(config, loader, QDir::tempPath() + "/test.md");
     dlg.show();
     QApplication::processEvents();
 
@@ -87,7 +87,7 @@ TEST_F(HtmlExportTest, DialogPopulatesThemes)
 
 TEST_F(HtmlExportTest, SelectedThemeReturnsValidPath)
 {
-    ExportHtmlDialog dlg(config, loader, "/tmp/test.md");
+    ExportHtmlDialog dlg(config, loader, QDir::tempPath() + "/test.md");
     dlg.show();
     QApplication::processEvents();
 
@@ -99,7 +99,7 @@ TEST_F(HtmlExportTest, SelectedThemeReturnsValidPath)
 
 TEST_F(HtmlExportTest, DialogHasExportAndCancelButtons)
 {
-    ExportHtmlDialog dlg(config, loader, "/tmp/test.md");
+    ExportHtmlDialog dlg(config, loader, QDir::tempPath() + "/test.md");
     dlg.show();
     QApplication::processEvents();
 
@@ -250,7 +250,7 @@ TEST_F(HtmlExportTest, RenderSyncKaTeXInlineMath)
     QString bodyHtml = "<p>Inline math: $x^2$</p>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
-    QString rendered = JsRenderEngine::renderSync(fullHtml, "file:///tmp/");
+    QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString());
     ASSERT_FALSE(rendered.isEmpty());
 
     // KaTeX wraps rendered math in <span class="katex">
@@ -265,7 +265,7 @@ TEST_F(HtmlExportTest, RenderSyncKaTeXDisplayMath)
     QString bodyHtml = "<p>Display math:</p><p>$$E=mc^2$$</p>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
-    QString rendered = JsRenderEngine::renderSync(fullHtml, "file:///tmp/");
+    QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString());
     ASSERT_FALSE(rendered.isEmpty());
 
     EXPECT_TRUE(rendered.contains("katex")) << "KaTeX should produce .katex spans for display math";
@@ -298,7 +298,7 @@ TEST_F(HtmlExportTest, DocxOmmlPipelineSetsDataTexOnDisplayMath)
     QString fullHtml = JsRenderEngine::buildFullHtmlForDocxOmml(
         bodyHtml, "body{}", "bw", "default");
 
-    QString rendered = JsRenderEngine::renderSync(fullHtml, "file:///tmp/", 15000);
+    QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString(), 15000);
     ASSERT_FALSE(rendered.isEmpty()) << "OMML pipeline must produce output";
 
     // The .katex span must have a data-tex attribute set by the JS
@@ -351,7 +351,7 @@ TEST_F(HtmlExportTest, RenderSyncKaTeXNoSvgOutput)
     QString bodyHtml = "<p>$x^2$</p>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
-    QString rendered = JsRenderEngine::renderSync(fullHtml, "file:///tmp/");
+    QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString());
     ASSERT_FALSE(rendered.isEmpty());
 
     // KaTeX HTML output uses <span> elements, not <svg>
@@ -373,7 +373,7 @@ TEST_F(HtmlExportTest, RenderSyncVegaLiteSvgOutput)
     QString bodyHtml = "<pre><code class=\"language-vl\">" + spec.toHtmlEscaped() + "</code></pre>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
-    QString rendered = JsRenderEngine::renderSync(fullHtml, "file:///tmp/", 15000);
+    QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString(), 15000);
     ASSERT_FALSE(rendered.isEmpty());
 
     // Vega-Lite with renderer:'svg' should produce <svg> elements
@@ -401,7 +401,7 @@ TEST_F(HtmlExportTest, VegaLiteSurvivesReplaceQrcUrls)
     QString bodyHtml = "<pre><code class=\"language-vl\">" + spec.toHtmlEscaped() + "</code></pre>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
-    QString rendered = JsRenderEngine::renderSync(fullHtml, "file:///tmp/", 15000);
+    QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString(), 15000);
     ASSERT_FALSE(rendered.isEmpty());
 
     QString afterReplace = JsRenderEngine::replaceQrcUrls(rendered);
@@ -427,7 +427,7 @@ TEST_F(HtmlExportTest, VegaLiteFullExportPipeline)
     QString css = "body { font-family: serif; }";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, css, "bw", "default");
 
-    QString rendered = JsRenderEngine::renderSync(fullHtml, "file:///tmp/", 15000);
+    QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString(), 15000);
     ASSERT_FALSE(rendered.isEmpty());
 
     QString finalBody = JsRenderEngine::replaceQrcUrls(rendered);
@@ -524,7 +524,7 @@ TEST_F(HtmlExportTest, EmbedImagesSkipsQrcUrls)
 TEST_F(HtmlExportTest, EmbedImagesFallbackOnMissingLocal)
 {
     QString html = "<img src=\"nonexistent.png\" alt=\"x\">";
-    QUrl baseUrl = QUrl::fromLocalFile("/tmp/");
+    QUrl baseUrl = QUrl::fromLocalFile(QDir::tempPath() + "/");
 
     QString result = JsRenderEngine::embedImages(html, baseUrl);
     EXPECT_TRUE(result.contains("src=\"nonexistent.png\""));

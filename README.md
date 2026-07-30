@@ -30,7 +30,7 @@
 - [keyboard shortcuts](docs/shortcuts.md) for everything<sup>*</sup>
 -  First-class accessibility support to help you use Scriba the way you want, with CSS-based GUI theming: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
 
-<sup>*</sup> <em>Maybe</em>.
+<small><sup>*</sup> <em>Maybe</em>.</small>
 
 ### Standing on the shoulders of giants:
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language

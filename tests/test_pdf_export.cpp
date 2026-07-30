@@ -3,6 +3,7 @@
 #include <QTest>
 #include <QTemporaryFile>
 #include <QFile>
+#include <QDir>
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QPlainTextEdit>
@@ -52,7 +53,7 @@ protected:
 
         config = new CssConfig();
         loader = new CssLoader(config);
-        dlg = new ExportPdfDialog("<p>hello world</p>", "/tmp/test.md", loader);
+        dlg = new ExportPdfDialog("<p>hello world</p>", QDir::tempPath() + "/test.md", loader);
         dlg->show();
         QApplication::processEvents();
     }
