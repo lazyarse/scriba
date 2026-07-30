@@ -256,14 +256,14 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         m_editorFontSizeSpin = new QSpinBox();
         m_editorFontSizeSpin->setRange(8, 48);
-        m_editorFontSizeSpin->setSuffix(" pt");
-        m_editorFontSizeSpin->setValue(settings.value(Preferences::EditorFontSize, 18).toInt());
+        m_editorFontSizeSpin->setSuffix(" px");
+        m_editorFontSizeSpin->setValue(settings.value(Preferences::EditorFontSize, Preferences::DefaultEditorFontSize).toInt());
         editorLayout->addRow("Font size:", m_editorFontSizeSpin);
 
         m_editorLineHeightSpin = new QSpinBox();
         m_editorLineHeightSpin->setRange(100, 400);
         m_editorLineHeightSpin->setSuffix(" %");
-        m_editorLineHeightSpin->setValue(settings.value(Preferences::EditorLineHeight, 240).toInt());
+        m_editorLineHeightSpin->setValue(settings.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
         editorLayout->addRow("Line height:", m_editorLineHeightSpin);
 
         m_editorPaddingSpin = new QSpinBox();

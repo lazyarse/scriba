@@ -142,7 +142,7 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
 
     applyStyleSheetToAllEditors();
     QSettings s;
-    applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
+    applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
 
     if (!skipSessionRestore) {
         bool reopen = settings.value(Preferences::ReopenLastSession, true).toBool();
@@ -286,7 +286,7 @@ int MainWindow::addTab(const QString &filePath)
     {
         QSettings s;
         QTextBlockFormat fmt;
-        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt(),
+        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
                           QTextBlockFormat::ProportionalHeight);
         QTextCursor cursor(editor->document());
         cursor.select(QTextCursor::Document);
@@ -296,6 +296,7 @@ int MainWindow::addTab(const QString &filePath)
     updateTabLabel(idx);
 
     updateTabBarVisibility();
+    editor->setFocus();
     return idx;
 }
 
@@ -418,6 +419,8 @@ void MainWindow::onTabChanged(int index)
 {
     Q_UNUSED(index);
     connectActiveEditor();
+    if (auto *ed = currentEditor())
+        ed->setFocus();
 
     TabInfo *info = activeTabInfo();
     if (info) {
@@ -769,7 +772,7 @@ void MainWindow::refreshPreviewCss()
         m_cachedFullCss = chromeCss;
         applyStyleSheetToAllEditors();
         QSettings s;
-        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
+        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
         if (!m_chromeUpdateScheduled) {
             m_chromeUpdateScheduled = true;
             QTimer::singleShot(0, this, [this, chromeCss]() {
@@ -788,7 +791,7 @@ QString MainWindow::applyEditorSettings()
     QSettings settings;
     QString family = settings.value(Preferences::EditorFontFamily,
         "'Consolas', 'Monaco', 'Courier New', monospace").toString();
-    int size = settings.value(Preferences::EditorFontSize, 18).toInt();
+    int size = settings.value(Preferences::EditorFontSize, Preferences::DefaultEditorFontSize).toInt();
     int padding = settings.value(Preferences::EditorPadding, 12).toInt();
 
     return applyEditorSettings(family, size, padding);
@@ -796,7 +799,7 @@ QString MainWindow::applyEditorSettings()
 
 QString MainWindow::applyEditorSettings(const QString &fontFamily, int fontSize, int padding)
 {
-    QString css = QString("#scriba-editor { padding: %1px; font-family: %2; font-size: %3pt; }")
+    QString css = QString("#scriba-editor { padding: %1px; font-family: %2; font-size: %3px; }")
         .arg(padding).arg(fontFamily).arg(fontSize);
     QSettings s;
     if (s.value(Preferences::EditorColorOverride, false).toBool()) {
@@ -1004,7 +1007,7 @@ void MainWindow::showPreferences()
     QSettings s;
     if (dlg.exec() == QDialog::Accepted) {
         applyStyleSheetToAllEditors();
-        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
+        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
         updateAll();
         updateStats();
         for (const auto &tab : m_tabs) {
@@ -1022,7 +1025,7 @@ void MainWindow::showPreferences()
         m_cssConfig->setActiveStylesheet(oldStylesheet);
         m_cssLoader->invalidateCache();
         applyStyleSheetToAllEditors();
-        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt());
+        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
     }
 }
 
@@ -1502,7 +1505,7 @@ void MainWindow::loadFile(const QString &filePath)
         {
             QSettings s;
             QTextBlockFormat fmt;
-            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt(),
+            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
                               QTextBlockFormat::ProportionalHeight);
             QTextCursor cursor(m_tabs[idx].editor->document());
             cursor.select(QTextCursor::Document);
@@ -1520,7 +1523,7 @@ void MainWindow::loadFile(const QString &filePath)
         {
             QSettings s;
             QTextBlockFormat fmt;
-            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt(),
+            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
                               QTextBlockFormat::ProportionalHeight);
             QTextCursor cursor(m_tabs[idx].editor->document());
             cursor.select(QTextCursor::Document);
@@ -1871,7 +1874,7 @@ void MainWindow::restoreSession(const QJsonObject &session)
         {
             QSettings s;
             QTextBlockFormat fmt;
-            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, 240).toInt(),
+            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
                               QTextBlockFormat::ProportionalHeight);
             QTextCursor cursor(m_tabs[idx].editor->document());
             cursor.select(QTextCursor::Document);

@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     }
 
     MainWindow window(nullptr, hasFiles);
-    window.show();
+    window.showMaximized();
 
     if (hasFiles) {
         for (int i = 1; i < args.size(); ++i)

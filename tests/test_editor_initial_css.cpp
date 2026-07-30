@@ -36,8 +36,8 @@ TEST_F(EditorInitialCssTest, EditorStylesheetHasPaddingFontSizeFontFamily) {
 
     EXPECT_TRUE(ss.contains("padding: 12px"))
         << "Expected padding: 12px in stylesheet, got: " << ss.toStdString();
-    EXPECT_TRUE(ss.contains("font-size: 18pt"))
-        << "Expected font-size: 18pt in stylesheet, got: " << ss.toStdString();
+    EXPECT_TRUE(ss.contains("font-size: 16px"))
+        << "Expected font-size: 16px in stylesheet, got: " << ss.toStdString();
     EXPECT_TRUE(ss.contains("font-family:"))
         << "Expected font-family in stylesheet, got: " << ss.toStdString();
 }
@@ -49,7 +49,7 @@ TEST_F(EditorInitialCssTest, EditorLineHeightIsApplied) {
     QTextCursor cursor(window->editor()->document());
     cursor.movePosition(QTextCursor::Start);
     QTextBlockFormat fmt = cursor.blockFormat();
-    EXPECT_EQ(fmt.lineHeight(), 240);
+    EXPECT_EQ(fmt.lineHeight(), 125);
     EXPECT_EQ(fmt.lineHeightType(), QTextBlockFormat::ProportionalHeight);
 }
 
