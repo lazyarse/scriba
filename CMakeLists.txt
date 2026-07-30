@@ -38,19 +38,7 @@ add_executable(scriba
     src/EmojiDialog.cpp
     src/AboutDialog.cpp
     src/LogWindow.cpp
-    src/MermaidPieDialog.cpp
-    src/MermaidDialogBase.cpp
-    src/MermaidFlowchartDialog.cpp
-    src/MermaidSequenceDialog.cpp
-    src/MermaidGanttDialog.cpp
-    src/MermaidClassDialog.cpp
-    src/MermaidErDialog.cpp
-    src/MermaidStateDialog.cpp
-    src/MermaidMindmapDialog.cpp
-    src/MermaidTimelineDialog.cpp
-    src/MermaidJourneyDialog.cpp
-    src/MermaidQuadrantDialog.cpp
-    src/MermaidSankeyDialog.cpp
+    src/MermaidDialog.cpp
     src/KatexHelperDialog.cpp
     src/MchemHelperDialog.cpp
     src/StaticHelpers.cpp
@@ -174,31 +162,14 @@ if(BUILD_TESTS)
     target_link_libraries(test_readability PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_readability COMMAND ${_TEST_PREFIX} ./test_readability)
 
-    function(add_mermaid_test name)
-        string(TOLOWER "${name}" lname)
-        add_executable(test_mermaid_${lname}_dialog
-            tests/test_mermaid_${lname}_dialog.cpp
-            src/Mermaid${name}Dialog.cpp
-            src/MermaidDialogBase.cpp
-            src/Preview.cpp)
-        target_link_libraries(test_mermaid_${lname}_dialog
-            PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
-        add_test(NAME test_mermaid_${lname}_dialog
-            COMMAND ${_TEST_PREFIX} ./test_mermaid_${lname}_dialog)
-    endfunction()
-
-    add_mermaid_test(Pie)
-    add_mermaid_test(Flowchart)
-    add_mermaid_test(Sankey)
-    add_mermaid_test(Timeline)
-    add_mermaid_test(Quadrant)
-    add_mermaid_test(Journey)
-    add_mermaid_test(State)
-    add_mermaid_test(Sequence)
-    add_mermaid_test(Gantt)
-    add_mermaid_test(Mindmap)
-    add_mermaid_test(Er)
-    add_mermaid_test(Class)
+    add_executable(test_mermaid_dialog
+        tests/test_mermaid_dialog.cpp
+        src/MermaidDialog.cpp
+        src/Preview.cpp)
+    target_link_libraries(test_mermaid_dialog
+        PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_mermaid_dialog
+        COMMAND ${_TEST_PREFIX} ./test_mermaid_dialog)
 
     add_executable(test_katex_helper_dialog
         tests/test_katex_helper_dialog.cpp
@@ -234,19 +205,7 @@ if(BUILD_TESTS)
         src/EmojiDialog.cpp src/AboutDialog.cpp
         src/FindDialog.cpp
         src/LogWindow.cpp
-    src/MermaidPieDialog.cpp
-    src/MermaidDialogBase.cpp
-    src/MermaidFlowchartDialog.cpp
-    src/MermaidSequenceDialog.cpp
-    src/MermaidGanttDialog.cpp
-    src/MermaidClassDialog.cpp
-    src/MermaidErDialog.cpp
-    src/MermaidStateDialog.cpp
-    src/MermaidMindmapDialog.cpp
-    src/MermaidTimelineDialog.cpp
-    src/MermaidJourneyDialog.cpp
-    src/MermaidQuadrantDialog.cpp
-    src/MermaidSankeyDialog.cpp
+    src/MermaidDialog.cpp
     src/KatexHelperDialog.cpp
     src/MchemHelperDialog.cpp
         src/TableDialog.cpp
@@ -264,12 +223,7 @@ if(BUILD_TESTS)
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
-        src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
-        src/MermaidSequenceDialog.cpp src/MermaidGanttDialog.cpp
-        src/MermaidClassDialog.cpp src/MermaidErDialog.cpp
-        src/MermaidStateDialog.cpp src/MermaidMindmapDialog.cpp
-        src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
-        src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
+        src/MermaidDialog.cpp
         src/KatexHelperDialog.cpp
         src/MchemHelperDialog.cpp
         src/TableDialog.cpp
@@ -286,12 +240,7 @@ if(BUILD_TESTS)
     src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
     src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
     src/LogWindow.cpp
-    src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
-    src/MermaidSequenceDialog.cpp src/MermaidGanttDialog.cpp
-    src/MermaidClassDialog.cpp src/MermaidErDialog.cpp
-    src/MermaidStateDialog.cpp src/MermaidMindmapDialog.cpp
-    src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
-    src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
+    src/MermaidDialog.cpp
     src/KatexHelperDialog.cpp
     src/MchemHelperDialog.cpp
     src/TableDialog.cpp
@@ -309,12 +258,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
         src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
         src/LogWindow.cpp
-        src/MermaidPieDialog.cpp src/MermaidDialogBase.cpp src/MermaidFlowchartDialog.cpp
-        src/MermaidSequenceDialog.cpp src/MermaidGanttDialog.cpp
-        src/MermaidClassDialog.cpp src/MermaidErDialog.cpp
-        src/MermaidStateDialog.cpp src/MermaidMindmapDialog.cpp
-        src/MermaidTimelineDialog.cpp src/MermaidJourneyDialog.cpp
-        src/MermaidQuadrantDialog.cpp src/MermaidSankeyDialog.cpp
+        src/MermaidDialog.cpp
         src/KatexHelperDialog.cpp
         src/MchemHelperDialog.cpp
         src/TableDialog.cpp
