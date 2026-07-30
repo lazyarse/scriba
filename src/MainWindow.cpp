@@ -110,7 +110,6 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
     refreshPreviewCss();
 
     setWindowTitle("Scriba");
-    showMaximized();
 
     m_updateTimer = new DebounceTimer(80, this);
     connect(m_updateTimer, &QTimer::timeout, this, &MainWindow::updatePreview);
@@ -527,7 +526,7 @@ void MainWindow::setupMenuBar()
     connect(reloadAction, &QAction::triggered, this, [this]() {
         TabInfo *info = activeTabInfo();
         if (info && !info->filePath.isEmpty())
-            loadFile(info->filePath);
+            loadFile(info->filePath, true);
     });
 
     fileMenu->addSeparator();
@@ -1477,7 +1476,7 @@ void MainWindow::updateStats()
     m_statsLabel->setText(parts.isEmpty() ? QString() : parts.join(" · "));
 }
 
-void MainWindow::loadFile(const QString &filePath)
+void MainWindow::loadFile(const QString &filePath, bool forceReload)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -1486,7 +1485,7 @@ void MainWindow::loadFile(const QString &filePath)
     }
 
     int existing = findTabByPath(filePath);
-    if (existing >= 0) {
+    if (!forceReload && existing >= 0) {
         m_tabWidget->setCurrentIndex(existing);
         file.close();
         return;
@@ -1496,11 +1495,12 @@ void MainWindow::loadFile(const QString &filePath)
     file.close();
 
     TabInfo *info = nullptr;
-    int idx = m_tabWidget->currentIndex();
+    int idx;
     bool replacedUntitled = false;
 
-    if (idx >= 0 && idx < m_tabs.size() && m_tabs[idx].filePath.isEmpty() && !m_tabs[idx].dirty && m_tabs[idx].editor->toPlainText().isEmpty()) {
-        m_tabs[idx].filePath = filePath;
+    if (forceReload && existing >= 0) {
+        idx = existing;
+        m_tabWidget->setCurrentIndex(idx);
         m_tabs[idx].editor->setPlainText(content);
         {
             QSettings s;
@@ -1511,27 +1511,44 @@ void MainWindow::loadFile(const QString &filePath)
             cursor.select(QTextCursor::Document);
             cursor.mergeBlockFormat(fmt);
         }
-        m_tabs[idx].editor->setCurrentFile(filePath);
         m_tabs[idx].dirty = false;
         info = &m_tabs[idx];
-        updateTabLabel(idx);
-        m_tabWidget->setTabToolTip(idx, filePath);
-        replacedUntitled = true;
     } else {
-        idx = addTab(filePath);
-        m_tabs[idx].editor->setPlainText(content);
-        {
-            QSettings s;
-            QTextBlockFormat fmt;
-            fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
-                              QTextBlockFormat::ProportionalHeight);
-            QTextCursor cursor(m_tabs[idx].editor->document());
-            cursor.select(QTextCursor::Document);
-            cursor.mergeBlockFormat(fmt);
+        idx = m_tabWidget->currentIndex();
+        if (idx >= 0 && idx < m_tabs.size() && m_tabs[idx].filePath.isEmpty() && !m_tabs[idx].dirty && m_tabs[idx].editor->toPlainText().isEmpty()) {
+            m_tabs[idx].filePath = filePath;
+            m_tabs[idx].editor->setPlainText(content);
+            {
+                QSettings s;
+                QTextBlockFormat fmt;
+                fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
+                                  QTextBlockFormat::ProportionalHeight);
+                QTextCursor cursor(m_tabs[idx].editor->document());
+                cursor.select(QTextCursor::Document);
+                cursor.mergeBlockFormat(fmt);
+            }
+            m_tabs[idx].editor->setCurrentFile(filePath);
+            m_tabs[idx].dirty = false;
+            info = &m_tabs[idx];
+            updateTabLabel(idx);
+            m_tabWidget->setTabToolTip(idx, filePath);
+            replacedUntitled = true;
+        } else {
+            idx = addTab(filePath);
+            m_tabs[idx].editor->setPlainText(content);
+            {
+                QSettings s;
+                QTextBlockFormat fmt;
+                fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
+                                  QTextBlockFormat::ProportionalHeight);
+                QTextCursor cursor(m_tabs[idx].editor->document());
+                cursor.select(QTextCursor::Document);
+                cursor.mergeBlockFormat(fmt);
+            }
+            m_tabs[idx].dirty = false;
+            updateTabLabel(idx);
+            info = &m_tabs[idx];
         }
-        m_tabs[idx].dirty = false;
-        updateTabLabel(idx);
-        info = &m_tabs[idx];
     }
 
     setWindowTitle("Scriba - " + filePath);

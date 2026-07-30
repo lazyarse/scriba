@@ -37,7 +37,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr, bool skipSessionRestore = false);
     ~MainWindow() = default;
-    void loadFile(const QString &filePath);
+    void loadFile(const QString &filePath, bool forceReload = false);
     Editor *editor() const { return currentEditor(); }
     Preview *preview() const { return m_preview; }
 
