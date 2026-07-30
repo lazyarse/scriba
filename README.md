@@ -13,7 +13,6 @@
   <img src="docs/images/badge-cpp17.svg" alt="C++17">
   <img src="docs/images/badge-qt6.svg" alt="Qt 6">
   <img src="docs/images/badge-tests.svg" alt="tests">
-  <img src="docs/images/badge-worthit.svg" alt="Worth it?">
 </span>
 </div>
 
@@ -21,19 +20,21 @@
 
 ## Features
 
-- Load / Save multiple documents in a `session` with a tabbed interface and pick up exactly where you left off with cursor and view-port restore in the last-edited document ready for your next edit
-- Print and PDF export with print-specific CSS stylesheets
-- PDF, DOCX, and HTML export
-- Metrics to help you write: sentence, word count, estimated reading time and reading age.
+- Load / Save multiple documents in a `session` with a tabbed interface and pick up exactly where you left off with cursor and view-port restore in the last-edited document
+- Print and PDF export using print-specific CSS stylesheets
+- Readability metrics to keep your writing audience-centred: sentence, word, character, paragraph, syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
 - Find and Replace with regex search and replacement back-references
-- Useful in-editor autocompletes to help create tables, reference filenames, and emojis
-- Lots of helpers to create charts and visualations because handcoding  JSON at 2am is difficult
--  First-class accessibility support with CSS-based GUI theming: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
+- PDF, DOCX, and HTML export
+- Useful in-editor autocomplete to assist creating tables, local filenames, and emojis
+- Numerous [chart helpers](docs/chart-helpers.md) for vega-lite and [mermaid](docs/mermaid.md) with manual data-entry and CSV pasting because writing JSON and fenced blocks at 2am is difficult
+- [keyboard shortcuts](docs/shortcuts.md) for everything<sup>*</sup>
+-  First-class accessibility support to help you use Scriba the way you want, with CSS-based GUI theming: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
 
+<sup>*</sup> <em>Maybe</em>.
 
 ### Standing on the shoulders of giants:
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
-- [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
+- [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
 - [md4c](https://github.com/mity/md4c) — we patched this CommonMark-compliant Markdown parser + GFM support
@@ -48,68 +49,9 @@
 - File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` autocompletes to `![](foo/bar.png)`
 - A debug log window output to see your rendering errors
 - A [docs/sample.md](docs/sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
-- hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text
+- hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text for your safety
+- You may not need roads where you're going, but you do need security and it isn't an afterthough, see the [security docs](docs/security.md)
 
-## Non-Features
-
-- No plugins: You will not spend three hours evaluating whether `scriba-vim-mode` is worth it.
-- No AI features: (*I know. Don't even say it.*)
-- No real-time collaboration: Your Google Doc trauma is safe here.
-- No subscription: It was hard enough convincing you to install Qt6.
-- No Electron / node. Your RAM has better things to do.
-
-## Shortcuts
-
-### Scriba
-
-| Shortcut | Action |
-|---|---|
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Scriba Preferences |
-| <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Quit |
-| <kbd>Ctrl</kbd>+<kbd>B</kbd> | Toggle Preview Pane Layout |
-| <kbd>F11</kbd> | Toggle Fullscreen |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | Show Debug Log |
-| <kbd>Alt</kbd>+<kbd>1-0</kbd> | Switch between open tabs (0 = tab 10) |
-
-### Files
-
-| Shortcut | Action |
-|---|---|
-| <kbd>Ctrl</kbd>+<kbd>N</kbd> | New |
-| <kbd>Ctrl</kbd>+<kbd>O</kbd> | Open |
-| <kbd>Ctrl</kbd>+<kbd>S</kbd> | Save |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Save As |
-| <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reload `.md` |
-| <kbd>Ctrl</kbd>+<kbd>P</kbd> | Print / Export PDF |
-
-### Editor
-
-| Shortcut | Action |
-|---|---|
-| <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find / Replace |
-| <kbd>F3</kbd> | Next Search Result |
-| <kbd>Shift</kbd>+<kbd>F3</kbd> | Previous Search Result|
-| <kbd>Ctrl</kbd>+<kbd>D</kbd> | Duplicate line |
-| <kbd>Ctrl</kbd>+<kbd>Z</kbd> | Undo |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | Redo |
-| <kbd>Ctrl</kbd>+<kbd>X</kbd> | Cut |
-| <kbd>Ctrl</kbd>+<kbd>C</kbd> | Copy |
-| <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste |
-| <kbd>Ctrl</kbd>+<kbd>A</kbd> | Select All |
-| <kbd>Down</kbd> | On the last line will place the cursor at the end of the line |
-| <kbd>Tab</kbd> | Indent selected text |
-| <kbd>Shift</kbd>+<kbd>Tab</kbd> | Dedent selected text |
-| <kbd>Ctrl</kbd>+<kbd>Up / Down</kbd> | Scroll the viewport up / down without moving the cursor |
-
-### Helpers
-
-| Shortcut | Action |
-|---|---|
-| <kbd>Ctrl</kbd>+<kbd>E</kbd> | Emoji Search :eyes: :mag: |
-| <kbd>Ctrl</kbd>+<kbd>T</kbd> | Tables |
-| <kbd>Ctrl</kbd>+<kbd>K</kbd> | Katex |
-| <kbd>Ctrl</kbd>+<kbd>G</kbd> | Vega-Lite |
-| <kbd>Alt</kbd>+<kbd>T</kbd> <kbd>M</kbd> | Mermaid Diagrams |
 
 ## Custom CSS / Themes
 
@@ -202,3 +144,11 @@ build\Release\scriba.exe file.md
 For a permanent fix, add `C:\Qt\6.10.3\msvc2022_64\bin` to your system PATH.
 
 JS console messages are captured via the Debug Log window (Tools → Debug Log).
+
+## Technical Docs
+
+See:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [PDF Export](docs/pdf-export.md)
+- [Table Handlng](docs/table_handling.md)
