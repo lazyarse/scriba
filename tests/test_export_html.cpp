@@ -833,6 +833,7 @@ TEST_F(HtmlExportTest, CspConstantIsWellFormed)
     EXPECT_TRUE(csp.contains("font-src"));
     EXPECT_TRUE(csp.contains("connect-src"));
     EXPECT_TRUE(csp.contains("'unsafe-inline'"));
+    EXPECT_TRUE(csp.contains("'unsafe-eval'"));
     EXPECT_TRUE(csp.contains("'self'"));
     EXPECT_TRUE(csp.contains("qrc:"));
 }

@@ -106,7 +106,7 @@ namespace Preferences {
 namespace Security {
     constexpr const char *CspHeader =
         "default-src 'self' qrc:;"
-        "script-src 'self' qrc: 'unsafe-inline';"
+        "script-src 'self' qrc: 'unsafe-inline' 'unsafe-eval';"
         "style-src 'self' qrc: 'unsafe-inline';"
         "img-src 'self' qrc: data: file:;"
         "font-src 'self' qrc: data:;"
