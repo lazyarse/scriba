@@ -474,9 +474,13 @@ void Editor::showFileCompletion(const QString &partialPath)
     QFileInfo fi(m_currentFile);
     QDir dir = fi.absoluteDir();
 
-    int lastSlash = partialPath.lastIndexOf('/');
-    QString dirPart = lastSlash >= 0 ? partialPath.left(lastSlash + 1) : QString();
-    QString filePart = lastSlash >= 0 ? partialPath.mid(lastSlash + 1) : partialPath;
+    QString normalized = partialPath;
+    bool trailingSep = normalized.endsWith('/') || normalized.endsWith('\\');
+    if (trailingSep)
+        normalized.chop(1);
+    QFileInfo pfi(normalized);
+    QString dirPart = trailingSep ? pfi.filePath() : pfi.path();
+    QString filePart = trailingSep ? QString() : pfi.fileName();
 
     QString searchDir = dir.absoluteFilePath(dirPart.isEmpty() ? "." : dirPart);
     QDir search(searchDir);
@@ -492,7 +496,7 @@ void Editor::showFileCompletion(const QString &partialPath)
             matched.append(entry);
     }
 
-    if (matched.isEmpty() || filePart.isEmpty())
+    if (matched.isEmpty())
         return;
 
     std::sort(matched.begin(), matched.end(),
