@@ -103,6 +103,35 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor with charts, la
 set(CPACK_PACKAGE_CONTACT "LazyArse <lazyarse000@protonmail.com>")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_DEFAULT_PERMISSIONS TRUE)
+
+if(WIN32)
+    set(CPACK_GENERATOR "NSIS")
+    set(CPACK_NSIS_DISPLAY_NAME "Scriba")
+    set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
+    set(CPACK_NSIS_CREATE_ICONS_EXTRA
+        "CreateShortCut '$SMPROGRAMS\\\\Scriba.lnk' '$INSTDIR\\\\bin\\\\scriba.exe'")
+    set(CPACK_NSIS_DELETE_ICONS_EXTRA
+        "Delete '$SMPROGRAMS\\\\Scriba.lnk'")
+    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS
+        "WriteRegStr HKCR '.md' '' 'Scriba.Markdown'
+         WriteRegStr HKCR 'Scriba.Markdown' '' 'Scriba Markdown Document'
+         WriteRegStr HKCR 'Scriba.Markdown\\\\DefaultIcon' '' '$INSTDIR\\\\icons\\\\scriba.ico'
+         WriteRegStr HKCR 'Scriba.Markdown\\\\shell\\\\open\\\\command' '' '$INSTDIR\\\\bin\\\\scriba.exe \\\"%1\\\"'")
+    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS
+        "DeleteRegKey HKCR 'Scriba.Markdown'
+         Delete '$SMPROGRAMS\\\\Scriba.lnk'")
+    set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/resources/icons/scriba.ico")
+    set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/resources/icons/scriba.ico")
+    set(CPACK_NSIS_MUI_UNICON "${CMAKE_SOURCE_DIR}/resources/icons/scriba.ico")
+    install(FILES ${CMAKE_SOURCE_DIR}/resources/icons/scriba.ico
+        DESTINATION icons)
+    install(CODE "
+        execute_process(COMMAND windeployqt --release --no-compiler-runtime
+            \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/scriba.exe\"
+            WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX})
+    ")
+endif()
+
 include(CPack)
 
 target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")

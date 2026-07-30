@@ -101,6 +101,23 @@ Binary: `build\Release\scriba.exe`
 
 Copy from QEMU to host (host needs an ssh-server running): `scp file.txt user@10.0.2.2:~/`
 
+### Build Windows installer
+
+Requires [NSIS](https://nsis.sourceforge.io/) installed (`choco install nsis`). In an **x64 Native Tools Command Prompt for VS 2022**:
+
+```cmd
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.10.3\msvc2022_64"
+cmake --build build -j4 --config Release
+cpack --config build/CPackConfig.cmake -G NSIS
+```
+
+Output: `scriba-<version>-win64.exe` (version derived from `git describe --tags --always --dirty`; includes a `-dirty` suffix if the working tree has uncommitted changes)
+
+The NSIS installer adds Scriba to the Start Menu and registers `.md` files to open with Scriba.
+
+> **Windows filename note:** colons (`:`) are not allowed in filenames on Windows. If your git tag
+> contains a colon, `cpack` will fail. Stick to semver tags like `v1.2.3` to avoid this.
+
 ### Build .deb package
 
 ```bash

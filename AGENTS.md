@@ -18,13 +18,27 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4
 
 Binary: `build/scriba`
 
-## Package
+## Package (Linux)
 
 ```bash
 cpack --config build/CPackConfig.cmake -G DEB && chmod 644 scriba-*-Linux.deb
 ```
 
 Output: `scriba-<version>-Linux.deb`
+
+## Package (Windows — NSIS installer)
+
+Requires [NSIS](https://nsis.sourceforge.io/) installed. Run in **x64 Native Tools Command Prompt for VS 2022**:
+
+```cmd
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.10.3\msvc2022_64"
+cmake --build build -j4 --config Release
+cpack --config build/CPackConfig.cmake -G NSIS
+```
+
+Output: `scriba-<version>-win64.exe`
+
+The installer adds Scriba to the Start Menu and registers `.md` files to open with Scriba.
 
 ## Run
 
