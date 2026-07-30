@@ -102,6 +102,7 @@ endif()
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor with charts, latex support, code highlighting, pdf export, and configurable")
 set(CPACK_PACKAGE_CONTACT "LazyArse <lazyarse000@protonmail.com>")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_DEFAULT_PERMISSIONS TRUE)
 include(CPack)
 
 target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
