@@ -62,10 +62,10 @@ AboutDialog::AboutDialog(QWidget *parent)
     mainLayout->addLayout(topRow);
 
     auto *descLabel = new QLabel(
-        "A configurable, no-nonsense, split-screen, off-line "
-        "Markdown editor with a pretentious Latin name. "
-        "An opinionated restricted feature-set: useful; no bloat, "
-        "and designed to actually do what it should without plugin hell."
+        "A privacy-first, no-nonsense, configurable Markdown editor for "
+        "technical people. Designed to *actually* do what you want without "
+        "plugin hell. No node / react / angular / bloat, just a binary that "
+        "sits on your computer and doesn't call outside."
     );
     descLabel->setWordWrap(true);
     descLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
