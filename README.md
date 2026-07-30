@@ -12,46 +12,46 @@
 ![Qt6 Badge](docs/images/badge-qt6.svg)
 ![Tests Badge](docs/images/badge-tests.svg)
 
+![Screenshot](docs/images/screenshot.png)
+
 ---
 
 ## Features
 
-- Load / Save multiple documents in a `session` with a tabbed interface and pick up exactly where you left off with cursor and view-port restore in the last-edited document
+- Load / Save multiple documents in a `session` with a tabbed interface
+- Pick up exactly where you left off with cursor and view-port restore in documents
 - Print and PDF export using print-specific CSS stylesheets
-- Readability metrics to keep your writing audience-centred: sentence, word, character, paragraph, syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
-- Find and Replace with regex search and replacement back-references
+- Readability metrics to keep your writing audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
+- Find and Replace with optional regex search and replacement back-references
 - PDF, DOCX, and HTML export
-- Useful in-editor autocomplete to assist creating tables, local filenames, and emojis
-- Numerous [chart helpers](docs/chart-helpers.md) for vega-lite and [mermaid](docs/mermaid.md) with manual data-entry and CSV pasting because writing JSON and fenced blocks at 2am is difficult
-- [keyboard shortcuts](docs/shortcuts.md) for everything<sup>*</sup>
--  First-class accessibility support to help you use Scriba the way you want, with CSS-based GUI theming: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
+- Useful in-editor autocomplete to assist in creating tables, linking to local filenames, and yes, even emojis
+- Numerous [chart helpers](docs/chart-helpers.md) for vega-lite and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV input because writing JSON and fenced blocks at 2am is difficult
+- [keyboard shortcuts](docs/shortcuts.md) for everything*
+- Accessibility support to help you use Scriba the way you need, with CSS-based GUI theming: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
+- Despite being listed at the end, app [security](docs/security.md) is not an afterthought and both the preview and exports are secured against XSS attacks and various injection vectors.
 
-<small><sup>*</sup> <em>Maybe</em>.</small>
+*Maybe
 
 ### Standing on the shoulders of giants:
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
-- [md4c](https://github.com/mity/md4c) — we patched this CommonMark-compliant Markdown parser + GFM support
+- [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with Github Flavour Markdown support
 
 ### And a few more things...
 
 - That annoying `<kbd>` css styling to look just like a key. If you're a monster, remove it in the `preview-base.css` and `print-base.css`
-- Table auto-completion: <kbd>Enter</kbd> auto creates a new row either in-cell or at end of the row, <kbd>Enter</kbd> on blank row ends autocomplete, <kbd>Tab</kbd> to next cell, <kbd>Shift</kbd>+<kbd>Tab</kbd> to previous cell
-- Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete
 - Optional alternating table row striping
-- Emojis (b+w / colour) + picker + autocomplete because all technical documentation now requires them...and I'm powerless to stop the trend :chart_with_upwards_trend:
-- File / directory autocomplete when typing locations for local images / files in links e.g. `![](foo/bar` autocompletes to `![](foo/bar.png)`
+- Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete
 - A debug log window output to see your rendering errors
-- A [docs/sample.md](docs/sample.md) file in resources with live examples of the features including admonitions, math, diagrams, charts, and images
+- A [docs/sample.md](docs/sample.md) file with kitchensink feature examples
 - hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text for your safety
-- You may not need roads where you're going, but you do need security and it isn't an afterthough, see the [security docs](docs/security.md)
 
 
 ## Custom CSS / Themes
 
-See [docs/themes.md](docs/themes.md) for how to write themes, customize admonition icons, and understand the selector structure.
+See [themes.md](docs/themes.md) for how to write themes, customize admonition icons, and understand the selector structure.
 
 ## Security
 
@@ -142,8 +142,6 @@ For a permanent fix, add `C:\Qt\6.10.3\msvc2022_64\bin` to your system PATH.
 JS console messages are captured via the Debug Log window (Tools → Debug Log).
 
 ## Technical Docs
-
-See:
 
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [PDF Export](docs/pdf-export.md)
