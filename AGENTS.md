@@ -21,7 +21,7 @@ Binary: `build/scriba`
 ## Package
 
 ```bash
-cpack --config build/CPackConfig.cmake -G DEB && chmod 644 build/scriba-*-Linux.deb
+cpack --config build/CPackConfig.cmake -G DEB && chmod 644 scriba-*-Linux.deb
 ```
 
 Output: `scriba-<version>-Linux.deb`
