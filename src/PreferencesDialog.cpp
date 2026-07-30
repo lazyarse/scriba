@@ -71,13 +71,13 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
         layout->addWidget(m_syncCheck);
 
-        QGroupBox *filenameAutoCompleteGroup = new QGroupBox("Filename Autocomplete");
-        QVBoxLayout *filenameAutoCompleteLayout = new QVBoxLayout(filenameAutoCompleteGroup);
-        filenameAutoCompleteLayout->addSpacing(8);
+        QGroupBox *autoCompleteGroup = new QGroupBox("Autocomplete");
+        QVBoxLayout *autoCompleteLayout = new QVBoxLayout(autoCompleteGroup);
+        autoCompleteLayout->addSpacing(8);
 
         m_filenameAutoCompleteCheck = new QCheckBox("Enable filename autocomplete");
         m_filenameAutoCompleteCheck->setChecked(settings.value(Preferences::FileAutoComplete, true).toBool());
-        filenameAutoCompleteLayout->addWidget(m_filenameAutoCompleteCheck);
+        autoCompleteLayout->addWidget(m_filenameAutoCompleteCheck);
 
         QHBoxLayout *compRow = new QHBoxLayout();
         compRow->addWidget(new QLabel("Filename autocomplete limit:"));
@@ -86,8 +86,13 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_fileCompletionSpin->setValue(settings.value(Preferences::FileCompletionLimit, 20).toInt());
         compRow->addWidget(m_fileCompletionSpin);
         compRow->addStretch();
-        filenameAutoCompleteLayout->addLayout(compRow);
-        layout->addWidget(filenameAutoCompleteGroup);
+        autoCompleteLayout->addLayout(compRow);
+
+        m_emojiAutoCompleteCheck = new QCheckBox("Use emoji auto-complete");
+        m_emojiAutoCompleteCheck->setChecked(settings.value(Preferences::EmojiAutoComplete, true).toBool());
+        autoCompleteLayout->addWidget(m_emojiAutoCompleteCheck);
+
+        layout->addWidget(autoCompleteGroup);
 
         QGroupBox *singleViewGroup = new QGroupBox("Single Pane View (Editor/Preview-Only View)");
         QVBoxLayout *singleViewLayout = new QVBoxLayout(singleViewGroup);
@@ -135,25 +140,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(autoSaveGroup);
 
-        QGroupBox *emojiGroup = new QGroupBox("Emojis");
-        QVBoxLayout *emojiLayout = new QVBoxLayout(emojiGroup);
-        emojiLayout->addSpacing(8);
-
-        m_emojiAutoCompleteCheck = new QCheckBox("Use emoji auto-complete");
-        m_emojiAutoCompleteCheck->setChecked(settings.value(Preferences::EmojiAutoComplete, true).toBool());
-        emojiLayout->addWidget(m_emojiAutoCompleteCheck);
-
-        auto mode = Preferences::emojiRenderingFromString(
-            settings.value(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString());
-        m_emojiBw = new QRadioButton("Black && White");
-        m_emojiColor = new QRadioButton("Color (twemoji)");
-        m_emojiBw->setChecked(mode == Preferences::EmojiRendering::Bw);
-        m_emojiColor->setChecked(mode == Preferences::EmojiRendering::Color);
-        emojiLayout->addWidget(m_emojiBw);
-        emojiLayout->addWidget(m_emojiColor);
-
-        layout->addWidget(emojiGroup);
-
         layout->addStretch();
 
         m_pages->addWidget(page);
@@ -175,6 +161,19 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_stripeCheck = new QCheckBox("Alternating table row colors");
         m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
         appearanceLayout->addWidget(m_stripeCheck);
+
+        appearanceLayout->addSpacing(4);
+        auto *emojiLabel = new QLabel("<b>Emoji rendering</b>");
+        appearanceLayout->addWidget(emojiLabel);
+
+        auto mode = Preferences::emojiRenderingFromString(
+            settings.value(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString());
+        m_emojiBw = new QRadioButton("Black && White");
+        m_emojiColor = new QRadioButton("Color (twemoji)");
+        m_emojiBw->setChecked(mode == Preferences::EmojiRendering::Bw);
+        m_emojiColor->setChecked(mode == Preferences::EmojiRendering::Color);
+        appearanceLayout->addWidget(m_emojiBw);
+        appearanceLayout->addWidget(m_emojiColor);
 
         layout->addWidget(appearanceGroup);
 

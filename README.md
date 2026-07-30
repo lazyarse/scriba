@@ -1,22 +1,18 @@
+![Scriba Icon](resources/icons/scriba.svg#140x)
+
 # Scriba Markdown Editor
-<div>
-    <img src="resources/icons/scriba.svg" width="140" style="float:left; margin-right:20px;" />
 
-**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what you want without plugin hell. No node / react / angular / bloat, just a binary that sits on your computer and doesn't call outside. Get ready to leave your Google Docs trauma behind.
+**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what it should without plugin hell. No node, react, angular, or bloat. Just like the old days: a binary that sits on your computer and doesn't call outside. Get ready to leave your Google Docs trauma behind.
 
-<div align="center">
-  :cucumber:
-  <img src="docs/images/badge-opencode.svg" />
-  :cucumber:
-  <br />
+:cucumber:
+![Opencode Badge + Big Pickles!](docs/images/badge-opencode.svg)
+:cucumber:
 
-  <img src="docs/images/badge-cpp17.svg" alt="C++17">
-  <img src="docs/images/badge-qt6.svg" alt="Qt 6">
-  <img src="docs/images/badge-tests.svg" alt="tests">
-</span>
-</div>
+![C++23 Badge](docs/images/badge-cpp23.svg)
+![Qt6 Badge](docs/images/badge-qt6.svg)
+![Tests Badge](docs/images/badge-tests.svg)
 
-- ---
+---
 
 ## Features
 
