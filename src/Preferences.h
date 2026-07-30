@@ -35,6 +35,12 @@ namespace Preferences {
     constexpr const char *EditorFontColor = "editorFontColor";
     constexpr const char *EditorColorOverride = "editorColorOverride";
 
+    constexpr const char *ShowLineNumbers = "showLineNumbers";
+    constexpr const char *ShowFoldIcons = "showFoldIcons";
+    constexpr const char *GutterColorOverride = "gutterColorOverride";
+    constexpr const char *GutterBgColor = "gutterBgColor";
+    constexpr const char *GutterTextColor = "gutterTextColor";
+
     constexpr const char *PdfShowHeader = "pdfShowHeader";
 
     constexpr const char *StripPreviewScripts = "stripPreviewScripts";

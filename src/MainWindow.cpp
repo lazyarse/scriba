@@ -294,6 +294,8 @@ int MainWindow::addTab(const QString &filePath)
     m_tabs[idx].dirty = false;
     updateTabLabel(idx);
 
+    editor->updateGutterSettings();
+
     updateTabBarVisibility();
     editor->setFocus();
     return idx;
@@ -1010,8 +1012,10 @@ void MainWindow::showPreferences()
         updateAll();
         updateStats();
         for (const auto &tab : m_tabs) {
-            if (tab.editor)
+            if (tab.editor) {
                 tab.editor->invalidateEmojiIconCache();
+                tab.editor->updateGutterSettings();
+            }
         }
         updatePreview();
 
@@ -1846,6 +1850,10 @@ QJsonObject MainWindow::serializeSession() const
         cursor["block"] = info.editor->textCursor().blockNumber();
         cursor["col"] = info.editor->textCursor().positionInBlock();
         cursor["scroll"] = info.editor->verticalScrollBar()->value();
+        QJsonArray folds;
+        for (int bn : info.editor->foldedBlockNumbers())
+            folds.append(bn);
+        cursor["folds"] = folds;
         cursors.append(cursor);
     }
 
@@ -1899,6 +1907,17 @@ void MainWindow::restoreSession(const QJsonObject &session)
         }
         m_tabs[idx].dirty = false;
         updateTabLabel(idx);
+
+        // Restore folds
+        if (i < cursors.size()) {
+            QJsonObject c = cursors[i].toObject();
+            QJsonArray folds = c["folds"].toArray();
+            QList<int> foldedBlocks;
+            for (const auto &v : folds)
+                foldedBlocks.append(v.toInt());
+            if (!foldedBlocks.isEmpty())
+                m_tabs[idx].editor->restoreFolds(foldedBlocks);
+        }
 
         if (i < cursors.size()) {
             QJsonObject c = cursors[i].toObject();

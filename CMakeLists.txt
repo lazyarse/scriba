@@ -18,6 +18,7 @@ add_executable(scriba WIN32
     src/main.cpp
     src/MainWindow.cpp
     src/Editor.cpp
+    src/Gutter.cpp
     src/Preview.cpp
     src/MarkdownParser.cpp
     src/MdRenderer.cpp
@@ -229,13 +230,18 @@ if(BUILD_TESTS)
     add_test(NAME test_editor_autocomplete COMMAND ${_TEST_PREFIX} ./test_editor_autocomplete)
 
     find_package(Qt6 REQUIRED COMPONENTS Test)
-    add_executable(test_editor_completion_ui tests/test_editor_completion_ui.cpp src/Editor.cpp resources/scriba.qrc)
+    add_executable(test_editor_completion_ui tests/test_editor_completion_ui.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_editor_completion_ui PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
     add_test(NAME test_editor_completion_ui COMMAND ${_TEST_PREFIX} ./test_editor_completion_ui)
 
+    add_executable(test_folding tests/test_folding.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
+    target_include_directories(test_folding PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_folding PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    add_test(NAME test_folding COMMAND ${_TEST_PREFIX} ./test_folding)
+
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
+        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -255,7 +261,7 @@ if(BUILD_TESTS)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
+        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -273,7 +279,7 @@ if(BUILD_TESTS)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
-    src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
+    src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
     src/CssConfig.cpp src/CssLoader.cpp
     src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -292,7 +298,7 @@ target_link_libraries(test_editor_initial_css PRIVATE
 add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Preview.cpp
+        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp

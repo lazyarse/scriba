@@ -4,10 +4,13 @@
 #include <QPixmap>
 #include <QTextEdit>
 #include <QStringList>
+#include <QMap>
+#include <QSet>
 
 class QCompleter;
 class QAction;
 class QContextMenuEvent;
+class Gutter;
 
 class Editor : public QTextEdit
 {
@@ -65,5 +68,32 @@ private:
     bool m_inResize = false;
     QList<QAction *> m_insertActions;
     QAction *m_mermaidAction = nullptr;
+
+    // Gutter + folding
+    Gutter *m_gutter = nullptr;
+    QMap<int, int> m_headerLevel; // blockNumber → heading level 1-6
+    QSet<int> m_foldedHeaders;
+    bool m_updatingFolds = false;
+
+    void setupGutter();
+    void updateGutterWidth();
+    void applyGutterColors();
+    void scanHeadersAndFolds();
+    void applyFoldForHeader(int blockNumber, int level, bool hide);
+    void toggleFold(int blockNumber);
+    int findPrevHeader(int fromBlock) const;
+    int findNextHeader(int fromBlock) const;
+    bool isHeaderBlock(int blockNumber) const;
+    int headerLevelAt(int blockNumber) const;
+    bool insideFencedCode(int blockNumber) const;
+    int sectionEndBlock(int fromBlock, int level) const;
+
+    void updateGutterDelayed();
+
+public:
+    void restoreFolds(const QList<int> &foldedBlocks);
+    QList<int> foldedBlockNumbers() const;
+    void updateGutter();
+    void updateGutterSettings();
 };
 

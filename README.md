@@ -50,7 +50,6 @@
 - A [docs/sample.md](docs/sample.md) file with kitchensink feature examples
 - hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text for your safety
 
-
 ## Custom CSS / Themes
 
 See [themes.md](docs/themes.md) for how to write themes, customize admonition icons, and understand the selector structure.
@@ -58,8 +57,6 @@ See [themes.md](docs/themes.md) for how to write themes, customize admonition ic
 ## Security
 
 Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root` incase you inadvertedly run crafted HTML code.
-
-
 
 ## Prerequisites
 

@@ -92,5 +92,12 @@ private:
     QGroupBox *m_overrideGroup;
     QPushButton *m_editorBgBtn;
     QPushButton *m_editorFontBtn;
+
+    // Gutter
+    QCheckBox *m_showLineNumbersCheck;
+    QCheckBox *m_showFoldIconsCheck;
+    QGroupBox *m_gutterOverrideGroup;
+    QPushButton *m_gutterBgBtn;
+    QPushButton *m_gutterTextBtn;
 };
 

@@ -1,4 +1,5 @@
 #include "Editor.h"
+#include "Gutter.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
 #include <algorithm>
@@ -24,6 +25,8 @@
 #include <QTextBlockFormat>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTimer>
+#include <QAbstractTextDocumentLayout>
 
 Editor::Editor(QWidget *parent)
     : QTextEdit(parent)
@@ -34,6 +37,17 @@ Editor::Editor(QWidget *parent)
     setFrameShape(QFrame::NoFrame);
 
     loadEmojiShortcodes();
+
+    setupGutter();
+
+    auto *foldTimer = new QTimer(this);
+    foldTimer->setSingleShot(true);
+    foldTimer->setInterval(300);
+    connect(foldTimer, &QTimer::timeout, this, &Editor::scanHeadersAndFolds);
+    connect(document(), &QTextDocument::contentsChanged, this, [this, foldTimer]() {
+        if (!m_updatingFolds)
+            foldTimer->start();
+    });
 }
 
 void Editor::setCurrentFile(const QString &path)
@@ -332,14 +346,65 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
     }
 
-    if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_Up) {
+    bool ctrl = event->modifiers() & Qt::ControlModifier;
+    bool alt = event->modifiers() & Qt::AltModifier;
+
+    // Ctrl+Alt+Up/Down: scroll viewport
+    if (ctrl && alt && event->key() == Qt::Key_Up) {
         verticalScrollBar()->setValue(verticalScrollBar()->value() - verticalScrollBar()->singleStep());
         event->accept();
         return;
     }
-
-    if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_Down) {
+    if (ctrl && alt && event->key() == Qt::Key_Down) {
         verticalScrollBar()->setValue(verticalScrollBar()->value() + verticalScrollBar()->singleStep());
+        event->accept();
+        return;
+    }
+
+    // Ctrl+Up/Down: jump to prev/next header
+    if (ctrl && !alt && event->key() == Qt::Key_Up) {
+        int target = findPrevHeader(textCursor().blockNumber());
+        if (target >= 0) {
+            QTextBlock block = document()->findBlockByNumber(target);
+            QTextCursor cursor(block);
+            setTextCursor(cursor);
+            centerCursor();
+        }
+        event->accept();
+        return;
+    }
+    if (ctrl && !alt && event->key() == Qt::Key_Down) {
+        int target = findNextHeader(textCursor().blockNumber());
+        if (target >= 0) {
+            QTextBlock block = document()->findBlockByNumber(target);
+            QTextCursor cursor(block);
+            setTextCursor(cursor);
+            centerCursor();
+        }
+        event->accept();
+        return;
+    }
+
+    // Ctrl+= fold, Ctrl+- unfold
+    if (ctrl && !alt && event->key() == Qt::Key_Equal) {
+        int bn = textCursor().blockNumber();
+        if (m_headerLevel.contains(bn)) {
+            toggleFold(bn);
+        }
+        event->accept();
+        return;
+    }
+    if (ctrl && !alt && event->key() == Qt::Key_Minus) {
+        int bn = textCursor().blockNumber();
+        int foldedHeader = -1;
+        for (auto it = m_headerLevel.constBegin(); it != m_headerLevel.constEnd(); ++it) {
+            if (it.key() <= bn && m_foldedHeaders.contains(it.key())) {
+                if (foldedHeader < 0 || it.key() > foldedHeader)
+                    foldedHeader = it.key();
+            }
+        }
+        if (foldedHeader >= 0)
+            toggleFold(foldedHeader);
         event->accept();
         return;
     }
@@ -1182,17 +1247,285 @@ void Editor::resizeEvent(QResizeEvent *event)
         updateViewportMargins();
         m_inResize = false;
     }
+    updateGutter();
 }
 
 void Editor::updateViewportMargins()
 {
+    int gutterW = m_gutter ? m_gutter->width() : 0;
     if (!m_centerContent) {
-        setViewportMargins(0, 0, 0, 0);
+        setViewportMargins(gutterW, 0, 0, 0);
         return;
     }
     int editorWidth = viewport()->width();
     int scrollbarWidth = verticalScrollBar()->isVisible() ? verticalScrollBar()->width() : 0;
     int available = editorWidth - scrollbarWidth;
     int margin = qMax(0, (available - m_centerContentWidth) / 2);
-    setViewportMargins(margin, 0, margin, 0);
+    setViewportMargins(margin + gutterW, 0, margin, 0);
+}
+
+void Editor::updateGutter()
+{
+    if (!m_gutter)
+        return;
+    int gutterW = m_gutter->width();
+    m_gutter->setGeometry(0, 0, gutterW, viewport()->height() + height() - viewport()->height());
+}
+
+void Editor::updateGutterSettings()
+{
+    if (!m_gutter)
+        return;
+    QSettings s;
+    m_gutter->setLineNumbersVisible(s.value(Preferences::ShowLineNumbers, true).toBool());
+    m_gutter->setFoldIconsVisible(s.value(Preferences::ShowFoldIcons, true).toBool());
+    applyGutterColors();
+    updateGutterWidth();
+}
+
+void Editor::updateGutterDelayed()
+{
+    QTimer::singleShot(0, this, &Editor::updateGutter);
+}
+
+void Editor::setupGutter()
+{
+    m_gutter = new Gutter(this);
+    connect(m_gutter, &Gutter::foldToggled, this, &Editor::toggleFold);
+    connect(this, &Editor::cursorPositionChanged, this, [this]() {
+        if (m_gutter)
+            m_gutter->update();
+    });
+    applyGutterColors();
+    updateGutter();
+    updateGutterWidth();
+    scanHeadersAndFolds();
+}
+
+void Editor::updateGutterWidth()
+{
+    if (m_gutter)
+        m_gutter->updateWidth();
+    updateViewportMargins();
+    updateGutterDelayed();
+}
+
+void Editor::applyGutterColors()
+{
+    if (!m_gutter)
+        return;
+    QSettings s;
+    bool colorOverride = s.value(Preferences::GutterColorOverride, false).toBool();
+    QString css;
+    if (colorOverride) {
+        QString bg = s.value(Preferences::GutterBgColor, "#f0f0f0").toString();
+        QString fg = s.value(Preferences::GutterTextColor, "#888888").toString();
+        css = QString("background-color: %1; color: %2;").arg(bg, fg);
+    } else {
+        css.clear();
+    }
+    m_gutter->setStyleSheet(css);
+}
+
+void Editor::scanHeadersAndFolds()
+{
+    m_headerLevel.clear();
+
+    QTextBlock block = document()->firstBlock();
+    int codeDepth = 0;
+    QRegularExpression atxRe("^(#{1,6})\\s");
+    QRegularExpression setextUnderlineRe("^(={3,}|-{3,})\\s*$");
+
+    // First pass: detect headers
+    QTextBlock prevBlock;
+    while (block.isValid()) {
+        QString text = block.text();
+        int bn = block.blockNumber();
+
+        if (text.trimmed().startsWith("```")) {
+            codeDepth ^= 1;
+            prevBlock = block;
+            block = block.next();
+            continue;
+        }
+
+        if (codeDepth == 0) {
+            auto atxMatch = atxRe.match(text);
+            if (atxMatch.hasMatch()) {
+                int level = atxMatch.captured(1).size();
+                m_headerLevel[bn] = level;
+                prevBlock = block;
+                block = block.next();
+                continue;
+            }
+
+            // Setext: check if PREVIOUS line was not a header and THIS line is === or ---
+            if (prevBlock.isValid() && !m_headerLevel.contains(prevBlock.blockNumber())) {
+                auto setextMatch = setextUnderlineRe.match(text.trimmed());
+                if (setextMatch.hasMatch()) {
+                    QChar ch = setextMatch.captured(1).at(0);
+                    int level = (ch == '=') ? 1 : 2;
+                    m_headerLevel[prevBlock.blockNumber()] = level;
+                }
+            }
+        }
+
+        prevBlock = block;
+        block = block.next();
+    }
+
+    // Update gutter with header info
+    QSet<int> headerSet;
+    for (auto it = m_headerLevel.constBegin(); it != m_headerLevel.constEnd(); ++it)
+        headerSet.insert(it.key());
+    if (m_gutter) {
+        m_gutter->setFoldableBlocks(headerSet);
+    }
+
+    // Re-apply folds
+    m_updatingFolds = true;
+    QSet<int> stillValid;
+    for (int bn : m_foldedHeaders) {
+        if (m_headerLevel.contains(bn)) {
+            applyFoldForHeader(bn, m_headerLevel[bn], true);
+            stillValid.insert(bn);
+        }
+    }
+    m_foldedHeaders = stillValid;
+    if (m_gutter)
+        m_gutter->setFoldedBlocks(m_foldedHeaders);
+    m_updatingFolds = false;
+}
+
+void Editor::applyFoldForHeader(int blockNumber, int level, bool hide)
+{
+    int end = sectionEndBlock(blockNumber, level);
+    QTextBlock block = document()->findBlockByNumber(blockNumber + 1);
+    while (block.isValid() && block.blockNumber() < end) {
+        block.setVisible(!hide);
+        block = block.next();
+    }
+}
+
+int Editor::sectionEndBlock(int fromBlock, int level) const
+{
+    QTextBlock block = document()->findBlockByNumber(fromBlock + 1);
+    while (block.isValid()) {
+        int bn = block.blockNumber();
+        if (m_headerLevel.contains(bn)) {
+            int otherLevel = m_headerLevel[bn];
+            if (otherLevel <= level)
+                return bn;
+        }
+        block = block.next();
+    }
+    return document()->blockCount();
+}
+
+void Editor::toggleFold(int blockNumber)
+{
+    if (!m_headerLevel.contains(blockNumber))
+        return;
+
+    int level = m_headerLevel[blockNumber];
+
+    m_updatingFolds = true;
+
+    if (m_foldedHeaders.contains(blockNumber)) {
+        // Unfold
+        applyFoldForHeader(blockNumber, level, false);
+        m_foldedHeaders.remove(blockNumber);
+    } else {
+        // Fold
+        applyFoldForHeader(blockNumber, level, true);
+        m_foldedHeaders.insert(blockNumber);
+    }
+
+    m_updatingFolds = false;
+
+    if (m_gutter)
+        m_gutter->setFoldedBlocks(m_foldedHeaders);
+
+    document()->markContentsDirty(0, document()->characterCount());
+    update();
+}
+
+int Editor::findPrevHeader(int fromBlock) const
+{
+    int best = -1;
+    for (auto it = m_headerLevel.constBegin(); it != m_headerLevel.constEnd(); ++it) {
+        if (it.key() < fromBlock && (best < 0 || it.key() > best))
+            best = it.key();
+    }
+    return best;
+}
+
+int Editor::findNextHeader(int fromBlock) const
+{
+    int best = -1;
+    for (auto it = m_headerLevel.constBegin(); it != m_headerLevel.constEnd(); ++it) {
+        if (it.key() > fromBlock && (best < 0 || it.key() < best))
+            best = it.key();
+    }
+    return best;
+}
+
+bool Editor::isHeaderBlock(int blockNumber) const
+{
+    return m_headerLevel.contains(blockNumber);
+}
+
+int Editor::headerLevelAt(int blockNumber) const
+{
+    auto it = m_headerLevel.find(blockNumber);
+    return it != m_headerLevel.end() ? it.value() : 0;
+}
+
+bool Editor::insideFencedCode(int blockNumber) const
+{
+    int depth = 0;
+    QTextBlock block = document()->firstBlock();
+    while (block.isValid() && block.blockNumber() <= blockNumber) {
+        if (block.text().trimmed().startsWith("```"))
+            depth ^= 1;
+        block = block.next();
+    }
+    return depth != 0;
+}
+
+void Editor::restoreFolds(const QList<int> &foldedBlocks)
+{
+    QSet<int> newFolds;
+    for (int bn : foldedBlocks) {
+        if (m_headerLevel.contains(bn))
+            newFolds.insert(bn);
+    }
+
+    m_updatingFolds = true;
+    // Unhide previously-folded blocks no longer in the set
+    for (int bn : m_foldedHeaders) {
+        if (!newFolds.contains(bn))
+            applyFoldForHeader(bn, m_headerLevel[bn], false);
+    }
+    // Hide newly-folded blocks
+    for (int bn : newFolds) {
+        if (!m_foldedHeaders.contains(bn))
+            applyFoldForHeader(bn, m_headerLevel[bn], true);
+    }
+    m_foldedHeaders = newFolds;
+    m_updatingFolds = false;
+
+    if (m_gutter)
+        m_gutter->setFoldedBlocks(m_foldedHeaders);
+
+    document()->markContentsDirty(0, document()->characterCount());
+}
+
+QList<int> Editor::foldedBlockNumbers() const
+{
+    QList<int> result;
+    for (int bn : m_foldedHeaders)
+        result.append(bn);
+    std::sort(result.begin(), result.end());
+    return result;
 }

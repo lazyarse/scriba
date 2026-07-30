@@ -159,6 +159,10 @@ protected:
         for (int i = 0; i < 200; ++i)
             tmpFile->write(QString("%1\n").arg(i, 3, 10, QChar('0')).toUtf8());
         tmpFile->close();
+
+        window = new MainWindow();
+        window->show();
+        QApplication::processEvents();
     }
 
     void TearDown() override {
@@ -171,9 +175,6 @@ protected:
 };
 
 TEST_F(ScrollSyncIntegrationTest, EditorScrollbarCorrectAfterFileOpenAndCursorRestore) {
-    window = new MainWindow();
-    QApplication::processEvents();
-
     window->loadFile(tmpFile->fileName());
 
     QTextCursor cursor(window->editor()->document());
@@ -188,9 +189,6 @@ TEST_F(ScrollSyncIntegrationTest, EditorScrollbarCorrectAfterFileOpenAndCursorRe
 }
 
 TEST_F(ScrollSyncIntegrationTest, PreviewScrollSyncsAfterDeferredUpdate) {
-    window = new MainWindow();
-    QApplication::processEvents();
-
     window->loadFile(tmpFile->fileName());
 
     QTextCursor cursor(window->editor()->document());
@@ -237,9 +235,6 @@ TEST_F(ScrollSyncIntegrationTest, PreviewScrollSyncsAfterDeferredUpdate) {
 /* ========== Test D: Table insertion scroll sync ========== */
 
 TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {
-    window = new MainWindow();
-    QApplication::processEvents();
-
     window->loadFile(tmpFile->fileName());
 
     // Scroll editor to top so we can detect movement
@@ -294,9 +289,6 @@ TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {
 /* ========== Test E: Image insertion scroll sync ========== */
 
 TEST_F(ScrollSyncIntegrationTest, ImageInsertScrollSyncsPreview) {
-    window = new MainWindow();
-    QApplication::processEvents();
-
     window->loadFile(tmpFile->fileName());
 
     // Scroll editor to top so we can detect movement
@@ -341,9 +333,6 @@ TEST_F(ScrollSyncIntegrationTest, ImageInsertScrollSyncsPreview) {
 /* ========== Test F: Single tab preview renders content ========== */
 
 TEST_F(ScrollSyncIntegrationTest, InitialTabRendersPreviewContent) {
-    window = new MainWindow();
-    QApplication::processEvents();
-
     window->editor()->setPlainText("# Hello Tab\n\nThis is the first tab.");
     QApplication::processEvents();
 
@@ -359,9 +348,6 @@ TEST_F(ScrollSyncIntegrationTest, InitialTabRendersPreviewContent) {
 }
 
 TEST_F(ScrollSyncIntegrationTest, SingleFileTabRendersPreviewAfterOpen) {
-    window = new MainWindow();
-    QApplication::processEvents();
-
     window->loadFile(tmpFile->fileName());
 
     QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);

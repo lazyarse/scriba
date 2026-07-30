@@ -345,6 +345,88 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         connect(m_editorPaddingSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
 
         layout->addWidget(editorGroup);
+
+        /* --- Gutter --- */
+        QGroupBox *gutterGroup = new QGroupBox("Gutter");
+        QVBoxLayout *gutterLayout = new QVBoxLayout(gutterGroup);
+        gutterLayout->addSpacing(8);
+
+        m_showLineNumbersCheck = new QCheckBox("Show line numbers");
+        m_showLineNumbersCheck->setChecked(settings.value(Preferences::ShowLineNumbers, true).toBool());
+        gutterLayout->addWidget(m_showLineNumbersCheck);
+
+        m_showFoldIconsCheck = new QCheckBox("Enable code folding");
+        m_showFoldIconsCheck->setChecked(settings.value(Preferences::ShowFoldIcons, true).toBool());
+        gutterLayout->addWidget(m_showFoldIconsCheck);
+
+        auto emitGutterSettings = [this]() {
+            QSettings s;
+            s.setValue(Preferences::ShowLineNumbers, m_showLineNumbersCheck->isChecked());
+            s.setValue(Preferences::ShowFoldIcons, m_showFoldIconsCheck->isChecked());
+        };
+
+        auto makeGutterSwatchBtn = [](const QString &hex) {
+            auto *btn = new QPushButton;
+            QPixmap px(16, 16);
+            px.fill(QColor(hex));
+            btn->setIcon(QIcon(px));
+            btn->setIconSize(QSize(16, 16));
+            btn->setText(hex);
+            btn->setCursor(Qt::PointingHandCursor);
+            return btn;
+        };
+
+        m_gutterBgBtn = makeGutterSwatchBtn(
+            settings.value(Preferences::GutterBgColor, "#f0f0f0").toString());
+        m_gutterTextBtn = makeGutterSwatchBtn(
+            settings.value(Preferences::GutterTextColor, "#888888").toString());
+
+        m_gutterOverrideGroup = new QGroupBox("Override gutter colors");
+        m_gutterOverrideGroup->setCheckable(true);
+        m_gutterOverrideGroup->setChecked(settings.value(Preferences::GutterColorOverride, false).toBool());
+        auto *gutterOverrideLayout = new QHBoxLayout(m_gutterOverrideGroup);
+        gutterOverrideLayout->setContentsMargins(6, 18, 6, 6);
+        gutterOverrideLayout->addWidget(new QLabel("Background:"));
+        gutterOverrideLayout->addWidget(m_gutterBgBtn);
+        gutterOverrideLayout->addSpacing(12);
+        gutterOverrideLayout->addWidget(new QLabel("Text:"));
+        gutterOverrideLayout->addWidget(m_gutterTextBtn);
+        gutterOverrideLayout->addStretch();
+        gutterLayout->addWidget(m_gutterOverrideGroup);
+
+        connect(m_gutterBgBtn, &QPushButton::clicked, this, [this, emitGutterSettings]() {
+            QColor current(m_gutterBgBtn->text());
+            QColor c = QColorDialog::getColor(current, this, "Gutter Background Color");
+            if (!c.isValid()) return;
+            QSettings s;
+            s.setValue(Preferences::GutterBgColor, c.name());
+            QPixmap px(16, 16);
+            px.fill(c);
+            m_gutterBgBtn->setIcon(QIcon(px));
+            m_gutterBgBtn->setText(c.name());
+            m_gutterOverrideGroup->setChecked(true);
+            emitGutterSettings();
+        });
+
+        connect(m_gutterTextBtn, &QPushButton::clicked, this, [this, emitGutterSettings]() {
+            QColor current(m_gutterTextBtn->text());
+            QColor c = QColorDialog::getColor(current, this, "Gutter Text Color");
+            if (!c.isValid()) return;
+            QSettings s;
+            s.setValue(Preferences::GutterTextColor, c.name());
+            QPixmap px(16, 16);
+            px.fill(c);
+            m_gutterTextBtn->setIcon(QIcon(px));
+            m_gutterTextBtn->setText(c.name());
+            m_gutterOverrideGroup->setChecked(true);
+            emitGutterSettings();
+        });
+
+        connect(m_gutterOverrideGroup, &QGroupBox::toggled, this, [emitGutterSettings]() {
+            emitGutterSettings();
+        });
+
+        layout->addWidget(gutterGroup);
         layout->addStretch();
 
         m_pages->addWidget(page);
@@ -629,6 +711,11 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::BlockRawHtmlExport, m_blockRawHtmlExportCheck->isChecked());
         settings.setValue(Preferences::EnableCspPreview, m_enableCspPreviewCheck->isChecked());
         settings.setValue(Preferences::EnableCspExport, m_enableCspExportCheck->isChecked());
+        settings.setValue(Preferences::ShowLineNumbers, m_showLineNumbersCheck->isChecked());
+        settings.setValue(Preferences::ShowFoldIcons, m_showFoldIconsCheck->isChecked());
+        settings.setValue(Preferences::GutterColorOverride, m_gutterOverrideGroup->isChecked());
+        settings.setValue(Preferences::GutterBgColor, m_gutterBgBtn->text());
+        settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
