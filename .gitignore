@@ -5,3 +5,4 @@ vendor/*
 _CPack_Packages
 .demo-content.md
 docs/superpowers
+*.exe
