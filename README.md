@@ -1,4 +1,4 @@
-![Scriba Icon](resources/icons/scriba.svg#140x)
+![Scriba Icon](resources/icons/scriba.svg)
 
 # Scriba Markdown Editor
 
@@ -21,7 +21,7 @@
 - Load / Save multiple documents in a `session` with a tabbed interface
 - Pick up exactly where you left off with cursor and view-port restore in documents
 - Print and PDF export using print-specific CSS stylesheets
-- Readability metrics to keep your writing audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
+- Readability metrics to keep you audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
 - Find and Replace with optional regex search and replacement back-references
 - PDF, DOCX, and HTML export
 - Useful in-editor autocomplete to assist in creating tables, linking to local filenames, and yes, even emojis
