@@ -104,10 +104,12 @@ Copy from QEMU to host (host needs an ssh-server running): `scp file.txt user@10
 ### Build .deb package
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB && chmod 644 scriba-*-Linux.deb
 ```
 
-Output: `build/scriba-1.0.0-Linux.deb`
+The `chmod 644` ensures the `.deb` is world-readable so `apt`'s sandboxed `_apt` user can access it.
+
+Output: `scriba-1.0.0-Linux.deb` (may include a `-dirty` suffix if the working tree has uncommitted changes)
 
 ### Build with tests
 
