@@ -69,6 +69,11 @@ private:
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
     QCheckBox *m_stripPreviewScriptsCheck;
+    QCheckBox *m_stripExportScriptsCheck;
+    QCheckBox *m_blockRawHtmlPreviewCheck;
+    QCheckBox *m_blockRawHtmlExportCheck;
+    QCheckBox *m_enableCspPreviewCheck;
+    QCheckBox *m_enableCspExportCheck;
     QCheckBox *m_stripeCheck;
     QCheckBox *m_filenameAutoCompleteCheck;
     QCheckBox *m_autoSaveExitCheck;

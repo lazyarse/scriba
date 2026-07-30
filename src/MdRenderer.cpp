@@ -276,7 +276,7 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
         if (self->m_img.inside) {
             self->m_img.alt += QString::fromUtf8(text, size);
         } else {
-            self->writeHtml(QString::fromUtf8(text, size));
+            self->writeHtml(escapeHtml(QString::fromUtf8(text, size)));
         }
         break;
     }

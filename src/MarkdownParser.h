@@ -5,6 +5,6 @@
 class MarkdownParser
 {
 public:
-    static QString toHtml(const QString &markdown);
+    static QString toHtml(const QString &markdown, bool noHtml = false);
 };
 

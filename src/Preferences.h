@@ -36,6 +36,11 @@ namespace Preferences {
     constexpr const char *PdfShowHeader = "pdfShowHeader";
 
     constexpr const char *StripPreviewScripts = "stripPreviewScripts";
+    constexpr const char *StripExportScripts = "stripExportScripts";
+    constexpr const char *BlockRawHtmlPreview = "blockRawHtmlPreview";
+    constexpr const char *BlockRawHtmlExport = "blockRawHtmlExport";
+    constexpr const char *EnableCspPreview = "enableCspPreview";
+    constexpr const char *EnableCspExport = "enableCspExport";
     constexpr const char *ReadabilityFormula = "readabilityFormula";
     constexpr const char *StatusBarMetrics = "statusBarMetrics";
     constexpr const char *WordsPerSecond = "wordsPerSecond";
@@ -94,5 +99,15 @@ namespace Preferences {
     {
         return mode == EmojiRendering::Color ? QStringLiteral("color") : QStringLiteral("bw");
     }
+}
+
+namespace Security {
+    constexpr const char *CspHeader =
+        "default-src 'self' qrc:;"
+        "script-src 'self' qrc: 'unsafe-inline';"
+        "style-src 'self' qrc: 'unsafe-inline';"
+        "img-src 'self' qrc: data: file:;"
+        "font-src 'self' qrc: data:;"
+        "connect-src 'self' qrc: data: blob:;";
 }
 

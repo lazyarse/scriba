@@ -2,6 +2,8 @@
 #include "CssConfig.h"
 #include "CssLoader.h"
 #include "StaticHelpers.h"
+#include "Preferences.h"
+#include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QComboBox>
@@ -81,7 +83,8 @@ void ExportHtmlDialog::setupUi()
     m_scriptCombo = new QComboBox(this);
     m_scriptCombo->addItem("Strip (recommended)", static_cast<int>(ScriptHandling::Strip));
     m_scriptCombo->addItem("Embed inline", static_cast<int>(ScriptHandling::EmbedExternal));
-    m_scriptCombo->setCurrentIndex(0);
+    bool stripDefault = QSettings().value(Preferences::StripExportScripts, true).toBool();
+    m_scriptCombo->setCurrentIndex(stripDefault ? 0 : 1);
     layout->addWidget(m_scriptCombo);
 
     layout->addStretch();

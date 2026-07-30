@@ -13,10 +13,11 @@
 #include <QTcpSocket>
 
 #include "ExportHtmlDialog.h"
+#include "MarkdownParser.h"
+#include "Preferences.h"
 #include "JsRenderEngine.h"
 #include "CssLoader.h"
 #include "CssConfig.h"
-#include "Preferences.h"
 
 class HtmlExportTest : public testing::Test
 {
@@ -785,6 +786,76 @@ TEST_F(HtmlExportTest, StripScriptTagsRemovesMultiLine)
     EXPECT_FALSE(result.contains("console.log"));
     EXPECT_TRUE(result.contains("<p>before</p>"));
     EXPECT_TRUE(result.contains("<p>after</p>"));
+}
+
+TEST_F(HtmlExportTest, StripScriptTagsDoesNotStripEventHandlers)
+{
+    QString html = "<img src=x onerror=\"alert(1)\"><p onclick=\"evil()\">click</p>";
+    QString result = JsRenderEngine::stripScriptTags(html);
+    EXPECT_TRUE(result.contains("onerror"));
+    EXPECT_TRUE(result.contains("onclick"));
+    EXPECT_TRUE(result.contains("alert(1)"));
+}
+
+TEST_F(HtmlExportTest, StripScriptTagsDoesNotStripIframe)
+{
+    QString html = "<iframe src=\"https://evil.com\"></iframe>";
+    QString result = JsRenderEngine::stripScriptTags(html);
+    EXPECT_TRUE(result.contains("<iframe"));
+}
+
+TEST_F(HtmlExportTest, StripScriptTagsDoesNotStripStyle)
+{
+    QString html = "<style>body{display:none}</style>";
+    QString result = JsRenderEngine::stripScriptTags(html);
+    EXPECT_TRUE(result.contains("<style>"));
+    EXPECT_TRUE(result.contains("display:none"));
+}
+
+TEST_F(HtmlExportTest, CombinedNoHtmlAndStripScriptTags)
+{
+    QString markdown = "<script>alert(1)</script><img src=x onerror=\"alert(2)\">";
+    QString html = MarkdownParser::toHtml(markdown, true);
+    QString stripped = JsRenderEngine::stripScriptTags(html);
+    EXPECT_TRUE(html.contains("&lt;script"));
+    EXPECT_FALSE(html.contains("<img"));
+    EXPECT_TRUE(stripped.contains("&lt;script"));
+    EXPECT_FALSE(stripped.contains("<script"));
+}
+
+TEST_F(HtmlExportTest, CspConstantIsWellFormed)
+{
+    QString csp = Security::CspHeader;
+    EXPECT_TRUE(csp.contains("default-src"));
+    EXPECT_TRUE(csp.contains("script-src"));
+    EXPECT_TRUE(csp.contains("style-src"));
+    EXPECT_TRUE(csp.contains("img-src"));
+    EXPECT_TRUE(csp.contains("font-src"));
+    EXPECT_TRUE(csp.contains("connect-src"));
+    EXPECT_TRUE(csp.contains("'unsafe-inline'"));
+    EXPECT_TRUE(csp.contains("'self'"));
+    EXPECT_TRUE(csp.contains("qrc:"));
+}
+
+TEST_F(HtmlExportTest, CspMetaTagCanBeInjected)
+{
+    QString html = "<!DOCTYPE html>\n<html><head>\n</head><body></body></html>";
+    QString cspTag = QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader);
+    int headEnd = html.indexOf("</head>");
+    ASSERT_GE(headEnd, 0);
+    html.insert(headEnd, cspTag);
+    EXPECT_TRUE(html.contains("Content-Security-Policy"));
+    EXPECT_TRUE(html.contains("default-src"));
+}
+
+TEST_F(HtmlExportTest, NoHtmlFlagBlocksHtmlInExportPath)
+{
+    QString markdown = "<div onclick=\"evil()\">click</div>";
+    QString html = MarkdownParser::toHtml(markdown, true);
+    EXPECT_FALSE(html.contains("<div>"));
+    EXPECT_TRUE(html.contains("&lt;div"));
+    EXPECT_TRUE(html.contains("onclick"));
+    EXPECT_TRUE(html.contains("click"));
 }
 
 int main(int argc, char **argv)

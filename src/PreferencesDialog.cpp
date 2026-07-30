@@ -71,10 +71,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
         layout->addWidget(m_syncCheck);
 
-        m_stripPreviewScriptsCheck = new QCheckBox("Strip <script> tags from markdown content in preview");
-        m_stripPreviewScriptsCheck->setChecked(settings.value(Preferences::StripPreviewScripts, true).toBool());
-        layout->addWidget(m_stripPreviewScriptsCheck);
-
         QGroupBox *filenameAutoCompleteGroup = new QGroupBox("Filename Autocomplete");
         QVBoxLayout *filenameAutoCompleteLayout = new QVBoxLayout(filenameAutoCompleteGroup);
         filenameAutoCompleteLayout->addSpacing(8);
@@ -519,6 +515,66 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_categoryList->addItem("Writing");
     }
 
+    /* --- Page 4: Security --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *previewGroup = new QGroupBox("Preview");
+        QVBoxLayout *previewLayout = new QVBoxLayout(previewGroup);
+        previewLayout->addSpacing(8);
+
+        m_stripPreviewScriptsCheck = new QCheckBox("Strip <script> tags from markdown content");
+        m_stripPreviewScriptsCheck->setChecked(settings.value(Preferences::StripPreviewScripts, true).toBool());
+        previewLayout->addWidget(m_stripPreviewScriptsCheck);
+
+        m_blockRawHtmlPreviewCheck = new QCheckBox("Block raw HTML at parser level");
+        m_blockRawHtmlPreviewCheck->setChecked(settings.value(Preferences::BlockRawHtmlPreview, true).toBool());
+        previewLayout->addWidget(m_blockRawHtmlPreviewCheck);
+
+        m_enableCspPreviewCheck = new QCheckBox("Enable Content Security Policy (blocks inline event handlers, javascript: URLs, external resources)");
+        m_enableCspPreviewCheck->setChecked(settings.value(Preferences::EnableCspPreview, true).toBool());
+        previewLayout->addWidget(m_enableCspPreviewCheck);
+
+        layout->addWidget(previewGroup);
+
+        QGroupBox *exportGroup = new QGroupBox("Export (PDF, DOCX, HTML)");
+        QVBoxLayout *exportLayout = new QVBoxLayout(exportGroup);
+        exportLayout->addSpacing(8);
+
+        m_stripExportScriptsCheck = new QCheckBox("Strip <script> tags from markdown content");
+        m_stripExportScriptsCheck->setChecked(settings.value(Preferences::StripExportScripts, true).toBool());
+        exportLayout->addWidget(m_stripExportScriptsCheck);
+
+        m_blockRawHtmlExportCheck = new QCheckBox("Block raw HTML at parser level");
+        m_blockRawHtmlExportCheck->setChecked(settings.value(Preferences::BlockRawHtmlExport, true).toBool());
+        exportLayout->addWidget(m_blockRawHtmlExportCheck);
+
+        m_enableCspExportCheck = new QCheckBox("Enable Content Security Policy (blocks inline event handlers, javascript: URLs, external resources)");
+        m_enableCspExportCheck->setChecked(settings.value(Preferences::EnableCspExport, true).toBool());
+        exportLayout->addWidget(m_enableCspExportCheck);
+
+        layout->addWidget(exportGroup);
+
+        auto *cspNote = new QLabel(
+            "Content Security Policy restricts what resources can execute in the preview or exported HTML. "
+            "The app requires 'unsafe-inline' for both script and style because bundled JS libraries "
+            "(KaTeX, Mermaid, highlight.js, Vega-Lite) and the app's own initialization code use inline "
+            "scripts and styles. A stricter CSP would break rendering. "
+            "The current policy blocks inline event handlers (onclick, onerror), javascript: URLs, "
+            "and external network requests.");
+        cspNote->setWordWrap(true);
+        cspNote->setStyleSheet("color: gray; font-size: small; padding: 8px;");
+        layout->addWidget(cspNote);
+
+        layout->addStretch();
+
+        m_pages->addWidget(page);
+        m_categoryList->addItem("Security");
+    }
+
     /* --- Connections --- */
     connect(m_addButton, &QPushButton::clicked, this, &PreferencesDialog::addStylesheet);
     connect(m_removeButton, &QPushButton::clicked, this, &PreferencesDialog::removeStylesheet);
@@ -539,7 +595,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QSettings settings;
         settings.setValue(Preferences::ReopenLastSession, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
-        settings.setValue(Preferences::StripPreviewScripts, m_stripPreviewScriptsCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         settings.setValue(Preferences::EmojiMode,
     Preferences::emojiRenderingToString(m_emojiBw->isChecked() ? Preferences::EmojiRendering::Bw : Preferences::EmojiRendering::Color));
@@ -569,6 +624,12 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::StatusBarMetrics, checkedMetrics);
         settings.setValue(Preferences::WordsPerSecond, m_wpsSpin->value());
         settings.setValue(Preferences::SpeakingWpm, m_spWpmSpin->value());
+        settings.setValue(Preferences::StripPreviewScripts, m_stripPreviewScriptsCheck->isChecked());
+        settings.setValue(Preferences::StripExportScripts, m_stripExportScriptsCheck->isChecked());
+        settings.setValue(Preferences::BlockRawHtmlPreview, m_blockRawHtmlPreviewCheck->isChecked());
+        settings.setValue(Preferences::BlockRawHtmlExport, m_blockRawHtmlExportCheck->isChecked());
+        settings.setValue(Preferences::EnableCspPreview, m_enableCspPreviewCheck->isChecked());
+        settings.setValue(Preferences::EnableCspExport, m_enableCspExportCheck->isChecked());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

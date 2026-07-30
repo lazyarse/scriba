@@ -881,11 +881,13 @@ void MainWindow::updatePreview()
     Editor *ed = currentEditor();
     if (!ed) return;
 
+    QSettings prefs;
     QString markdown = ed->toPlainText();
     updateStats();
-    QString html = m_parser->toHtml(markdown);
+    bool blockRawHtml = prefs.value(Preferences::BlockRawHtmlPreview, true).toBool();
+    QString html = m_parser->toHtml(markdown, blockRawHtml);
 
-    if (QSettings().value(Preferences::StripPreviewScripts, true).toBool())
+    if (prefs.value(Preferences::StripPreviewScripts, true).toBool())
         html = JsRenderEngine::stripScriptTags(html);
 
     QString rawThemeCss = m_cssLoader->themeCss();
@@ -907,11 +909,11 @@ void MainWindow::updatePreview()
         baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
     }
 
-    QString emojiMode = QSettings().value(Preferences::EmojiMode,
+    QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
+    bool cspEnabled = prefs.value(Preferences::EnableCspPreview, true).toBool();
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
-        QSettings prefs;
         bool striping = prefs.value(Preferences::TableStriping, true).toBool();
         QString stripeInit = striping ? QString()
             : QLatin1String(Preferences::TableStripeCss);
@@ -949,6 +951,11 @@ void MainWindow::updatePreview()
             "})</script>"
             "</body></html>"
         ).arg(baseCss, previewCss, html, stripeInit, centerCss);
+        if (cspEnabled) {
+            int headEnd = fullHtml.indexOf("</head>");
+            if (headEnd >= 0)
+                fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader));
+        }
         m_preview->setHtml(fullHtml, baseUrl);
     } else {
         QString escapedHtml = escapeJsString(html);
@@ -1591,8 +1598,12 @@ void MainWindow::exportPdf()
     TabInfo *info = activeTabInfo();
     if (!info) return;
 
+    QSettings prefs;
     QString markdown = ed->toPlainText();
-    QString html = m_parser->toHtml(markdown);
+    QString html = m_parser->toHtml(markdown, prefs.value(Preferences::BlockRawHtmlExport, true).toBool());
+
+    if (prefs.value(Preferences::StripExportScripts, true).toBool())
+        html = JsRenderEngine::stripScriptTags(html);
 
     ExportPdfDialog dlg(html, info->filePath, m_cssLoader, this);
     dlg.exec();
@@ -1620,12 +1631,14 @@ void MainWindow::exportDocx()
     opts.marginRightCm = dlg.marginRight();
     opts.pageNumbers = dlg.hasPageNumbers();
 
+    QSettings prefs;
     QString markdown = ed->toPlainText();
-    QString html = m_parser->toHtml(markdown);
+    QString html = m_parser->toHtml(markdown, prefs.value(Preferences::BlockRawHtmlExport, true).toBool());
+    if (prefs.value(Preferences::StripExportScripts, true).toBool())
+        html = JsRenderEngine::stripScriptTags(html);
     QString css = m_cssLoader->previewBaseCss() + "\n" + m_cssLoader->themeCss();
 
-    QSettings s;
-    QString emojiMode = s.value(Preferences::EmojiMode,
+    QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
 
     QString mermaidTheme = CssUtils::isDarkTheme(m_cssLoader->themeCss())
@@ -1642,6 +1655,11 @@ void MainWindow::exportDocx()
         fullHtml = JsRenderEngine::buildFullHtmlForDocx(html, css, emojiMode, mermaidTheme);
     } else {
         fullHtml = JsRenderEngine::buildFullHtmlForDocxOmml(html, css, emojiMode, mermaidTheme);
+    }
+    if (prefs.value(Preferences::EnableCspExport, true).toBool()) {
+        int headEnd = fullHtml.indexOf("</head>");
+        if (headEnd >= 0)
+            fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader));
     }
     QString renderedHtml = JsRenderEngine::renderSync(fullHtml, baseUrl.toString());
 
@@ -1701,11 +1719,11 @@ void MainWindow::exportHtml()
     QString baseCss = m_cssLoader->previewBaseCss();
     QString combinedCss = baseCss + "\n" + themeCss;
 
+    QSettings prefs;
     QString markdown = ed->toPlainText();
-    QString bodyHtml = m_parser->toHtml(markdown);
+    QString bodyHtml = m_parser->toHtml(markdown, prefs.value(Preferences::BlockRawHtmlExport, true).toBool());
 
-    QSettings s;
-    QString emojiMode = s.value(Preferences::EmojiMode,
+    QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
 
     QString mermaidTheme = CssUtils::isDarkTheme(themeCss)
@@ -1741,17 +1759,22 @@ void MainWindow::exportHtml()
     // Include KaTeX CSS so math renders correctly without external dependencies
     QString katexCss = JsRenderEngine::katexCss();
 
+    QString cspMeta;
+    if (prefs.value(Preferences::EnableCspExport, true).toBool())
+        cspMeta = QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">\n").arg(Security::CspHeader);
+
     QString output = QString(
         "<!DOCTYPE html>\n"
         "<html>\n"
         "<head>\n"
         "<meta charset=\"utf-8\">\n"
+        "%4"
         "<style>%1</style>\n"
         "<style>%3</style>\n"
         "</head>\n"
         "<body>%2</body>\n"
         "</html>\n"
-    ).arg(exportCss, renderedBody, katexCss);
+    ).arg(exportCss, renderedBody, katexCss, cspMeta);
 
     QString defaultName = info->filePath.isEmpty()
         ? "document.html"

@@ -597,10 +597,17 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
 
         bodyHtml = JsRenderEngine::replaceQrcUrls(bodyHtml);
 
+        QString cspTag;
+        if (QSettings().value(Preferences::EnableCspExport, true).toBool()) {
+            cspTag = QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader);
+        }
+
         QString metaHead = QStringLiteral(
             "<meta charset=\"utf-8\">"
             "<base href=\"%1\">"
         ).arg(m_baseUrl.toHtmlEscaped());
+        if (!cspTag.isEmpty())
+            metaHead += cspTag;
 
         // bodyHtml = "<style>...</style><body>...</body>" after extraction
         // Split so <style> elements go inside <head> for valid HTML

@@ -206,3 +206,77 @@ TEST(MarkdownParserTest, SoftBreakIncrementsLine) {
     int count = html.count("data-line=");
     EXPECT_GE(count, 1);
 }
+
+TEST(MarkdownParserTest, RawHtmlBlockedWhenNoHtmlFlag) {
+    QString html = MarkdownParser::toHtml("<div>raw html</div>", true);
+    EXPECT_FALSE(html.contains("<div>"));
+    EXPECT_FALSE(html.contains("</div>"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagPreservesMarkdown) {
+    QString html = MarkdownParser::toHtml("# Hello\n\n**bold**", true);
+    EXPECT_TRUE(html.contains("<h1"));
+    EXPECT_TRUE(html.contains("<strong>"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagBlocksScriptTags) {
+    QString html = MarkdownParser::toHtml("<script>alert('xss')</script>", true);
+    EXPECT_FALSE(html.contains("<script>"));
+    EXPECT_TRUE(html.contains("&lt;script&gt;"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagBlocksInlineEventHandlers) {
+    QString html = MarkdownParser::toHtml("<img src=x onerror=\"alert(1)\">", true);
+    EXPECT_FALSE(html.contains("<img"));
+    EXPECT_TRUE(html.contains("&lt;img"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagBlocksIframe) {
+    QString html = MarkdownParser::toHtml("<iframe src=\"https://evil.com\"></iframe>", true);
+    EXPECT_FALSE(html.contains("<iframe"));
+    EXPECT_TRUE(html.contains("&lt;iframe"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagBlocksObject) {
+    QString html = MarkdownParser::toHtml("<object data=\"evil.swf\"></object>", true);
+    EXPECT_FALSE(html.contains("<object"));
+    EXPECT_TRUE(html.contains("&lt;object"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagBlocksEmbed) {
+    QString html = MarkdownParser::toHtml("<embed src=\"evil.svg\">", true);
+    EXPECT_FALSE(html.contains("<embed"));
+    EXPECT_TRUE(html.contains("&lt;embed"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagBlocksStyleBlocks) {
+    QString html = MarkdownParser::toHtml("<style>body{display:none}</style>", true);
+    EXPECT_FALSE(html.contains("<style>"));
+    EXPECT_TRUE(html.contains("&lt;style&gt;"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagBlocksExternalScript) {
+    QString html = MarkdownParser::toHtml("<script src=\"https://evil.com/hook.js\"></script>", true);
+    EXPECT_FALSE(html.contains("<script"));
+    EXPECT_TRUE(html.contains("&lt;script"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagBlocksNestedRawHtml) {
+    QString html = MarkdownParser::toHtml("<div><span style=\"color:red\">nested</span></div>", true);
+    EXPECT_FALSE(html.contains("<div>"));
+    EXPECT_TRUE(html.contains("&lt;div"));
+    EXPECT_TRUE(html.contains("&lt;span"));
+    EXPECT_TRUE(html.contains("nested"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagDoesNotEscapeNormalMarkdownLinks) {
+    QString html = MarkdownParser::toHtml("[click](https://example.com?a=1&b=2)", true);
+    EXPECT_TRUE(html.contains("<a"));
+    EXPECT_TRUE(html.contains("href"));
+}
+
+TEST(MarkdownParserTest, NoHtmlFlagDoesNotEscapeCodeFence) {
+    QString html = MarkdownParser::toHtml("```\n<div>escaped in code</div>\n```", true);
+    EXPECT_TRUE(html.contains("<code"));
+    EXPECT_TRUE(html.contains("&lt;div&gt;"));
+}
