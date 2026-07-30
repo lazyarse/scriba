@@ -2,6 +2,8 @@
 #include "Preview.h"
 #include "StaticHelpers.h"
 #include "CssUtils.h"
+#include "CsvReader.h"
+#include "CsvColumnMapDialog.h"
 
 #include <QCheckBox>
 #include <QClipboard>
@@ -249,6 +251,39 @@ void MermaidDialog::populateComboColumns(QTableWidget *table,
     }
 }
 
+void MermaidDialog::csvImportForChart(QTableWidget *table, const QStringList &chartFields,
+                                       const QList<int> &columnIndices)
+{
+    CsvColumnMapDialog dlg(chartFields, this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    QHash<QString, int> mapping = dlg.mapping();
+    const CsvData &data = dlg.csvData();
+    if (data.rows.isEmpty())
+        return;
+
+    table->blockSignals(true);
+    int nCols = qMin(columnIndices.size(), chartFields.size());
+    int nRows = data.rows.size();
+    table->setRowCount(nRows);
+
+    for (int r = 0; r < nRows; ++r) {
+        for (int c = 0; c < nCols; ++c) {
+            int csvCol = mapping.value(chartFields[c], -1);
+            int tableCol = columnIndices[c];
+            if (tableCol < 0 || tableCol >= table->columnCount())
+                continue;
+            QString val;
+            if (csvCol >= 0 && csvCol < data.rows[r].size())
+                val = data.rows[r][csvCol];
+            table->setItem(r, tableCol, new QTableWidgetItem(val));
+        }
+    }
+    table->blockSignals(false);
+    schedulePreviewUpdate();
+}
+
 QString MermaidDialog::buildDiagram() const
 {
     switch (static_cast<ChartType>(m_chartTypeCombo->currentData().toInt())) {
@@ -286,9 +321,15 @@ QWidget *MermaidDialog::createPiePanel()
     layout->addWidget(new QLabel(tr("Slices:")));
     auto *btnLayout = new QHBoxLayout();
     auto *addBtn = new QPushButton("+Row", panel);
+    auto *csvBtn = new QPushButton("CSV Import", panel);
     btnLayout->addWidget(addBtn);
+    btnLayout->addWidget(csvBtn);
     btnLayout->addStretch();
     layout->addLayout(btnLayout);
+
+    connect(csvBtn, &QPushButton::clicked, this, [this]() {
+        csvImportForChart(m_pieTable, {"Label", "Value"}, {0, 1});
+    });
 
     const int delCol = 2;
     m_pieTable = new QTableWidget(2, 3, panel);
@@ -721,9 +762,16 @@ QWidget *MermaidDialog::createGanttPanel()
     layout->addWidget(new QLabel(tr("Tasks:")));
     auto *taskBtnLayout = new QHBoxLayout();
     auto *addTaskBtn = new QPushButton("+Task", panel);
+    auto *csvBtn = new QPushButton("CSV Import", panel);
     taskBtnLayout->addWidget(addTaskBtn);
+    taskBtnLayout->addWidget(csvBtn);
     taskBtnLayout->addStretch();
     layout->addLayout(taskBtnLayout);
+
+    connect(csvBtn, &QPushButton::clicked, this, [this]() {
+        csvImportForChart(m_ganttTaskTable, {"ID", "Description", "Start/After", "Duration", "Status", "Section"},
+                          {0, 1, 2, 3, 4, 5});
+    });
 
     const int delCol = 6;
     m_ganttTaskTable = new QTableWidget(4, 7, panel);
@@ -1677,9 +1725,15 @@ QWidget *MermaidDialog::createTimelinePanel()
     layout->addWidget(new QLabel(tr("Entries (Section, Event):")));
     auto *btnLayout = new QHBoxLayout();
     auto *addBtn = new QPushButton("+Row", panel);
+    auto *csvBtn = new QPushButton("CSV Import", panel);
     btnLayout->addWidget(addBtn);
+    btnLayout->addWidget(csvBtn);
     btnLayout->addStretch();
     layout->addLayout(btnLayout);
+
+    connect(csvBtn, &QPushButton::clicked, this, [this]() {
+        csvImportForChart(m_timelineTable, {"Section", "Event"}, {0, 1});
+    });
 
     const int delCol = 2;
     m_timelineTable = new QTableWidget(3, 3, panel);
@@ -1748,9 +1802,15 @@ QWidget *MermaidDialog::createJourneyPanel()
     layout->addWidget(new QLabel(tr("Tasks:")));
     auto *btnLayout = new QHBoxLayout();
     auto *addBtn = new QPushButton("+Row", panel);
+    auto *csvBtn = new QPushButton("CSV Import", panel);
     btnLayout->addWidget(addBtn);
+    btnLayout->addWidget(csvBtn);
     btnLayout->addStretch();
     layout->addLayout(btnLayout);
+
+    connect(csvBtn, &QPushButton::clicked, this, [this]() {
+        csvImportForChart(m_journeyTable, {"Section", "Task Name", "Score", "Actors"}, {0, 1, 2, 3});
+    });
 
     const int delCol = 4;
     m_journeyTable = new QTableWidget(4, 5, panel);
@@ -1865,9 +1925,15 @@ QWidget *MermaidDialog::createQuadrantPanel()
     layout->addWidget(new QLabel(tr("Points (Label, X 0-1, Y 0-1):")));
     auto *btnLayout = new QHBoxLayout();
     auto *addBtn = new QPushButton("+Row", panel);
+    auto *csvBtn = new QPushButton("CSV Import", panel);
     btnLayout->addWidget(addBtn);
+    btnLayout->addWidget(csvBtn);
     btnLayout->addStretch();
     layout->addLayout(btnLayout);
+
+    connect(csvBtn, &QPushButton::clicked, this, [this]() {
+        csvImportForChart(m_quadTable, {"Label", "X", "Y"}, {0, 1, 2});
+    });
 
     const int delCol = 3;
     m_quadTable = new QTableWidget(3, 4, panel);
@@ -1945,9 +2011,15 @@ QWidget *MermaidDialog::createSankeyPanel()
     layout->addWidget(new QLabel(tr("Links (Source, Target, Value):")));
     auto *btnLayout = new QHBoxLayout();
     auto *addBtn = new QPushButton("+Row", panel);
+    auto *csvBtn = new QPushButton("CSV Import", panel);
     btnLayout->addWidget(addBtn);
+    btnLayout->addWidget(csvBtn);
     btnLayout->addStretch();
     layout->addLayout(btnLayout);
+
+    connect(csvBtn, &QPushButton::clicked, this, [this]() {
+        csvImportForChart(m_sankeyTable, {"Source", "Target", "Value"}, {0, 1, 2});
+    });
 
     const int delCol = 3;
     m_sankeyTable = new QTableWidget(3, 4, panel);

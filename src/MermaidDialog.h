@@ -70,6 +70,8 @@ private:
                          std::function<void()> onDelete = nullptr);
     void populateComboColumns(QTableWidget *table, const QList<int> &columns,
                               const QStringList &items);
+    void csvImportForChart(QTableWidget *table, const QStringList &chartFields,
+                            const QList<int> &columnIndices);
 
     // Shared widgets
     QComboBox *m_chartTypeCombo;

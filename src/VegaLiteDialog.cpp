@@ -1,5 +1,6 @@
 #include "VegaLiteDialog.h"
 #include "StaticHelpers.h"
+#include "CsvReader.h"
 #include "Preview.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -23,6 +24,7 @@
 #include <QMessageBox>
 #include <QDialog>
 #include <QPlainTextEdit>
+#include <QFileDialog>
 #include <QIcon>
 
 enum class VegaMark { Bar, Line, Point, Area, Rect, Tick, Rule, Circle, Square, Text, Trail, Boxplot, Errorband, Errorbar, Geoshape };
@@ -153,12 +155,14 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     layout->addWidget(new QLabel("Data:"));
     QHBoxLayout *dataBtnLayout = new QHBoxLayout();
     QPushButton *pasteCsvBtn = new QPushButton("Paste CSV", panel);
+    QPushButton *openCsvBtn = new QPushButton("Open CSV", panel);
     QPushButton *pasteJsonBtn = new QPushButton("Paste JSON", panel);
     QPushButton *addRowBtn = new QPushButton("+Row", panel);
     QPushButton *removeRowBtn = new QPushButton("-Row", panel);
     QPushButton *addColBtn = new QPushButton("+Col", panel);
     QPushButton *removeColBtn = new QPushButton("-Col", panel);
     dataBtnLayout->addWidget(pasteCsvBtn);
+    dataBtnLayout->addWidget(openCsvBtn);
     dataBtnLayout->addWidget(pasteJsonBtn);
     dataBtnLayout->addWidget(addRowBtn);
     dataBtnLayout->addWidget(removeRowBtn);
@@ -267,6 +271,7 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
             this, &VegaLiteDialog::onChartTypeChanged);
     connect(m_table, &QTableWidget::itemChanged, this, &VegaLiteDialog::onDataChanged);
     connect(pasteCsvBtn, &QPushButton::clicked, this, &VegaLiteDialog::pasteCsv);
+    connect(openCsvBtn, &QPushButton::clicked, this, &VegaLiteDialog::openCsv);
     connect(pasteJsonBtn, &QPushButton::clicked, this, &VegaLiteDialog::pasteJson);
     connect(addRowBtn, &QPushButton::clicked, this, [this]() {
         m_table->insertRow(m_table->rowCount());
@@ -359,6 +364,26 @@ QString VegaLiteDialog::generatedSpec() const
     return doc.toJson(QJsonDocument::Indented);
 }
 
+void VegaLiteDialog::populateTableFromCsvData(const CsvData &data)
+{
+    if (data.rows.isEmpty())
+        return;
+
+    m_table->blockSignals(true);
+    m_table->setRowCount(data.rows.size());
+    m_table->setColumnCount(data.headers.size());
+    m_table->setHorizontalHeaderLabels(data.headers);
+
+    for (int r = 0; r < data.rows.size(); ++r) {
+        for (int c = 0; c < data.headers.size() && c < data.rows[r].size(); ++c) {
+            m_table->setItem(r, c, new QTableWidgetItem(data.rows[r][c]));
+        }
+    }
+    m_table->blockSignals(false);
+    updateFieldComboBoxes();
+    schedulePreviewUpdate();
+}
+
 void VegaLiteDialog::pasteCsv()
 {
     QDialog dlg(this);
@@ -384,24 +409,23 @@ void VegaLiteDialog::pasteCsv()
     QString text = edit->toPlainText().trimmed();
     if (text.isEmpty()) return;
 
-    QList<QMap<QString, QString>> rows = parseCsvData(text);
-    if (rows.isEmpty()) return;
+    CsvData data = CsvReader::readFromString(text, true);
+    if (data.headers.isEmpty() && data.rows.isEmpty()) return;
 
-    QStringList headers = rows.first().keys();
+    populateTableFromCsvData(data);
+}
 
-    m_table->blockSignals(true);
-    m_table->setRowCount(rows.size());
-    m_table->setColumnCount(headers.size());
-    m_table->setHorizontalHeaderLabels(headers);
+void VegaLiteDialog::openCsv()
+{
+    QString path = QFileDialog::getOpenFileName(
+        this, "Open CSV File", QString(), "CSV Files (*.csv *.tsv *.txt);;All Files (*)");
+    if (path.isEmpty()) return;
 
-    for (int r = 0; r < rows.size(); ++r) {
-        for (int c = 0; c < headers.size(); ++c) {
-            m_table->setItem(r, c, new QTableWidgetItem(rows[r].value(headers[c])));
-        }
-    }
-    m_table->blockSignals(false);
-    updateFieldComboBoxes();
-    schedulePreviewUpdate();
+    CsvData data = CsvReader::readFromFile(path, true);
+    if (data.headers.isEmpty() && data.rows.isEmpty())
+        return;
+
+    populateTableFromCsvData(data);
 }
 
 void VegaLiteDialog::pasteJson()

@@ -26,6 +26,7 @@ private slots:
     void schedulePreviewUpdate();
     void updatePreview();
     void pasteCsv();
+    void openCsv();
     void pasteJson();
 
 private:
@@ -33,6 +34,7 @@ private:
     void setupLeftPanel(QWidget *panel);
     void updateEncodingVisibility();
     void updateFieldComboBoxes();
+    void populateTableFromCsvData(const struct CsvData &data);
     QString buildSpec() const;
 
     QComboBox *m_chartTypeCombo;

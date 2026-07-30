@@ -48,6 +48,8 @@ add_executable(scriba
     src/JsRenderEngine.cpp
     src/UnitConverter.cpp
     src/CssValueParser.cpp
+    src/CsvReader.cpp
+    src/CsvColumnMapDialog.cpp
     vendor/md4c/src/md4c.c
     vendor/md4c/src/md4c-html.c
     vendor/md4c/src/entity.c
@@ -123,6 +125,7 @@ if(BUILD_TESTS)
         src/StaticHelpers.cpp
         src/Readability.cpp
         src/JsSnippets.cpp
+        src/CsvReader.cpp
         vendor/md4c/src/md4c.c
         vendor/md4c/src/entity.c
     )
@@ -168,6 +171,7 @@ if(BUILD_TESTS)
     add_executable(test_mermaid_dialog
         tests/test_mermaid_dialog.cpp
         src/MermaidDialog.cpp
+        src/CsvColumnMapDialog.cpp
         src/Preview.cpp)
     target_link_libraries(test_mermaid_dialog
         PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
@@ -211,6 +215,7 @@ if(BUILD_TESTS)
     src/MermaidDialog.cpp
     src/KatexHelperDialog.cpp
     src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -229,6 +234,7 @@ if(BUILD_TESTS)
         src/MermaidDialog.cpp
         src/KatexHelperDialog.cpp
         src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -246,6 +252,7 @@ if(BUILD_TESTS)
     src/MermaidDialog.cpp
     src/KatexHelperDialog.cpp
     src/MchemHelperDialog.cpp
+    src/CsvColumnMapDialog.cpp
     src/TableDialog.cpp
     resources/scriba.qrc)
 target_include_directories(test_editor_initial_css PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -264,6 +271,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/MermaidDialog.cpp
         src/KatexHelperDialog.cpp
         src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
         src/TableDialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -318,5 +326,10 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
     target_compile_definitions(test_mchem_integration PRIVATE RESOURCE_DIR="${CMAKE_SOURCE_DIR}/resources")
     target_link_libraries(test_mchem_integration PRIVATE GTest::gtest_main Qt6::Core)
     add_test(NAME test_mchem_integration COMMAND ${_TEST_PREFIX} ./test_mchem_integration)
+
+    add_executable(test_csv_reader tests/test_csv_reader.cpp src/CsvReader.cpp)
+    target_include_directories(test_csv_reader PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_csv_reader PRIVATE GTest::gtest_main Qt6::Core)
+    add_test(NAME test_csv_reader COMMAND ${_TEST_PREFIX} ./test_csv_reader)
 endif()
 
