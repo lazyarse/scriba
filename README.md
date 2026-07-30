@@ -121,10 +121,13 @@ The NSIS installer adds Scriba to the Start Menu and registers `.md` files to op
 ### Build .deb package
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB && chmod 644 scriba-*-Linux.deb
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB
 ```
 
-The `chmod 644` ensures the `.deb` is world-readable so `apt`'s sandboxed `_apt` user can access it.
+Copy the `.deb` to `/tmp/` before installing if your home directory blocks `_apt`:
+```bash
+cp scriba-*-Linux.deb /tmp/ && sudo apt install /tmp/scriba-*-Linux.deb
+```
 
 Output: `scriba-1.0.0-Linux.deb` (may include a `-dirty` suffix if the working tree has uncommitted changes)
 

@@ -21,7 +21,9 @@ Binary: `build/scriba`
 ## Package (Linux)
 
 ```bash
-cpack --config build/CPackConfig.cmake -G DEB && chmod 644 scriba-*-Linux.deb
+cpack --config build/CPackConfig.cmake -G DEB
+# copy to /tmp/ before installing if apt's _apt user can't traverse your home dir:
+# cp scriba-*-Linux.deb /tmp/ && sudo apt install /tmp/scriba-*-Linux.deb
 ```
 
 Output: `scriba-<version>-Linux.deb`
