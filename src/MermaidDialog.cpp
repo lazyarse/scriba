@@ -207,6 +207,11 @@ void MermaidDialog::addDeleteButton(QTableWidget *table, int column, int row,
     auto *delBtn = new QPushButton(themedIcon(":/icons/trash.svg", m_iconColor, 16), "", table);
     delBtn->setFixedSize(26, 22);
     delBtn->setToolTip("Delete row");
+    delBtn->setFlat(true);
+    delBtn->setStyleSheet(
+        "QPushButton { background: transparent; border: none; padding: 0; }"
+        " QPushButton:hover { background: transparent; }"
+        " QPushButton:pressed { background: transparent; }");
     table->setCellWidget(row, column, delBtn);
     connect(delBtn, &QPushButton::clicked, this, [this, table, delBtn, onDelete = std::move(onDelete)]() {
         int row = table->indexAt(delBtn->pos()).row();
