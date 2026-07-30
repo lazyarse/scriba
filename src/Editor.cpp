@@ -483,25 +483,37 @@ void Editor::showFileCompletion(const QString &partialPath)
     if (!search.exists())
         return;
 
-    QStringList entries;
+    QStringList matched;
     QStringList all = search.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
     for (const QString &entry : all) {
         if (entry.startsWith('.') && !filePart.startsWith('.'))
             continue;
-        if (filePart.isEmpty() || entry.startsWith(filePart, Qt::CaseInsensitive)) {
-            if (QFileInfo(search, entry).isDir())
-                entries.append(entry + "/");
-            else
-                entries.append(entry);
-        }
+        if (filePart.isEmpty() || entry.contains(filePart, Qt::CaseInsensitive))
+            matched.append(entry);
     }
 
-    int maxResults = QSettings().value(Preferences::FileCompletionLimit, 20).toInt();
-    if (entries.size() > maxResults)
-        entries = entries.mid(0, maxResults);
-
-    if (entries.isEmpty() || filePart.isEmpty())
+    if (matched.isEmpty() || filePart.isEmpty())
         return;
+
+    std::sort(matched.begin(), matched.end(),
+        [&filePart](const QString &a, const QString &b) {
+            bool aPrefix = a.startsWith(filePart, Qt::CaseInsensitive);
+            bool bPrefix = b.startsWith(filePart, Qt::CaseInsensitive);
+            if (aPrefix != bPrefix)
+                return aPrefix;
+            return a < b;
+        });
+
+    int maxResults = QSettings().value(Preferences::FileCompletionLimit, 20).toInt();
+    QStringList entries;
+    for (const QString &entry : matched) {
+        if (entries.size() >= maxResults)
+            break;
+        if (QFileInfo(search, entry).isDir())
+            entries.append(entry + "/");
+        else
+            entries.append(entry);
+    }
 
     if (!m_completer) {
         m_completer = new QCompleter(this);
