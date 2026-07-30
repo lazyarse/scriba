@@ -14,7 +14,7 @@ FetchContent_Declare(mathml2omml
     GIT_TAG v2.0.1)
 FetchContent_MakeAvailable(mathml2omml)
 
-add_executable(scriba
+add_executable(scriba WIN32
     src/main.cpp
     src/MainWindow.cpp
     src/Editor.cpp
