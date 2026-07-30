@@ -12,6 +12,8 @@
 ![Qt6 Badge](docs/images/badge-qt6.svg)
 ![Tests Badge](docs/images/badge-tests.svg)
 
+---
+
 ![Screenshot](docs/images/screenshot.png)
 
 ---
