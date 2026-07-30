@@ -99,6 +99,8 @@ cmake --build build -j4 --config Release
 
 Binary: `build\Release\scriba.exe`
 
+Copy from QEMU to host (host needs an ssh-server running): `scp file.txt user@10.0.2.2:~/`
+
 ### Build .deb package
 
 ```bash
@@ -138,6 +140,14 @@ build\Release\scriba.exe file.md
 ```
 
 For a permanent fix, add `C:\Qt\6.10.3\msvc2022_64\bin` to your system PATH.
+```
+On Windows, add it via:
+1. Open System Properties → Advanced → Environment Variables
+2. Under System variables, find Path → Edit → New → paste C:\Qt\6.10.3\msvc2022_64\bin
+3. OK out, restart terminal/cmd
+Or via PowerShell (admin):
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "Machine") + ";C:\Qt\6.10.3\msvc2022_64\bin", "Machine")
+```
 
 JS console messages are captured via the Debug Log window (Tools → Debug Log).
 
@@ -146,3 +156,5 @@ JS console messages are captured via the Debug Log window (Tools → Debug Log).
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [PDF Export](docs/pdf-export.md)
 - [Table Handlng](docs/table_handling.md)
+
+asdf
