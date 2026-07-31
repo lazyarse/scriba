@@ -89,7 +89,8 @@ class DemoScribe:
                 "(": "parenleft", ")": "parenright",
                 "[": "bracketleft", "]": "bracketright",
                 "#": "numbersign", "-": "minus",
-                "|": "bar", "/": "slash"}.get(ch, ch)
+                "|": "bar", "/": "slash",
+                "`": "grave"}.get(ch, ch)
 
     def press(self, key):
         subprocess.run(
@@ -297,7 +298,26 @@ class DemoScribe:
         time.sleep(0.1)
         self.capture()
 
-        # ── Scene 4: HTML table via Ctrl+T ──
+        # ── Scene 4: Code language autocomplete ──
+        self.header("Code Blocks")
+
+        text = 'Type ``` and the first letters of a language, <enter> to accept'
+        self.type_str(text)
+        self.capture()
+        self.press("Return"); self.capture()
+        self.press("Return"); self.capture()
+
+        for ch in ["grave", "grave", "grave", "p", "y"]:
+            self.press(ch); self.capture()
+        time.sleep(0.2)
+        self.capture()
+
+        self.press("Return"); self.pause(3)
+
+        self.press("Return"); self.pause(2)
+        self.press("Return"); self.pause(2)
+
+        # ── Scene 5: HTML table via Ctrl+T ──
         self.header("HTML Tables")
 
         text = "Use the HTML Table generator - markdown tables forces a header row"

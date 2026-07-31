@@ -177,4 +177,3 @@ JS console messages are captured via the Debug Log window (Tools → Debug Log).
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [PDF Export](docs/pdf-export.md)
 - [Table Handlng](docs/table_handling.md)
-

@@ -470,7 +470,16 @@ void Editor::keyPressEvent(QKeyEvent *event)
                         else
                             showFileCompletion(htmlPath);
                     } else {
-                        m_completer->popup()->hide();
+                        QString partialLang;
+                        if (isInsideLanguageContext(textCursor(), partialLang) &&
+                            QSettings().value(Preferences::LanguageAutoComplete, true).toBool()) {
+                            if (partialLang.isEmpty())
+                                m_completer->popup()->hide();
+                            else
+                                showLanguageCompletion(partialLang);
+                        } else {
+                            m_completer->popup()->hide();
+                        }
                     }
                 }
             }
@@ -489,6 +498,9 @@ void Editor::keyPressEvent(QKeyEvent *event)
             QString partialCode;
             if (isInsideEmojiContext(textCursor(), partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool())
                 showEmojiCompletion(partialCode);
+            QString partialLang;
+            if (isInsideLanguageContext(textCursor(), partialLang) && QSettings().value(Preferences::LanguageAutoComplete, true).toBool())
+                showLanguageCompletion(partialLang);
         }
     }
 }
@@ -628,6 +640,17 @@ void Editor::acceptCompletion(const QString &completion)
     QString line = cursor.block().text();
     int pos = cursor.positionInBlock();
     int blockStart = cursor.block().position();
+
+    // Code fence language context: replace text right after ```
+    QString partialLang;
+    if (isInsideLanguageContext(cursor, partialLang)) {
+        cursor.setPosition(blockStart + 3, QTextCursor::MoveAnchor);
+        cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
+        cursor.removeSelectedText();
+        cursor.insertText(completion);
+        setTextCursor(cursor);
+        return;
+    }
 
     // Markdown link context: [text](path) or ![text](path)
     static const QRegularExpression re(R"(\!?\[.*?\]\()");
@@ -855,6 +878,139 @@ void Editor::acceptEmojiCompletion(const QString &completion)
     cursor.removeSelectedText();
     cursor.insertText(completion);
     setTextCursor(cursor);
+}
+
+namespace {
+// Code fence languages bundled in resources/highlight.min.js (canonical → aliases).
+// Keep in sync with the bundled highlight.js version.
+const QHash<QString, QStringList> &codeLanguages()
+{
+    static const QHash<QString, QStringList> langs = {
+        { "bash",        {"sh", "zsh", "shellscript"} },
+        { "c",           {} },
+        { "cpp",         {"c++", "cxx", "hpp", "hxx", "cc"} },
+        { "csharp",      {"cs", "c#"} },
+        { "css",         {} },
+        { "diff",        {"patch"} },
+        { "go",          {"golang"} },
+        { "graphql",     {"gql"} },
+        { "ini",         {"toml", "cfg", "conf"} },
+        { "java",        {} },
+        { "javascript",  {"js", "jsx", "mjs", "cjs"} },
+        { "json",        {} },
+        { "kotlin",      {"kt", "kts"} },
+        { "less",        {} },
+        { "lua",         {} },
+        { "makefile",    {"make", "mk", "mak"} },
+        { "markdown",    {"md", "mkdown", "mkd"} },
+        { "objectivec",  {"objc", "obj-c", "mm"} },
+        { "perl",        {"pl"} },
+        { "php",         {} },
+        { "plaintext",   {"text", "txt"} },
+        { "python",      {"py", "gyp"} },
+        { "r",           {} },
+        { "ruby",        {"rb", "gemspec", "podspec", "thor", "irb"} },
+        { "rust",        {"rs"} },
+        { "scss",        {} },
+        { "shell",       {"console", "shellsession"} },
+        { "sql",         {} },
+        { "swift",       {} },
+        { "typescript",  {"ts", "tsx"} },
+        { "vbnet",       {"vb", "vbs"} },
+        { "wasm",        {} },
+        { "xml",         {"html", "xhtml", "svg", "rss", "atom", "xsl", "plist"} },
+        { "yaml",        {"yml"} },
+    };
+    return langs;
+}
+}
+
+bool Editor::isInsideLanguageContext(const QTextCursor &cursor, QString &partialLang) const
+{
+    QString text = cursor.block().text();
+    int pos = cursor.positionInBlock();
+
+    static const QRegularExpression fenceRe(R"(^```(\S*)$)");
+    auto match = fenceRe.match(text.left(pos));
+    if (!match.hasMatch())
+        return false;
+
+    // Must be an opening fence: an even number of fence blocks precede it.
+    int fenceCount = 0;
+    QTextBlock block = document()->firstBlock();
+    while (block.isValid() && block.blockNumber() < cursor.blockNumber()) {
+        if (block.text().trimmed().startsWith("```"))
+            ++fenceCount;
+        block = block.next();
+    }
+    if (fenceCount % 2 != 0)
+        return false;
+
+    partialLang = match.captured(1);
+    return true;
+}
+
+void Editor::showLanguageCompletion(const QString &partialLang)
+{
+    if (partialLang.isEmpty() ||
+        !QSettings().value(Preferences::LanguageAutoComplete, true).toBool())
+        return;
+
+    QStringList matches;
+    const QHash<QString, QStringList> &langs = codeLanguages();
+    for (auto it = langs.cbegin(); it != langs.cend(); ++it) {
+        const QString &name = it.key();
+        if (name.contains(partialLang, Qt::CaseInsensitive)) {
+            matches.append(name);
+            continue;
+        }
+        for (const QString &alias : it.value()) {
+            if (alias.contains(partialLang, Qt::CaseInsensitive)) {
+                matches.append(name);
+                break;
+            }
+        }
+    }
+    if (matches.isEmpty())
+        return;
+
+    std::sort(matches.begin(), matches.end(),
+        [&partialLang](const QString &a, const QString &b) {
+            bool aPrefix = a.startsWith(partialLang, Qt::CaseInsensitive);
+            bool bPrefix = b.startsWith(partialLang, Qt::CaseInsensitive);
+            if (aPrefix != bPrefix)
+                return aPrefix;
+            return a < b;
+        });
+
+    if (!m_completer) {
+        m_completer = new QCompleter(this);
+        m_completer->setWidget(this);
+        m_completer->setCompletionMode(QCompleter::UnfilteredPopupCompletion);
+        m_completer->setCaseSensitivity(Qt::CaseInsensitive);
+        m_completer->setFilterMode(Qt::MatchStartsWith);
+        connect(m_completer, QOverload<const QString &>::of(&QCompleter::activated),
+                this, &Editor::acceptCompletion);
+    }
+
+    QStringListModel *model = new QStringListModel(matches, m_completer);
+    m_completer->setModel(model);
+    m_completer->setCompletionPrefix(partialLang);
+
+    QRect cr = cursorRect();
+    QFontMetrics fm(font());
+    int maxWidth = 0;
+    for (const QString &entry : matches)
+        maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
+    cr.setWidth(maxWidth + 30);
+
+    QTextBlock block = textCursor().block();
+    int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
+
+    m_completer->complete(cr);
+    m_completer->popup()->setCurrentIndex(model->index(0, 0));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + lineH + 18));
+    m_completer->popup()->move(popupPos);
 }
 
 void Editor::invalidateEmojiIconCache()

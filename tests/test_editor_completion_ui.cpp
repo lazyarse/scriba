@@ -18,6 +18,7 @@ protected:
     {
         QSettings().setValue(Preferences::FileAutoComplete, true);
         QSettings().setValue(Preferences::EmojiAutoComplete, true);
+        QSettings().setValue(Preferences::LanguageAutoComplete, true);
 
         ASSERT_TRUE(tmpDir.isValid());
 
@@ -230,6 +231,99 @@ TEST_F(EditorCompletionUITest, EmojiPopupSitsBelowCursorLine)
 
     EXPECT_GE(popup->geometry().y(), cursorBottomGlobal.y())
         << "popup top should be at or below the bottom of the cursor line";
+}
+
+TEST_F(EditorCompletionUITest, CodeFenceLanguageCompletes)
+{
+    editor->clear();
+    typeText("```py");
+    ASSERT_GT(popupRowCount(), 0) << "popup should appear while typing language after ```";
+    pressEnter();
+    EXPECT_EQ(editor->toPlainText(), "```python");
+}
+
+TEST_F(EditorCompletionUITest, CodeFenceJsSuggestsJson)
+{
+    editor->clear();
+    typeText("```js");
+    pressEnter();
+    EXPECT_EQ(editor->toPlainText(), "```json");
+}
+
+TEST_F(EditorCompletionUITest, CodeFenceAliasSuggestsJavascript)
+{
+    editor->clear();
+    typeText("```javas");
+    pressEnter();
+    EXPECT_EQ(editor->toPlainText(), "```javascript");
+}
+
+TEST_F(EditorCompletionUITest, CodeFencePrefixSortedFirst)
+{
+    editor->clear();
+    typeText("```c");
+    ASSERT_GT(popupRowCount(), 0);
+    QString first = editor->completer()->completionModel()->index(0, 0).data().toString();
+    EXPECT_EQ(first, "c");
+}
+
+TEST_F(EditorCompletionUITest, CodeFenceEscapeKeepsText)
+{
+    editor->clear();
+    typeText("```py");
+    ASSERT_GT(popupRowCount(), 0);
+    pressEscape();
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden after escape";
+    EXPECT_EQ(editor->toPlainText(), "```py");
+}
+
+TEST_F(EditorCompletionUITest, CodeFenceBackspaceUpdatesPopup)
+{
+    editor->clear();
+    typeText("```pyth");
+    ASSERT_GT(popupRowCount(), 0);
+
+    pressBackspace();
+    ASSERT_GT(popupRowCount(), 0) << "popup should remain visible after backspace";
+    EXPECT_EQ(editor->toPlainText(), "```pyt");
+
+    pressBackspace();
+    pressBackspace();
+    pressBackspace();
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden when only ``` remains";
+    EXPECT_EQ(editor->toPlainText(), "```");
+}
+
+TEST_F(EditorCompletionUITest, NoCompletionOnClosingFence)
+{
+    editor->clear();
+    typeText("```py");
+    ASSERT_GT(popupRowCount(), 0);
+    pressEscape();
+    pressEnter();
+
+    typeText("```py");
+    EXPECT_EQ(popupRowCount(), -1) << "no popup on a closing fence";
+    EXPECT_EQ(editor->toPlainText(), "```py\n```py");
+}
+
+TEST_F(EditorCompletionUITest, NoCompletionInsideCodeBlock)
+{
+    editor->clear();
+    typeText("```py");
+    pressEscape();
+    pressEnter();
+
+    typeText("py");
+    EXPECT_EQ(popupRowCount(), -1) << "no popup for plain text inside a code block";
+}
+
+TEST_F(EditorCompletionUITest, CodeFenceCompletionRespectsPreference)
+{
+    QSettings().setValue(Preferences::LanguageAutoComplete, false);
+    editor->clear();
+    typeText("```py");
+    EXPECT_EQ(popupRowCount(), -1) << "no popup when language autocomplete is disabled";
 }
 
 int main(int argc, char **argv)

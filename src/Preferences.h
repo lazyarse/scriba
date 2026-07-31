@@ -26,6 +26,7 @@ namespace Preferences {
     constexpr const char *AutoSaveInterval = "autoSaveInterval";
     constexpr const char *FileCompletionLimit = "fileCompletionLimit";
     constexpr const char *FileAutoComplete = "fileAutoComplete";
+    constexpr const char *LanguageAutoComplete = "languageAutoComplete";
 
     constexpr const char *EditorFontFamily = "editorFontFamily";
     constexpr const char *EditorFontSize = "editorFontSize";

@@ -87,6 +87,7 @@ private:
     QRadioButton *m_emojiBw;
     QRadioButton *m_emojiColor;
     QCheckBox *m_emojiAutoCompleteCheck;
+    QCheckBox *m_languageAutoCompleteCheck;
     QCheckBox *m_centreSingleViewCheck;
     QSpinBox *m_centreSingleViewWidthSpin;
     QCheckBox *m_splitEditorAutoCheck;

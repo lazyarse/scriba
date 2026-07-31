@@ -44,6 +44,9 @@ private:
     void acceptEmojiCompletion(const QString &completion);
     QPixmap renderEmojiIcon(const QString &emojiStr) const;
 
+    bool isInsideLanguageContext(const QTextCursor &cursor, QString &partialLang) const;
+    void showLanguageCompletion(const QString &partialLang);
+
     void updateViewportMargins();
 
     enum class CursorContext { None, ListItem, TableRow, CodeBlock };
