@@ -41,6 +41,7 @@ TEST(MarkdownParserTest, FencedCodeBlock) {
     QString html = MarkdownParser::toHtml("```cpp\nint x = 1;\n```");
     EXPECT_TRUE(html.contains("<pre"));
     EXPECT_TRUE(html.contains("language-cpp"));
+    EXPECT_TRUE(html.contains("data-lang=\"cpp\""));
     EXPECT_TRUE(html.contains("data-line=\"1\""));
     EXPECT_TRUE(html.contains("int x = 1;"));
 }
@@ -49,6 +50,7 @@ TEST(MarkdownParserTest, FencedCodeBlockNoLang) {
     QString html = MarkdownParser::toHtml("```\nplain code\n```");
     EXPECT_TRUE(html.contains("<pre"));
     EXPECT_TRUE(html.contains("language-"));
+    EXPECT_FALSE(html.contains("data-lang"));
     EXPECT_TRUE(html.contains("plain code"));
 }
 

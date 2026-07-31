@@ -321,8 +321,13 @@ void MdRenderer::enterCodeBlock(void *detail)
     if (d->lang.text && d->lang.size > 0)
         lang = QString::fromUtf8(d->lang.text, d->lang.size);
     if (d->fence_char) {
-        writeHtml(QString("<pre data-line=\"%1\"><code class=\"language-%2\">")
-            .arg(m_currentLine).arg(lang));
+        if (lang.isEmpty()) {
+            writeHtml(QString("<pre data-line=\"%1\"><code class=\"language-\">")
+                .arg(m_currentLine));
+        } else {
+            writeHtml(QString("<pre data-line=\"%1\" data-lang=\"%2\"><code class=\"language-%2\">")
+                .arg(m_currentLine).arg(lang));
+        }
     } else {
         writeHtml(QString("<pre data-line=\"%1\"><code>").arg(m_currentLine));
     }
