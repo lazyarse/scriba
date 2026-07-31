@@ -1060,6 +1060,7 @@ void MainWindow::showPreferences()
             if (tab.editor) {
                 tab.editor->invalidateEmojiIconCache();
                 tab.editor->updateGutterSettings();
+                tab.editor->recheckSpelling();
                 applyEditorContentWidth(tab.editor);
             }
         }

@@ -26,6 +26,7 @@
 - Print and PDF export using print-specific CSS stylesheets
 - Readability metrics to keep you audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
 - Find and Replace with optional regex search and replacement back-references
+- Spell checking (Hunspell) and grammar checking (Harper) with squiggle underlines in the editor, right-click suggestions, user dictionary and ignore words — all configurable in Preferences → Spelling
 - PDF, DOCX, and HTML export
 - Useful in-editor autocomplete to assist in creating tables, linking to local filenames, and yes, even emojis
 - Numerous [chart helpers](docs/chart-helpers.md) for vega-lite and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV input because writing JSON and fenced blocks at 2am is difficult
@@ -68,6 +69,7 @@ Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root`
   ```
 - GCC/Clang with C++23 support (Linux) or Visual Studio 2022 with "Desktop development with C++" workload (Windows)
 - On Windows: Qt 6.8+ (MSVC 2022 64-bit) from qt.io, CMake, Git for Windows
+- **Rust toolchain** for the grammar checker (Harper engine, compiled on first build via CMake). A `rust-toolchain.toml` pins the required version (1.96.1+); install with [rustup](https://rustup.rs/). The build fetches crates from crates.io (locked by `vendor/harper-ffi/Cargo.lock`), so no vendoring is needed.
 - **Chromium ≥ 140** (for PDF export). Install on Debian/Ubuntu:
   ```bash
   sudo apt install chromium

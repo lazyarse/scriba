@@ -14,6 +14,20 @@ FetchContent_Declare(mathml2omml
     GIT_TAG v2.0.1)
 FetchContent_MakeAvailable(mathml2omml)
 
+add_subdirectory(vendor/hunspell)
+
+# Vendored harper-core grammar engine (see vendor/harper-ffi). It is built with
+# cargo into a static library; rust-toolchain.toml pins the required toolchain.
+set(HARPER_FFI_DIR ${CMAKE_SOURCE_DIR}/vendor/harper-ffi)
+if(WIN32)
+    set(HARPER_FFI_STATIC ${HARPER_FFI_DIR}/target/release/harper_ffi.lib)
+else()
+    set(HARPER_FFI_STATIC ${HARPER_FFI_DIR}/target/release/libharper_ffi.a)
+endif()
+set(HARPER_FFI_CARGO
+    ${CMAKE_COMMAND} -E env CARGO_TERM_COLOR=never
+    cargo build --release --manifest-path ${HARPER_FFI_DIR}/Cargo.toml)
+
 add_executable(scriba WIN32
     src/main.cpp
     src/MainWindow.cpp
@@ -51,6 +65,10 @@ add_executable(scriba WIN32
     src/CssValueParser.cpp
     src/CsvReader.cpp
     src/CsvColumnMapDialog.cpp
+    src/SpellChecker.cpp
+    src/SpellHighlighter.cpp
+    src/GrammarChecker.cpp
+    src/HarperEngine.cpp
     vendor/md4c/src/md4c.c
     vendor/md4c/src/md4c-html.c
     vendor/md4c/src/entity.c
@@ -72,7 +90,15 @@ target_link_libraries(scriba PRIVATE
     Qt6::Svg
     Qt6::PrintSupport
     mathml2omml
+    hunspell
+    ${HARPER_FFI_STATIC}
 )
+
+add_custom_command(TARGET scriba PRE_LINK
+    COMMAND ${HARPER_FFI_CARGO}
+    WORKING_DIRECTORY ${HARPER_FFI_DIR}
+    COMMENT "Building harper-ffi (cargo build --release)"
+    VERBATIM)
 
 add_custom_command(TARGET scriba POST_BUILD
     COMMENT "Removing cached stylesheets from config directory"
@@ -135,7 +161,7 @@ endif()
 
 include(CPack)
 
-target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
+target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}" HUNSPELL_STATIC)
 
 option(BUILD_TESTS "Build unit tests" OFF)
 
@@ -166,6 +192,22 @@ if(BUILD_TESTS)
     )
     target_link_libraries(scriba_core PUBLIC Qt6::Core Qt6::Gui Qt6::Svg Qt6::Widgets)
 
+    add_library(scriba_spell STATIC
+        src/SpellChecker.cpp
+        src/SpellHighlighter.cpp
+        src/GrammarChecker.cpp
+        src/HarperEngine.cpp
+    )
+    target_include_directories(scriba_spell PUBLIC ${CMAKE_SOURCE_DIR}/src)
+    target_compile_definitions(scriba_spell PRIVATE HUNSPELL_STATIC)
+    target_link_libraries(scriba_spell PUBLIC scriba_core hunspell ${HARPER_FFI_STATIC})
+
+    add_custom_command(TARGET scriba_spell PRE_LINK
+        COMMAND ${HARPER_FFI_CARGO}
+        WORKING_DIRECTORY ${HARPER_FFI_DIR}
+        COMMENT "Building harper-ffi (cargo build --release)"
+        VERBATIM)
+
     add_library(test_editor_helpers STATIC
         tests/EditorTestHarness.cpp
         tests/EditorTestHarness.h
@@ -193,6 +235,20 @@ if(BUILD_TESTS)
     add_executable(test_static_helpers tests/test_static_helpers.cpp resources/scriba.qrc)
     target_link_libraries(test_static_helpers PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_static_helpers COMMAND ${_TEST_PREFIX} ./test_static_helpers)
+
+    add_executable(test_spell_checker tests/test_spell_checker.cpp resources/scriba.qrc)
+    target_link_libraries(test_spell_checker PRIVATE GTest::gtest scriba_spell)
+    add_test(NAME test_spell_checker COMMAND ${_TEST_PREFIX} ./test_spell_checker)
+
+    add_executable(test_spell_highlighter tests/test_spell_highlighter.cpp resources/scriba.qrc)
+    target_include_directories(test_spell_highlighter PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_spell_highlighter PRIVATE GTest::gtest scriba_spell)
+    add_test(NAME test_spell_highlighter COMMAND ${_TEST_PREFIX} ./test_spell_highlighter)
+
+    add_executable(test_grammar_checker tests/test_grammar_checker.cpp)
+    target_include_directories(test_grammar_checker PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_grammar_checker PRIVATE GTest::gtest_main scriba_spell)
+    add_test(NAME test_grammar_checker COMMAND ${_TEST_PREFIX} ./test_grammar_checker)
 
     add_executable(test_editor_list_continuation tests/test_editor_list_continuation.cpp)
     target_link_libraries(test_editor_list_continuation PRIVATE scriba_core GTest::gtest_main)
@@ -244,27 +300,27 @@ if(BUILD_TESTS)
     find_package(Qt6 REQUIRED COMPONENTS Test)
     add_executable(test_editor_completion_ui tests/test_editor_completion_ui.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_editor_completion_ui PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell)
     add_test(NAME test_editor_completion_ui COMMAND ${_TEST_PREFIX} ./test_editor_completion_ui)
 
     add_executable(test_folding tests/test_folding.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_folding PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_folding PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    target_link_libraries(test_folding PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell)
     add_test(NAME test_folding COMMAND ${_TEST_PREFIX} ./test_folding)
 
     add_executable(test_gutter_line_height tests/test_gutter_line_height.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_gutter_line_height PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_gutter_line_height PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    target_link_libraries(test_gutter_line_height PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell)
     add_test(NAME test_gutter_line_height COMMAND ${_TEST_PREFIX} ./test_gutter_line_height)
 
     add_executable(test_gutter_width tests/test_gutter_width.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_gutter_width PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_gutter_width PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    target_link_libraries(test_gutter_width PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell)
     add_test(NAME test_gutter_width COMMAND ${_TEST_PREFIX} ./test_gutter_width)
 
     add_executable(test_editor_typing tests/test_editor_typing.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_editor_typing PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_editor_typing PRIVATE GTest::gtest test_editor_helpers)
+    target_link_libraries(test_editor_typing PRIVATE GTest::gtest test_editor_helpers scriba_spell)
     add_test(NAME test_editor_typing COMMAND ${_TEST_PREFIX} ./test_editor_typing)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
@@ -284,7 +340,7 @@ if(BUILD_TESTS)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(test_scroll_sync PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
     target_link_libraries(test_scroll_sync PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
@@ -302,7 +358,7 @@ if(BUILD_TESTS)
         resources/scriba.qrc)
     target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_auto_save PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
@@ -321,7 +377,7 @@ if(BUILD_TESTS)
 target_include_directories(test_editor_initial_css PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(test_editor_initial_css PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
 target_link_libraries(test_editor_initial_css PRIVATE
-    scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml)
+    scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
 add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp
@@ -339,7 +395,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_find_dialog PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
     add_test(NAME test_find_dialog COMMAND ${_TEST_PREFIX} ./test_find_dialog)
 
     add_executable(test_print_css_file tests/test_print_css_file.cpp)

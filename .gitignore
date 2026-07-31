@@ -1,6 +1,9 @@
 build
 vendor/*
 !vendor/md4c/
+!vendor/hunspell/
+!vendor/harper-ffi/
+vendor/harper-ffi/target
 *.deb
 _CPack_Packages
 .demo-content.md

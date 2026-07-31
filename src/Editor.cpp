@@ -1,6 +1,9 @@
 #include "Editor.h"
+#include "GrammarChecker.h"
 #include "Gutter.h"
+#include "HarperEngine.h"
 #include "Preferences.h"
+#include "SpellChecker.h"
 #include "StaticHelpers.h"
 #include <algorithm>
 #include <QAbstractItemView>
@@ -28,6 +31,18 @@
 #include <QTimer>
 #include <QAbstractTextDocumentLayout>
 
+namespace {
+
+// HarperEngine loads harper's curated dictionary on construction, so every
+// Editor tab shares one instance instead of paying that cost per tab.
+GrammarChecker *sharedGrammarChecker()
+{
+    static HarperEngine instance;
+    return &instance;
+}
+
+} // namespace
+
 Editor::Editor(QWidget *parent)
     : QTextEdit(parent)
 {
@@ -48,7 +63,16 @@ Editor::Editor(QWidget *parent)
         if (!m_updatingFolds)
             foldTimer->start();
     });
+
+    m_spellChecker = std::make_unique<SpellChecker>();
+    m_grammarChecker = sharedGrammarChecker();
+    m_spellHighlighter = new SpellHighlighter(document(), this);
+    m_spellHighlighter->setChecker(m_spellChecker.get());
+    m_spellHighlighter->setGrammarChecker(m_grammarChecker);
+    applySpellSettings();
 }
+
+Editor::~Editor() = default;
 
 void Editor::setCurrentFile(const QString &path)
 {
@@ -1015,6 +1039,53 @@ void Editor::showLanguageCompletion(const QString &partialLang)
     m_completer->popup()->move(popupPos);
 }
 
+void Editor::applySpellSettings()
+{
+    if (!m_spellChecker || !m_spellHighlighter)
+        return;
+    QSettings s;
+    const bool spellEnabled = s.value(Preferences::SpellCheckEnabled, true).toBool();
+    const bool grammarEnabled = s.value(Preferences::GrammarCheckEnabled, false).toBool();
+    const QString language = s.value(Preferences::DictionaryLanguage, QStringLiteral("en_US")).toString();
+
+    bool loaded = false;
+    if (spellEnabled) {
+        loaded = m_spellChecker->loadLanguage(language);
+        if (!loaded) {
+            for (const QString &lang : SpellChecker::availableLanguages()) {
+                if (m_spellChecker->loadLanguage(lang)) {
+                    loaded = true;
+                    break;
+                }
+            }
+        }
+    }
+    m_spellHighlighter->setSpellCheckingEnabled(spellEnabled && loaded);
+    m_spellHighlighter->setGrammarCheckingEnabled(grammarEnabled);
+    m_spellHighlighter->refresh();
+}
+
+void Editor::recheckSpelling()
+{
+    applySpellSettings();
+}
+
+SpellHighlighter::WordHit Editor::misspelledWordAt(const QTextCursor &cursor) const
+{
+    if (!m_spellChecker || !m_spellChecker->isLoaded())
+        return {};
+    if (isCursorInFencedCodeBlock())
+        return {};
+    const int pos = cursor.positionInBlock();
+    const QString line = cursor.block().text();
+    for (const SpellHighlighter::WordHit &word : SpellHighlighter::scanWords(line)) {
+        if (pos >= word.start && pos <= word.start + word.length
+            && !m_spellChecker->checkWord(word.text))
+            return word;
+    }
+    return {};
+}
+
 void Editor::invalidateEmojiIconCache()
 {
     m_emojiIconCache.clear();
@@ -1303,6 +1374,54 @@ void Editor::changeCodeLanguage()
 void Editor::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
+
+    QTextCursor cursor = textCursor();
+    const SpellHighlighter::WordHit misspelled = misspelledWordAt(cursor);
+    if (!misspelled.text.isEmpty()) {
+        QMenu *suggestions = menu.addMenu("Spelling: " + misspelled.text);
+        const QStringList words = m_spellChecker->suggestions(misspelled.text);
+        if (words.isEmpty()) {
+            QAction *none = suggestions->addAction("No suggestions");
+            none->setEnabled(false);
+        } else {
+            for (const QString &suggestion : words) {
+                QAction *action = suggestions->addAction(suggestion);
+                connect(action, &QAction::triggered, this, [this, suggestion, misspelled]() {
+                    const QTextBlock block = textCursor().block();
+                    QTextCursor replace(document());
+                    replace.setPosition(block.position() + misspelled.start);
+                    replace.setPosition(block.position() + misspelled.start + misspelled.length,
+                                        QTextCursor::KeepAnchor);
+                    replace.insertText(suggestion);
+                });
+            }
+        }
+
+        menu.addSeparator();
+        QAction *addAction = menu.addAction("Add to Dictionary");
+        connect(addAction, &QAction::triggered, this, [this, misspelled]() {
+            m_spellChecker->addToUserDictionary(misspelled.text);
+            m_spellHighlighter->refresh();
+        });
+        QAction *ignoreAction = menu.addAction("Ignore All");
+        connect(ignoreAction, &QAction::triggered, this, [this, misspelled]() {
+            m_spellChecker->ignoreAll(misspelled.text);
+            m_spellHighlighter->refresh();
+        });
+
+        for (const SpellHighlighter::GrammarHit &hit
+             : m_spellHighlighter->grammarIssuesInBlock(cursor.block().blockNumber())) {
+            if (cursor.positionInBlock() >= hit.start
+                && cursor.positionInBlock() <= hit.start + hit.length) {
+                menu.addSeparator();
+                QAction *msg = menu.addAction("Grammar: " + hit.message);
+                msg->setEnabled(false);
+                break;
+            }
+        }
+
+        menu.addSeparator();
+    }
 
     for (QAction *action : m_insertActions)
         menu.addAction(action);

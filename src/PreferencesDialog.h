@@ -107,5 +107,12 @@ private:
     QGroupBox *m_gutterOverrideGroup;
     QPushButton *m_gutterBgBtn;
     QPushButton *m_gutterTextBtn;
+
+    // Spelling
+    QCheckBox *m_spellCheckCheck;
+    QCheckBox *m_grammarCheckCheck;
+    QComboBox *m_languageCombo;
+    QListWidget *m_customWordsList;
+    QListWidget *m_ignoredWordsList;
 };
 

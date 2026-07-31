@@ -18,6 +18,10 @@ scriba/
 │   ├── FindDialog.cpp          — Find text dialog
 │   ├── ExportPdfDialog.cpp     — PDF export dialog
 │   ├── StaticHelpers.cpp       — List continuation, indent/outdent helpers
+│   ├── SpellChecker.cpp        — Hunspell spell-checking wrapper
+│   ├── SpellHighlighter.cpp    — Markdown-aware squiggle highlighter
+│   ├── GrammarChecker.h        — Grammar-check interface
+│   ├── HarperEngine.cpp        — Grammar checker backed by the Harper Rust engine
 │   └── Preferences.h           — Preferences struct (header-only)
 ├── docs/
 │   ├── kitchensink.md          — Sample document (canonical copy)
@@ -49,9 +53,13 @@ scriba/
 │   ├── test_vegalite_dialog.cpp
 │   ├── test_editor_autocomplete.cpp
 │   ├── test_editor_completion_ui.cpp
-│   └── test_scroll_sync.cpp
+│   ├── test_scroll_sync.cpp
+│   ├── test_spell_checker.cpp
+│   ├── test_spell_highlighter.cpp
+│   └── test_grammar_checker.cpp
 └── vendor/
-    └── md4c/                   — Markdown parser library (MIT, tracked in repo, src/ has local patches in patches/)
+    ├── md4c/                   — Markdown parser library (MIT, tracked in repo, src/ has local patches in patches/)
+    └── harper-ffi/             — Rust FFI crate wrapping the Harper grammar engine (crates.io deps, locked by Cargo.lock)
 ```
 
 ## Documentation Assets

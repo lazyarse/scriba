@@ -113,6 +113,90 @@ TEST(OutdentListLine, NoChangeForPlainText) {
     EXPECT_EQ(outdentListLine("just text"), "just text");
 }
 
+TEST(ThematicBreak, MatchesDashes) {
+    EXPECT_TRUE(isThematicBreak("---"));
+}
+
+TEST(ThematicBreak, MatchesStars) {
+    EXPECT_TRUE(isThematicBreak("***"));
+}
+
+TEST(ThematicBreak, MatchesUnderscores) {
+    EXPECT_TRUE(isThematicBreak("___"));
+}
+
+TEST(ThematicBreak, MatchesSpacedDashes) {
+    EXPECT_TRUE(isThematicBreak("- - -"));
+}
+
+TEST(ThematicBreak, MatchesMoreThanThree) {
+    EXPECT_TRUE(isThematicBreak("----"));
+}
+
+TEST(ThematicBreak, MatchesIndented) {
+    EXPECT_TRUE(isThematicBreak("  ---"));
+}
+
+TEST(ThematicBreak, SingleDashIsNotBreak) {
+    EXPECT_FALSE(isThematicBreak("-"));
+}
+
+TEST(ThematicBreak, TwoDashesAreNotBreak) {
+    EXPECT_FALSE(isThematicBreak("--"));
+}
+
+TEST(ThematicBreak, MixedMarkersAreNotBreak) {
+    EXPECT_FALSE(isThematicBreak("--*"));
+}
+
+TEST(ThematicBreak, ListItemIsNotBreak) {
+    EXPECT_FALSE(isThematicBreak("- item"));
+}
+
+TEST(ThematicBreak, PlainTextIsNotBreak) {
+    EXPECT_FALSE(isThematicBreak("hello"));
+}
+
+TEST(ThematicBreak, TwoSpacedDashesAreNotBreak) {
+    EXPECT_FALSE(isThematicBreak("- -"));
+}
+
+TEST(HandleListReturn, ThematicBreakReturnsEmpty) {
+    EXPECT_EQ(handleListReturn("---"), QString());
+}
+
+TEST(HandleListReturn, StarThematicBreakReturnsEmpty) {
+    EXPECT_EQ(handleListReturn("***"), QString());
+}
+
+TEST(HandleListReturn, UnderscoreThematicBreakReturnsEmpty) {
+    EXPECT_EQ(handleListReturn("___"), QString());
+}
+
+TEST(HandleListReturn, IndentedThematicBreakReturnsEmpty) {
+    EXPECT_EQ(handleListReturn("  ---"), QString());
+}
+
+TEST(IndentListLine, ThematicBreakUnchanged) {
+    EXPECT_EQ(indentListLine("---"), "---");
+}
+
+TEST(IndentListLine, SpacedThematicBreakUnchanged) {
+    EXPECT_EQ(indentListLine("- - -"), "- - -");
+}
+
+TEST(OutdentListLine, ThematicBreakUnchanged) {
+    EXPECT_EQ(outdentListLine("---"), "---");
+}
+
+TEST(HandleListReturn, SingleDashStillClears) {
+    EXPECT_EQ(handleListReturn("-"), QString(clearSentinel));
+}
+
+TEST(HandleListReturn, DashItemStillContinues) {
+    EXPECT_EQ(handleListReturn("- item"), "- ");
+}
+
 TEST(TableReturn, ContinuationReturnsRow) {
     EXPECT_EQ(handleTableReturn("| a | b |", "| x | y |"), "|  |  |");
 }

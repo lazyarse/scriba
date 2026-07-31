@@ -6,11 +6,15 @@
 #include <QStringList>
 #include <QMap>
 #include <QSet>
+#include <memory>
+#include "SpellHighlighter.h"
 
 class QCompleter;
 class QAction;
 class QContextMenuEvent;
 class Gutter;
+class SpellChecker;
+class GrammarChecker;
 
 class Editor : public QTextEdit
 {
@@ -18,6 +22,7 @@ class Editor : public QTextEdit
 
 public:
     explicit Editor(QWidget *parent = nullptr);
+    ~Editor() override;
     void setCurrentFile(const QString &path);
     void setCenterContent(bool enabled, int width);
     QMargins contentMargins() const;
@@ -26,6 +31,7 @@ public:
     QCompleter *completer() const { return m_completer; }
     void setInsertActions(const QList<QAction *> &actions);
     void setMermaidAction(QAction *action);
+    void recheckSpelling();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -46,6 +52,9 @@ private:
 
     bool isInsideLanguageContext(const QTextCursor &cursor, QString &partialLang) const;
     void showLanguageCompletion(const QString &partialLang);
+
+    void applySpellSettings();
+    SpellHighlighter::WordHit misspelledWordAt(const QTextCursor &cursor) const;
 
     void updateViewportMargins();
 
@@ -72,6 +81,10 @@ private:
     bool m_inResize = false;
     QList<QAction *> m_insertActions;
     QAction *m_mermaidAction = nullptr;
+
+    std::unique_ptr<SpellChecker> m_spellChecker;
+    GrammarChecker *m_grammarChecker = nullptr;
+    SpellHighlighter *m_spellHighlighter = nullptr;
 
     // Gutter + folding
     Gutter *m_gutter = nullptr;

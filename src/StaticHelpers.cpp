@@ -29,8 +29,16 @@ static const QRegularExpression &orderedListRe()
     return re;
 }
 
+bool isThematicBreak(const QString &line)
+{
+    static QRegularExpression re(R"(^\s*([-*_])(?:\s*\1){2,}\s*$)");
+    return re.match(line).hasMatch();
+}
+
 QString handleListReturn(const QString &line)
 {
+    if (isThematicBreak(line))
+        return {};
     static QRegularExpression taskRe(R"(^(\s*)([-*+])\s+\[[ xX]\]\s?)");
     auto taskMatch = taskRe.match(line);
     if (taskMatch.hasMatch()) {
@@ -203,6 +211,8 @@ int tableNavHtmlCell(const QString &line, int cursorPos, bool forward)
 
 QString indentListLine(const QString &line)
 {
+    if (isThematicBreak(line))
+        return line;
     auto match = unorderedListRe().match(line);
     if (!match.hasMatch())
         match = orderedListRe().match(line);
@@ -214,6 +224,8 @@ QString indentListLine(const QString &line)
 
 QString outdentListLine(const QString &line)
 {
+    if (isThematicBreak(line))
+        return line;
     auto match = unorderedListRe().match(line);
     if (!match.hasMatch())
         match = orderedListRe().match(line);

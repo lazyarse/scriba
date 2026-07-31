@@ -11,6 +11,7 @@
 inline const QChar clearSentinel(0x2412);
 
 QString escapeJsString(const QString &s);
+bool isThematicBreak(const QString &line);
 QString handleListReturn(const QString &line);
 QString handleTableReturn(const QString &line, const QString &prevLine);
 QString makeEmptyTableRow(int cols);

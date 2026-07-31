@@ -4,6 +4,7 @@
 #include "CssLoader.h"
 #include "CssEditorDialog.h"
 #include "Preferences.h"
+#include "SpellChecker.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -657,7 +658,124 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_categoryList->addItem("Writing");
     }
 
-    /* --- Page 4: Security --- */
+    /* --- Page 4: Spelling --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *checkGroup = new QGroupBox("Checking");
+        QVBoxLayout *checkLayout = new QVBoxLayout(checkGroup);
+        checkLayout->addSpacing(8);
+
+        m_spellCheckCheck = new QCheckBox("Check spelling as you type");
+        m_spellCheckCheck->setChecked(settings.value(Preferences::SpellCheckEnabled, true).toBool());
+        checkLayout->addWidget(m_spellCheckCheck);
+
+        m_grammarCheckCheck = new QCheckBox("Check grammar as you type");
+        m_grammarCheckCheck->setChecked(settings.value(Preferences::GrammarCheckEnabled, false).toBool());
+        checkLayout->addWidget(m_grammarCheckCheck);
+
+        layout->addWidget(checkGroup);
+
+        QGroupBox *dictionaryGroup = new QGroupBox("Dictionary");
+        QFormLayout *dictionaryLayout = new QFormLayout(dictionaryGroup);
+        dictionaryLayout->setContentsMargins(12, 12, 12, 12);
+
+        m_languageCombo = new QComboBox;
+        QString currentLang = settings.value(Preferences::DictionaryLanguage, "en_US").toString();
+        for (const QString &code : SpellChecker::availableLanguages()) {
+            QString label = code;
+            if (code == "en_US")
+                label = "English (US)";
+            else if (code == "en_GB")
+                label = "English (UK)";
+            m_languageCombo->addItem(label, code);
+        }
+        int langIndex = m_languageCombo->findData(currentLang);
+        if (langIndex >= 0)
+            m_languageCombo->setCurrentIndex(langIndex);
+        dictionaryLayout->addRow("Language:", m_languageCombo);
+
+        layout->addWidget(dictionaryGroup);
+
+        auto stripButtonIcons = [](const QList<QPushButton *> &buttons) {
+            for (auto *btn : buttons)
+                btn->setIcon(QIcon());
+        };
+
+        QGroupBox *customGroup = new QGroupBox("Custom Words");
+        QVBoxLayout *customLayout = new QVBoxLayout(customGroup);
+        customLayout->addSpacing(8);
+
+        m_customWordsList = new QListWidget;
+        m_customWordsList->setMinimumHeight(60);
+        m_customWordsList->addItems(SpellChecker::readUserDictionaryWords());
+        customLayout->addWidget(m_customWordsList);
+
+        QHBoxLayout *customButtons = new QHBoxLayout();
+        auto *addWordBtn = new QPushButton(tr("&Add Word..."));
+        auto *removeWordBtn = new QPushButton(tr("&Remove Word"));
+        customButtons->addWidget(addWordBtn);
+        customButtons->addWidget(removeWordBtn);
+        customButtons->addStretch();
+        stripButtonIcons({addWordBtn, removeWordBtn});
+        customLayout->addLayout(customButtons);
+
+        layout->addWidget(customGroup);
+
+        QGroupBox *ignoredGroup = new QGroupBox("Ignored Words");
+        QVBoxLayout *ignoredLayout = new QVBoxLayout(ignoredGroup);
+        ignoredLayout->addSpacing(8);
+
+        m_ignoredWordsList = new QListWidget;
+        m_ignoredWordsList->setMinimumHeight(60);
+        m_ignoredWordsList->addItems(SpellChecker::readIgnoreList());
+        ignoredLayout->addWidget(m_ignoredWordsList);
+
+        QHBoxLayout *ignoredButtons = new QHBoxLayout();
+        auto *removeIgnoredBtn = new QPushButton(tr("&Remove"));
+        auto *clearIgnoredBtn = new QPushButton(tr("&Clear All"));
+        ignoredButtons->addWidget(removeIgnoredBtn);
+        ignoredButtons->addWidget(clearIgnoredBtn);
+        ignoredButtons->addStretch();
+        stripButtonIcons({removeIgnoredBtn, clearIgnoredBtn});
+        ignoredLayout->addLayout(ignoredButtons);
+
+        layout->addWidget(ignoredGroup);
+
+        layout->addStretch();
+
+        connect(addWordBtn, &QPushButton::clicked, this, [this]() {
+            bool ok = false;
+            QString word = QInputDialog::getText(this, "Add Word", "Word:", QLineEdit::Normal, QString(), &ok);
+            if (!ok)
+                return;
+            QString trimmed = word.trimmed();
+            if (trimmed.isEmpty())
+                return;
+            for (int i = 0; i < m_customWordsList->count(); ++i) {
+                if (m_customWordsList->item(i)->text() == trimmed)
+                    return;
+            }
+            m_customWordsList->addItem(trimmed);
+        });
+        connect(removeWordBtn, &QPushButton::clicked, this, [this]() {
+            delete m_customWordsList->currentItem();
+        });
+        connect(removeIgnoredBtn, &QPushButton::clicked, this, [this]() {
+            delete m_ignoredWordsList->currentItem();
+        });
+        connect(clearIgnoredBtn, &QPushButton::clicked, this, [this]() {
+            m_ignoredWordsList->clear();
+        });
+
+        m_pages->addWidget(page);
+        m_categoryList->addItem("Spelling");
+    }
+
+    /* --- Page 5: Security --- */
     {
         QWidget *page = new QWidget;
         QVBoxLayout *layout = new QVBoxLayout(page);
@@ -783,6 +901,17 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::GutterColorOverride, m_gutterOverrideGroup->isChecked());
         settings.setValue(Preferences::GutterBgColor, m_gutterBgBtn->text());
         settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());
+        settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
+        settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
+        settings.setValue(Preferences::DictionaryLanguage, m_languageCombo->currentData().toString());
+        QStringList customWords;
+        for (int i = 0; i < m_customWordsList->count(); ++i)
+            customWords << m_customWordsList->item(i)->text();
+        SpellChecker::writeUserDictionaryWords(customWords);
+        QStringList ignoredWords;
+        for (int i = 0; i < m_ignoredWordsList->count(); ++i)
+            ignoredWords << m_ignoredWordsList->item(i)->text();
+        SpellChecker::writeIgnoreList(ignoredWords);
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

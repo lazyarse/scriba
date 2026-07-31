@@ -44,6 +44,10 @@
         <file>fonts/KaTeX_Size4-Regular.woff2</file>
         <file>fonts/KaTeX_Typewriter-Regular.woff2</file>
         <file>twemoji.min.js</file>
+        <file>dictionaries/en_US.aff</file>
+        <file>dictionaries/en_US.dic</file>
+        <file>dictionaries/en_GB.aff</file>
+        <file>dictionaries/en_GB.dic</file>
         <file>themes/catppuccin-latte.css</file>
         <file>themes/catppuccin-mocha.css</file>
         <file>themes/dracula.css</file>

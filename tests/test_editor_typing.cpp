@@ -102,6 +102,36 @@ TEST_F(EditorTestHarness, EmptyTaskListItemClearsToNewline)
     EXPECT_EQ(text(), "\n");
 }
 
+TEST_F(EditorTestHarness, ThematicBreakDoesNotContinueList)
+{
+    typeLine("---");
+    EXPECT_EQ(text(), "---\n");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, StarThematicBreakDoesNotContinueList)
+{
+    typeLine("***");
+    EXPECT_EQ(text(), "***\n");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, UnderscoreThematicBreakDoesNotContinueList)
+{
+    typeLine("___");
+    EXPECT_EQ(text(), "___\n");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, TabOnThematicBreakIsNoOp)
+{
+    setContent("---");
+    placeCursorAtEnd();
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "---");
+    assertCursor(0, 3);
+}
+
 TEST_F(EditorTestHarness, FirstTableRowCreatesSeparatorAndDataRow)
 {
     typeLine("| a | b |");
