@@ -2,7 +2,7 @@
 
 ## What
 
-C++17 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown parser (md4c). Qt Test framework for tests.
+C++23 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown parser (md4c). Qt Test framework for tests.
 
 ## Build
 
@@ -82,7 +82,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 - Do not git commit, revert, add, delete, or otherwise mutate repo history without explicit permission
 - Always build with `-DCMAKE_BUILD_TYPE=Release` unless debugging
-- C++17, Qt coding style, `CMAKE_AUTOMOC`/`CMAKE_AUTORCC` enabled
+- C++23, Qt coding style, `CMAKE_AUTOMOC`/`CMAKE_AUTORCC` enabled
 - No header-only files — every `.h` has a `.cpp`
 - CSS theming: editor uses `#editor` selector, preview uses standard HTML selectors
 - New source files must be added to both `src/` and the `add_executable(scriba ...)` list in `CMakeLists.txt`. If `MainWindow.cpp` uses the new class, also add it to the `test_scroll_sync` target (which compiles `MainWindow.cpp` directly)

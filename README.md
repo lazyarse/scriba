@@ -66,7 +66,7 @@ Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root`
   ```bash
   sudo apt install qt6-base-dev qt6-webengine-dev
   ```
-- GCC/Clang with C++17 support (Linux) or Visual Studio 2022 with "Desktop development with C++" workload (Windows)
+- GCC/Clang with C++23 support (Linux) or Visual Studio 2022 with "Desktop development with C++" workload (Windows)
 - On Windows: Qt 6.8+ (MSVC 2022 64-bit) from qt.io, CMake, Git for Windows
 - **Chromium ≥ 140** (for PDF export). Install on Debian/Ubuntu:
   ```bash
