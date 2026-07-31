@@ -10,15 +10,11 @@
 #include <QDir>
 #include <QDialog>
 #include <QTimer>
-#include <QFile>
 
 #include "MainWindow.h"
 #include "Editor.h"
 #include "Gutter.h"
 #include "Preview.h"
-#include "CssConfig.h"
-#include "CssLoader.h"
-#include "CssUtils.h"
 #include "StaticHelpers.h"
 #include "Preferences.h"
 
@@ -445,19 +441,6 @@ protected:
         QSettings settings;
         settings.setValue(Preferences::CssFiles, QStringList() << tmpTheme->fileName());
         settings.setValue(Preferences::ActiveCssFile, tmpTheme->fileName());
-        CssConfig preCfg;
-        CssLoader preLoader(&preCfg);
-        qWarning() << "BEFORE MainWindow: themeCss()=" << preLoader.themeCss();
-        qWarning() << "BEFORE MainWindow: deriveChromeCss()="
-                   << CssUtils::deriveChromeCss(preLoader.themeCss()).section("\n", 0, 0)
-                   << "containsDark=" << CssUtils::deriveChromeCss(preLoader.themeCss()).contains("#282a36");
-        QFile realDracula("/home/tpa/code/scriba/resources/themes/dracula.css");
-        if (realDracula.open(QIODevice::ReadOnly)) {
-            QString dcss = QString::fromUtf8(realDracula.readAll());
-            qWarning() << "REAL dracula deriveChromeCss contains282a36="
-                       << CssUtils::deriveChromeCss(dcss).contains("#282a36")
-                       << "isDarkTheme=" << CssUtils::isDarkTheme(dcss);
-        }
         window = new MainWindow();
         window->show();
         QApplication::processEvents();
@@ -469,15 +452,7 @@ protected:
 
 TEST_F(GutterThemeInitTest, DarkThemeGutterColorReachesPalette) {
     createWindowWithTheme("#282a36", "#f8f8f2");
-    QSettings s;
-    CssConfig cfg;
-    qWarning() << "fresh CssConfig active:" << cfg.activeStylesheet()
-               << "stylesheets:" << cfg.stylesheets();
-    CssLoader loader(&cfg);
-    qWarning() << "fresh CssLoader themeCss:" << loader.themeCss();
     QString es = window->editor()->styleSheet();
-    qWarning() << "gutter rule in editor css:"
-               << es.mid(es.indexOf("#gutter"), es.indexOf("#category-list") - es.indexOf("#gutter"));
     QColor gutterBg = QColor("#282a36").darker(120);
     QColor expected(gutterBg.red() + (0xf8 - gutterBg.red()) * 30 / 100,
                     gutterBg.green() + (0xf8 - gutterBg.green()) * 30 / 100,

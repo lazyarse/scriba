@@ -15,7 +15,7 @@ QColor chromeTextColor(const QString &themeCss)
 {
     auto extractBg = [&](const QString &selector) {
         QRegularExpression re(
-            R"(\b)" + selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
+            selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
         );
         auto it = re.globalMatch(themeCss);
         QString result;
@@ -44,7 +44,7 @@ QString deriveChromeCss(const QString &themeCss)
 {
     auto extractBg = [&](const QString &selector) {
         QRegularExpression re(
-            R"(\b)" + selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
+            selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
         );
         auto it = re.globalMatch(themeCss);
         QString result;
@@ -55,7 +55,7 @@ QString deriveChromeCss(const QString &themeCss)
 
     auto extractColor = [&](const QString &selector) {
         QRegularExpression re(
-            R"(\b)" + selector + R"(\s*\{(?:[^}]*;\s*)?\bcolor\s*:\s*([^;\}]+))"
+            selector + R"(\s*\{(?:[^}]*;\s*)?\bcolor\s*:\s*([^;\}]+))"
         );
         auto it = re.globalMatch(themeCss);
         QString result;
@@ -270,7 +270,7 @@ ThemeColors themeColors(const QString &themeCss)
 {
     auto extractBg = [&](const QString &selector) {
         QRegularExpression re(
-            R"(\b)" + selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
+            selector + R"(\s*\{[^}]*background(?:-color)?\s*:\s*([^;\}]+))"
         );
         auto it = re.globalMatch(themeCss);
         QString result;
@@ -281,7 +281,7 @@ ThemeColors themeColors(const QString &themeCss)
 
     auto extractColor = [&](const QString &selector) {
         QRegularExpression re(
-            R"(\b)" + selector + R"(\s*\{(?:[^}]*;\s*)?\bcolor\s*:\s*([^;\}]+))"
+            selector + R"(\s*\{(?:[^}]*;\s*)?\bcolor\s*:\s*([^;\}]+))"
         );
         auto it = re.globalMatch(themeCss);
         QString result;
