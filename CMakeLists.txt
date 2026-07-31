@@ -240,6 +240,16 @@ if(BUILD_TESTS)
     target_link_libraries(test_folding PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
     add_test(NAME test_folding COMMAND ${_TEST_PREFIX} ./test_folding)
 
+    add_executable(test_gutter_line_height tests/test_gutter_line_height.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
+    target_include_directories(test_gutter_line_height PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_gutter_line_height PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    add_test(NAME test_gutter_line_height COMMAND ${_TEST_PREFIX} ./test_gutter_line_height)
+
+    add_executable(test_editor_typing tests/test_editor_typing.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
+    target_include_directories(test_editor_typing PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_editor_typing PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    add_test(NAME test_editor_typing COMMAND ${_TEST_PREFIX} ./test_editor_typing)
+
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
         src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp

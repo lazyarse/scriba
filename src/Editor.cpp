@@ -1446,6 +1446,12 @@ void Editor::updateGutterSettings()
     updateGutterWidth();
 }
 
+void Editor::refreshGutter()
+{
+    if (m_gutter)
+        m_gutter->update();
+}
+
 void Editor::updateGutterDelayed()
 {
     QTimer::singleShot(0, this, &Editor::updateGutter);

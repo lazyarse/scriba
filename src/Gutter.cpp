@@ -8,7 +8,6 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextLayout>
-#include <QFontMetricsF>
 #include <QSettings>
 #include <QEvent>
 #include <QCoreApplication>
@@ -57,6 +56,15 @@ void Gutter::changeEvent(QEvent *event)
     QWidget::changeEvent(event);
     if (event->type() == QEvent::PaletteChange)
         update();
+}
+
+qreal Gutter::firstLineTextCenterY(const QTextBlock &block)
+{
+    const QTextLayout *layout = block.layout();
+    if (!layout || layout->lineCount() == 0)
+        return 0.0;
+    const QTextLine line0 = layout->lineAt(0);
+    return layout->position().y() + line0.y() + (line0.ascent() + line0.descent()) / 2.0;
 }
 
 int Gutter::headerAtPos(int y) const
@@ -121,11 +129,13 @@ void Gutter::paintEvent(QPaintEvent *)
 
     QPen linePen(textColor);
     QPen foldPen(textColor.darker(120));
-    QFont lineFont = painter.font();
+    QFont lineFont = m_editor->document()->defaultFont();
     lineFont.setPointSize(qMax(8, lineFont.pointSize() - 1));
     painter.setFont(lineFont);
 
-    int viewY = -m_editor->verticalScrollBar()->value();
+    QTextCursor cursor0(m_editor->document());
+    cursor0.setPosition(0);
+    int docTopY = m_editor->viewport()->mapTo(m_editor, m_editor->cursorRect(cursor0).topLeft()).y();
     int iconW = 12;
     int iconH = 12;
 
@@ -139,8 +149,15 @@ void Gutter::paintEvent(QPaintEvent *)
         }
 
         QRectF r = m_editor->document()->documentLayout()->blockBoundingRect(block);
-        int y0 = viewY + (int)r.y();
+        int y0 = docTopY + (int)r.y();
         int lineH = (int)r.height();
+
+        qreal textCenterY;
+        const QTextLayout *layout = block.layout();
+        if (layout && layout->lineCount() > 0)
+            textCenterY = docTopY + Gutter::firstLineTextCenterY(block);
+        else
+            textCenterY = y0 + lineH / 2.0;
 
         int blockNum = block.blockNumber();
         int paintX = 0;
@@ -148,9 +165,11 @@ void Gutter::paintEvent(QPaintEvent *)
         if (m_showLineNumbers) {
             painter.setPen(linePen);
             QString num = QString::number(blockNum + 1);
-            int numW = fontMetrics().horizontalAdvance(num);
+            int numW = painter.fontMetrics().horizontalAdvance(num);
             int x = width() - (m_showFoldIcons ? iconW + 4 : 4) - numW;
-            painter.drawText(x, y0, numW, lineH, Qt::AlignRight | Qt::AlignVCenter, num);
+            int numH = painter.fontMetrics().height();
+            int numY = qRound(textCenterY - numH / 2.0);
+            painter.drawText(x, numY, numW, numH, Qt::AlignRight | Qt::AlignVCenter, num);
         }
 
         if (m_showFoldIcons && m_foldableBlocks.contains(blockNum)) {
@@ -159,7 +178,7 @@ void Gutter::paintEvent(QPaintEvent *)
             bool folded = m_foldedBlocks.contains(blockNum);
 
             int cx = m_showLineNumbers ? width() - iconW - 2 : (width() - iconW) / 2;
-            int cy = y0 + (lineH - iconH) / 2;
+            int cy = qRound(textCenterY - iconH / 2.0);
             QRect iconRect(cx, cy, iconW, iconH);
 
             if (folded) {

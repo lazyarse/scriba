@@ -836,6 +836,7 @@ void MainWindow::applyEditorLineHeight(int lineHeight)
         QTextCursor cursor(m_tabs[i].editor->document());
         cursor.select(QTextCursor::Document);
         cursor.mergeBlockFormat(fmt);
+        m_tabs[i].editor->refreshGutter();
     }
 }
 

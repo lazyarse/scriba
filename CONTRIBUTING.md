@@ -210,3 +210,13 @@ This split avoids re-running expensive JS libraries on every character while kee
 ## Testing
 
 Test suites set `QCoreApplication::setOrganizationName("scribaTest")` / `setApplicationName("scribaTest")` so their QSettings data (and default CSS files written by `CssLoader`) land in `~/.config/scribaTest/scribaTest/` instead of the real app's `~/.config/scriba/scriba/`. This keeps test config isolated from the user's config.
+
+### Editor typing integration tests
+
+`test_editor_typing` drives the real `Editor` widget with `QTest` key events (`keyClicks`/`keyClick`). There is no WebEngine involved and the input is fully deterministic, so a failure is a genuine behaviour regression — **do not rerun to "confirm" it was flaky, investigate it**. This applies especially to tests asserting exact sentinel semantics from `StaticHelpers`:
+
+- the empty list marker (`- ` / `1. ` / `- [ ] ` + Enter) clears to a bare newline
+- a blank table row (`|  |  |` + Enter) exits the table
+- a blank HTML table row exits table autocomplete
+
+If you change `handleListReturn`, `handleTableReturn`, `indentListLine`, `outdentListLine`, or the table navigation helpers, update both the pure helper tests (`test_editor_list_continuation.cpp`) and the key-event integration tests (`test_editor_typing.cpp`).

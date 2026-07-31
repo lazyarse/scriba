@@ -106,6 +106,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 - `vendor/md4c/` contains the vendored markdown parser with local patches in `vendor/md4c/patches/`. To upgrade md4c: copy new upstream `src/*` into `vendor/md4c/src/`, then `git apply vendor/md4c/patches/*.patch` from the repo root. If patches fail, rework and update the .patch files.
 - Tests exist in `tests/` — run with `cd build && ctest --output-on-failure -j1` after building with `-DBUILD_TESTS=ON`. Tests auto-wrap in `xvfb-run` when available. Run with `-j1` (not parallel) to avoid WebEngine fork contention causing flaky failures.
+- Editor typing integration tests (`test_editor_typing`) drive the real `Editor` widget with `QTest` key events — no WebEngine, deterministic input. Tests asserting exact sentinel semantics (empty list marker clears to a bare newline, blank table row exits the table) verify real `keyPressEvent` behaviour: if they fail it is a genuine behaviour regression, NOT flakiness. Do not rerun to "confirm" — investigate.
 - Tests must be cross-platform (Linux + Windows). Never hardcode `/tmp`, `file:///tmp/`, or any platform-specific paths. Use `QDir::tempPath()`, `QTemporaryDir`, `QTemporaryFile`, and `QUrl::fromLocalFile()` instead.
 - `Qt6::WebEngineWidgets` is a heavy dependency; requires `xvfb` for headless/CI — install with `sudo apt install xvfb`.
 - Admonition support is CSS-only (`::before` pseudo-elements), not markdown parser extensions.

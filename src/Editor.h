@@ -99,5 +99,6 @@ public:
     QList<int> foldedBlockNumbers() const;
     void updateGutter();
     void updateGutterSettings();
+    void refreshGutter();
 };
 
