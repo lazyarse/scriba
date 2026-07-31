@@ -41,8 +41,10 @@
 | Down | On last line, place cursor at end |
 | Tab | Indent selected text |
 | Shift+Tab | Dedent selected text |
-| Ctrl+Up | Scroll viewport up |
-| Ctrl+Down | Scroll viewport down |
+| Ctrl+Up | Jump cursor up to previous header or rule |
+| Ctrl+Down | Jump cursor down to next header or rule |
+| Ctrl+Alt+Up | Scroll viewport up |
+| Ctrl+Alt+Down | Scroll viewport down |
 
 ## Tables
 
@@ -66,5 +68,5 @@
 | Ctrl+E | Emoji Search |
 | Ctrl+T | Table Insert |
 | Ctrl+K | KaTeX Math |
-| Ctrl+G | Chart Builder (Vega-Lite) |
+| Ctrl+G | Vega-Lite Charts |
 | Ctrl+M | Mermaid Diagrams |

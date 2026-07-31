@@ -10,10 +10,15 @@
 #include <QDir>
 #include <QDialog>
 #include <QTimer>
+#include <QFile>
 
 #include "MainWindow.h"
 #include "Editor.h"
+#include "Gutter.h"
 #include "Preview.h"
+#include "CssConfig.h"
+#include "CssLoader.h"
+#include "CssUtils.h"
 #include "StaticHelpers.h"
 #include "Preferences.h"
 
@@ -403,6 +408,90 @@ TEST_F(TogglePreviewTest, CycleThroughAllStatesWithoutCrash) {
         QTest::keyClick(window, Qt::Key_B, Qt::ControlModifier);
         QApplication::processEvents();
     }
+}
+
+/* ========== Gutter theme colors through the real MainWindow init path ========== */
+
+class GutterThemeInitTest : public testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        if (!QCoreApplication::instance())
+            new QApplication(s_argc, s_argv);
+    }
+
+    void SetUp() override {
+        QSettings settings;
+        settings.remove(Preferences::LastOpenedFile);
+        settings.remove(Preferences::CssFiles);
+        settings.remove(Preferences::ActiveCssFile);
+        settings.setValue(Preferences::ReopenLastSession, false);
+        settings.setValue(Preferences::PreviewState, 1);
+    }
+
+    void TearDown() override {
+        delete window;
+        QSettings settings;
+        settings.remove(Preferences::CssFiles);
+        settings.remove(Preferences::ActiveCssFile);
+    }
+
+    void createWindowWithTheme(const QString &bg, const QString &fg) {
+        tmpTheme = new QTemporaryFile();
+        ASSERT_TRUE(tmpTheme->open());
+        qint64 written = tmpTheme->write(QString("#editor { background-color: %1; color: %2; }")
+            .arg(bg, fg).toUtf8());
+        ASSERT_GT(written, 0);
+        tmpTheme->close();
+        QSettings settings;
+        settings.setValue(Preferences::CssFiles, QStringList() << tmpTheme->fileName());
+        settings.setValue(Preferences::ActiveCssFile, tmpTheme->fileName());
+        CssConfig preCfg;
+        CssLoader preLoader(&preCfg);
+        qWarning() << "BEFORE MainWindow: themeCss()=" << preLoader.themeCss();
+        qWarning() << "BEFORE MainWindow: deriveChromeCss()="
+                   << CssUtils::deriveChromeCss(preLoader.themeCss()).section("\n", 0, 0)
+                   << "containsDark=" << CssUtils::deriveChromeCss(preLoader.themeCss()).contains("#282a36");
+        QFile realDracula("/home/tpa/code/scriba/resources/themes/dracula.css");
+        if (realDracula.open(QIODevice::ReadOnly)) {
+            QString dcss = QString::fromUtf8(realDracula.readAll());
+            qWarning() << "REAL dracula deriveChromeCss contains282a36="
+                       << CssUtils::deriveChromeCss(dcss).contains("#282a36")
+                       << "isDarkTheme=" << CssUtils::isDarkTheme(dcss);
+        }
+        window = new MainWindow();
+        window->show();
+        QApplication::processEvents();
+    }
+
+    QTemporaryFile *tmpTheme = nullptr;
+    MainWindow *window = nullptr;
+};
+
+TEST_F(GutterThemeInitTest, DarkThemeGutterColorReachesPalette) {
+    createWindowWithTheme("#282a36", "#f8f8f2");
+    QSettings s;
+    CssConfig cfg;
+    qWarning() << "fresh CssConfig active:" << cfg.activeStylesheet()
+               << "stylesheets:" << cfg.stylesheets();
+    CssLoader loader(&cfg);
+    qWarning() << "fresh CssLoader themeCss:" << loader.themeCss();
+    QString es = window->editor()->styleSheet();
+    qWarning() << "gutter rule in editor css:"
+               << es.mid(es.indexOf("#gutter"), es.indexOf("#category-list") - es.indexOf("#gutter"));
+    QColor gutterBg = QColor("#282a36").darker(120);
+    QColor expected(gutterBg.red() + (0xf8 - gutterBg.red()) * 30 / 100,
+                    gutterBg.green() + (0xf8 - gutterBg.green()) * 30 / 100,
+                    gutterBg.blue() + (0xf2 - gutterBg.blue()) * 30 / 100);
+    EXPECT_EQ(window->editor()->gutter()->palette().windowText().color(), expected);
+}
+
+TEST_F(GutterThemeInitTest, LightThemeGutterColorReachesPalette) {
+    createWindowWithTheme("#ffffff", "#24292f");
+    QColor gutterBg = QColor("#ffffff").darker(105);
+    QColor expected(gutterBg.red() + (0x24 - gutterBg.red()) * 30 / 100,
+                    gutterBg.green() + (0x29 - gutterBg.green()) * 30 / 100,
+                    gutterBg.blue() + (0x2f - gutterBg.blue()) * 30 / 100);
+    EXPECT_EQ(window->editor()->gutter()->palette().windowText().color(), expected);
 }
 
 int main(int argc, char **argv) {

@@ -185,15 +185,22 @@ TEST(CssUtilsTest, GutterRulePresent) {
 }
 
 TEST(CssUtilsTest, GutterColorsDerived) {
+    auto mix = [](const QColor &a, const QColor &b, int percentOfB) {
+        return QColor(
+            a.red() + (b.red() - a.red()) * percentOfB / 100,
+            a.green() + (b.green() - a.green()) * percentOfB / 100,
+            a.blue() + (b.blue() - a.blue()) * percentOfB / 100);
+    };
+
     // dark theme: gutter background is darker than the editor background
     QColor darkBg("#282a36");
     QColor darkGutter = darkBg.darker(120);
     QString darkCss = CssUtils::deriveChromeCss("body { background: #282a36; }");
     EXPECT_TRUE(darkCss.contains(darkGutter.name()));
 
-    // dark theme: gutter text is dimmed toward the background (no color: in theme,
-    // so editor text falls back to the dark-theme chrome text #f0f0f0)
-    QColor darkGutterText = QColor("#f0f0f0").darker(240);
+    // dark theme: gutter text is the editor text blended 30% toward the gutter
+    // background (no color: in theme, so editor text falls back to #f0f0f0)
+    QColor darkGutterText = mix(darkGutter, QColor("#f0f0f0"), 30);
     QRegularExpression darkGutterRule("\\#gutter \\{ background-color: [^;]+; color: ([^;]+); \\}");
     auto darkMatch = darkGutterRule.match(darkCss);
     EXPECT_TRUE(darkMatch.hasMatch());
@@ -205,8 +212,9 @@ TEST(CssUtilsTest, GutterColorsDerived) {
     QString lightCss = CssUtils::deriveChromeCss("body { background: #ffffff; }");
     EXPECT_TRUE(lightCss.contains(lightGutter.name()));
 
-    // light theme: gutter text is lightened toward the background
-    QColor lightGutterText = QColor("#333333").lighter(240);
+    // light theme: gutter text is the editor text blended 30% toward the gutter
+    // background (no color: in theme, so editor text falls back to #333333)
+    QColor lightGutterText = mix(lightGutter, QColor("#333333"), 30);
     auto lightMatch = darkGutterRule.match(lightCss);
     EXPECT_TRUE(lightMatch.hasMatch());
     EXPECT_EQ(lightMatch.captured(1), lightGutterText.name());

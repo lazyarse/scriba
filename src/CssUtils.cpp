@@ -3,6 +3,14 @@
 
 namespace CssUtils {
 
+static QColor mix(const QColor &a, const QColor &b, int percentOfB)
+{
+    return QColor(
+        a.red() + (b.red() - a.red()) * percentOfB / 100,
+        a.green() + (b.green() - a.green()) * percentOfB / 100,
+        a.blue() + (b.blue() - a.blue()) * percentOfB / 100);
+}
+
 QColor chromeTextColor(const QString &themeCss)
 {
     auto extractBg = [&](const QString &selector) {
@@ -133,7 +141,7 @@ QString deriveChromeCss(const QString &themeCss)
     }
     if (!editorText.isValid())
         editorText = txt;
-    QColor gutterText = dark ? editorText.darker(240) : editorText.lighter(240);
+    QColor gutterText = mix(gutterBg, editorText, 30);
 
     return QStringLiteral(
         "QDialog { background-color: %2; }\n"

@@ -108,7 +108,7 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 
 ### Chrome slots
 
-`CssUtils::deriveChromeCss()` resolves the theme's editor background (`%7`) into the chrome for every widget. `%1`–`%15` cover dialogs, menus, buttons, scrollbars and controls; `%17`/`%18` cover the editor's line-number gutter; `%19` is the push-button border; `%20` is the radio checked-dot image. Percentage factors are `QColor::lighter()`/`darker()` applied to the editor background.
+`CssUtils::deriveChromeCss()` resolves the theme's editor background (`%7`) into the chrome for every widget. `%1`–`%15` cover dialogs, menus, buttons, scrollbars and controls; `%17`/`%18` cover the editor's line-number gutter; `%19` is the push-button border; `%20` is the radio checked-dot image. Percentage factors are `QColor::lighter()`/`darker()` applied to the editor background (the gutter text `%18` is the editor text blended 30% toward the gutter background, giving low-contrast line numbers in both light and dark themes).
 
 | Slot | Variable | Used for | Dark theme | Light theme |
 |---|---|---|---|---|
@@ -128,7 +128,7 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 | `%14` | `upArrowImg` | spinbox up arrow | light image | dark image |
 | `%15` | `downArrowImg` | spinbox down arrow | light image | dark image |
 | `%17` | `gutterBg` | line-number gutter background | `bg` × 83% | `bg` × 95% |
-| `%18` | `gutterText` | gutter line numbers | `editorText` × 42% | `editorText` × 240% |
+| `%18` | `gutterText` | gutter line numbers | `editorText` blended 30% toward `gutterBg` | `editorText` blended 30% toward `gutterBg` |
 | `%19` | `btnBorder` | push-button border | `thumb` × 150% | `thumb` × 67% |
 | `%20` | `radioImg` | radio checked dot | light image (`radio-dot.svg`) | dark image (`radio-dot-dark.svg`) |
 
