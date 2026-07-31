@@ -14,6 +14,11 @@ QString CssLoader::configDir() const
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/scriba";
 }
 
+QString CssLoader::themesDir() const
+{
+    return configDir() + "/themes";
+}
+
 QString CssLoader::loadOrFallback(const QString &path, const QString &fallback) const
 {
     QFile f(path);

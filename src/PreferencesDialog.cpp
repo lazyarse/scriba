@@ -16,9 +16,35 @@
 #include <QLabel>
 #include <QIcon>
 #include <QFile>
+#include <QFileInfo>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMessageBox>
 #include <QStackedWidget>
 #include <QColorDialog>
 #include <QDoubleSpinBox>
+#include <QStyledItemDelegate>
+#include <QPainter>
+#include <QStyleOptionViewItem>
+#include <QModelIndex>
+
+namespace {
+
+class FocuslessItemDelegate : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
+        QStyleOptionViewItem opt = option;
+        opt.state &= ~QStyle::State_HasFocus;
+        QStyledItemDelegate::paint(painter, opt, index);
+    }
+};
+
+} // namespace
 
 PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent,
     const QString &themeBgColor, const QString &themeFgColor)
@@ -48,6 +74,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     catFont.setPointSize(catFont.pointSize() + 3);
     m_categoryList->setFont(catFont);
     m_categoryList->setObjectName("category-list");
+    m_categoryList->setItemDelegate(new FocuslessItemDelegate(m_categoryList));
     contentLayout->addWidget(m_categoryList);
 
     m_pages = new QStackedWidget;
@@ -115,6 +142,36 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         singleViewLayout->addLayout(widthRow);
 
         layout->addWidget(singleViewGroup);
+
+        QGroupBox *splitViewGroup = new QGroupBox("Split View Content Width");
+        QVBoxLayout *splitViewLayout = new QVBoxLayout(splitViewGroup);
+        splitViewLayout->addSpacing(8);
+
+        auto makeWidthRow = [this, splitViewLayout](const QString &label, QSpinBox *&spin, QCheckBox *&autoCheck) {
+            QHBoxLayout *row = new QHBoxLayout();
+            auto *lbl = new QLabel(label);
+            spin = new QSpinBox();
+            spin->setRange(300, 2000);
+            spin->setSuffix(" px");
+            lbl->setBuddy(spin);
+            autoCheck = new QCheckBox("Auto (fill pane)");
+            connect(autoCheck, &QCheckBox::toggled, spin, &QSpinBox::setEnabled);
+            row->addWidget(lbl);
+            row->addWidget(spin);
+            row->addWidget(autoCheck);
+            row->addStretch();
+            splitViewLayout->addLayout(row);
+        };
+        int editorWidth = settings.value(Preferences::SplitViewEditorMaxWidth, 0).toInt();
+        int previewWidth = settings.value(Preferences::SplitViewPreviewMaxWidth, 0).toInt();
+        makeWidthRow("Editor max width:", m_splitEditorWidthSpin, m_splitEditorAutoCheck);
+        makeWidthRow("Preview max width:", m_splitPreviewWidthSpin, m_splitPreviewAutoCheck);
+        m_splitEditorAutoCheck->setChecked(editorWidth <= 0);
+        m_splitEditorWidthSpin->setValue(editorWidth > 0 ? editorWidth : 800);
+        m_splitPreviewAutoCheck->setChecked(previewWidth <= 0);
+        m_splitPreviewWidthSpin->setValue(previewWidth > 0 ? previewWidth : 800);
+
+        layout->addWidget(splitViewGroup);
 
         QGroupBox *autoSaveGroup = new QGroupBox("Auto-Save");
         QVBoxLayout *autoSaveLayout = new QVBoxLayout(autoSaveGroup);
@@ -204,12 +261,17 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QHBoxLayout *listRow = new QHBoxLayout();
         m_listWidget = new QListWidget();
         m_listWidget->setFrameShape(QFrame::NoFrame);
+        m_listWidget->setObjectName("stylesheet-list");
 
         QVBoxLayout *btnLayout = new QVBoxLayout();
-        m_addButton = new QPushButton("Add");
-        m_removeButton = new QPushButton("Remove");
+        m_addButton = new QPushButton("&Add");
+        m_removeButton = new QPushButton("&Remove");
+        m_duplicateButton = new QPushButton("&Duplicate");
+        m_editButton = new QPushButton("&Edit");
         btnLayout->addWidget(m_addButton);
         btnLayout->addWidget(m_removeButton);
+        btnLayout->addWidget(m_duplicateButton);
+        btnLayout->addWidget(m_editButton);
         btnLayout->addStretch();
 
         listRow->addWidget(m_listWidget);
@@ -659,6 +721,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     /* --- Connections --- */
     connect(m_addButton, &QPushButton::clicked, this, &PreferencesDialog::addStylesheet);
     connect(m_removeButton, &QPushButton::clicked, this, &PreferencesDialog::removeStylesheet);
+    connect(m_duplicateButton, &QPushButton::clicked, this, &PreferencesDialog::duplicateStylesheet);
+    connect(m_editButton, &QPushButton::clicked, this, &PreferencesDialog::editStylesheet);
     connect(m_editPreviewBtn, &QPushButton::clicked, this, &PreferencesDialog::editPreviewBaseCss);
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
     connect(m_categoryList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
@@ -682,6 +746,10 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EmojiAutoComplete, m_emojiAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::CentreSingleViewContent, m_centreSingleViewCheck->isChecked());
         settings.setValue(Preferences::CentreSingleViewWidth, m_centreSingleViewWidthSpin->value());
+        settings.setValue(Preferences::SplitViewEditorMaxWidth,
+            m_splitEditorAutoCheck->isChecked() ? 0 : m_splitEditorWidthSpin->value());
+        settings.setValue(Preferences::SplitViewPreviewMaxWidth,
+            m_splitPreviewAutoCheck->isChecked() ? 0 : m_splitPreviewWidthSpin->value());
         settings.setValue(Preferences::AutoSaveOnExit, m_autoSaveExitCheck->isChecked());
         int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
         settings.setValue(Preferences::AutoSaveInterval, interval);
@@ -768,6 +836,66 @@ void PreferencesDialog::removeStylesheet()
     emit stylesheetChanged();
 }
 
+void PreferencesDialog::duplicateStylesheet()
+{
+    QListWidgetItem *item = m_listWidget->currentItem();
+    if (!item) return;
+
+    QString src = item->data(Qt::UserRole).toString();
+    QString suggested = QFileInfo(src).completeBaseName() + "-copy";
+
+    bool ok = false;
+    QString name = QInputDialog::getText(this, "Duplicate Theme",
+        "Name for the new theme.\nWill be stored in:\n" + m_loader->themesDir() + "/",
+        QLineEdit::Normal, suggested, &ok);
+    if (!ok) return;
+    if (name.trimmed().isEmpty())
+        name = suggested;
+
+    QString newPath = duplicateCssFile(src, m_loader->themesDir(), name);
+    if (newPath.isEmpty()) {
+        QMessageBox::warning(this, "Duplicate Theme",
+            "Could not duplicate the selected stylesheet. The name may already be in use.");
+        return;
+    }
+
+    QStringList existing = m_config->stylesheets();
+    if (!existing.contains(newPath))
+        existing.append(newPath);
+    m_config->setStylesheets(existing);
+    populateStylesheetList();
+
+    for (int i = 0; i < m_listWidget->count(); ++i) {
+        if (m_listWidget->item(i)->data(Qt::UserRole).toString() == newPath) {
+            m_listWidget->setCurrentRow(i);
+            break;
+        }
+    }
+    emit stylesheetChanged();
+}
+
+void PreferencesDialog::editStylesheet()
+{
+    QListWidgetItem *item = m_listWidget->currentItem();
+    if (!item) return;
+
+    QString path = item->data(Qt::UserRole).toString();
+    if (path.startsWith(":/") || path.startsWith("qrc:")) return;
+
+    QString css = readResourceFile(path);
+    if (css.isEmpty()) return;
+
+    CssEditorDialog dlg("Edit Theme - " + QFileInfo(path).fileName(), css, css, m_loader->themeCss(), this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            f.write(dlg.css().toUtf8());
+            m_loader->invalidateCache();
+            emit stylesheetChanged();
+        }
+    }
+}
+
 void PreferencesDialog::editPreviewBaseCss()
 {
     CssEditorDialog dlg("Edit Preview Base CSS", m_loader->previewBaseCss(),
@@ -780,7 +908,16 @@ void PreferencesDialog::editPreviewBaseCss()
 
 void PreferencesDialog::onCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *)
 {
-    if (!current) return;
-    m_config->setActiveStylesheet(current->data(Qt::UserRole).toString());
+    if (!current) {
+        m_editButton->setEnabled(false);
+        return;
+    }
+    QString path = current->data(Qt::UserRole).toString();
+    bool bundled = path.startsWith(":/") || path.startsWith("qrc:");
+    m_editButton->setEnabled(!bundled);
+    m_editButton->setToolTip(bundled
+        ? "Bundled themes can't be edited. Use Duplicate first."
+        : QString());
+    m_config->setActiveStylesheet(path);
     emit stylesheetChanged();
 }

@@ -8,6 +8,7 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QSettings>
+#include <QEvent>
 #include <QCoreApplication>
 #include <QAbstractTextDocumentLayout>
 #include "Preferences.h"
@@ -16,6 +17,7 @@ Gutter::Gutter(Editor *editor)
     : QWidget(editor)
     , m_editor(editor)
 {
+    setObjectName(QStringLiteral("gutter"));
     setCursor(Qt::ArrowCursor);
     updateWidth();
     connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged,
@@ -46,6 +48,13 @@ void Gutter::setFoldedBlocks(const QSet<int> &folded)
 {
     m_foldedBlocks = folded;
     update();
+}
+
+void Gutter::changeEvent(QEvent *event)
+{
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange)
+        update();
 }
 
 int Gutter::headerAtPos(int y) const
@@ -105,7 +114,6 @@ void Gutter::paintEvent(QPaintEvent *)
     } else {
         bg = palette().window().color();
         textColor = palette().windowText().color();
-        textColor.setAlpha(160);
     }
     painter.fillRect(rect(), bg);
 

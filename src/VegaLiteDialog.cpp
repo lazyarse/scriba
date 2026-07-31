@@ -135,21 +135,21 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     auto addMark = [&](const char *name, VegaMark mark) {
         m_chartTypeCombo->addItem(QLatin1String(name), static_cast<int>(mark));
     };
-    addMark("bar", VegaMark::Bar);
-    addMark("line", VegaMark::Line);
-    addMark("point", VegaMark::Point);
-    addMark("area", VegaMark::Area);
-    addMark("rect", VegaMark::Rect);
-    addMark("tick", VegaMark::Tick);
-    addMark("rule", VegaMark::Rule);
-    addMark("circle", VegaMark::Circle);
-    addMark("square", VegaMark::Square);
-    addMark("text", VegaMark::Text);
-    addMark("trail", VegaMark::Trail);
-    addMark("boxplot", VegaMark::Boxplot);
-    addMark("errorband", VegaMark::Errorband);
-    addMark("errorbar", VegaMark::Errorbar);
-    addMark("geoshape", VegaMark::Geoshape);
+    addMark("Bar", VegaMark::Bar);
+    addMark("Line", VegaMark::Line);
+    addMark("Point", VegaMark::Point);
+    addMark("Area", VegaMark::Area);
+    addMark("Rect", VegaMark::Rect);
+    addMark("Tick", VegaMark::Tick);
+    addMark("Rule", VegaMark::Rule);
+    addMark("Circle", VegaMark::Circle);
+    addMark("Square", VegaMark::Square);
+    addMark("Text", VegaMark::Text);
+    addMark("Trail", VegaMark::Trail);
+    addMark("Boxplot", VegaMark::Boxplot);
+    addMark("Errorband", VegaMark::Errorband);
+    addMark("Errorbar", VegaMark::Errorbar);
+    addMark("Geoshape", VegaMark::Geoshape);
     layout->addWidget(m_chartTypeCombo);
 
     layout->addWidget(new QLabel("Data:"));
@@ -195,10 +195,10 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
         auto addType = [&](const char *name, VegaFieldType t) {
             type->addItem(QLatin1String(name), static_cast<int>(t));
         };
-        addType("nominal", VegaFieldType::Nominal);
-        addType("ordinal", VegaFieldType::Ordinal);
-        addType("quantitative", VegaFieldType::Quantitative);
-        addType("temporal", VegaFieldType::Temporal);
+        addType("Nominal", VegaFieldType::Nominal);
+        addType("Ordinal", VegaFieldType::Ordinal);
+        addType("Quantitative", VegaFieldType::Quantitative);
+        addType("Temporal", VegaFieldType::Temporal);
         encLayout->addWidget(type, row, 2);
     };
 
@@ -212,10 +212,10 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     m_fieldColor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     colorLayout->addWidget(m_fieldColor, 0, 1);
     m_typeColor = new QComboBox(m_colorGroup);
-    m_typeColor->addItem("nominal", static_cast<int>(VegaFieldType::Nominal));
-    m_typeColor->addItem("ordinal", static_cast<int>(VegaFieldType::Ordinal));
-    m_typeColor->addItem("quantitative", static_cast<int>(VegaFieldType::Quantitative));
-    m_typeColor->addItem("temporal", static_cast<int>(VegaFieldType::Temporal));
+    m_typeColor->addItem("Nominal", static_cast<int>(VegaFieldType::Nominal));
+    m_typeColor->addItem("Ordinal", static_cast<int>(VegaFieldType::Ordinal));
+    m_typeColor->addItem("Quantitative", static_cast<int>(VegaFieldType::Quantitative));
+    m_typeColor->addItem("Temporal", static_cast<int>(VegaFieldType::Temporal));
     colorLayout->addWidget(m_typeColor, 0, 2);
     encLayout->addWidget(m_colorGroup, 2, 0, 1, 3);
 
@@ -226,10 +226,10 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     m_fieldSize->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     sizeLayout->addWidget(m_fieldSize, 0, 1);
     m_typeSize = new QComboBox(m_sizeGroup);
-    m_typeSize->addItem("nominal", static_cast<int>(VegaFieldType::Nominal));
-    m_typeSize->addItem("ordinal", static_cast<int>(VegaFieldType::Ordinal));
-    m_typeSize->addItem("quantitative", static_cast<int>(VegaFieldType::Quantitative));
-    m_typeSize->addItem("temporal", static_cast<int>(VegaFieldType::Temporal));
+    m_typeSize->addItem("Nominal", static_cast<int>(VegaFieldType::Nominal));
+    m_typeSize->addItem("Ordinal", static_cast<int>(VegaFieldType::Ordinal));
+    m_typeSize->addItem("Quantitative", static_cast<int>(VegaFieldType::Quantitative));
+    m_typeSize->addItem("Temporal", static_cast<int>(VegaFieldType::Temporal));
     sizeLayout->addWidget(m_typeSize, 0, 2);
     encLayout->addWidget(m_sizeGroup, 3, 0, 1, 3);
 

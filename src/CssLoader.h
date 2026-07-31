@@ -19,6 +19,8 @@ public:
 
     void invalidateCache();
 
+    QString themesDir() const;
+
 private:
     QString configDir() const;
     QString loadCssFile(const QString &filePath) const;

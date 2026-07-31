@@ -27,6 +27,7 @@ void stripButtonIcon(QAbstractButton *btn);
 void stripButtonIcons(QDialogButtonBox *box);
 
 QString readResourceFile(const QString &path);
+QString duplicateCssFile(const QString &sourcePath, const QString &destDir, const QString &baseName = QString());
 
 class DebounceTimer : public QTimer
 {

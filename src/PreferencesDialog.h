@@ -33,6 +33,8 @@ signals:
 private slots:
     void addStylesheet();
     void removeStylesheet();
+    void duplicateStylesheet();
+    void editStylesheet();
     void editPreviewBaseCss();
     void onCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
 private:
@@ -65,6 +67,8 @@ private:
     QListWidget *m_listWidget;
     QPushButton *m_addButton;
     QPushButton *m_removeButton;
+    QPushButton *m_duplicateButton;
+    QPushButton *m_editButton;
     QPushButton *m_editPreviewBtn;
     QCheckBox *m_reopenCheck;
     QCheckBox *m_syncCheck;
@@ -85,6 +89,10 @@ private:
     QCheckBox *m_emojiAutoCompleteCheck;
     QCheckBox *m_centreSingleViewCheck;
     QSpinBox *m_centreSingleViewWidthSpin;
+    QCheckBox *m_splitEditorAutoCheck;
+    QCheckBox *m_splitPreviewAutoCheck;
+    QSpinBox *m_splitEditorWidthSpin;
+    QSpinBox *m_splitPreviewWidthSpin;
     QComboBox *m_editorFontCombo;
     QSpinBox *m_editorFontSizeSpin;
     QSpinBox *m_editorLineHeightSpin;

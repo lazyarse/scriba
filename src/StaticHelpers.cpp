@@ -2,6 +2,8 @@
 #include <QRegularExpression>
 #include <QXmlStreamReader>
 #include <QFile>
+#include <QFileInfo>
+#include <QDir>
 #include <QColor>
 #include <QPixmap>
 #include <QPainter>
@@ -264,6 +266,34 @@ QString readResourceFile(const QString &path)
     if (f.open(QIODevice::ReadOnly | QIODevice::Text))
         return QString::fromUtf8(f.readAll());
     return {};
+}
+
+QString duplicateCssFile(const QString &sourcePath, const QString &destDir, const QString &baseName)
+{
+    QFile src(sourcePath);
+    if (!src.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+    QString css = QString::fromUtf8(src.readAll());
+    if (css.isEmpty())
+        return {};
+
+    QDir().mkpath(destDir);
+    QString name = baseName.trimmed();
+    if (name.isEmpty())
+        name = QFileInfo(sourcePath).completeBaseName() + "-copy";
+    name.replace(QRegularExpression("[\\\\/:*?\"<>|\\x00-\\x1f]"), "-");
+    if (!name.endsWith(".css", Qt::CaseInsensitive))
+        name += ".css";
+
+    QString candidate = destDir + "/" + name;
+    if (QFileInfo::exists(candidate))
+        return {};
+
+    QFile out(candidate);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text))
+        return {};
+    out.write(css.toUtf8());
+    return candidate;
 }
 
 DebounceTimer::DebounceTimer(int interval, QObject *parent)

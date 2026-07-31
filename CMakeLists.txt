@@ -178,7 +178,7 @@ if(BUILD_TESTS)
     target_link_libraries(test_css_utils PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_css_utils COMMAND ${_TEST_PREFIX} ./test_css_utils)
 
-    add_executable(test_static_helpers tests/test_static_helpers.cpp)
+    add_executable(test_static_helpers tests/test_static_helpers.cpp resources/scriba.qrc)
     target_link_libraries(test_static_helpers PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_static_helpers COMMAND ${_TEST_PREFIX} ./test_static_helpers)
 

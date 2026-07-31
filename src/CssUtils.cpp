@@ -85,8 +85,9 @@ QString deriveChromeCss(const QString &themeCss)
 
     bool dark = bg.lightness() < 128;
     QColor track, thumb, hover, sideBg, selBg, txt, selTxt, dim;
+    QColor btnBorder;
     QColor chkBg, chkCheckedBg;
-    QString chkImg, upArrowImg, downArrowImg;
+    QString chkImg, upArrowImg, downArrowImg, radioImg;
     txt = chromeTextColor(themeCss);
     if (dark) {
         track = bg.lighter(160);
@@ -100,6 +101,8 @@ QString deriveChromeCss(const QString &themeCss)
         chkImg = QStringLiteral("url(:/checkbox-checked.svg)");
         upArrowImg = QStringLiteral("url(:/arrow-up.svg)");
         downArrowImg = QStringLiteral("url(:/arrow-down.svg)");
+        radioImg = QStringLiteral("url(:/radio-dot.svg)");
+        btnBorder = thumb.lighter(150);
     } else {
         track = bg.darker(105);
         thumb = bg.darker(125);
@@ -112,6 +115,8 @@ QString deriveChromeCss(const QString &themeCss)
         chkImg = QStringLiteral("url(:/checkbox-checked-dark.svg)");
         upArrowImg = QStringLiteral("url(:/arrow-up-dark.svg)");
         downArrowImg = QStringLiteral("url(:/arrow-down-dark.svg)");
+        radioImg = QStringLiteral("url(:/radio-dot-dark.svg)");
+        btnBorder = thumb.darker(150);
     }
     chkCheckedBg = dark ? hover : bg.darker(120);
     if (!chkBgStr.isEmpty()) {
@@ -119,7 +124,14 @@ QString deriveChromeCss(const QString &themeCss)
         if (parsed.isValid())
             chkCheckedBg = parsed;
     }
-    QColor radioCheckedBg = txt;
+    QColor gutterBg, gutterText;
+    if (dark) {
+        gutterBg = bg.darker(120);
+        gutterText = QColor(QStringLiteral("#999999"));
+    } else {
+        gutterBg = bg.darker(105);
+        gutterText = QColor(QStringLiteral("#777777"));
+    }
 
     return QStringLiteral(
         "QDialog { background-color: %2; }\n"
@@ -135,32 +147,38 @@ QString deriveChromeCss(const QString &themeCss)
         "QRadioButton { color: %3; spacing: 6px; }\n"
         "QRadioButton:disabled { color: %9; }\n"
         "QRadioButton::indicator { width: 14px; height: 14px; background-color: %2; border: 1px solid %4; border-radius: 7px; }\n"
-        "QRadioButton::indicator:disabled { background-color: %10; border: 1px solid %10; }\n"
-        "QRadioButton::indicator:checked { background-color: %16; border: 1px solid %16; }\n"
+        "QRadioButton::indicator:disabled { background-color: %10; border: 1px solid %10; image: none; }\n"
+        "QRadioButton::indicator:checked { background-color: %2; border: 1px solid %4; border-radius: 7px; image: %20; }\n"
         "QListWidget { background-color: %2; color: %3; border: none; }\n"
         "QListWidget::item:selected { background-color: %5; color: %6; }\n"
         "QListWidget::item:hover { background-color: %1; }\n"
         "QTextEdit { background-color: %2; color: %3; border: none; }\n"
         "QPlainTextEdit { background-color: %2; color: %3; border: none; }\n"
-        "QPushButton { background-color: %4; color: %3; border: 1px solid %4; padding: 4px 12px; }\n"
+        "QPushButton { background-color: %4; color: %3; border: 1px solid %19; padding: 4px 12px; }\n"
         "QPushButton:hover { background-color: %5; }\n"
         "QPushButton:disabled { color: %9; background-color: %2; border: 1px solid %2; }\n"
         "QLabel { color: %3; }\n"
         "QLabel:disabled { color: %9; }\n"
         "QStatusBar { background-color: %2; color: %3; }\n"
         "#stats-label { color: %9; font-size: 14px; }\n"
-        "QMenuBar { background-color: %2; color: %3; }\n"
+        "QMenuBar { background-color: %2; color: %3; border: none; }\n"
         "QMenuBar::item:selected { background-color: %5; }\n"
         "QMenu { background-color: %2; color: %3; border: 1px solid %4; }\n"
         "QMenu::item:selected { background-color: %5; color: %6; }\n"
         "QMenu::separator { background-color: %4; height: 1px; margin: 4px 8px; }\n"
         "#scriba-editor { padding: 0; margin: 0 !important; border: none !important; background-color: %7 !important; color: %8 !important; }\n"
+        "#gutter { background-color: %17; color: %18; }\n"
         "#category-list { background-color: %10; color: %3; border: none; }\n"
-        "#category-list::item { padding: 8px 4px; }\n"
+        "#category-list::item { padding: 8px 4px; outline: none; }\n"
         "#category-list::item:selected { background-color: %5; color: %6; }\n"
         "#category-list::item:hover { background-color: %1; }\n"
+        "#stylesheet-list { background-color: %10; color: %3; border: none; }\n"
+        "#stylesheet-list::item { padding: 4px; outline: none; }\n"
+        "#stylesheet-list::item:selected { background-color: %5; color: %6; }\n"
+        "#stylesheet-list::item:hover { background-color: %1; }\n"
         "QSplitter::handle { background-color: %4; width: 1px; }\n"
         "QSplitter::handle:hover { background-color: %5; }\n"
+        "#stylesheet-list QScrollBar:vertical, #stylesheet-list QScrollBar:horizontal { background: %2; }\n"
         "QScrollBar:vertical { background: %2; width: 12px; }\n"
         "QScrollBar::handle:vertical { background: %4; border-radius: 6px; min-height: 30px; }\n"
         "QScrollBar::handle:vertical:hover { background: %5; }\n"
@@ -196,9 +214,9 @@ QString deriveChromeCss(const QString &themeCss)
         "QHeaderView { background-color: %2; }\n"
         "QHeaderView::section { background-color: %2; color: %3; padding: 4px; border: 1px solid %4; font-weight: bold; }\n"
         "QTabWidget::pane { background-color: %2; border: none; }\n"
-        "QTabBar { background-color: %2; }\n"
-        "QTabBar::tab { background-color: %4; color: %3; padding: 6px 16px; border: none; }\n"
-        "QTabBar::tab:selected { background-color: %2; color: %3; }\n"
+        "QTabBar { background-color: %2; border: none; }\n"
+        "QTabBar::tab { background-color: %2; color: %3; padding: 6px 16px; border: 1px solid %4; }\n"
+        "QTabBar::tab:selected { background-color: %7; color: %3; border: none; }\n"
         "QTabBar::tab:hover:!selected { background-color: %5; }\n"
         "\n"
         "::-webkit-scrollbar { width: 12px; height: 12px; }\n"
@@ -228,7 +246,13 @@ QString deriveChromeCss(const QString &themeCss)
     ).arg(
         downArrowImg // %15 — spinbox down arrow
     ).arg(
-        radioCheckedBg.name() // %16 — radio button checked background
+        gutterBg.name()   // %17 — line-number gutter background
+    ).arg(
+        gutterText.name() // %18 — line-number gutter text
+    ).arg(
+        btnBorder.name()  // %19 — push button border
+    ).arg(
+        radioImg         // %20 — radio checked dot
     );
 }
 
@@ -284,6 +308,14 @@ ThemeColors themeColors(const QString &themeCss)
 bool isDarkTheme(const QString &themeCss)
 {
     return themeColors(themeCss).background.lightness() < 128;
+}
+
+QString splitViewMaxWidthCss(int maxWidth)
+{
+    if (maxWidth <= 0)
+        return QStringLiteral("body{max-width:none!important;margin:0!important}");
+    return QStringLiteral("body{margin:0 auto!important;max-width:%1px!important}")
+        .arg(maxWidth);
 }
 
 } // namespace CssUtils

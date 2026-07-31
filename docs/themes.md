@@ -49,3 +49,117 @@ Use CSS `::before` to prepend an icon to `.admonition-title`:
 ```
 
 These use Unicode characters (info, checkmark, warning, cross) and are purely CSS-based — no image files needed.
+
+## Theme slots
+
+The Scriba colour system has two layers:
+
+1. **Semantic slots** — the colour roles written directly in each theme's CSS file (`resources/themes/*.css`). Theme authors set these.
+2. **Chrome slots** — the `%1`–`%20` placeholders in `CssUtils::deriveChromeCss()`. Almost all are auto-derived at runtime from the theme's editor background; theme authors never write them.
+
+### Semantic slots (theme CSS)
+
+These are the selectors a theme file defines. Dark and light themes pick different palette colours for each role.
+
+| Slot | Selector(s) | Purpose |
+|---|---|---|
+| Background | `#editor`, `body` `background-color` | Editor + preview background |
+| Text | `#editor`, `body` `color` | Editor + preview text |
+| Heading | `h1`…`h6` `color` | Heading text |
+| Inline code background | `code` `background-color` | Inline code highlight |
+| Inline code text | `code` `color` | Inline code text |
+| Code block background | `pre` `background-color` | Fenced code block fill |
+| Code block text | `pre code` `color` | Code block text |
+| Blockquote accent | `blockquote` `border-left-color` | Blockquote left border |
+| Blockquote text | `blockquote` `color` | Blockquote text |
+| Blockquote background | `blockquote` `background-color` | Blockquote fill |
+| Table border | `th, td` `border` | Table grid lines |
+| Table header background | `th` `background-color` | Table header fill |
+| Table header text | `th` `color` | Table header text |
+| Even row background | `tr:nth-child(even)` `background-color` | Zebra striping |
+| Link | `a` `color` | Hyperlinks |
+| Horizontal rule | `hr` `border-top-color` | Horizontal rule |
+| Admonition background | `.admonition` `background-color` | Admonition box fill |
+| Admonition border | `.admonition` `border-left-color` | Default accent |
+| Admonition title | `.admonition .admonition-title` `color` | Admonition heading |
+| Note accent | `.admonition.note` `border-left-color` | Note colour |
+| Tip accent | `.admonition.tip` `border-left-color` | Tip colour |
+| Important accent | `.admonition.important` `border-left-color` | Important colour |
+| Warning accent | `.admonition.warning` `border-left-color` | Warning colour |
+| Caution accent | `.admonition.caution` `border-left-color` | Caution colour |
+| Checkbox checked background | `--checkbox-checked-bg` | Filled checkbox fill (overrides chrome `%13`) |
+| Checkbox tick | `--checkbox-tick-color` | Checkbox tick mark |
+
+### Chrome slots
+
+`CssUtils::deriveChromeCss()` resolves the theme's editor background (`%7`) into the chrome for every widget. `%1`–`%15` cover dialogs, menus, buttons, scrollbars and controls; `%17`/`%18` cover the editor's line-number gutter; `%19` is the push-button border; `%20` is the radio checked-dot image. Percentage factors are `QColor::lighter()`/`darker()` applied to the editor background.
+
+| Slot | Variable | Used for | Dark theme | Light theme |
+|---|---|---|---|---|
+| `%1` | `track` | splitter handle, hover backgrounds | `bg` × 160% | `bg` × 95% |
+| `%2` | `track` | dialog/menu/scrollbar-track backgrounds | same as `%1` | same as `%1` |
+| `%3` | `txt` | normal text | `#f0f0f0` | `#333333` |
+| `%4` | `thumb` | button backgrounds, borders, scrollbar handle | `bg` × 220% | `bg` × 80% |
+| `%5` | `hover` | hover/selected item background | `bg` × 250% | `bg` × 70% |
+| `%6` | `selTxt` | selected-item text | `#ffffff` | `#000000` |
+| `%7` | `bg` | editor background | theme `#editor` | theme `#editor` |
+| `%8` | `txtStr` | editor text | theme `#editor` | theme `#editor` |
+| `%9` | `dim` | disabled/dim text | `#999999` | `#777777` |
+| `%10` | `sideBg` | sidebar background, stylesheet-list background | `bg` × 130% | `bg` |
+| `%11` | `chkImg` | checkbox tick image | light image | dark image |
+| `%12` | `chkBg` | checkbox/groupbox indicator background | `track` | `bg` |
+| `%13` | `chkCheckedBg` | checked indicator background | `hover` (or `--checkbox-checked-bg`) | `bg` × 83% (or `--checkbox-checked-bg`) |
+| `%14` | `upArrowImg` | spinbox up arrow | light image | dark image |
+| `%15` | `downArrowImg` | spinbox down arrow | light image | dark image |
+| `%17` | `gutterBg` | line-number gutter background | `bg` × 83% | `bg` × 95% |
+| `%18` | `gutterText` | gutter line numbers | `#999999` | `#777777` |
+| `%19` | `btnBorder` | push-button border | `thumb` × 150% | `thumb` × 67% |
+| `%20` | `radioImg` | radio checked dot | light image (`radio-dot.svg`) | dark image (`radio-dot-dark.svg`) |
+
+### What each element uses
+
+| Widget / element | Background | Text | Border / other |
+|---|---|---|---|
+| QDialog | `%2` | | |
+| QGroupBox | indicator `%12` | `%3` | `%4` |
+| QGroupBox::indicator:checked | `%13` | | `%13`, tick `%11` |
+| QCheckBox | | `%3`, disabled `%9` | |
+| QCheckBox::indicator | `%12`, disabled `%10` | | `%4`, disabled `%10` |
+| QCheckBox::indicator:checked | `%13` | | `%13`, tick `%11` |
+| QRadioButton | | `%3`, disabled `%9` | |
+| QRadioButton::indicator | `%2`, disabled `%10` | | `%4`, disabled `%10` |
+| QRadioButton::indicator:checked | `%2` | | `%4`, dot `%20` (disabled: no dot) |
+| QListWidget | `%2` | `%3` | |
+| QListWidget::item | selected `%5`, hover `%1` | selected `%6` | |
+| `#category-list` (preferences pages) | `%10` | `%3` | |
+| `#category-list::item` | selected `%5`, hover `%1` | selected `%6` | |
+| `#stylesheet-list` (theme list) | `%10` | `%3` | |
+| `#stylesheet-list::item` | selected `%5`, hover `%1` | selected `%6` | |
+| `#stylesheet-list` scrollbar track | `%2` | | handle `%4` |
+| QTextEdit / QPlainTextEdit | `%2` | `%3` | |
+| QPushButton | `%4`, hover `%5` | `%3` | `%19` |
+| QLabel | | `%3`, disabled `%9` | |
+| QStatusBar | `%2` | `%3` | |
+| `#stats-label` | | `%9` | |
+| QMenuBar | `%2` | `%3` | |
+| QMenu | `%2` | `%3` | `%4`, separator `%4` |
+| QMenu::item:selected | `%5` | `%6` | |
+| `#scriba-editor` | `%7` | `%8` | |
+| `#gutter` | `%17` | `%18` | |
+| QSplitter::handle | `%4`, hover `%5` | | |
+| QScrollBar track | `%2` | | handle `%4`, hover `%5` |
+| QLineEdit | `%2`, disabled `%10` | `%3`, disabled `%9` | `%4`, disabled `%10` |
+| QSpinBox / QDoubleSpinBox | `%2`, disabled `%10` | `%3`, disabled `%9` | `%4`, disabled `%10` |
+| Spinbox up/down-button | `%10`, hover `%1`, pressed `%5` | | `%4`, arrow `%14`/`%15` |
+| QComboBox | `%2`, disabled `%10` | `%3`, disabled `%9` | `%4`, disabled `%10` |
+| QComboBox popup | `%10` | `%3` | selection `%5`/`%6` |
+| QTableWidget / QTableView | `%2` | `%3` | `%4` border + gridline |
+| QHeaderView / ::section | `%2` | `%3` | `%4` |
+| QTabWidget::pane / QTabBar | `%2` | | |
+| QTabBar::tab | `%2`, selected `%7`, hover `%5` | `%3` | `%4` |
+| `::-webkit-scrollbar` (preview) | track `%2` | | thumb `%4`, hover `%5` |
+
+### How the two layers connect
+
+Only two semantic slots flow directly into the chrome: the `#editor` background and text feed `%7` and `%8`, and the `--checkbox-checked-bg` variable can override `%13`. Everything else in the chrome is recomputed at runtime from the editor background — dark vs light is decided by `bg.lightness() < 128`. That is the whole difference between the semantic slots (what theme authors write) and the chrome slots (what the app derives from them).
+

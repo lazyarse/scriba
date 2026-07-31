@@ -83,6 +83,8 @@ private:
     void applyStyleSheetToAllEditors();
     void applyStyleSheetToAllEditors(const QString &fontFamily, int fontSize, int padding);
     void applyStripeSetting();
+    void applyEditorContentWidth(Editor *editor);
+    void applyPreviewSplitWidth();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);
     bool findText(const QString &text, bool backward, bool useRegex, bool caseSensitive);
     int countMatches(const QString &text, bool useRegex, bool caseSensitive) const;

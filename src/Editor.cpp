@@ -881,6 +881,11 @@ void Editor::setCenterContent(bool enabled, int width)
     updateViewportMargins();
 }
 
+QMargins Editor::contentMargins() const
+{
+    return viewportMargins();
+}
+
 void Editor::setInsertActions(const QList<QAction *> &actions)
 {
     m_insertActions = actions;
@@ -1257,9 +1262,9 @@ void Editor::updateViewportMargins()
         setViewportMargins(gutterW, 0, 0, 0);
         return;
     }
-    int editorWidth = viewport()->width();
+    int available = width() - 2 * frameWidth() - gutterW;
     int scrollbarWidth = verticalScrollBar()->isVisible() ? verticalScrollBar()->width() : 0;
-    int available = editorWidth - scrollbarWidth;
+    available -= scrollbarWidth;
     int margin = qMax(0, (available - m_centerContentWidth) / 2);
     setViewportMargins(margin + gutterW, 0, margin, 0);
 }

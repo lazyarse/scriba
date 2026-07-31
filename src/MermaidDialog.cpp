@@ -422,10 +422,10 @@ QWidget *MermaidDialog::createFlowchartPanel()
     m_fcNodeTable->verticalHeader()->setDefaultSectionSize(28);
 
     auto *shapeCombo0 = new QComboBox(nodeGroup);
-    shapeCombo0->addItems({"box", "round", "stadium", "diamond", "hexagon"});
+    shapeCombo0->addItems({"Box", "Round", "Stadium", "Diamond", "Hexagon"});
     m_fcNodeTable->setCellWidget(0, 2, shapeCombo0);
     auto *shapeCombo1 = new QComboBox(nodeGroup);
-    shapeCombo1->addItems({"box", "round", "stadium", "diamond", "hexagon"});
+    shapeCombo1->addItems({"Box", "Round", "Stadium", "Diamond", "Hexagon"});
     shapeCombo1->setCurrentIndex(1);
     m_fcNodeTable->setCellWidget(1, 2, shapeCombo1);
 
@@ -493,7 +493,7 @@ QWidget *MermaidDialog::createFlowchartPanel()
         m_fcNodeTable->setItem(row, 0, new QTableWidgetItem(id));
         m_fcNodeTable->setItem(row, 1, new QTableWidgetItem(""));
         auto *shapeCombo = new QComboBox(m_fcNodeTable);
-        shapeCombo->addItems({"box", "round", "stadium", "diamond", "hexagon"});
+        shapeCombo->addItems({"Box", "Round", "Stadium", "Diamond", "Hexagon"});
         connect(shapeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &MermaidDialog::schedulePreviewUpdate);
         m_fcNodeTable->setCellWidget(row, 2, shapeCombo);
@@ -537,13 +537,13 @@ void MermaidDialog::refreshEdgeNodeCombos()
 
 static QString shapeToMermaid(const QString &shape, const QString &text)
 {
-    if (shape == "round")
+    if (shape == "Round")
         return "(" + text + ")";
-    if (shape == "stadium")
+    if (shape == "Stadium")
         return "([" + text + "])";
-    if (shape == "diamond")
+    if (shape == "Diamond")
         return "{" + text + "}";
-    if (shape == "hexagon")
+    if (shape == "Hexagon")
         return "{{" + text + "}}";
     return "[" + text + "]";
 }
@@ -799,8 +799,12 @@ QWidget *MermaidDialog::createGanttPanel()
         m_ganttTaskTable->setItem(row, 3, new QTableWidgetItem(duration));
         m_ganttTaskTable->setItem(row, 5, new QTableWidgetItem(section));
         auto *statusCombo = new QComboBox(m_ganttTaskTable);
-        statusCombo->addItems({"", "done", "active", "crit", "milestone"});
-        int idx = statusCombo->findText(status);
+        statusCombo->addItem("", "");
+        statusCombo->addItem("Done", "done");
+        statusCombo->addItem("Active", "active");
+        statusCombo->addItem("Crit", "crit");
+        statusCombo->addItem("Milestone", "milestone");
+        int idx = statusCombo->findData(status);
         if (idx >= 0) statusCombo->setCurrentIndex(idx);
         m_ganttTaskTable->setCellWidget(row, 4, statusCombo);
         connect(statusCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -823,7 +827,11 @@ QWidget *MermaidDialog::createGanttPanel()
         m_ganttTaskTable->setItem(row, 3, new QTableWidgetItem(""));
         m_ganttTaskTable->setItem(row, 5, new QTableWidgetItem(""));
         auto *statusCombo = new QComboBox(m_ganttTaskTable);
-        statusCombo->addItems({"", "done", "active", "crit", "milestone"});
+        statusCombo->addItem("", "");
+        statusCombo->addItem("Done", "done");
+        statusCombo->addItem("Active", "active");
+        statusCombo->addItem("Crit", "crit");
+        statusCombo->addItem("Milestone", "milestone");
         m_ganttTaskTable->setCellWidget(row, 4, statusCombo);
         connect(statusCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &MermaidDialog::schedulePreviewUpdate);
@@ -864,7 +872,7 @@ QString MermaidDialog::buildGanttDiagram() const
             QString desc = descItem ? descItem->text().trimmed() : QString();
             QString start = startItem ? startItem->text().trimmed() : QString();
             QString duration = durationItem ? durationItem->text().trimmed() : QString();
-            QString status = statusBox ? statusBox->currentText() : QString();
+            QString status = statusBox ? statusBox->currentData().toString() : QString();
             if (id.isEmpty()) continue;
             QString taskLine = "        " + desc;
             if (!status.isEmpty())
@@ -960,7 +968,7 @@ QWidget *MermaidDialog::createClassPanel()
         m_classTable->insertRow(row);
         m_classTable->setItem(row, 0, new QTableWidgetItem(tr("MyClass")));
         auto *typeCombo = new QComboBox;
-        typeCombo->addItems({"class", "interface", "abstract", "enumeration"});
+        typeCombo->addItems({"Class", "Interface", "Abstract", "Enumeration"});
         m_classTable->setCellWidget(row, 1, typeCombo);
         m_classTable->setCurrentCell(row, 0);
         refreshClassRelCombos();
@@ -1073,11 +1081,11 @@ QWidget *MermaidDialog::createClassPanel()
     // Default data
     m_classTable->insertRow(0);
     m_classTable->setItem(0, 0, new QTableWidgetItem("Animal"));
-    auto *type0 = new QComboBox; type0->addItems({"class", "interface", "abstract", "enumeration"});
+    auto *type0 = new QComboBox; type0->addItems({"Class", "Interface", "Abstract", "Enumeration"});
     m_classTable->setCellWidget(0, 1, type0);
     m_classTable->insertRow(1);
     m_classTable->setItem(1, 0, new QTableWidgetItem("Dog"));
-    auto *type1 = new QComboBox; type1->addItems({"class", "interface", "abstract", "enumeration"});
+    auto *type1 = new QComboBox; type1->addItems({"Class", "Interface", "Abstract", "Enumeration"});
     m_classTable->setCellWidget(1, 1, type1);
 
     ClassData animalData;
@@ -1225,7 +1233,7 @@ QString MermaidDialog::buildClassDiagram() const
         QString className = nameItem->text();
         QString classType = typeCombo ? typeCombo->currentText() : "class";
         ClassData data = m_classData.value(c);
-        if (classType == "enumeration")
+        if (classType == "Enumeration")
             out += "    enum " + className + " {\n";
         else
             out += "    class " + className + " {\n";

@@ -20,6 +20,7 @@ public:
     explicit Editor(QWidget *parent = nullptr);
     void setCurrentFile(const QString &path);
     void setCenterContent(bool enabled, int width);
+    QMargins contentMargins() const;
     void centerCursor();
     void invalidateEmojiIconCache();
     QCompleter *completer() const { return m_completer; }

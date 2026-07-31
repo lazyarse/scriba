@@ -180,6 +180,7 @@ void MainWindow::setupUi()
     m_tabWidget = new QTabWidget();
     m_tabWidget->setTabsClosable(true);
     m_tabWidget->setDocumentMode(true);
+    m_tabWidget->tabBar()->setDrawBase(false);
     m_tabWidget->setMovable(true);
 
     m_preview = new Preview(this);
@@ -432,12 +433,7 @@ void MainWindow::onTabChanged(int index)
         m_previewInitialized = false;
         updatePreview();
 
-        if (m_previewState == 0) {
-            QSettings settings;
-            bool centre = settings.value(Preferences::CentreSingleViewContent, true).toBool();
-            int centreWidth = settings.value(Preferences::CentreSingleViewWidth, 800).toInt();
-            info->editor->setCenterContent(centre, centreWidth);
-        }
+        applyEditorContentWidth(info->editor);
     }
 }
 
@@ -880,6 +876,40 @@ void MainWindow::applyStripeSetting()
     m_preview->page()->runJavaScript(js);
 }
 
+void MainWindow::applyEditorContentWidth(Editor *editor)
+{
+    if (!editor)
+        return;
+    QSettings settings;
+    if (m_previewState == 0) {
+        bool centre = settings.value(Preferences::CentreSingleViewContent, true).toBool();
+        int centreWidth = settings.value(Preferences::CentreSingleViewWidth, 800).toInt();
+        editor->setCenterContent(centre, centreWidth);
+    } else if (m_previewState == 1 || m_previewState == 2) {
+        int splitWidth = settings.value(Preferences::SplitViewEditorMaxWidth, 0).toInt();
+        editor->setCenterContent(splitWidth > 0, splitWidth);
+    } else {
+        editor->setCenterContent(false, 0);
+    }
+}
+
+void MainWindow::applyPreviewSplitWidth()
+{
+    if (!m_previewInitialized)
+        return;
+    QString css;
+    if (m_previewState == 1 || m_previewState == 2) {
+        QSettings settings;
+        int splitWidth = settings.value(Preferences::SplitViewPreviewMaxWidth, 0).toInt();
+        css = CssUtils::splitViewMaxWidthCss(splitWidth);
+    }
+    QString js = QString(
+        "var e=document.getElementById('split-css');"
+        "if(e)e.textContent='%1';"
+    ).arg(escapeJsString(css));
+    m_preview->page()->runJavaScript(js);
+}
+
 void MainWindow::updatePreview()
 {
     Editor *ed = currentEditor();
@@ -928,12 +958,18 @@ void MainWindow::updatePreview()
             if (centre)
                 centerCss = QString("body{margin:0 auto!important;max-width:%1px!important}").arg(centreWidth);
         }
+        QString splitCss;
+        if (m_previewState == 1 || m_previewState == 2) {
+            int splitWidth = prefs.value(Preferences::SplitViewPreviewMaxWidth, 0).toInt();
+            splitCss = CssUtils::splitViewMaxWidthCss(splitWidth);
+        }
         QString fullHtml = QString(
             "<!DOCTYPE html><html><head>"
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"stripe-css\">%4</style>"
             "<style id=\"center-css\">%5</style>"
+            "<style id=\"split-css\">%6</style>"
             "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
@@ -954,7 +990,7 @@ void MainWindow::updatePreview()
             "window.location.hash='scriba-open:'+encodeURIComponent(l.href)"
             "})</script>"
             "</body></html>"
-        ).arg(baseCss, previewCss, html, stripeInit, centerCss);
+        ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss);
         if (cspEnabled) {
             int headEnd = fullHtml.indexOf("</head>");
             if (headEnd >= 0)
@@ -1015,8 +1051,10 @@ void MainWindow::showPreferences()
             if (tab.editor) {
                 tab.editor->invalidateEmojiIconCache();
                 tab.editor->updateGutterSettings();
+                applyEditorContentWidth(tab.editor);
             }
         }
+        applyPreviewSplitWidth();
         updatePreview();
 
         int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
@@ -1352,11 +1390,13 @@ void MainWindow::togglePreview()
     if (m_previewState == 0) {
         m_preview->setVisible(false);
         m_tabWidget->setVisible(true);
-        if (ed) ed->setCenterContent(centre, centreWidth);
+        if (ed) applyEditorContentWidth(ed);
+        applyPreviewSplitWidth();
     } else if (m_previewState == 3) {
         m_tabWidget->setVisible(false);
         m_preview->setVisible(true);
-        if (ed) ed->setCenterContent(false, 0);
+        if (ed) applyEditorContentWidth(ed);
+        applyPreviewSplitWidth();
         if (m_previewInitialized) {
             QString css = centre
                 ? QString("body{margin:0 auto!important;max-width:%1px!important}").arg(centreWidth)
@@ -1369,7 +1409,8 @@ void MainWindow::togglePreview()
         m_splitter->insertWidget(1, m_preview);
         m_tabWidget->setVisible(true);
         m_preview->setVisible(true);
-        if (ed) ed->setCenterContent(false, 0);
+        if (ed) applyEditorContentWidth(ed);
+        applyPreviewSplitWidth();
         if (m_previewInitialized)
             m_preview->page()->runJavaScript(
                 QStringLiteral("document.getElementById('center-css').textContent=''"));
@@ -1378,7 +1419,8 @@ void MainWindow::togglePreview()
         m_splitter->insertWidget(1, m_tabWidget);
         m_preview->setVisible(true);
         m_tabWidget->setVisible(true);
-        if (ed) ed->setCenterContent(false, 0);
+        if (ed) applyEditorContentWidth(ed);
+        applyPreviewSplitWidth();
         if (m_previewInitialized)
             m_preview->page()->runJavaScript(
                 QStringLiteral("document.getElementById('center-css').textContent=''"));
