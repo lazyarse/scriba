@@ -69,7 +69,7 @@ FindDialog::FindDialog(QWidget *parent)
 
     auto *hintRow = new QHBoxLayout();
     auto *hintLabel = new QLabel("Tip: Use \\1, \\2 for captured groups in regex replace");
-    hintLabel->setStyleSheet("color: gray; font-size: 11px;");
+    hintLabel->setStyleSheet("color: gray;");
     hintRow->addWidget(hintLabel);
     hintRow->addStretch();
     layout->addLayout(hintRow);

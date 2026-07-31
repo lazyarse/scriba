@@ -223,7 +223,8 @@ QWidget *MchemHelperDialog::createCheatSheet(QWidget *parent)
 
         for (int i = 0; i < sec.count; ++i) {
             QLabel *nameLabel = new QLabel(
-                QString("<span style='font-size:11px;'>%1</span>")
+                QString("<span style='font-size:%1pt;'>%2</span>")
+                    .arg(CssUtils::kUiFontSizePt)
                     .arg(QString::fromUtf8(sec.entries[i].label)), secBox);
 
             QTextBrowser *formulaLabel = new QTextBrowser(secBox);
@@ -234,10 +235,11 @@ QWidget *MchemHelperDialog::createCheatSheet(QWidget *parent)
             formulaLabel->setMinimumWidth(120);
             formulaLabel->setFixedHeight(32);
             formulaLabel->setHtml(QString(
-                "<div style='font-family:monospace;font-size:12px;padding:4px 8px;"
+                "<div style='font-family:monospace;font-size:%4pt;padding:4px 8px;"
                 "background-color:%1;color:%2;'>\\ce{%3}</div>")
                 .arg(m_themeBg.name(), m_themeTxt.name(),
-                     QString::fromUtf8(sec.entries[i].formula).replace("<", "&lt;").replace(">", "&gt;")));
+                     QString::fromUtf8(sec.entries[i].formula).replace("<", "&lt;").replace(">", "&gt;"))
+                .arg(CssUtils::kUiFontSizePt));
 
             QPushButton *insertBtn = new QPushButton("+", secBox);
             insertBtn->setFixedSize(24, 24);

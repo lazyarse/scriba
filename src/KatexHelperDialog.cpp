@@ -243,7 +243,6 @@ QWidget *KatexHelperDialog::createSymbolPalette(QWidget *parent)
         vbox->setSpacing(2);
 
         QLabel *label = new QLabel(QString("<b>%1</b>").arg(title), frame);
-        label->setStyleSheet("font-size: 11px;");
         vbox->addWidget(label);
 
         QGridLayout *grid = new QGridLayout();
@@ -309,7 +308,8 @@ QWidget *KatexHelperDialog::createCheatSheet(QWidget *parent)
 
         for (int i = 0; i < sec.count; ++i) {
             QLabel *cmdLabel = new QLabel(
-                QString("<code style='font-size:11px;'>%1</code>")
+                QString("<code style='font-size:%1pt;'>%2</code>")
+                    .arg(CssUtils::kUiFontSizePt)
                     .arg(QString::fromUtf8(sec.entries[i].command)), secBox);
             QTextBrowser *exLabel = new QTextBrowser(secBox);
             exLabel->setOpenExternalLinks(false);
@@ -319,10 +319,11 @@ QWidget *KatexHelperDialog::createCheatSheet(QWidget *parent)
             exLabel->setMinimumWidth(120);
             exLabel->setFixedHeight(32);
             exLabel->setHtml(QString(
-                "<div style='font-family:monospace;font-size:12px;padding:4px 8px;"
+                "<div style='font-family:monospace;font-size:%4pt;padding:4px 8px;"
                 "background-color:%1;color:%2;'>%3</div>")
                 .arg(m_themeBg.name(), m_themeTxt.name(),
-                     QString::fromUtf8(sec.entries[i].example).replace("<", "&lt;").replace(">", "&gt;")));
+                     QString::fromUtf8(sec.entries[i].example).replace("<", "&lt;").replace(">", "&gt;"))
+                .arg(CssUtils::kUiFontSizePt));
 
             QPushButton *insertBtn = new QPushButton("+", secBox);
             insertBtn->setFixedSize(24, 24);

@@ -297,13 +297,13 @@ void ExportPdfDialog::setupUi()
 
     auto *colLeftLabel = new QLabel("Left", exportGroup);
     colLeftLabel->setAlignment(Qt::AlignCenter);
-    colLeftLabel->setStyleSheet("color: #888; font-size: 9px;");
+    colLeftLabel->setStyleSheet("color: #888;");
     auto *colCenterLabel = new QLabel("Center", exportGroup);
     colCenterLabel->setAlignment(Qt::AlignCenter);
-    colCenterLabel->setStyleSheet("color: #888; font-size: 9px;");
+    colCenterLabel->setStyleSheet("color: #888;");
     auto *colRightLabel = new QLabel("Right", exportGroup);
     colRightLabel->setAlignment(Qt::AlignCenter);
-    colRightLabel->setStyleSheet("color: #888; font-size: 9px;");
+    colRightLabel->setStyleSheet("color: #888;");
     fieldGrid->addWidget(colLeftLabel, 0, 1);
     fieldGrid->addWidget(colCenterLabel, 0, 2);
     fieldGrid->addWidget(colRightLabel, 0, 3);
@@ -378,7 +378,7 @@ void ExportPdfDialog::setupUi()
         exportGroup);
     hintLabel->setEnabled(false);
     hintLabel->setWordWrap(true);
-    hintLabel->setStyleSheet("color: #888; font-size: 10px;");
+    hintLabel->setStyleSheet("color: #888;");
     connect(m_showHeader, &QCheckBox::toggled, hintLabel, &QWidget::setEnabled);
     groupLayout->addWidget(hintLabel);
 

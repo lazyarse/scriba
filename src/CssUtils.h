@@ -5,6 +5,8 @@
 
 namespace CssUtils {
 
+inline constexpr int kUiFontSizePt = 10;
+
 struct ThemeColors { QColor background; QColor text; };
 
 QString deriveChromeCss(const QString &themeCss);

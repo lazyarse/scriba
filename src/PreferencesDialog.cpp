@@ -317,7 +317,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         m_editorFontSizeSpin = new QSpinBox();
         m_editorFontSizeSpin->setRange(8, 48);
-        m_editorFontSizeSpin->setSuffix(" px");
+        m_editorFontSizeSpin->setSuffix(" pt");
         m_editorFontSizeSpin->setValue(settings.value(Preferences::EditorFontSize, Preferences::DefaultEditorFontSize).toInt());
         editorLayout->addRow("Font size:", m_editorFontSizeSpin);
 
@@ -510,7 +510,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         constexpr int kMaxMetrics = 8;
 
         auto *maxLabel = new QLabel(QString("Select up to %1 metrics").arg(kMaxMetrics));
-        maxLabel->setStyleSheet("color: gray; font-size: 11px;");
+        maxLabel->setStyleSheet("color: gray;");
         metricsLayout->addWidget(maxLabel);
 
         QStringList selected = settings.value(Preferences::StatusBarMetrics).toStringList();
@@ -709,7 +709,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
             "The current policy blocks inline event handlers (onclick, onerror), javascript: URLs, "
             "and external network requests.");
         cspNote->setWordWrap(true);
-        cspNote->setStyleSheet("color: gray; font-size: small; padding: 8px;");
+        cspNote->setStyleSheet("color: gray; padding: 8px;");
         layout->addWidget(cspNote);
 
         layout->addStretch();

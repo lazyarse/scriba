@@ -29,7 +29,7 @@ namespace Preferences {
 
     constexpr const char *EditorFontFamily = "editorFontFamily";
     constexpr const char *EditorFontSize = "editorFontSize";
-    constexpr int DefaultEditorFontSize = 16;
+    constexpr int DefaultEditorFontSize = 12;
     constexpr const char *EditorLineHeight = "editorLineHeight";
     constexpr int DefaultEditorLineHeight = 125;
     constexpr const char *EditorPadding = "editorPadding";

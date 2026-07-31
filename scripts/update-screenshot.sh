@@ -11,10 +11,10 @@ if [ ! -f "$BUILD_DIR/scriba" ]; then
     cmake --build "$BUILD_DIR" -j"$(nproc)"
 fi
 
-cp "$PROJECT_DIR/docs/sample.md" /tmp/sample.md
+cp "$PROJECT_DIR/docs/kitchensink.md" /tmp/kitchensink.md
 
 xvfb-run -a sh -c '
-    '"$BUILD_DIR"'/scriba /tmp/sample.md &
+    '"$BUILD_DIR"'/scriba /tmp/kitchensink.md &
     PID=$!
     sleep 3
     WID=$(xdotool search --onlyvisible --name "Scriba" | head -1)

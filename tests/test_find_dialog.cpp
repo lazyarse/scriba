@@ -139,6 +139,24 @@ TEST_F(FindDialogTest, ReplaceAllNotEmittedOnEmptySearch)
     EXPECT_EQ(spy.count(), 0);
 }
 
+TEST_F(FindDialogTest, ContentFitsInFixedSizeDialog)
+{
+    FindDialog dialog;
+    dialog.show();
+    QApplication::processEvents();
+
+    const QRect clientRect(QPoint(0, 0), dialog.size());
+    for (auto *child : dialog.findChildren<QWidget *>()) {
+        if (!child->isVisible())
+            continue;
+        const QRect childRect(child->mapTo(&dialog, QPoint(0, 0)), child->size());
+        EXPECT_TRUE(clientRect.contains(childRect))
+            << "clipped widget: " << childRect.x() << "," << childRect.y()
+            << " " << childRect.width() << "x" << childRect.height()
+            << " in dialog " << dialog.width() << "x" << dialog.height();
+    }
+}
+
 class FindDialogIntegrationTest : public testing::Test {
 protected:
     static void SetUpTestSuite() {

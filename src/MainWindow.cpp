@@ -796,7 +796,7 @@ QString MainWindow::applyEditorSettings()
 
 QString MainWindow::applyEditorSettings(const QString &fontFamily, int fontSize, int padding)
 {
-    QString css = QString("#scriba-editor { padding: %1px; font-family: %2; font-size: %3px; }")
+    QString css = QString("#scriba-editor { padding: %1px; font-family: %2; font-size: %3pt; }")
         .arg(padding).arg(fontFamily).arg(fontSize);
     QSettings s;
     if (s.value(Preferences::EditorColorOverride, false).toBool()) {

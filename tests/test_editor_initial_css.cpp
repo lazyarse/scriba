@@ -40,8 +40,9 @@ TEST_F(EditorInitialCssTest, EditorStylesheetHasPaddingFontSizeFontFamily) {
 
     EXPECT_TRUE(ss.contains("padding: 12px"))
         << "Expected padding: 12px in stylesheet, got: " << ss.toStdString();
-    EXPECT_TRUE(ss.contains("font-size: 16px"))
-        << "Expected font-size: 16px in stylesheet, got: " << ss.toStdString();
+    const QString expectedFontSize = QStringLiteral("font-size: %1pt").arg(Preferences::DefaultEditorFontSize);
+    EXPECT_TRUE(ss.contains(expectedFontSize))
+        << "Expected " << expectedFontSize.toStdString() << " in stylesheet, got: " << ss.toStdString();
     EXPECT_TRUE(ss.contains("font-family:"))
         << "Expected font-family in stylesheet, got: " << ss.toStdString();
 }

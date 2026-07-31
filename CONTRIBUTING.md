@@ -20,7 +20,7 @@ scriba/
 │   ├── StaticHelpers.cpp       — List continuation, indent/outdent helpers
 │   └── Preferences.h           — Preferences struct (header-only)
 ├── docs/
-│   ├── sample.md               — Sample document (canonical copy)
+│   ├── kitchensink.md          — Sample document (canonical copy)
 ├── resources/
 │   ├── scriba.qrc              — Qt resource file
 │   ├── default.css             — Default theme
@@ -64,7 +64,7 @@ After adding a new menu item or any significant UI change, update `docs/images/s
 bash scripts/update-screenshot.sh
 ```
 
-This launches `build/scriba` under `xvfb-run`, loads `resources/sample.md`, waits 3s, then captures the window with `import` (ImageMagick).
+This launches `build/scriba` under `xvfb-run`, loads `docs/kitchensink.md`, waits 3s, then captures the window with `import` (ImageMagick).
 
 ### Autocomplete Demo GIF
 

@@ -275,6 +275,33 @@ TEST(CssUtilsTest, RadioCheckedHasRing) {
     EXPECT_TRUE(disabled.contains("image: none"));
 }
 
+TEST(CssUtilsTest, DialogWidgetsShareFontSize) {
+    QString css = CssUtils::deriveChromeCss("body { background: #ffffff; }");
+    const QString expected = QStringLiteral("font-size: %1pt").arg(CssUtils::kUiFontSizePt);
+    const QStringList selectors = {
+        QStringLiteral("QGroupBox"),
+        QStringLiteral("QGroupBox::title"),
+        QStringLiteral("QCheckBox"),
+        QStringLiteral("QRadioButton"),
+        QStringLiteral("QPushButton"),
+        QStringLiteral("QLabel"),
+        QStringLiteral("#stats-label"),
+        QStringLiteral("QPlainTextEdit"),
+        QStringLiteral("QTextEdit"),
+        QStringLiteral("QLineEdit"),
+        QStringLiteral("QSpinBox, QDoubleSpinBox"),
+        QStringLiteral("QComboBox"),
+        QStringLiteral("QComboBox QAbstractItemView"),
+        QStringLiteral("QTableWidget, QTableView"),
+    };
+    for (const QString &selector : selectors) {
+        QRegularExpression re(QStringLiteral("%1\\s*\\{[^}]*\\}").arg(selector));
+        auto m = re.match(css);
+        ASSERT_TRUE(m.hasMatch()) << "missing rule for " << selector.toStdString();
+        EXPECT_TRUE(m.captured(0).contains(expected)) << selector.toStdString();
+    }
+}
+
 TEST(CssUtilsTest, SplitViewMaxWidthAutoFillsPane) {
     QString css = CssUtils::splitViewMaxWidthCss(0);
     EXPECT_TRUE(css.contains("max-width:none!important"));

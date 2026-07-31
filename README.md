@@ -2,7 +2,7 @@
 
 # Scriba Markdown Editor
 
-**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what it should without plugin hell. No node, react, angular, or bloat. Just like the old days: a binary that sits on your computer and doesn't call outside. Get ready to leave your Google Docs trauma behind.
+**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what it should without plugin hell. No node, react, angular, or bloat. Just like the old days: a binary that sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
 
 :cucumber:
 ![Opencode Badge + Big Pickles!](docs/images/badge-opencode.svg)
@@ -47,7 +47,7 @@
 - Optional alternating table row striping
 - Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete
 - A debug log window output to see your rendering errors
-- A [docs/sample.md](docs/sample.md) file with kitchensink feature examples
+- A [kitchensink.md](docs/kitchensink.md) file with feature examples
 - hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text for your safety
 
 ## Custom CSS / Themes
