@@ -7,6 +7,8 @@
 #include <QScrollBar>
 #include <QTextBlock>
 #include <QTextDocument>
+#include <QTextLayout>
+#include <QFontMetricsF>
 #include <QSettings>
 #include <QEvent>
 #include <QCoreApplication>

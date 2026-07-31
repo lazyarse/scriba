@@ -22,6 +22,8 @@ public:
     void setFoldedBlocks(const QSet<int> &folded);
     int headerAtPos(int y) const;
 
+    static qreal firstLineTextCenterY(const QTextBlock &block);
+
 signals:
     void foldToggled(int blockNumber);
 

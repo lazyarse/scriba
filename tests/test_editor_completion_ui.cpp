@@ -242,6 +242,15 @@ TEST_F(EditorCompletionUITest, CodeFenceLanguageCompletes)
     EXPECT_EQ(editor->toPlainText(), "```python");
 }
 
+TEST_F(EditorCompletionUITest, CodeFenceMermaidCompletes)
+{
+    editor->clear();
+    typeText("```mer");
+    ASSERT_GT(popupRowCount(), 0);
+    pressEnter();
+    EXPECT_EQ(editor->toPlainText(), "```mermaid");
+}
+
 TEST_F(EditorCompletionUITest, CodeFenceJsSuggestsJson)
 {
     editor->clear();

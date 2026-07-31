@@ -109,5 +109,5 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Tests must be cross-platform (Linux + Windows). Never hardcode `/tmp`, `file:///tmp/`, or any platform-specific paths. Use `QDir::tempPath()`, `QTemporaryDir`, `QTemporaryFile`, and `QUrl::fromLocalFile()` instead.
 - `Qt6::WebEngineWidgets` is a heavy dependency; requires `xvfb` for headless/CI — install with `sudo apt install xvfb`.
 - Admonition support is CSS-only (`::before` pseudo-elements), not markdown parser extensions.
-- The code-fence language autocomplete list is hardcoded in `src/Editor.cpp` (`codeLanguages()`). When bumping `resources/highlight.min.js`, re-extract the bundled languages with `grep -oE 'grmr_[a-zA-Z0-9+-]+' resources/highlight.min.js` and keep that table (and its aliases) in sync.
+- The code-fence language autocomplete list is hardcoded in `src/Editor.cpp` (`codeLanguages()`). When bumping `resources/highlight.min.js`, re-extract the bundled languages with `grep -oE 'grmr_[a-zA-Z0-9+-]+' resources/highlight.min.js` and keep that table (and its aliases) in sync. The table also includes app-rendered languages that hljs has no grammar for (e.g. `mermaid`, `vl` — rendered by mermaid.js/vega-lite in the preview) — keep those too.
 - This app must work fully offline. No CDN, no network-dependent features. All assets (JS, fonts, SVG) must be bundled via qrc.
