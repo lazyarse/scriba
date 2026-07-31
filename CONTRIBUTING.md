@@ -79,7 +79,7 @@ The script auto-wraps in `xvfb-run`. It simulates keystrokes via `xdotool`, capt
 **Dependencies:**
 ```
 sudo apt install xvfb xdotool
-pip install Pillow mss
+pip install -r scripts/requirements.txt
 ```
 
 Both scripts expect a pre-built binary at `build/scriba`.
