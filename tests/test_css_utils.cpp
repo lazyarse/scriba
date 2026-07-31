@@ -191,11 +191,25 @@ TEST(CssUtilsTest, GutterColorsDerived) {
     QString darkCss = CssUtils::deriveChromeCss("body { background: #282a36; }");
     EXPECT_TRUE(darkCss.contains(darkGutter.name()));
 
+    // dark theme: gutter text is dimmed toward the background (no color: in theme,
+    // so editor text falls back to the dark-theme chrome text #f0f0f0)
+    QColor darkGutterText = QColor("#f0f0f0").darker(240);
+    QRegularExpression darkGutterRule("\\#gutter \\{ background-color: [^;]+; color: ([^;]+); \\}");
+    auto darkMatch = darkGutterRule.match(darkCss);
+    EXPECT_TRUE(darkMatch.hasMatch());
+    EXPECT_EQ(darkMatch.captured(1), darkGutterText.name());
+
     // light theme: gutter background is slightly darker than the editor background
     QColor lightBg("#ffffff");
     QColor lightGutter = lightBg.darker(105);
     QString lightCss = CssUtils::deriveChromeCss("body { background: #ffffff; }");
     EXPECT_TRUE(lightCss.contains(lightGutter.name()));
+
+    // light theme: gutter text is lightened toward the background
+    QColor lightGutterText = QColor("#333333").lighter(240);
+    auto lightMatch = darkGutterRule.match(lightCss);
+    EXPECT_TRUE(lightMatch.hasMatch());
+    EXPECT_EQ(lightMatch.captured(1), lightGutterText.name());
 }
 
 TEST(CssUtilsTest, PushButtonBorderDerived) {

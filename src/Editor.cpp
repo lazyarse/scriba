@@ -385,16 +385,8 @@ void Editor::keyPressEvent(QKeyEvent *event)
         return;
     }
 
-    // Ctrl+= fold, Ctrl+- unfold
+    // Ctrl+= expand, Ctrl+- fold
     if (ctrl && !alt && event->key() == Qt::Key_Equal) {
-        int bn = textCursor().blockNumber();
-        if (m_headerLevel.contains(bn)) {
-            toggleFold(bn);
-        }
-        event->accept();
-        return;
-    }
-    if (ctrl && !alt && event->key() == Qt::Key_Minus) {
         int bn = textCursor().blockNumber();
         int foldedHeader = -1;
         for (auto it = m_headerLevel.constBegin(); it != m_headerLevel.constEnd(); ++it) {
@@ -405,6 +397,14 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
         if (foldedHeader >= 0)
             toggleFold(foldedHeader);
+        event->accept();
+        return;
+    }
+    if (ctrl && !alt && event->key() == Qt::Key_Minus) {
+        int bn = textCursor().blockNumber();
+        if (m_headerLevel.contains(bn) && !m_foldedHeaders.contains(bn)) {
+            toggleFold(bn);
+        }
         event->accept();
         return;
     }
@@ -1440,10 +1440,24 @@ void Editor::updateGutterSettings()
     if (!m_gutter)
         return;
     QSettings s;
+    bool showGutter = s.value(Preferences::ShowGutter, true).toBool();
     m_gutter->setLineNumbersVisible(s.value(Preferences::ShowLineNumbers, true).toBool());
-    m_gutter->setFoldIconsVisible(s.value(Preferences::ShowFoldIcons, true).toBool());
     applyGutterColors();
-    updateGutterWidth();
+    if (showGutter) {
+        updateGutterWidth();
+    } else {
+        m_gutter->setFixedWidth(0);
+        updateViewportMargins();
+    }
+}
+
+void Editor::toggleGutter()
+{
+    QSettings s;
+    bool show = !s.value(Preferences::ShowGutter, true).toBool();
+    s.setValue(Preferences::ShowGutter, show);
+    s.sync();
+    updateGutterSettings();
 }
 
 void Editor::refreshGutter()
@@ -1465,6 +1479,7 @@ void Editor::setupGutter()
         if (m_gutter)
             m_gutter->update();
     });
+    connect(document(), &QTextDocument::blockCountChanged, this, &Editor::updateGutterWidth);
     applyGutterColors();
     updateGutter();
     updateGutterWidth();

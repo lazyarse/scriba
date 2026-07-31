@@ -100,5 +100,7 @@ public:
     void updateGutter();
     void updateGutterSettings();
     void refreshGutter();
+    void toggleGutter();
+    Gutter *gutter() const { return m_gutter; }
 };
 

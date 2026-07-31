@@ -39,7 +39,7 @@ namespace Preferences {
     constexpr const char *EditorColorOverride = "editorColorOverride";
 
     constexpr const char *ShowLineNumbers = "showLineNumbers";
-    constexpr const char *ShowFoldIcons = "showFoldIcons";
+    constexpr const char *ShowGutter = "showGutter";
     constexpr const char *GutterColorOverride = "gutterColorOverride";
     constexpr const char *GutterBgColor = "gutterBgColor";
     constexpr const char *GutterTextColor = "gutterTextColor";

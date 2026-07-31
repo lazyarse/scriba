@@ -162,21 +162,10 @@ class DemoScribe:
             time.sleep(0.02)
         return None
 
-    def run(self):
-        self.start_scriba()
+    def _scene_file_autocomplete(self):
+        self.header("Local Filenames")
 
-        # ── Scene 1: File autocomplete ──
-        self.type_str("## Autocomplete")
-        self.capture()
-        self.press("Return"); self.capture()
-        self.press("Return"); self.capture()
-
-        self.header("Files")
-
-        text = "Local filenames, <Enter> to accept"
-        self.type_str(text)
-        self.capture()
-        self.press("Return"); self.capture()
+#        self.capture()
         self.press("Return"); self.capture()
 
         for ch in ["exclam", "bracketleft", "bracketright", "parenleft"]:
@@ -198,28 +187,24 @@ class DemoScribe:
 
         for ch in ["s", "c", "r"]:
             self.press(ch); self.capture()
-        self.press("i")
+        time.sleep(0.3)
+        self.press("Down"); self.capture()
         time.sleep(0.2)
         self.capture()
 
         self.press("Return"); self.pause(3)
 
-        self.press("Left"); self.capture()
-        for ch in ["numbersign", "8", "0", "x"]:
-            self.press(ch); self.capture()
-        self.press("Right"); self.capture()
-
         self.press("Return")
         self.press("Return")
 
-        # ── Scene 2: Emoji autocomplete ──
-        self.header("Emojis")
+    def _scene_emoji_autocomplete(self):
+        self.header("Emojis - Type ':' to start")
 
-        text = '":" to start'
-        self.type_str(text)
-        self.capture()
-        self.press("Return"); self.capture()
-        self.press("Return"); self.capture()
+#        text = '":" to start'
+#        self.type_str(text)
+#        self.capture()
+#        self.press("Return"); self.capture()
+#        self.press("Return"); self.capture()
 
         for ch in ["colon", "s", "m"]:
             self.press(ch); self.capture()
@@ -230,12 +215,25 @@ class DemoScribe:
         self.press("Down"); self.capture(); self.capture()
         self.press("Down"); self.capture(); self.capture()
 
-        self.press("Return"); self.pause(3)
+        self.press("Return")
+        self.pause(4)
+
+        self.press("  ");
+
+        for ch in ["colon", "r", "o", "c", "k"]:
+            self.press(ch); self.capture()
+        time.sleep(0.2)
+        self.capture()
+
+        self.press("Down"); self.capture(); self.capture()
+#        self.press("Down"); self.capture(); self.capture()
+        self.pause(4)
+        self.press("Return")
 
         self.press("Return")
         self.press("Return")
 
-        # ── Scene 3: Table autocomplete ──
+    def _scene_table_autocomplete(self):
         self.header("Markdown Tables")
 
         text = ("<enter> = new row, <tab> = next cell "
@@ -298,26 +296,7 @@ class DemoScribe:
         time.sleep(0.1)
         self.capture()
 
-        # ── Scene 4: Code language autocomplete ──
-        self.header("Code Blocks")
-
-        text = 'Type ``` and the first letters of a language, <enter> to accept'
-        self.type_str(text)
-        self.capture()
-        self.press("Return"); self.capture()
-        self.press("Return"); self.capture()
-
-        for ch in ["grave", "grave", "grave", "p", "y"]:
-            self.press(ch); self.capture()
-        time.sleep(0.2)
-        self.capture()
-
-        self.press("Return"); self.pause(3)
-
-        self.press("Return"); self.pause(2)
-        self.press("Return"); self.pause(2)
-
-        # ── Scene 5: HTML table via Ctrl+T ──
+    def _scene_html_table(self):
         self.header("HTML Tables")
 
         text = "Use the HTML Table generator - markdown tables forces a header row"
@@ -355,9 +334,38 @@ class DemoScribe:
         self.press("Tab"); self.capture(); self.capture()
         for ch in ["b", "a", "r", "2"]:
             self.press(ch); self.capture()
-        self.press("Return"); self.pause(3)
 
         self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(3)
+
+    def _scene_code_block(self):
+        self.header("Code Blocks")
+
+        text = 'Type ``` and the first letters of a language, <enter> to accept'
+        self.type_str(text)
+        self.capture()
+        self.press("Return"); self.capture()
+        self.press("Return"); self.capture()
+
+        for ch in ["grave", "grave", "grave", "p", "y"]:
+            self.press(ch); self.capture()
+        time.sleep(0.3)
+        self.capture()
+
+        self.press("Return"); self.pause(3)
+        self.press("Return"); self.capture()
+        self.type_str('```')
+        self.press("Return"); self.pause(2)
+        self.press("Return"); self.pause(2)
+
+    def run(self):
+        self.start_scriba()
+
+        self._scene_file_autocomplete()
+        self._scene_emoji_autocomplete()
+        self._scene_table_autocomplete()
+#        self._scene_html_table()
+        self._scene_code_block()
 
         self.scriba_proc.kill()
         self.scriba_proc.wait()

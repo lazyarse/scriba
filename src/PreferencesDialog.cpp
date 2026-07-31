@@ -421,14 +421,9 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_showLineNumbersCheck->setChecked(settings.value(Preferences::ShowLineNumbers, true).toBool());
         gutterLayout->addWidget(m_showLineNumbersCheck);
 
-        m_showFoldIconsCheck = new QCheckBox("Enable code folding");
-        m_showFoldIconsCheck->setChecked(settings.value(Preferences::ShowFoldIcons, true).toBool());
-        gutterLayout->addWidget(m_showFoldIconsCheck);
-
         auto emitGutterSettings = [this]() {
             QSettings s;
             s.setValue(Preferences::ShowLineNumbers, m_showLineNumbersCheck->isChecked());
-            s.setValue(Preferences::ShowFoldIcons, m_showFoldIconsCheck->isChecked());
         };
 
         auto makeGutterSwatchBtn = [](const QString &hex) {
@@ -785,7 +780,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EnableCspPreview, m_enableCspPreviewCheck->isChecked());
         settings.setValue(Preferences::EnableCspExport, m_enableCspExportCheck->isChecked());
         settings.setValue(Preferences::ShowLineNumbers, m_showLineNumbersCheck->isChecked());
-        settings.setValue(Preferences::ShowFoldIcons, m_showFoldIconsCheck->isChecked());
         settings.setValue(Preferences::GutterColorOverride, m_gutterOverrideGroup->isChecked());
         settings.setValue(Preferences::GutterBgColor, m_gutterBgBtn->text());
         settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());

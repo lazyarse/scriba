@@ -245,6 +245,11 @@ if(BUILD_TESTS)
     target_link_libraries(test_gutter_line_height PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
     add_test(NAME test_gutter_line_height COMMAND ${_TEST_PREFIX} ./test_gutter_line_height)
 
+    add_executable(test_gutter_width tests/test_gutter_width.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
+    target_include_directories(test_gutter_width PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_gutter_width PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    add_test(NAME test_gutter_width COMMAND ${_TEST_PREFIX} ./test_gutter_width)
+
     add_executable(test_editor_typing tests/test_editor_typing.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_editor_typing PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_editor_typing PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)

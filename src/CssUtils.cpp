@@ -124,14 +124,16 @@ QString deriveChromeCss(const QString &themeCss)
         if (parsed.isValid())
             chkCheckedBg = parsed;
     }
-    QColor gutterBg, gutterText;
-    if (dark) {
-        gutterBg = bg.darker(120);
-        gutterText = QColor(QStringLiteral("#999999"));
-    } else {
-        gutterBg = bg.darker(105);
-        gutterText = QColor(QStringLiteral("#777777"));
+    QColor gutterBg = dark ? bg.darker(120) : bg.darker(105);
+    QColor editorText;
+    if (!txtStr.isEmpty()) {
+        QColor parsed(txtStr);
+        if (parsed.isValid())
+            editorText = parsed;
     }
+    if (!editorText.isValid())
+        editorText = txt;
+    QColor gutterText = dark ? editorText.darker(240) : editorText.lighter(240);
 
     return QStringLiteral(
         "QDialog { background-color: %2; }\n"

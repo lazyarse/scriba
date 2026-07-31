@@ -692,6 +692,14 @@ void MainWindow::setupMenuBar()
 
     toolsMenu->addSeparator();
 
+    QAction *gutterAction = toolsMenu->addAction("Show &Gutter");
+    gutterAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
+    connect(gutterAction, &QAction::triggered, this, [this]() {
+        Editor *ed = currentEditor();
+        if (ed)
+            ed->toggleGutter();
+    });
+
     QAction *logAction = toolsMenu->addAction("&Debug Log");
     logAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
     connect(logAction, &QAction::triggered, this, &MainWindow::showLogWindow);

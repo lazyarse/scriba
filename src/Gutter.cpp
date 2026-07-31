@@ -32,13 +32,6 @@ void Gutter::setLineNumbersVisible(bool visible)
     update();
 }
 
-void Gutter::setFoldIconsVisible(bool visible)
-{
-    m_showFoldIcons = visible;
-    updateWidth();
-    update();
-}
-
 void Gutter::setFoldableBlocks(const QSet<int> &foldable)
 {
     m_foldableBlocks = foldable;
@@ -69,15 +62,21 @@ qreal Gutter::firstLineTextCenterY(const QTextBlock &block)
 
 int Gutter::headerAtPos(int y) const
 {
+    QTextCursor cursor0(m_editor->document());
+    cursor0.setPosition(0);
+    int docTopY = m_editor->viewport()->mapTo(m_editor, m_editor->cursorRect(cursor0).topLeft()).y()
+                  - (int)m_editor->document()->documentMargin();
+
     QTextBlock block = m_editor->document()->firstBlock();
-    int viewY = -m_editor->verticalScrollBar()->value();
     while (block.isValid()) {
         QTextBlock next = block.next();
-        if (!block.isVisible())
+        if (!block.isVisible()) {
             block = next;
-        int blockY = (int)m_editor->document()->documentLayout()->blockBoundingRect(block).y();
-        int blockH = (int)m_editor->document()->documentLayout()->blockBoundingRect(block).height();
-        int y0 = viewY + blockY;
+            continue;
+        }
+        QRectF r = m_editor->document()->documentLayout()->blockBoundingRect(block);
+        int y0 = docTopY + (int)r.y();
+        int blockH = (int)r.height();
         if (y >= y0 && y < y0 + blockH) {
             if (m_foldableBlocks.contains(block.blockNumber()))
                 return block.blockNumber();
@@ -99,8 +98,7 @@ int Gutter::preferredWidth() const
         else if (lines >= 10) digits = 2;
         w += fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits + 16;
     }
-    if (m_showFoldIcons)
-        w += 14;
+    w += 14;
     return w;
 }
 
@@ -135,7 +133,8 @@ void Gutter::paintEvent(QPaintEvent *)
 
     QTextCursor cursor0(m_editor->document());
     cursor0.setPosition(0);
-    int docTopY = m_editor->viewport()->mapTo(m_editor, m_editor->cursorRect(cursor0).topLeft()).y();
+    int docTopY = m_editor->viewport()->mapTo(m_editor, m_editor->cursorRect(cursor0).topLeft()).y()
+                  - (int)m_editor->document()->documentMargin();
     int iconW = 12;
     int iconH = 12;
 
@@ -166,13 +165,13 @@ void Gutter::paintEvent(QPaintEvent *)
             painter.setPen(linePen);
             QString num = QString::number(blockNum + 1);
             int numW = painter.fontMetrics().horizontalAdvance(num);
-            int x = width() - (m_showFoldIcons ? iconW + 4 : 4) - numW;
+            int x = width() - iconW - 4 - numW;
             int numH = painter.fontMetrics().height();
             int numY = qRound(textCenterY - numH / 2.0);
             painter.drawText(x, numY, numW, numH, Qt::AlignRight | Qt::AlignVCenter, num);
         }
 
-        if (m_showFoldIcons && m_foldableBlocks.contains(blockNum)) {
+        if (m_foldableBlocks.contains(blockNum)) {
             painter.setPen(foldPen);
             painter.setBrush(foldPen.color());
             bool folded = m_foldedBlocks.contains(blockNum);
@@ -182,14 +181,14 @@ void Gutter::paintEvent(QPaintEvent *)
             QRect iconRect(cx, cy, iconW, iconH);
 
             if (folded) {
-                static const QPointF triangle[3] = {
+                const QPointF triangle[3] = {
                     QPointF(iconRect.left() + 2, iconRect.top() + 1),
                     QPointF(iconRect.left() + 2, iconRect.bottom() - 1),
                     QPointF(iconRect.right() - 1, iconRect.center().y())
                 };
                 painter.drawConvexPolygon(triangle, 3);
             } else {
-                static const QPointF triangle[3] = {
+                const QPointF triangle[3] = {
                     QPointF(iconRect.left() + 1, iconRect.top() + 2),
                     QPointF(iconRect.right() - 1, iconRect.top() + 2),
                     QPointF(iconRect.center().x(), iconRect.bottom() - 1)

@@ -14,9 +14,7 @@ public:
     explicit Gutter(Editor *editor);
 
     void setLineNumbersVisible(bool visible);
-    void setFoldIconsVisible(bool visible);
     bool lineNumbersVisible() const { return m_showLineNumbers; }
-    bool foldIconsVisible() const { return m_showFoldIcons; }
 
     void setFoldableBlocks(const QSet<int> &foldable);
     void setFoldedBlocks(const QSet<int> &folded);
@@ -41,7 +39,6 @@ private:
 
     Editor *m_editor;
     bool m_showLineNumbers = true;
-    bool m_showFoldIcons = true;
     QSet<int> m_foldableBlocks;
     QSet<int> m_foldedBlocks;
 };

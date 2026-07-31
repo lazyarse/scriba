@@ -128,7 +128,7 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 | `%14` | `upArrowImg` | spinbox up arrow | light image | dark image |
 | `%15` | `downArrowImg` | spinbox down arrow | light image | dark image |
 | `%17` | `gutterBg` | line-number gutter background | `bg` × 83% | `bg` × 95% |
-| `%18` | `gutterText` | gutter line numbers | `#999999` | `#777777` |
+| `%18` | `gutterText` | gutter line numbers | `editorText` × 42% | `editorText` × 240% |
 | `%19` | `btnBorder` | push-button border | `thumb` × 150% | `thumb` × 67% |
 | `%20` | `radioImg` | radio checked dot | light image (`radio-dot.svg`) | dark image (`radio-dot-dark.svg`) |
 

@@ -225,7 +225,7 @@ TEST_F(FoldingTest, KeyboardFoldUnfold)
     editor->setTextCursor(cursor);
     QApplication::processEvents();
 
-    QTest::keyClick(editor, Qt::Key_Equal, Qt::ControlModifier);
+    QTest::keyClick(editor, Qt::Key_Minus, Qt::ControlModifier);
     QApplication::processEvents();
 
     auto *doc = editor->document();
@@ -257,7 +257,7 @@ TEST_F(FoldingTest, KeyboardUnfoldNearestAncestor)
     editor->setTextCursor(cursor);
     QApplication::processEvents();
 
-    QTest::keyClick(editor, Qt::Key_Minus, Qt::ControlModifier);
+    QTest::keyClick(editor, Qt::Key_Equal, Qt::ControlModifier);
     QApplication::processEvents();
 
     auto *doc = editor->document();

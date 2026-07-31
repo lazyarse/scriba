@@ -104,7 +104,6 @@ private:
 
     // Gutter
     QCheckBox *m_showLineNumbersCheck;
-    QCheckBox *m_showFoldIconsCheck;
     QGroupBox *m_gutterOverrideGroup;
     QPushButton *m_gutterBgBtn;
     QPushButton *m_gutterTextBtn;
