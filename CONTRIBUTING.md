@@ -220,3 +220,5 @@ Test suites set `QCoreApplication::setOrganizationName("scribaTest")` / `setAppl
 - a blank HTML table row exits table autocomplete
 
 If you change `handleListReturn`, `handleTableReturn`, `indentListLine`, `outdentListLine`, or the table navigation helpers, update both the pure helper tests (`test_editor_list_continuation.cpp`) and the key-event integration tests (`test_editor_typing.cpp`).
+
+New typing-centred suites should derive from the shared fixture `tests/EditorTestHarness.h` (`EditorTestHarness`, in the `test_editor_helpers` static library) rather than re-implementing key simulation. It provides `typeText`, `press`, `typeLine`, `run(...)`, `placeCursor`, `placeCursorAtEnd`, `selectLines`, `waitForFolds`, `text`, `cursorBlock`, `cursorColumn`, and `assertCursor`. `SetUp` disables autocomplete popups so they cannot intercept key events; suites that need autocomplete on (e.g. completion tests) can derive a subclass and override `SetUp`.

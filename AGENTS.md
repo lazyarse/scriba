@@ -96,6 +96,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
 - After changing autocomplete behavior, update `docs/images/autocomplete-demo.gif` by running `scripts/create-autocomplete-demo.py`. Requires: xvfb-run, xdotool, and Python packages from `scripts/requirements.txt` (`pip install -r scripts/requirements.txt`).
 - Create tests for each new feature — use Qt Test framework (QTest), add test files to `tests/` directory and register in `CMakeLists.txt`
+- For typing-centred integration tests, reuse the shared key-simulation fixture in `tests/EditorTestHarness.h` (GTest base class `EditorTestHarness` with `typeText`, `press`, `typeLine`, `run`, `placeCursor`, `selectLines`, `assertCursor`, `waitForFolds`); new test targets link the `test_editor_helpers` static library
 - When presenting a plan or fix proposal, state it as normal text — do not use a structured question widget asking "shall I proceed/continue/go". Let the user reply naturally.
 
 ## CRITICAL

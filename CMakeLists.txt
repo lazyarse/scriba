@@ -166,6 +166,18 @@ if(BUILD_TESTS)
     )
     target_link_libraries(scriba_core PUBLIC Qt6::Core Qt6::Gui Qt6::Svg Qt6::Widgets)
 
+    add_library(test_editor_helpers STATIC
+        tests/EditorTestHarness.cpp
+        tests/EditorTestHarness.h
+    )
+    target_include_directories(test_editor_helpers PUBLIC
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_editor_helpers PUBLIC
+        GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core
+    )
+
     add_executable(test_markdown_parser tests/test_markdown_parser.cpp)
     target_link_libraries(test_markdown_parser PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_markdown_parser COMMAND ${_TEST_PREFIX} ./test_markdown_parser)
@@ -252,7 +264,7 @@ if(BUILD_TESTS)
 
     add_executable(test_editor_typing tests/test_editor_typing.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_editor_typing PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_editor_typing PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core)
+    target_link_libraries(test_editor_typing PRIVATE GTest::gtest test_editor_helpers)
     add_test(NAME test_editor_typing COMMAND ${_TEST_PREFIX} ./test_editor_typing)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
