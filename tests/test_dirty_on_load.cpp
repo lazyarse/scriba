@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 #include <QApplication>
+#include <QDialog>
 #include <QTemporaryFile>
 #include <QSettings>
 #include <QTabWidget>
+#include <QTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -55,6 +57,17 @@ protected:
         return tabs->tabText(tabs->currentIndex());
     }
 
+    static bool anyTabDirty(MainWindow *w) {
+        QTabWidget *tabs = w->findChild<QTabWidget *>();
+        if (!tabs)
+            return false;
+        for (int i = 0; i < tabs->count(); ++i) {
+            if (tabs->tabText(i).contains('*'))
+                return true;
+        }
+        return false;
+    }
+
     QTemporaryFile *tmpFile = nullptr;
     MainWindow *window = nullptr;
 };
@@ -92,6 +105,69 @@ TEST_F(DirtyOnLoadTest, TypingAfterLoadMarksTabDirty) {
     QApplication::processEvents();
 
     EXPECT_TRUE(activeTabText(window).contains(QStringLiteral("*")));
+}
+
+TEST_F(DirtyOnLoadTest, RecheckSpellingDoesNotMarkTabDirty) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    QApplication::processEvents();
+    ASSERT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
+
+    window->editor()->recheckSpelling();
+    QApplication::processEvents();
+
+    EXPECT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
+}
+
+TEST_F(DirtyOnLoadTest, RecheckSpellingDoesNotDirtyAnyTab) {
+    QTemporaryFile secondFile;
+    ASSERT_TRUE(secondFile.open());
+    secondFile.write("second file content\n");
+    secondFile.close();
+
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    window->loadFile(secondFile.fileName());
+    QApplication::processEvents();
+    ASSERT_FALSE(anyTabDirty(window));
+
+    if (auto *tabs = window->findChild<QTabWidget *>()) {
+        for (int i = 0; i < tabs->count(); ++i) {
+            if (auto *ed = qobject_cast<Editor *>(tabs->widget(i)))
+                ed->recheckSpelling();
+        }
+    }
+    QApplication::processEvents();
+
+    EXPECT_FALSE(anyTabDirty(window));
+}
+
+TEST_F(DirtyOnLoadTest, AcceptingPreferencesDoesNotDirtyAnyTab) {
+    QTemporaryFile secondFile;
+    ASSERT_TRUE(secondFile.open());
+    secondFile.write("second file content\n");
+    secondFile.close();
+
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    window->loadFile(secondFile.fileName());
+    QApplication::processEvents();
+    ASSERT_FALSE(anyTabDirty(window));
+
+    QTimer::singleShot(0, []() {
+        if (auto *dlg = qobject_cast<QDialog *>(qApp->activeModalWidget()))
+            dlg->accept();
+    });
+    QMetaObject::invokeMethod(window, "showPreferences");
+    QApplication::processEvents();
+
+    EXPECT_FALSE(anyTabDirty(window));
 }
 
 TEST_F(DirtyOnLoadTest, SessionRestoreDoesNotMarkTabDirty) {

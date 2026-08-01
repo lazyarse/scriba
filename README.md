@@ -14,16 +14,13 @@
 
 ---
 
+## Screenshots
+
 ![Screenshot](docs/images/screenshot.png)
-_We have themes_
 
 
 ![Autocomplete Demo](docs/images/autocomplete-demo.gif)
 _Autocomplete Examples_
-
----
-
-## Screenshots
 
 ### Preferences
 
@@ -51,12 +48,11 @@ _Autocomplete Examples_
 
 - Load / Save multiple documents in a `session` with a tabbed interface
 - Pick up exactly where you left off with cursor and view-port restore in documents
-- Privacy-first, in-editor spell and grammar check. Import custom wordsets for your audience — all options naturally configurable
+- Privacy-first, in-editor spell and grammar check. Import audience-specific word sets with ease: legal, medical, technical or "My Little Pony" — all options naturally configurable
 - Print and PDF export using print-specific CSS stylesheets
 - Readability metrics to keep you audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
 - Find and Replace with optional regex search and replacement back-references
 - PDF, DOCX, and HTML export
-- Spellcheck and (English-only) grammar check. Use Grammarly no more.
 - Useful in-editor autocomplete to assist in creating tables, linking to local filenames, and yes, even emojis
 - Numerous [chart helpers](docs/chart-helpers.md) for vega-lite and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV input because writing JSON and fenced blocks at 2am is difficult
 - [keyboard shortcuts](docs/shortcuts.md) for everything*

@@ -311,14 +311,17 @@ int MainWindow::addTab(const QString &filePath)
     m_tabWidget->setCurrentIndex(idx);
     m_tabWidget->setTabToolTip(idx, filePath.isEmpty() ? QString() : filePath);
 
-    connect(editor, &QTextEdit::textChanged, this, [this, editor]() {
-        for (int i = 0; i < m_tabs.size(); ++i) {
-            if (m_tabs[i].editor == editor && !m_tabs[i].dirty) {
-                setTabDirty(i, true);
-                break;
+    connect(editor->document(), &QTextDocument::contentsChange, this,
+        [this, editor](int, int charsRemoved, int charsAdded) {
+            if (charsRemoved == 0 && charsAdded == 0)
+                return; // format-only change (e.g. spell/syntax highlighting)
+            for (int i = 0; i < m_tabs.size(); ++i) {
+                if (m_tabs[i].editor == editor && !m_tabs[i].dirty) {
+                    setTabDirty(i, true);
+                    break;
+                }
             }
-        }
-    });
+        });
 
     if (!m_cachedFullCss.isEmpty()) {
         editor->setStyleSheet(m_cachedFullCss + applyEditorSettings());
