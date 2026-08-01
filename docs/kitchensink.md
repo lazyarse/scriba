@@ -4,9 +4,9 @@ A quick tour of what Scriba can do.
 
 ## Typography
 
-**Bold**, *italic*, ~~strikethrough~~, `inline code`, and a [link](#). Emoji: :rocket: :heart: :sparkles: :smile: :tada:
+**Bold**, *italic*, ~~strike through~~, `inline code`, and a [link](#). Emojis: :rocket: :heart: :sparkles: :smile: :tada:
 
-> Blockquote with **inline** styling.
+> Block quote with **inline** styling.
 
 ## Images
 
@@ -17,7 +17,7 @@ Resize with `#WIDTHxHEIGHT` suffix appended to the image URL:
 - Width only:  `![](icons/scriba.svg#200x)`
 - Height only: `![](icons/scriba.svg#x100)`
 
-Tooltips for title, alt text in that priority. Hover over the below images
+Tool tips for title, alt text in that priority. Hover over the below images
 
 - ![Alt A](../resources/icons/fullscreen.svg) Alt A
 - ![Alt A](../resources/icons/fullscreen.svg "Title B") Title B

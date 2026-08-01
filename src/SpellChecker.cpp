@@ -99,6 +99,29 @@ void SpellChecker::writeUserDictionaryWords(const QStringList &words)
     }
 }
 
+QStringList SpellChecker::parseWordList(const QString &text)
+{
+    QStringList words;
+    bool countHeaderSeen = false;
+    const QStringList lines = text.split('\n');
+    for (QString line : lines) {
+        if (line.endsWith('\r'))
+            line.chop(1);
+        QString trimmed = line.trimmed();
+        if (trimmed.isEmpty())
+            continue;
+        if (!countHeaderSeen) {
+            countHeaderSeen = true;
+            bool ok = false;
+            trimmed.toInt(&ok);
+            if (ok)
+                continue;
+        }
+        words << trimmed;
+    }
+    return words;
+}
+
 bool SpellChecker::findDictionaryFiles(const QString &language, QString &aff, QString &dic) const
 {
     for (const char *bundled : BundledLangs) {

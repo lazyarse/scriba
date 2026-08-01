@@ -144,6 +144,40 @@ TEST_F(SpellCheckerTest, WriteThenReadUserDictionaryRoundTrip)
     EXPECT_EQ(words, QStringList({"alpha", "mid", "zeta"}));
 }
 
+TEST_F(SpellCheckerTest, ParseWordListSplitsLinesAndTrims)
+{
+    EXPECT_EQ(SpellChecker::parseWordList(QStringLiteral("alpha\nbeta\n  gamma \n")),
+        QStringList({"alpha", "beta", "gamma"}));
+}
+
+TEST_F(SpellCheckerTest, ParseWordListSkipsEmptyLines)
+{
+    EXPECT_EQ(SpellChecker::parseWordList(QStringLiteral("\n\nalpha\n\nbeta\n\n")),
+        QStringList({"alpha", "beta"}));
+}
+
+TEST_F(SpellCheckerTest, ParseWordListHandlesCrlf)
+{
+    EXPECT_EQ(SpellChecker::parseWordList(QStringLiteral("alpha\r\nbeta\r\ngamma\r\n")),
+        QStringList({"alpha", "beta", "gamma"}));
+}
+
+TEST_F(SpellCheckerTest, ParseWordListSkipsHunspellCountHeader)
+{
+    // user.dic-style file: leading count line must not become a word
+    EXPECT_EQ(SpellChecker::parseWordList(QStringLiteral("3\nalpha\nbeta\ngamma\n")),
+        QStringList({"alpha", "beta", "gamma"}));
+    // a numeric word later in the list is kept
+    EXPECT_EQ(SpellChecker::parseWordList(QStringLiteral("alpha\n42\nbeta\n")),
+        QStringList({"alpha", "42", "beta"}));
+}
+
+TEST_F(SpellCheckerTest, ParseWordListEmptyInput)
+{
+    EXPECT_TRUE(SpellChecker::parseWordList(QString()).isEmpty());
+    EXPECT_TRUE(SpellChecker::parseWordList(QStringLiteral(" \n\n\t\n")).isEmpty());
+}
+
 TEST_F(SpellCheckerTest, UserDictionaryRoundTripSurvivesReload)
 {
     const QString word = "scribamarkdown";

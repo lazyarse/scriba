@@ -746,34 +746,71 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         customLayout->addWidget(m_customWordsList);
 
         QHBoxLayout *customButtons = new QHBoxLayout();
-        auto *addWordBtn = new QPushButton(tr("&Add Word..."));
+        auto *addWordsBtn = new QPushButton(tr("&Add Word/s..."));
         auto *removeWordBtn = new QPushButton(tr("&Remove Word"));
-        customButtons->addWidget(addWordBtn);
+        auto *importWordsBtn = new QPushButton(tr("&Import from File..."));
+        customButtons->addWidget(addWordsBtn);
         customButtons->addWidget(removeWordBtn);
+        customButtons->addWidget(importWordsBtn);
         customButtons->addStretch();
-        stripButtonIcons({addWordBtn, removeWordBtn});
+        stripButtonIcons({addWordsBtn, removeWordBtn, importWordsBtn});
         customLayout->addLayout(customButtons);
 
         layout->addWidget(customGroup);
 
         layout->addStretch();
 
-        connect(addWordBtn, &QPushButton::clicked, this, [this]() {
+        auto mergeParsedWords = [this](const QStringList &words) {
+            int added = 0;
+            int skipped = 0;
+            for (const QString &word : words) {
+                bool present = false;
+                for (int i = 0; i < m_customWordsList->count(); ++i) {
+                    if (m_customWordsList->item(i)->text() == word) {
+                        present = true;
+                        break;
+                    }
+                }
+                if (present) {
+                    ++skipped;
+                } else {
+                    m_customWordsList->addItem(word);
+                    ++added;
+                }
+            }
+            QString message = added == 1
+                ? tr("Added 1 word to your custom word list.")
+                : tr("Added %1 words to your custom word list.").arg(added);
+            if (skipped > 0)
+                message += skipped == 1
+                    ? tr(" 1 word was already present.")
+                    : tr(" %1 words were already present.").arg(skipped);
+            QMessageBox::information(this, tr("Custom Words"), message);
+        };
+
+        connect(addWordsBtn, &QPushButton::clicked, this, [this, mergeParsedWords]() {
             bool ok = false;
-            QString word = QInputDialog::getText(this, "Add Word", "Word:", QLineEdit::Normal, QString(), &ok);
+            QString text = QInputDialog::getMultiLineText(this, tr("Add Words"),
+                tr("Enter a word, or one word per line:"), QString(), &ok);
             if (!ok)
                 return;
-            QString trimmed = word.trimmed();
-            if (trimmed.isEmpty())
-                return;
-            for (int i = 0; i < m_customWordsList->count(); ++i) {
-                if (m_customWordsList->item(i)->text() == trimmed)
-                    return;
-            }
-            m_customWordsList->addItem(trimmed);
+            mergeParsedWords(SpellChecker::parseWordList(text));
         });
         connect(removeWordBtn, &QPushButton::clicked, this, [this]() {
             delete m_customWordsList->currentItem();
+        });
+        connect(importWordsBtn, &QPushButton::clicked, this, [this, mergeParsedWords]() {
+            const QString path = QFileDialog::getOpenFileName(this, tr("Import Custom Words"),
+                QDir::homePath(), tr("Text files (*.txt *.dic);;All files (*)"));
+            if (path.isEmpty())
+                return;
+            QFile file(path);
+            if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QMessageBox::warning(this, tr("Import Custom Words"),
+                    tr("Could not read the file."));
+                return;
+            }
+            mergeParsedWords(SpellChecker::parseWordList(QString::fromUtf8(file.readAll())));
         });
         connect(importDictBtn, &QPushButton::clicked, this, [this, reloadLanguages]() {
             const QString path = QFileDialog::getOpenFileName(this, tr("Import Dictionary"),

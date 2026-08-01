@@ -39,6 +39,11 @@ public:
     static QStringList readUserDictionaryWords();
     static void writeUserDictionaryWords(const QStringList &words);
 
+    // Parses user-supplied word list text (one word per line) into trimmed,
+    // non-empty words. A leading integer count line (hunspell user.dic header)
+    // is skipped so such files import cleanly.
+    static QStringList parseWordList(const QString &text);
+
 private:
     bool findDictionaryFiles(const QString &language, QString &aff, QString &dic) const;
     void loadUserDictionary();
