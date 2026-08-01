@@ -23,11 +23,35 @@ _Autocomplete Examples_
 
 ---
 
+## Screenshots
+
+### Preferences
+
+| General | Themes | Editor |
+| --- | --- | --- |
+| ![General](docs/images/preferences-general.png) | ![Themes](docs/images/preferences-themes.png) | ![Editor](docs/images/preferences-editor.png) |
+
+| Writing | Spelling | Security |
+| --- | --- | --- |
+| ![Writing](docs/images/preferences-writing.png) | ![Spelling](docs/images/preferences-spelling.png) | ![Security](docs/images/preferences-security.png) |
+
+### Dialogs
+
+| Insert Table | Emoji Picker | KaTeX Equation |
+| --- | --- | --- |
+| ![Insert Table](docs/images/table-dialog.png) | ![Emoji Picker](docs/images/emoji-picker.png) | ![KaTeX Equation](docs/images/katex-dialog.png) |
+
+| Chemistry Notation | Chart Builder | Mermaid Chart |
+| --- | --- | --- |
+| ![Chemistry Notation](docs/images/mchem-dialog.png) | ![Chart Builder](docs/images/vega-lite-dialog.png) | ![Mermaid Chart](docs/images/mermaid-dialog.png) |
+
+---
+
 ## Features
 
 - Load / Save multiple documents in a `session` with a tabbed interface
 - Pick up exactly where you left off with cursor and view-port restore in documents
-- Local in-editor spell and grammar check. Import custom wordsets for your audience — all options naturally configurable
+- Privacy-first, in-editor spell and grammar check. Import custom wordsets for your audience — all options naturally configurable
 - Print and PDF export using print-specific CSS stylesheets
 - Readability metrics to keep you audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
 - Find and Replace with optional regex search and replacement back-references

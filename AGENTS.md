@@ -96,6 +96,8 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Only rebuild the .deb package when explicitly asked to — do not rebuild it automatically after changes
 - After adding a new keyboard shortcut, update `resources/shortcuts.html` to document it
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
+- When adding a new dialog — or a new page to an existing dialog (e.g. a new Preferences category) — add a capture of it to `scripts/update-screenshot.sh` and re-run the script to regenerate the gallery in `docs/images/`
+- `scripts/update-screenshot.sh` and `scripts/create-autocomplete-demo.py` must send keys with XTEST (`xdotool windowfocus $WID` then `xdotool key ...` without `--window`); `xdotool key --window` (XSendEvent) does not trigger shortcuts in this Qt app
 - After changing autocomplete behavior, update `docs/images/autocomplete-demo.gif` by running `scripts/create-autocomplete-demo.py`. Requires: xvfb-run, xdotool, and Python packages from `scripts/requirements.txt` (`pip install -r scripts/requirements.txt`).
 - Create tests for each new feature — use Qt Test framework (QTest), add test files to `tests/` directory and register in `CMakeLists.txt`
 - For typing-centred integration tests, reuse the shared key-simulation fixture in `tests/EditorTestHarness.h` (GTest base class `EditorTestHarness` with `typeText`, `press`, `typeLine`, `run`, `placeCursor`, `selectLines`, `assertCursor`, `waitForFolds`); new test targets link the `test_editor_helpers` static library
