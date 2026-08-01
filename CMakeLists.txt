@@ -103,6 +103,8 @@ add_custom_command(TARGET scriba POST_BUILD
 )
 
 install(TARGETS scriba RUNTIME DESTINATION bin)
+install(FILES ${CMAKE_SOURCE_DIR}/LICENSE
+    DESTINATION share/doc/scriba)
 install(FILES ${CMAKE_SOURCE_DIR}/resources/icons/scriba.svg
     DESTINATION share/icons/hicolor/scalable/apps)
 install(FILES ${CMAKE_SOURCE_DIR}/resources/scriba.desktop

@@ -61,6 +61,10 @@ _Autocomplete Examples_
 
 \* Well, nearly everything!
 
+## License
+
+Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.
+
 ### Standing on the shoulders of giants:
 - [Hunspell](https://github.com/hunspell/hunspell) and [Harper](https://github.com/Automattic/harper/) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language

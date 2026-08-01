@@ -87,6 +87,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - No header-only files — every `.h` has a `.cpp`
 - CSS theming: editor uses `#editor` selector, preview uses standard HTML selectors
 - New source files must be added to both `src/` and the `add_executable(scriba ...)` list in `CMakeLists.txt`. If `MainWindow.cpp` uses the new class, also add it to the `test_scroll_sync` target (which compiles `MainWindow.cpp` directly)
+- All new `.cpp`/`.h` files (src, tests, vendored libs) must start with the GPL-3.0 license header: `// Copyright (C) 2026 LazyArse` followed by the standard "This program is free software..." notice (see LICENSE)
 - New resource files must be added to both `resources/` and `resources/scriba.qrc`
 - Post-build step deletes `~/.config/scriba/{editor,preview,print}-base.css` — don't rely on those persisting across builds. If a stale saved copy slips through anyway, the version-marker logic supersedes it to `.bak` and shows a one-time dialog
 - Tests must only ever touch `~/.config/scribaTest/` (see `tests/TestConfig.h` / `setupTestConfig()`); never write to the real `~/.config/scriba/` from a test. Suites with a custom `main()` must call `setupTestConfig()`; config-focused suites link the `scriba_test_main` static library
