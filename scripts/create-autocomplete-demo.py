@@ -145,7 +145,7 @@ class DemoScribe:
             save_all=True,
             append_images=self.frames[1:],
             loop=0,
-            duration=300,
+            duration=100,
         )
         print(f"Created {OUTPUT} ({len(self.frames)} frames)")
 
@@ -176,14 +176,14 @@ class DemoScribe:
         time.sleep(0.2)
         self.capture()
 
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
 
         for ch in ["i", "c"]:
             self.press(ch); self.capture()
         time.sleep(0.2)
         self.capture()
 
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
 
         for ch in ["s", "c", "r"]:
             self.press(ch); self.capture()
@@ -192,7 +192,7 @@ class DemoScribe:
         time.sleep(0.2)
         self.capture()
 
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
 
         self.press("Return")
         self.press("Return")
@@ -216,9 +216,9 @@ class DemoScribe:
         self.press("Down"); self.capture(); self.capture()
 
         self.press("Return")
-        self.pause(4)
+        self.pause(12)
 
-        self.press("  ");
+        self.press("space"); self.capture()
 
         for ch in ["colon", "r", "o", "c", "k"]:
             self.press(ch); self.capture()
@@ -227,8 +227,10 @@ class DemoScribe:
 
         self.press("Down"); self.capture(); self.capture()
 #        self.press("Down"); self.capture(); self.capture()
-        self.pause(4)
+        self.pause(12)
         self.press("Return")
+        self.pause(15)
+        self.capture()
 
         self.press("Return")
         self.press("Return")
@@ -253,7 +255,7 @@ class DemoScribe:
             self.press(ch)
         self.capture()
 
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
 
         for ch in ["c", "e", "l", "l", "1"]:
             self.press(ch)
@@ -266,7 +268,7 @@ class DemoScribe:
         for ch in ["c", "e", "l", "l", "3"]:
             self.press(ch)
         self.capture()
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
 
         for ch in ["c", "e", "l", "l", "4"]:
             self.press(ch)
@@ -287,9 +289,9 @@ class DemoScribe:
             self.press(ch)
         self.capture()
 
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
         self.capture()
-        self.press("Return"); self.pause(2)
+        self.press("Return"); self.pause(6)
         self.capture()
 
         subprocess.run(["xdotool", "windowfocus", self.wid], capture_output=True)
@@ -307,16 +309,16 @@ class DemoScribe:
 
         self.press("ctrl+t")
         time.sleep(0.5)
-        self.pause(4)
+        self.pause(12)
         dlg_wid = self.wait_for_dialog("Insert Table", timeout=5.0)
         if not dlg_wid:
             raise RuntimeError("Insert Table dialog not found")
-        self.pause(2)
+        self.pause(6)
 
         self.press_into(dlg_wid, "2"); self.capture()
         self.press_into(dlg_wid, "Tab"); self.capture()
         self.press_into(dlg_wid, "space"); self.capture()
-        self.pause(2)
+        self.pause(6)
 
         self.press_into(dlg_wid, "alt+i")
         time.sleep(0.1)
@@ -327,7 +329,7 @@ class DemoScribe:
         self.press("Tab"); self.capture(); self.capture()
         for ch in ["b", "a", "r"]:
             self.press(ch); self.capture()
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
 
         for ch in ["f", "o", "o", "2"]:
             self.press(ch); self.capture()
@@ -335,8 +337,8 @@ class DemoScribe:
         for ch in ["b", "a", "r", "2"]:
             self.press(ch); self.capture()
 
-        self.press("Return"); self.pause(3)
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
+        self.press("Return"); self.pause(9)
 
     def _scene_code_block(self):
         self.header("Code Blocks")
@@ -352,11 +354,14 @@ class DemoScribe:
         time.sleep(0.3)
         self.capture()
 
-        self.press("Return"); self.pause(3)
+        self.press("Return"); self.pause(9)
+        self.press("Return"); self.capture()
+        self.type_str('print("Hello, World!")')
+        self.capture()
         self.press("Return"); self.capture()
         self.type_str('```')
-        self.press("Return"); self.pause(2)
-        self.press("Return"); self.pause(2)
+        self.press("Return"); self.pause(6)
+        self.press("Return"); self.pause(15)
 
     def run(self):
         self.start_scriba()
