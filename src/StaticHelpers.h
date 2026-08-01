@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
+#include <QDir>
 #include <QTextCursor>
 #include <QIcon>
 #include <QChar>
@@ -21,6 +23,21 @@ int tableNavHtmlCell(const QString &line, int cursorPos, bool forward);
 QString indentListLine(const QString &line);
 QString outdentListLine(const QString &line);
 QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column);
+
+// Path/emoji completion (link, HTML attribute, and emoji shortcode contexts)
+bool extractLinkPath(const QString &line, int cursorPos, QString &partialPath);
+int linkPathReplaceStart(const QString &line, int cursorPos);
+bool extractHtmlPath(const QString &line, int cursorPos, QString &value);
+int htmlPathReplaceStart(const QString &line, int cursorPos);
+bool extractEmojiCode(const QString &line, int cursorPos, QString &partialCode);
+
+struct FileCompletionResult
+{
+    QStringList entries;
+    QString filePart;
+};
+FileCompletionResult matchFileEntries(const QString &partialPath, const QDir &baseDir,
+                                      int limit = 20);
 
 QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28);
 

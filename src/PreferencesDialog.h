@@ -113,6 +113,5 @@ private:
     QCheckBox *m_grammarCheckCheck;
     QComboBox *m_languageCombo;
     QListWidget *m_customWordsList;
-    QListWidget *m_ignoredWordsList;
 };
 

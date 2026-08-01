@@ -2,7 +2,7 @@
 
 # Scriba Markdown Editor
 
-**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what it should without plugin hell. No node, react, angular, or bloat. Just like the old days: a binary that sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
+**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what it should without plugin hell. No node, react, angular, or bloat; just a binary that sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
 
 :cucumber:
 ![Opencode Badge + Big Pickles!](docs/images/badge-opencode.svg)
@@ -15,7 +15,11 @@
 ---
 
 ![Screenshot](docs/images/screenshot.png)
+_We have themes_
+
+
 ![Autocomplete Demo](docs/images/autocomplete-demo.gif)
+_Autocomplete Examples_
 
 ---
 
@@ -23,25 +27,27 @@
 
 - Load / Save multiple documents in a `session` with a tabbed interface
 - Pick up exactly where you left off with cursor and view-port restore in documents
+- Local in-editor spell and grammar check. Import custom wordsets for your audience — all options naturally configurable
 - Print and PDF export using print-specific CSS stylesheets
 - Readability metrics to keep you audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
 - Find and Replace with optional regex search and replacement back-references
-- Spell checking (Hunspell) and grammar checking (Harper) with squiggle underlines in the editor, right-click suggestions, user dictionary and ignore words — all configurable in Preferences → Spelling
 - PDF, DOCX, and HTML export
+- Spellcheck and (English-only) grammar check. Use Grammarly no more.
 - Useful in-editor autocomplete to assist in creating tables, linking to local filenames, and yes, even emojis
 - Numerous [chart helpers](docs/chart-helpers.md) for vega-lite and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV input because writing JSON and fenced blocks at 2am is difficult
 - [keyboard shortcuts](docs/shortcuts.md) for everything*
 - Accessibility support to help you use Scriba the way you need, with CSS-based GUI theming: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
 - Despite being listed at the end, app [security](docs/security.md) is not an afterthought and both the preview and exports are secured against XSS attacks and various injection vectors.
 
-*Maybe
+\* Well, nearly everything!
 
 ### Standing on the shoulders of giants:
+- [Hunspell](https://github.com/hunspell/hunspell) and [Harper](https://github.com/Automattic/harper/) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
 - [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
-- [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with Github Flavour Markdown support
+- [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with GitHub Flavour Markdown support
 
 ### And a few more things...
 

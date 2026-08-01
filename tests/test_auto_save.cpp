@@ -7,6 +7,7 @@
 #include "MainWindow.h"
 #include "Editor.h"
 #include "Preferences.h"
+#include "TestConfig.h"
 
 class AutoSaveTest : public testing::Test {
 protected:
@@ -101,8 +102,7 @@ TEST_F(AutoSaveTest, SaveOnExitDoesNotWriteWhenDisabled) {
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
-    app.setOrganizationName("scribaTest");
-    app.setApplicationName("scribaTest");
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -41,6 +41,10 @@ public:
     Editor *editor() const { return currentEditor(); }
     Preview *preview() const { return m_preview; }
 
+    // Enables the one-time "outdated custom stylesheets superseded" dialog.
+    // Set from main(); off in unit tests so no modal dialog blocks them.
+    static void setNotifyStaleCss(bool enabled) { s_notifyStaleCss = enabled; }
+
 private slots:
     void updatePreview();
     void showPreferences();
@@ -86,6 +90,8 @@ private:
     void applyEditorContentWidth(Editor *editor);
     void applyPreviewSplitWidth();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);
+    void notifyStaleBaseCss();
+    static bool s_notifyStaleCss;
     bool findText(const QString &text, bool backward, bool useRegex, bool caseSensitive);
     int countMatches(const QString &text, bool useRegex, bool caseSensitive) const;
 

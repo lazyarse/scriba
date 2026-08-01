@@ -7,6 +7,7 @@
 #include <QRegularExpression>
 #include "HtmlToOoxml.h"
 #include "JsRenderEngine.h"
+#include "TestConfig.h"
 
 class DocxImageExportTest : public testing::Test
 {
@@ -106,8 +107,7 @@ TEST_F(DocxImageExportTest, KaTeXImageConversionProducesImgTags)
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    app.setOrganizationName("scribaTest");
-    app.setApplicationName("scribaTest");
+    setupTestConfig();
 
     // Hide QWebEngine warnings about GPU/sandbox
     qputenv("QTWEBENGINE_DISABLE_SANDBOX", "1");

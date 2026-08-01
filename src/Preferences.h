@@ -1,6 +1,8 @@
 #pragma once
 
+#include <QSettings>
 #include <QString>
+#include <QStringList>
 
 namespace Preferences {
     constexpr const char *CssFiles = "cssFiles";
@@ -28,6 +30,9 @@ namespace Preferences {
     constexpr const char *FileAutoComplete = "fileAutoComplete";
     constexpr const char *LanguageAutoComplete = "languageAutoComplete";
 
+    constexpr const char *ConfigVersion = "configVersion";
+    constexpr int CurrentConfigVersion = 1;
+
     constexpr const char *EditorFontFamily = "editorFontFamily";
     constexpr const char *EditorFontSize = "editorFontSize";
     constexpr int DefaultEditorFontSize = 12;
@@ -49,7 +54,6 @@ namespace Preferences {
     constexpr const char *SpellCheckEnabled = "spellCheckEnabled";
     constexpr const char *GrammarCheckEnabled = "grammarCheckEnabled";
     constexpr const char *DictionaryLanguage = "dictionaryLanguage";
-    constexpr const char *IgnoreList = "ignoreList";
 
     constexpr const char *StripPreviewScripts = "stripPreviewScripts";
     constexpr const char *StripExportScripts = "stripExportScripts";
@@ -114,6 +118,37 @@ namespace Preferences {
     inline QString emojiRenderingToString(EmojiRendering mode)
     {
         return mode == EmojiRendering::Color ? QStringLiteral("color") : QStringLiteral("bw");
+    }
+
+    // Migrate a pre-versioning config (no "configVersion" key) forward to the
+    // current schema: carry over renamed keys, drop removed options so stale
+    // values can never affect behaviour again, and stamp the version. Keys that
+    // were never known to Scriba are left untouched.
+    inline void migrateSettings(QSettings &settings)
+    {
+        if (settings.value(ConfigVersion, 0).toInt() >= CurrentConfigVersion)
+            return;
+
+        if (!settings.contains(ReopenLastSession) && settings.contains("reopenLastFile"))
+            settings.setValue(ReopenLastSession, settings.value("reopenLastFile"));
+        settings.remove("reopenLastFile");
+
+        static const QStringList removedKeys = {
+            QStringLiteral("darkMode"),
+            QStringLiteral("editorOnLeft"),
+            QStringLiteral("showFoldIcons"),
+            QStringLiteral("firstRun"),
+            QStringLiteral("printCssFiles"),
+            QStringLiteral("activePrintCssFile"),
+            QStringLiteral("cssDirectory"),
+            QStringLiteral("enabledCssFiles"),
+            QStringLiteral("EditorFont"),
+            QStringLiteral("editorFont"),
+        };
+        for (const QString &key : removedKeys)
+            settings.remove(key);
+
+        settings.setValue(ConfigVersion, CurrentConfigVersion);
     }
 }
 

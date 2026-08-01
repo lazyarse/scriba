@@ -9,16 +9,19 @@
 #include <QTest>
 
 #include "Editor.h"
+#include "EditorTestHarness.h"
 #include "Preferences.h"
+#include "TestConfig.h"
 
-class EditorCompletionUITest : public testing::Test
+class EditorCompletionHarness : public EditorTestHarness
 {
+public:
+    EditorCompletionHarness() : EditorTestHarness(CompletionPrefs::all()) {}
+
 protected:
     void SetUp() override
     {
-        QSettings().setValue(Preferences::FileAutoComplete, true);
-        QSettings().setValue(Preferences::EmojiAutoComplete, true);
-        QSettings().setValue(Preferences::LanguageAutoComplete, true);
+        EditorTestHarness::SetUp();
 
         ASSERT_TRUE(tmpDir.isValid());
 
@@ -42,46 +45,7 @@ protected:
         touch("resources/icons/logo.svg");
         touch("resources/icons/favicon.ico");
 
-        editor = new Editor();
-        editor->resize(800, 600);
         editor->setCurrentFile(currentFilePath);
-        editor->show();
-        QApplication::processEvents();
-    }
-
-    void TearDown() override
-    {
-        delete editor;
-    }
-
-    void typeText(const QString &text)
-    {
-        QTest::keyClicks(editor, text);
-        QApplication::processEvents();
-    }
-
-    void pressTab()
-    {
-        QTest::keyClick(editor, Qt::Key_Tab);
-        QApplication::processEvents();
-    }
-
-    void pressEnter()
-    {
-        QTest::keyClick(editor, Qt::Key_Return);
-        QApplication::processEvents();
-    }
-
-    void pressEscape()
-    {
-        QTest::keyClick(editor, Qt::Key_Escape);
-        QApplication::processEvents();
-    }
-
-    void pressBackspace()
-    {
-        QTest::keyClick(editor, Qt::Key_Backspace);
-        QApplication::processEvents();
     }
 
     int popupRowCount() const
@@ -93,82 +57,81 @@ protected:
 
     QTemporaryDir tmpDir;
     QString currentFilePath;
-    Editor *editor = nullptr;
 };
 
-TEST_F(EditorCompletionUITest, SingleMatchCompletes)
+TEST_F(EditorCompletionHarness, SingleMatchCompletes)
 {
     typeText("![](resou");
-    pressTab();
-    pressEnter();
-    EXPECT_EQ(editor->toPlainText(), "![](resources/");
+    press(Qt::Key_Tab);
+    enter();
+    EXPECT_EQ(text(), "![](resources/");
 }
 
-TEST_F(EditorCompletionUITest, ChainedCompletion)
+TEST_F(EditorCompletionHarness, ChainedCompletion)
 {
     typeText("![](resou");
-    pressTab();
-    pressEnter();
-    ASSERT_EQ(editor->toPlainText(), "![](resources/");
+    press(Qt::Key_Tab);
+    enter();
+    ASSERT_EQ(text(), "![](resources/");
 
     typeText("ico");
-    pressTab();
-    pressEnter();
-    EXPECT_EQ(editor->toPlainText(), "![](resources/icons/");
+    press(Qt::Key_Tab);
+    enter();
+    EXPECT_EQ(text(), "![](resources/icons/");
 }
 
-TEST_F(EditorCompletionUITest, ListLinkDoesNotIndent)
+TEST_F(EditorCompletionHarness, ListLinkDoesNotIndent)
 {
     typeText("- [link](resou");
-    pressTab();
-    pressEnter();
-    EXPECT_EQ(editor->toPlainText(), "- [link](resources/");
+    press(Qt::Key_Tab);
+    enter();
+    EXPECT_EQ(text(), "- [link](resources/");
 }
 
-TEST_F(EditorCompletionUITest, ListWithoutLinkIndents)
+TEST_F(EditorCompletionHarness, ListWithoutLinkIndents)
 {
     typeText("- item");
-    pressTab();
-    EXPECT_EQ(editor->toPlainText(), "  - item");
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "  - item");
 }
 
-TEST_F(EditorCompletionUITest, PopupCyclesAndAccepts)
+TEST_F(EditorCompletionHarness, PopupCyclesAndAccepts)
 {
     typeText("![](r");
 
     // Cycle to second item (resources/), then accept
-    pressTab();
-    pressEnter();
+    press(Qt::Key_Tab);
+    enter();
 
-    EXPECT_EQ(editor->toPlainText(), "![](resources/");
+    EXPECT_EQ(text(), "![](resources/");
 }
 
-TEST_F(EditorCompletionUITest, EmojiSingleMatchShowsPopupAndEnterAccepts)
+TEST_F(EditorCompletionHarness, EmojiSingleMatchShowsPopupAndEnterAccepts)
 {
     typeText(":asto");
-    EXPECT_EQ(editor->toPlainText(), ":asto");
-    pressEnter();
-    EXPECT_EQ(editor->toPlainText(), ":astonished:");
+    EXPECT_EQ(text(), ":asto");
+    enter();
+    EXPECT_EQ(text(), ":astonished:");
 }
 
-TEST_F(EditorCompletionUITest, EmojiMultiMatchThenEscape)
+TEST_F(EditorCompletionHarness, EmojiMultiMatchThenEscape)
 {
     typeText(":smil");
-    pressEscape();
-    EXPECT_EQ(editor->toPlainText(), ":smil");
+    press(Qt::Key_Escape);
+    EXPECT_EQ(text(), ":smil");
 }
 
-TEST_F(EditorCompletionUITest, EmojiEnterAcceptsTopItem)
+TEST_F(EditorCompletionHarness, EmojiEnterAcceptsTopItem)
 {
     typeText(":s");
-    pressEnter();
-    QString result = editor->toPlainText();
+    enter();
+    QString result = text();
     EXPECT_TRUE(result.startsWith(':'));
     EXPECT_TRUE(result.endsWith(':'));
     EXPECT_GT(result.length(), 3);
 }
 
-TEST_F(EditorCompletionUITest, FileCompletionLimitsResults)
+TEST_F(EditorCompletionHarness, FileCompletionLimitsResults)
 {
     // Create 25 files matching prefix "zzfile"
     for (int i = 0; i < 25; ++i) {
@@ -185,37 +148,37 @@ TEST_F(EditorCompletionUITest, FileCompletionLimitsResults)
     EXPECT_EQ(popupRowCount(), 20);
 }
 
-TEST_F(EditorCompletionUITest, EmojiBackspaceUpdatesPopup)
+TEST_F(EditorCompletionHarness, EmojiBackspaceUpdatesPopup)
 {
     typeText(":smi");
     QApplication::processEvents();
     int before = popupRowCount();
     ASSERT_GT(before, 0);
 
-    pressBackspace();
+    press(Qt::Key_Backspace);
     int after = popupRowCount();
     ASSERT_GT(after, 0) << "popup should remain visible after backspace";
     EXPECT_GT(after, before) << "shorter prefix should produce more matches";
-    EXPECT_EQ(editor->toPlainText(), QString(":sm"));
+    EXPECT_EQ(text(), QString(":sm"));
 }
 
-TEST_F(EditorCompletionUITest, BackspaceOnClosingColonHidesPopup)
+TEST_F(EditorCompletionHarness, BackspaceOnClosingColonHidesPopup)
 {
     typeText(":sm");
     QApplication::processEvents();
     ASSERT_GT(popupRowCount(), 0);
 
     // Backspace to ':s' — popup should still be visible
-    pressBackspace();
+    press(Qt::Key_Backspace);
     ASSERT_GT(popupRowCount(), 0) << "popup visible after backspace to ':s'";
 
     // Backspace to ':' — popup should hide (no partial code)
-    pressBackspace();
+    press(Qt::Key_Backspace);
     EXPECT_EQ(popupRowCount(), -1) << "popup hidden when only ':' remains";
-    EXPECT_EQ(editor->toPlainText(), QString(":"));
+    EXPECT_EQ(text(), QString(":"));
 }
 
-TEST_F(EditorCompletionUITest, EmojiPopupSitsBelowCursorLine)
+TEST_F(EditorCompletionHarness, EmojiPopupSitsBelowCursorLine)
 {
     typeText(":s");
     QApplication::processEvents();
@@ -233,41 +196,41 @@ TEST_F(EditorCompletionUITest, EmojiPopupSitsBelowCursorLine)
         << "popup top should be at or below the bottom of the cursor line";
 }
 
-TEST_F(EditorCompletionUITest, CodeFenceLanguageCompletes)
+TEST_F(EditorCompletionHarness, CodeFenceLanguageCompletes)
 {
     editor->clear();
     typeText("```py");
     ASSERT_GT(popupRowCount(), 0) << "popup should appear while typing language after ```";
-    pressEnter();
-    EXPECT_EQ(editor->toPlainText(), "```python");
+    enter();
+    EXPECT_EQ(text(), "```python");
 }
 
-TEST_F(EditorCompletionUITest, CodeFenceMermaidCompletes)
+TEST_F(EditorCompletionHarness, CodeFenceMermaidCompletes)
 {
     editor->clear();
     typeText("```mer");
     ASSERT_GT(popupRowCount(), 0);
-    pressEnter();
-    EXPECT_EQ(editor->toPlainText(), "```mermaid");
+    enter();
+    EXPECT_EQ(text(), "```mermaid");
 }
 
-TEST_F(EditorCompletionUITest, CodeFenceJsSuggestsJson)
+TEST_F(EditorCompletionHarness, CodeFenceJsSuggestsJson)
 {
     editor->clear();
     typeText("```js");
-    pressEnter();
-    EXPECT_EQ(editor->toPlainText(), "```json");
+    enter();
+    EXPECT_EQ(text(), "```json");
 }
 
-TEST_F(EditorCompletionUITest, CodeFenceAliasSuggestsJavascript)
+TEST_F(EditorCompletionHarness, CodeFenceAliasSuggestsJavascript)
 {
     editor->clear();
     typeText("```javas");
-    pressEnter();
-    EXPECT_EQ(editor->toPlainText(), "```javascript");
+    enter();
+    EXPECT_EQ(text(), "```javascript");
 }
 
-TEST_F(EditorCompletionUITest, CodeFencePrefixSortedFirst)
+TEST_F(EditorCompletionHarness, CodeFencePrefixSortedFirst)
 {
     editor->clear();
     typeText("```c");
@@ -276,58 +239,58 @@ TEST_F(EditorCompletionUITest, CodeFencePrefixSortedFirst)
     EXPECT_EQ(first, "c");
 }
 
-TEST_F(EditorCompletionUITest, CodeFenceEscapeKeepsText)
+TEST_F(EditorCompletionHarness, CodeFenceEscapeKeepsText)
 {
     editor->clear();
     typeText("```py");
     ASSERT_GT(popupRowCount(), 0);
-    pressEscape();
+    press(Qt::Key_Escape);
     EXPECT_EQ(popupRowCount(), -1) << "popup hidden after escape";
-    EXPECT_EQ(editor->toPlainText(), "```py");
+    EXPECT_EQ(text(), "```py");
 }
 
-TEST_F(EditorCompletionUITest, CodeFenceBackspaceUpdatesPopup)
+TEST_F(EditorCompletionHarness, CodeFenceBackspaceUpdatesPopup)
 {
     editor->clear();
     typeText("```pyth");
     ASSERT_GT(popupRowCount(), 0);
 
-    pressBackspace();
+    press(Qt::Key_Backspace);
     ASSERT_GT(popupRowCount(), 0) << "popup should remain visible after backspace";
-    EXPECT_EQ(editor->toPlainText(), "```pyt");
+    EXPECT_EQ(text(), "```pyt");
 
-    pressBackspace();
-    pressBackspace();
-    pressBackspace();
+    press(Qt::Key_Backspace);
+    press(Qt::Key_Backspace);
+    press(Qt::Key_Backspace);
     EXPECT_EQ(popupRowCount(), -1) << "popup hidden when only ``` remains";
-    EXPECT_EQ(editor->toPlainText(), "```");
+    EXPECT_EQ(text(), "```");
 }
 
-TEST_F(EditorCompletionUITest, NoCompletionOnClosingFence)
+TEST_F(EditorCompletionHarness, NoCompletionOnClosingFence)
 {
     editor->clear();
     typeText("```py");
     ASSERT_GT(popupRowCount(), 0);
-    pressEscape();
-    pressEnter();
+    press(Qt::Key_Escape);
+    enter();
 
     typeText("```py");
     EXPECT_EQ(popupRowCount(), -1) << "no popup on a closing fence";
-    EXPECT_EQ(editor->toPlainText(), "```py\n```py");
+    EXPECT_EQ(text(), "```py\n```py");
 }
 
-TEST_F(EditorCompletionUITest, NoCompletionInsideCodeBlock)
+TEST_F(EditorCompletionHarness, NoCompletionInsideCodeBlock)
 {
     editor->clear();
     typeText("```py");
-    pressEscape();
-    pressEnter();
+    press(Qt::Key_Escape);
+    enter();
 
     typeText("py");
     EXPECT_EQ(popupRowCount(), -1) << "no popup for plain text inside a code block";
 }
 
-TEST_F(EditorCompletionUITest, CodeFenceCompletionRespectsPreference)
+TEST_F(EditorCompletionHarness, CodeFenceCompletionRespectsPreference)
 {
     QSettings().setValue(Preferences::LanguageAutoComplete, false);
     editor->clear();
@@ -335,9 +298,31 @@ TEST_F(EditorCompletionUITest, CodeFenceCompletionRespectsPreference)
     EXPECT_EQ(popupRowCount(), -1) << "no popup when language autocomplete is disabled";
 }
 
+TEST_F(EditorCompletionHarness, HtmlSrcAttributeCompletes)
+{
+    typeText("<img src=\"resou");
+    press(Qt::Key_Tab);
+    enter();
+    EXPECT_EQ(text(), "<img src=\"resources/");
+}
+
+TEST_F(EditorCompletionHarness, HtmlHrefAttributeCompletes)
+{
+    typeText("<a href='resou");
+    press(Qt::Key_Tab);
+    enter();
+    EXPECT_EQ(text(), "<a href='resources/");
+
+    typeText("ico");
+    press(Qt::Key_Tab);
+    enter();
+    EXPECT_EQ(text(), "<a href='resources/icons/");
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

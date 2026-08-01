@@ -217,7 +217,41 @@ This split avoids re-running expensive JS libraries on every character while kee
 
 ## Testing
 
-Test suites set `QCoreApplication::setOrganizationName("scribaTest")` / `setApplicationName("scribaTest")` so their QSettings data (and default CSS files written by `CssLoader`) land in `~/.config/scribaTest/scribaTest/` instead of the real app's `~/.config/scriba/scriba/`. This keeps test config isolated from the user's config.
+Every test binary starts from `tests/TestConfig.h` (`setupTestConfig()`), which redirects **all** config access to `~/.config/scribaTest/` and wipes that directory so each run starts clean:
+
+- QSettings data lands in `~/.config/scribaTest/scribaTest.conf` (org/app = `scribaTest`), not the real app's `~/.config/scriba/scriba.conf`
+- File-based config (base CSS, themes, spell-check dictionaries) is redirected via the `SCRIBA_TEST_CONFIG_DIR` env var, honoured by `CssUtils::scribaConfigDir()` (used by `CssLoader::configDir()` and `SpellChecker::configDictDir()`)
+
+Suites with their own `main()` call `setupTestConfig()` right after creating the `QApplication`; the 3 config-focused suites (`test_css_loader`, `test_settings_migration`, `test_css_config`) link the shared `scriba_test_main` static library instead of `GTest::gtest_main`. **Never write outside `~/.config/scribaTest/` from a test** — the real user config in `~/.config/scriba/` must stay untouched by test runs.
+
+## Base CSS Versioning
+
+`preview-base.css` and `print-base.css` are both bundled in qrc and copyable to the config dir via the CSS editor dialog (`CssLoader::setPreviewBaseCss`/`setPrintBaseCss`). Because a stale saved copy would shadow the bundled stylesheet globally (breaking rendering after app updates), each saved copy carries a version marker:
+
+```css
+/* scriba-base-css-version: <sha256-of-current-bundled-css> */
+```
+
+On load, `CssLoader::loadBaseCss()` compares the marker against a SHA-256 of the bundled qrc resource:
+
+- marker matches → the user's edited copy is honoured
+- marker missing or outdated → the file is renamed to `.bak`, the bundled CSS is used, and the file is recorded via `staleBaseCssFiles()`
+
+On the first run of a session, `MainWindow` shows a one-time dialog listing superseded `.bak` backups (disabled in unit tests via `MainWindow::setNotifyStaleCss(false)`). When changing the bundled base CSS, no marker bookkeeping is needed — the hash comparison handles it automatically.
+
+## Settings Schema Versioning
+
+`Preferences.h` maintains a `ConfigVersion` key and a `CurrentConfigVersion` counter. `Preferences::migrateSettings(QSettings&)` is called from `main.cpp` at startup and upgrades old configs in place:
+
+- renames renamed keys (e.g. `reopenLastFile` → `reopenLastSession`)
+- removes keys for options that no longer exist (`darkMode`, `editorOnLeft`, `showFoldIcons`, `firstRun`, `printCssFiles`, `activePrintCssFile`, `cssDirectory`, `enabledCssFiles`, `EditorFont`/`editorFont`)
+- stamps `ConfigVersion`; already-current configs and unknown keys are left untouched
+
+When removing or renaming a setting, extend `migrateSettings` instead of just deleting the read — otherwise stale configs silently fall back to defaults with no migration path. `test_settings_migration` covers each rule.
+
+## CSS Theme Validation
+
+`CssConfig` validates the stored active stylesheet at load time: qrc paths must exist among `bundledThemes()`, file paths must exist on disk. An invalid value is cleared and persisted, falling back to the default theme. This prevents a deleted user theme file from bricking the editor UI.
 
 ### Editor typing integration tests
 
@@ -229,4 +263,6 @@ Test suites set `QCoreApplication::setOrganizationName("scribaTest")` / `setAppl
 
 If you change `handleListReturn`, `handleTableReturn`, `indentListLine`, `outdentListLine`, or the table navigation helpers, update both the pure helper tests (`test_editor_list_continuation.cpp`) and the key-event integration tests (`test_editor_typing.cpp`).
 
-New typing-centred suites should derive from the shared fixture `tests/EditorTestHarness.h` (`EditorTestHarness`, in the `test_editor_helpers` static library) rather than re-implementing key simulation. It provides `typeText`, `press`, `typeLine`, `run(...)`, `placeCursor`, `placeCursorAtEnd`, `selectLines`, `waitForFolds`, `text`, `cursorBlock`, `cursorColumn`, and `assertCursor`. `SetUp` disables autocomplete popups so they cannot intercept key events; suites that need autocomplete on (e.g. completion tests) can derive a subclass and override `SetUp`.
+New typing-centred suites should derive from the shared fixture `tests/EditorTestHarness.h` (`EditorTestHarness`, in the `test_editor_helpers` static library) rather than re-implementing key simulation. It provides `typeText`, `press`, `typeLine`, `run(...)`, `placeCursor`, `placeCursorAtEnd`, `selectLines`, `waitForFolds`, `text`, `cursorBlock`, `cursorColumn`, and `assertCursor`. The constructor takes a `CompletionPrefs` struct (`{file, emoji, language}` bools, default all off) that `SetUp` writes to QSettings before constructing the `Editor` — so autocomplete popups stay off for plain typing suites and are enabled (e.g. `CompletionPrefs::all()`) for completion suites. Suites needing extra per-test state (a temp doc directory, a current file) override `SetUp` and call the base one first.
+
+The completion popup logic lives in pure `StaticHelpers` functions — `extractLinkPath`, `linkPathReplaceStart`, `matchFileEntries`, `extractHtmlPath`, `htmlPathReplaceStart`, `extractEmojiCode` — so the pure unit tests in `test_editor_autocomplete.cpp` test the real code rather than a copy. If you change the completion matching/replacement semantics, update those pure tests and the key-event integration tests in `test_editor_completion_ui.cpp` (which drives the popup end-to-end via the harness).

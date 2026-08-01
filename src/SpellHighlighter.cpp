@@ -14,7 +14,7 @@ QTextCharFormat spellFormat()
 {
     QTextCharFormat fmt;
     fmt.setUnderlineStyle(QTextCharFormat::SpellCheckUnderline);
-    fmt.setUnderlineColor(QColor(0xd6, 0x40, 0x50));
+    fmt.setUnderlineColor(SpellHighlighter::spellUnderlineColor());
     return fmt;
 }
 
@@ -22,11 +22,21 @@ QTextCharFormat grammarFormat()
 {
     QTextCharFormat fmt;
     fmt.setUnderlineStyle(QTextCharFormat::WaveUnderline);
-    fmt.setUnderlineColor(QColor(0x00, 0xcc, 0x66));
+    fmt.setUnderlineColor(SpellHighlighter::grammarUnderlineColor());
     return fmt;
 }
 
 } // namespace
+
+QColor SpellHighlighter::spellUnderlineColor()
+{
+    return QColor(0xd6, 0x40, 0x50);
+}
+
+QColor SpellHighlighter::grammarUnderlineColor()
+{
+    return QColor(0x00, 0xcc, 0x66);
+}
 
 SpellHighlighter::SpellHighlighter(QTextDocument *document, QObject *parent)
     : QSyntaxHighlighter(document)
@@ -130,6 +140,8 @@ void SpellHighlighter::highlightBlock(const QString &text)
     const bool opener = fenceRe.match(text).hasMatch();
     const bool isFrontMatterBoundary = frontMatterRe.match(text).hasMatch();
 
+    m_spellHits.remove(blockNumber);
+
     int newState = 0;
     if (state == 1) {
         newState = opener ? 0 : 1;
@@ -155,7 +167,6 @@ void SpellHighlighter::highlightBlock(const QString &text)
         for (const auto &issue : issues) {
             const int len = qMin(issue.length, text.length() - issue.start);
             if (issue.start >= 0 && len > 0) {
-                setFormat(issue.start, len, grammarFormat());
                 applied = true;
             }
         }
@@ -164,7 +175,7 @@ void SpellHighlighter::highlightBlock(const QString &text)
     if (m_spellEnabled && m_checker && m_checker->isLoaded()) {
         for (const WordHit &word : scanWords(text)) {
             if (!m_checker->checkWord(word.text)) {
-                setFormat(word.start, word.length, spellFormat());
+                m_spellHits[blockNumber].append({word.start, word.length});
                 applied = true;
             }
         }
@@ -206,4 +217,9 @@ void SpellHighlighter::runGrammarLint()
 QVector<SpellHighlighter::GrammarHit> SpellHighlighter::grammarIssuesInBlock(int blockNumber) const
 {
     return m_grammarIssues.value(blockNumber);
+}
+
+QVector<SpellHighlighter::GrammarHit> SpellHighlighter::spellHitsInBlock(int blockNumber) const
+{
+    return m_spellHits.value(blockNumber);
 }

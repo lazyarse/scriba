@@ -1,7 +1,16 @@
 #include "CssUtils.h"
 #include <QRegularExpression>
+#include <QStandardPaths>
 
 namespace CssUtils {
+
+QString scribaConfigDir()
+{
+    const QByteArray overrideDir = qgetenv("SCRIBA_TEST_CONFIG_DIR");
+    if (!overrideDir.isEmpty())
+        return QString::fromUtf8(overrideDir);
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/scriba";
+}
 
 static QColor mix(const QColor &a, const QColor &b, int percentOfB)
 {

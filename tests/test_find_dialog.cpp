@@ -7,6 +7,7 @@
 #include "FindDialog.h"
 #include "MainWindow.h"
 #include "Editor.h"
+#include "TestConfig.h"
 
 class FindDialogTest : public testing::Test {
 protected:
@@ -170,6 +171,7 @@ protected:
 
     void SetUp() override {
         window = new MainWindow();
+        window->resize(1200, 800);
         window->show();
         QApplication::processEvents();
     }
@@ -479,8 +481,7 @@ TEST_F(FindDialogIntegrationTest, RegexReplaceWithNoMatch)
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
-    app.setOrganizationName("scribaTest");
-    app.setApplicationName("scribaTest");
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

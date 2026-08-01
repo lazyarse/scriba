@@ -8,11 +8,16 @@
 #include "Editor.h"
 #include "Preferences.h"
 
+EditorTestHarness::EditorTestHarness(CompletionPrefs prefs)
+    : m_prefs(prefs)
+{
+}
+
 void EditorTestHarness::SetUp()
 {
-    QSettings().setValue(Preferences::FileAutoComplete, false);
-    QSettings().setValue(Preferences::EmojiAutoComplete, false);
-    QSettings().setValue(Preferences::LanguageAutoComplete, false);
+    QSettings().setValue(Preferences::FileAutoComplete, m_prefs.file);
+    QSettings().setValue(Preferences::EmojiAutoComplete, m_prefs.emoji);
+    QSettings().setValue(Preferences::LanguageAutoComplete, m_prefs.language);
 
     editor = new Editor();
     editor->resize(800, 600);

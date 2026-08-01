@@ -17,6 +17,7 @@
 #include "Preview.h"
 #include "StaticHelpers.h"
 #include "Preferences.h"
+#include "TestConfig.h"
 
 /* ========== Test A: Preview::scrollToPercent ========== */
 
@@ -158,10 +159,11 @@ protected:
         tmpFile = new QTemporaryFile();
         ASSERT_TRUE(tmpFile->open());
         for (int i = 0; i < 200; ++i)
-            tmpFile->write(QString("%1\n").arg(i, 3, 10, QChar('0')).toUtf8());
+            tmpFile->write(QString("%1\n\n").arg(i, 3, 10, QChar('0')).toUtf8());
         tmpFile->close();
 
         window = new MainWindow();
+        window->resize(1200, 800);
         window->show();
         QApplication::processEvents();
     }
@@ -242,9 +244,10 @@ TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {
     window->editor()->verticalScrollBar()->setValue(0);
     QApplication::processEvents();
 
-    // Position cursor at line 150 so the table is inserted off-screen
+    // Position cursor past the halfway point (doc is 399 lines: 200 + blank
+    // lines between) so the table is inserted off-screen
     QTextCursor cursor(window->editor()->document());
-    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, 150);
+    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, 300);
     window->editor()->setTextCursor(cursor);
     QApplication::processEvents();
 
@@ -331,6 +334,71 @@ TEST_F(ScrollSyncIntegrationTest, ImageInsertScrollSyncsPreview) {
     EXPECT_GT(scrollY, 0);
 }
 
+/* ========== Test E2: async content update must not yank the preview ========== */
+
+TEST_F(ScrollSyncIntegrationTest, AsyncContentUpdateDoesNotYankPreviewScroll) {
+    // Rewrite the temp file with enough lines to make the preview scrollable,
+    // plus async content (mermaid) so the deferred restore path runs.
+    ASSERT_TRUE(tmpFile->open());
+    tmpFile->resize(0);
+    for (int i = 0; i < 300; ++i)
+        tmpFile->write(QString("Line %1\n\n").arg(i, 3, 10, QChar('0')).toUtf8());
+    tmpFile->write("```mermaid\nflowchart LR\n  A --> B\n```\n");
+    tmpFile->close();
+
+    window->loadFile(tmpFile->fileName());
+
+    // Wait for load
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i)
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    while (!loaded) {
+        if (!loadSpy.wait(1000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    ASSERT_TRUE(loaded);
+    QTest::qWait(2000);
+
+    // Scroll editor to the middle so sync re-asserts a known preview baseline
+    window->editor()->verticalScrollBar()->setValue(
+        window->editor()->verticalScrollBar()->maximum() / 2);
+    QApplication::processEvents();
+    QTest::qWait(800);
+
+    double baseline = 0;
+    window->preview()->page()->runJavaScript("window.scrollY",
+        [&](const QVariant &r) { baseline = r.toDouble(); });
+    QTest::qWait(500);
+    EXPECT_GT(baseline, 1000);
+
+    // Type a character -> debounced update -> scribaUpdate captures the baseline
+    window->editor()->setFocus();
+    QTest::keyClick(window->editor(), Qt::Key_Space);
+    QApplication::processEvents();
+
+    // Simulate the user scrolling the preview down during the 1500ms render window
+    QTest::qWait(400);
+    window->preview()->page()->runJavaScript("window.scrollTo(0, 20000)");
+    QTest::qWait(300);
+    double userY = 0;
+    window->preview()->page()->runJavaScript("window.scrollY",
+        [&](const QVariant &r) { userY = r.toDouble(); });
+    QTest::qWait(100);
+
+    // Wait well past the 1500ms heavy timer + async mermaid render
+    QTest::qWait(4000);
+
+    double finalY = 0;
+    window->preview()->page()->runJavaScript("window.scrollY",
+        [&](const QVariant &r) { finalY = r.toDouble(); });
+    QTest::qWait(500);
+
+    // The user-scrolled position must be preserved, not yanked back to the baseline
+    EXPECT_GT(userY, baseline + 1000);
+    EXPECT_GT(finalY, baseline + 1000);
+}
+
 /* ========== Test F: Single tab preview renders content ========== */
 
 TEST_F(ScrollSyncIntegrationTest, InitialTabRendersPreviewContent) {
@@ -395,6 +463,7 @@ protected:
 
 TEST_F(TogglePreviewTest, CycleThroughAllStatesWithoutCrash) {
     window = new MainWindow();
+    window->resize(1200, 800);
     window->show();
     QApplication::processEvents();
 
@@ -442,6 +511,7 @@ protected:
         settings.setValue(Preferences::CssFiles, QStringList() << tmpTheme->fileName());
         settings.setValue(Preferences::ActiveCssFile, tmpTheme->fileName());
         window = new MainWindow();
+        window->resize(1200, 800);
         window->show();
         QApplication::processEvents();
     }
@@ -471,8 +541,7 @@ TEST_F(GutterThemeInitTest, LightThemeGutterColorReachesPalette) {
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
-    app.setOrganizationName("scribaTest");
-    app.setApplicationName("scribaTest");
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

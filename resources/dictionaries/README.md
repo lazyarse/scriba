@@ -15,6 +15,8 @@ Hunspell (`*.aff` / `*.dic`) dictionaries bundled with Scriba and registered in
 3. Register both files in `resources/scriba.qrc`.
 4. Rebuild.
 
-User-installed dictionaries are not bundled: Preferences → Spellcheck →
-"Add Dictionary…" copies an `.aff`/`.dic` pair into the per-user config
-directory (`~/.config/scriba/dictionaries/`).
+User-installed dictionaries are not bundled: Preferences → Spelling →
+"Import Dictionary…" copies an `.aff`/`.dic` pair into the per-user config
+directory (`~/.config/scriba/dictionaries/`), where it becomes available in
+the language dropdown. "Remove Dictionary" deletes an installed pair again
+(the bundled `en_US`/`en_GB` dictionaries cannot be removed).

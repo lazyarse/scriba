@@ -20,6 +20,7 @@
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QDir>
 #include <QMessageBox>
 #include <QStackedWidget>
 #include <QColorDialog>
@@ -679,31 +680,52 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(checkGroup);
 
-        QGroupBox *dictionaryGroup = new QGroupBox("Dictionary");
-        QFormLayout *dictionaryLayout = new QFormLayout(dictionaryGroup);
-        dictionaryLayout->setContentsMargins(12, 12, 12, 12);
-
-        m_languageCombo = new QComboBox;
-        QString currentLang = settings.value(Preferences::DictionaryLanguage, "en_US").toString();
-        for (const QString &code : SpellChecker::availableLanguages()) {
-            QString label = code;
-            if (code == "en_US")
-                label = "English (US)";
-            else if (code == "en_GB")
-                label = "English (UK)";
-            m_languageCombo->addItem(label, code);
-        }
-        int langIndex = m_languageCombo->findData(currentLang);
-        if (langIndex >= 0)
-            m_languageCombo->setCurrentIndex(langIndex);
-        dictionaryLayout->addRow("Language:", m_languageCombo);
-
-        layout->addWidget(dictionaryGroup);
-
         auto stripButtonIcons = [](const QList<QPushButton *> &buttons) {
             for (auto *btn : buttons)
                 btn->setIcon(QIcon());
         };
+
+        QGroupBox *dictionaryGroup = new QGroupBox("Dictionary");
+        QFormLayout *dictionaryLayout = new QFormLayout(dictionaryGroup);
+        dictionaryLayout->setContentsMargins(12, 12, 12, 12);
+
+        auto languageLabel = [](const QString &code) {
+            if (code == "en_US")
+                return QStringLiteral("English (US)");
+            if (code == "en_GB")
+                return QStringLiteral("English (UK)");
+            return code;
+        };
+
+        auto *importDictBtn = new QPushButton(tr("&Import Dictionary..."));
+        auto *removeDictBtn = new QPushButton(tr("Re&move Dictionary"));
+        stripButtonIcons({importDictBtn, removeDictBtn});
+
+        auto reloadLanguages = [this, languageLabel, removeDictBtn](const QString &select) {
+            m_languageCombo->blockSignals(true);
+            m_languageCombo->clear();
+            for (const QString &code : SpellChecker::availableLanguages())
+                m_languageCombo->addItem(languageLabel(code), code);
+            int idx = m_languageCombo->findData(select);
+            if (idx < 0)
+                idx = m_languageCombo->findData("en_US");
+            m_languageCombo->setCurrentIndex(idx < 0 ? 0 : idx);
+            m_languageCombo->blockSignals(false);
+            removeDictBtn->setEnabled(
+                !SpellChecker::isBundledLanguage(m_languageCombo->currentData().toString()));
+        };
+
+        m_languageCombo = new QComboBox;
+        reloadLanguages(settings.value(Preferences::DictionaryLanguage, "en_US").toString());
+        dictionaryLayout->addRow("Language:", m_languageCombo);
+
+        QHBoxLayout *dictButtons = new QHBoxLayout();
+        dictButtons->addWidget(importDictBtn);
+        dictButtons->addWidget(removeDictBtn);
+        dictButtons->addStretch();
+        dictionaryLayout->addRow(dictButtons);
+
+        layout->addWidget(dictionaryGroup);
 
         QGroupBox *customGroup = new QGroupBox("Custom Words");
         QVBoxLayout *customLayout = new QVBoxLayout(customGroup);
@@ -725,26 +747,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(customGroup);
 
-        QGroupBox *ignoredGroup = new QGroupBox("Ignored Words");
-        QVBoxLayout *ignoredLayout = new QVBoxLayout(ignoredGroup);
-        ignoredLayout->addSpacing(8);
-
-        m_ignoredWordsList = new QListWidget;
-        m_ignoredWordsList->setMinimumHeight(60);
-        m_ignoredWordsList->addItems(SpellChecker::readIgnoreList());
-        ignoredLayout->addWidget(m_ignoredWordsList);
-
-        QHBoxLayout *ignoredButtons = new QHBoxLayout();
-        auto *removeIgnoredBtn = new QPushButton(tr("&Remove"));
-        auto *clearIgnoredBtn = new QPushButton(tr("&Clear All"));
-        ignoredButtons->addWidget(removeIgnoredBtn);
-        ignoredButtons->addWidget(clearIgnoredBtn);
-        ignoredButtons->addStretch();
-        stripButtonIcons({removeIgnoredBtn, clearIgnoredBtn});
-        ignoredLayout->addLayout(ignoredButtons);
-
-        layout->addWidget(ignoredGroup);
-
         layout->addStretch();
 
         connect(addWordBtn, &QPushButton::clicked, this, [this]() {
@@ -764,11 +766,30 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         connect(removeWordBtn, &QPushButton::clicked, this, [this]() {
             delete m_customWordsList->currentItem();
         });
-        connect(removeIgnoredBtn, &QPushButton::clicked, this, [this]() {
-            delete m_ignoredWordsList->currentItem();
+        connect(importDictBtn, &QPushButton::clicked, this, [this, reloadLanguages]() {
+            const QString path = QFileDialog::getOpenFileName(this, tr("Import Dictionary"),
+                QDir::homePath(), tr("Hunspell dictionaries (*.aff *.dic)"));
+            if (path.isEmpty())
+                return;
+            const QString lang = SpellChecker::installDictionary(path);
+            if (lang.isEmpty()) {
+                QMessageBox::warning(this, tr("Import Dictionary"),
+                    tr("Could not import the dictionary. The file must be a valid Hunspell "
+                       ".aff/.dic pair with a standard language name (e.g. de_DE)."));
+                return;
+            }
+            reloadLanguages(lang);
         });
-        connect(clearIgnoredBtn, &QPushButton::clicked, this, [this]() {
-            m_ignoredWordsList->clear();
+        connect(removeDictBtn, &QPushButton::clicked, this, [this, reloadLanguages]() {
+            const QString lang = m_languageCombo->currentData().toString();
+            if (lang.isEmpty() || SpellChecker::isBundledLanguage(lang))
+                return;
+            if (QMessageBox::question(this, tr("Remove Dictionary"),
+                    tr("Remove the \"%1\" dictionary?").arg(lang))
+                != QMessageBox::Yes)
+                return;
+            if (SpellChecker::removeDictionary(lang))
+                reloadLanguages(QString());
         });
 
         m_pages->addWidget(page);
@@ -908,10 +929,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         for (int i = 0; i < m_customWordsList->count(); ++i)
             customWords << m_customWordsList->item(i)->text();
         SpellChecker::writeUserDictionaryWords(customWords);
-        QStringList ignoredWords;
-        for (int i = 0; i < m_ignoredWordsList->count(); ++i)
-            ignoredWords << m_ignoredWordsList->item(i)->text();
-        SpellChecker::writeIgnoreList(ignoredWords);
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

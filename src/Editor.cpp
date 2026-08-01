@@ -13,6 +13,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QFontMetrics>
 #include <QInputDialog>
 #include <QKeyEvent>
 #include <QMenu>
@@ -28,6 +29,7 @@
 #include <QTextBlockFormat>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextLayout>
 #include <QTimer>
 #include <QAbstractTextDocumentLayout>
 
@@ -70,6 +72,18 @@ Editor::Editor(QWidget *parent)
     m_spellHighlighter->setChecker(m_spellChecker.get());
     m_spellHighlighter->setGrammarChecker(m_grammarChecker);
     applySpellSettings();
+
+    m_underlineOverlay = new QWidget(viewport());
+    m_underlineOverlay->setAttribute(Qt::WA_TranslucentBackground);
+    m_underlineOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_underlineOverlay->setGeometry(0, 0, viewport()->width(), viewport()->height());
+    m_underlineOverlay->installEventFilter(this);
+    connect(verticalScrollBar(), &QScrollBar::valueChanged,
+            m_underlineOverlay, QOverload<>::of(&QWidget::update));
+    connect(horizontalScrollBar(), &QScrollBar::valueChanged,
+            m_underlineOverlay, QOverload<>::of(&QWidget::update));
+    connect(document(), &QTextDocument::contentsChanged,
+            m_underlineOverlay, QOverload<>::of(&QWidget::update));
 }
 
 Editor::~Editor() = default;
@@ -529,41 +543,65 @@ void Editor::keyPressEvent(QKeyEvent *event)
     }
 }
 
+bool Editor::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == m_underlineOverlay && event->type() == QEvent::Paint && m_spellHighlighter) {
+        QPaintEvent *pe = static_cast<QPaintEvent*>(event);
+        QPainter painter(m_underlineOverlay);
+        painter.setClipRect(pe->rect());
+        painter.setRenderHint(QPainter::Antialiasing, false);
+
+        const QFontMetrics fm(font());
+        const int underlineY = fm.ascent() + fm.underlinePos();
+        const QTextDocument *doc = document();
+        for (QTextBlock block = doc->firstBlock(); block.isValid(); block = block.next()) {
+            if (!block.isVisible())
+                continue;
+            const int blockNumber = block.blockNumber();
+            const QTextLayout *layout = block.layout();
+            if (!layout || layout->lineCount() == 0)
+                continue;
+            for (const SpellHighlighter::GrammarHit &hit : m_spellHighlighter->spellHitsInBlock(blockNumber))
+                paintHitRange(painter, block, hit.start, hit.length, SpellHighlighter::spellUnderlineColor(), fm, underlineY);
+            for (const SpellHighlighter::GrammarHit &hit : m_spellHighlighter->grammarIssuesInBlock(blockNumber))
+                paintHitRange(painter, block, hit.start, hit.length, SpellHighlighter::grammarUnderlineColor(), fm, underlineY);
+        }
+        return false;
+    }
+    return QTextEdit::eventFilter(obj, event);
+}
+
+void Editor::paintHitRange(QPainter &painter, const QTextBlock &block, int start, int length,
+                           const QColor &color, const QFontMetrics &fm, int underlineY)
+{
+    const QTextLayout *layout = block.layout();
+    if (!layout || layout->lineCount() == 0)
+        return;
+    painter.setPen(QPen(color, 2, Qt::SolidLine, Qt::FlatCap));
+    for (int i = 0; i < layout->lineCount(); ++i) {
+        const QTextLine line = layout->lineAt(i);
+        const int a = qMax(start, line.textStart());
+        const int b = qMin(start + length, line.textStart() + line.textLength());
+        if (a >= b)
+            continue;
+        QTextCursor cursor(document());
+        cursor.setPosition(block.position() + a);
+        const QRect leftRect = cursorRect(cursor);
+        cursor.setPosition(block.position() + b);
+        const QRect rightRect = cursorRect(cursor);
+        const int y = leftRect.top() + underlineY;
+        painter.drawLine(QPoint(leftRect.left(), y), QPoint(rightRect.left(), y));
+    }
+}
+
 bool Editor::isInsideLinkContext(const QTextCursor &cursor, QString &partialPath) const
 {
-    QString text = cursor.block().text();
-    int pos = cursor.positionInBlock();
-
-    static const QRegularExpression re(R"(\!?\[.*?\]\()");
-    QRegularExpressionMatchIterator it = re.globalMatch(text.left(pos));
-    int parenPos = -1;
-    while (it.hasNext()) {
-        QRegularExpressionMatch m = it.next();
-        parenPos = m.capturedEnd();
-    }
-    if (parenPos < 0)
-        return false;
-
-    QString between = text.mid(parenPos, pos - parenPos);
-    if (between.contains(')'))
-        return false;
-
-    partialPath = between;
-    return true;
+    return extractLinkPath(cursor.block().text(), cursor.positionInBlock(), partialPath);
 }
 
 bool Editor::isInsideHtmlPathContext(const QTextCursor &cursor, QString &partialPath) const
 {
-    QString text = cursor.block().text();
-    int pos = cursor.positionInBlock();
-
-    static const QRegularExpression re(R"((?:src|href)\s*=\s*["']([^"']*)$)");
-    auto match = re.match(text.left(pos));
-    if (!match.hasMatch())
-        return false;
-
-    partialPath = match.captured(1);
-    return true;
+    return extractHtmlPath(cursor.block().text(), cursor.positionInBlock(), partialPath);
 }
 
 void Editor::showFileCompletion(const QString &partialPath)
@@ -575,50 +613,10 @@ void Editor::showFileCompletion(const QString &partialPath)
     QFileInfo fi(m_currentFile);
     QDir dir = fi.absoluteDir();
 
-    QString normalized = partialPath;
-    bool trailingSep = normalized.endsWith('/') || normalized.endsWith('\\');
-    if (trailingSep)
-        normalized.chop(1);
-    QFileInfo pfi(normalized);
-    QString dirPart = trailingSep ? pfi.filePath() : pfi.path();
-    QString filePart = trailingSep ? QString() : pfi.fileName();
-
-    QString searchDir = dir.absoluteFilePath(dirPart.isEmpty() ? "." : dirPart);
-    QDir search(searchDir);
-    if (!search.exists())
+    FileCompletionResult result = matchFileEntries(partialPath, dir,
+        QSettings().value(Preferences::FileCompletionLimit, 20).toInt());
+    if (result.entries.isEmpty())
         return;
-
-    QStringList matched;
-    QStringList all = search.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
-    for (const QString &entry : all) {
-        if (entry.startsWith('.') && !filePart.startsWith('.'))
-            continue;
-        if (filePart.isEmpty() || entry.contains(filePart, Qt::CaseInsensitive))
-            matched.append(entry);
-    }
-
-    if (matched.isEmpty())
-        return;
-
-    std::sort(matched.begin(), matched.end(),
-        [&filePart](const QString &a, const QString &b) {
-            bool aPrefix = a.startsWith(filePart, Qt::CaseInsensitive);
-            bool bPrefix = b.startsWith(filePart, Qt::CaseInsensitive);
-            if (aPrefix != bPrefix)
-                return aPrefix;
-            return a < b;
-        });
-
-    int maxResults = QSettings().value(Preferences::FileCompletionLimit, 20).toInt();
-    QStringList entries;
-    for (const QString &entry : matched) {
-        if (entries.size() >= maxResults)
-            break;
-        if (QFileInfo(search, entry).isDir())
-            entries.append(entry + "/");
-        else
-            entries.append(entry);
-    }
 
     if (!m_completer) {
         m_completer = new QCompleter(this);
@@ -630,14 +628,14 @@ void Editor::showFileCompletion(const QString &partialPath)
                 this, &Editor::acceptCompletion);
     }
 
-    QStringListModel *model = new QStringListModel(entries, m_completer);
+    QStringListModel *model = new QStringListModel(result.entries, m_completer);
     m_completer->setModel(model);
-    m_completer->setCompletionPrefix(filePart);
+    m_completer->setCompletionPrefix(result.filePart);
 
     QRect cr = cursorRect();
     QFontMetrics fm(font());
     int maxWidth = 0;
-    for (const QString &entry : entries)
+    for (const QString &entry : result.entries)
         maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
     cr.setWidth(maxWidth + 30);
 
@@ -677,18 +675,8 @@ void Editor::acceptCompletion(const QString &completion)
     }
 
     // Markdown link context: [text](path) or ![text](path)
-    static const QRegularExpression re(R"(\!?\[.*?\]\()");
-    QRegularExpressionMatchIterator it = re.globalMatch(line.left(pos));
-    int parenPos = -1;
-    while (it.hasNext()) {
-        QRegularExpressionMatch m = it.next();
-        parenPos = m.capturedEnd();
-    }
-    if (parenPos >= 0) {
-        QString between = line.mid(parenPos, pos - parenPos);
-        int lastSlash = between.lastIndexOf('/');
-        int replaceStart = lastSlash >= 0 ? parenPos + lastSlash + 1 : parenPos;
-
+    int replaceStart = linkPathReplaceStart(line, pos);
+    if (replaceStart >= 0) {
         cursor.setPosition(blockStart + replaceStart, QTextCursor::MoveAnchor);
         cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
         cursor.removeSelectedText();
@@ -707,14 +695,8 @@ void Editor::acceptCompletion(const QString &completion)
     }
 
     // HTML attribute context: src="path" or href='path'
-    static const QRegularExpression htmlRe(R"((?:src|href)\s*=\s*["']([^"']*)$)");
-    auto htmlMatch = htmlRe.match(line.left(pos));
-    if (htmlMatch.hasMatch()) {
-        QString value = htmlMatch.captured(1);
-        int valueStart = pos - value.length();
-        int lastSlash = value.lastIndexOf('/');
-        int replaceStart = lastSlash >= 0 ? valueStart + lastSlash + 1 : valueStart;
-
+    replaceStart = htmlPathReplaceStart(line, pos);
+    if (replaceStart >= 0) {
         cursor.setPosition(blockStart + replaceStart, QTextCursor::MoveAnchor);
         cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
         cursor.removeSelectedText();
@@ -745,31 +727,7 @@ void Editor::loadEmojiShortcodes()
 
 bool Editor::isInsideEmojiContext(const QTextCursor &cursor, QString &partialCode) const
 {
-    QString text = cursor.block().text();
-    int pos = cursor.positionInBlock();
-    if (pos < 1)
-        return false;
-
-    static const QRegularExpression linkRe(R"(\!?\[.*?\]\()");
-    QRegularExpressionMatchIterator it = linkRe.globalMatch(text.left(pos));
-    int parenPos = -1;
-    while (it.hasNext()) {
-        QRegularExpressionMatch m = it.next();
-        parenPos = m.capturedEnd();
-    }
-    if (parenPos >= 0) {
-        QString between = text.mid(parenPos, pos - parenPos);
-        if (!between.contains(')'))
-            return false;
-    }
-
-    static const QRegularExpression emojiRe(R"(:([a-zA-Z0-9+-][a-zA-Z0-9_+-]*)$)");
-    auto match = emojiRe.match(text.left(pos));
-    if (match.hasMatch()) {
-        partialCode = match.captured(1);
-        return true;
-    }
-    return false;
+    return extractEmojiCode(cursor.block().text(), cursor.positionInBlock(), partialCode);
 }
 
 void Editor::showEmojiCompletion(const QString &partialCode)
@@ -1403,11 +1361,6 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
             m_spellChecker->addToUserDictionary(misspelled.text);
             m_spellHighlighter->refresh();
         });
-        QAction *ignoreAction = menu.addAction("Ignore All");
-        connect(ignoreAction, &QAction::triggered, this, [this, misspelled]() {
-            m_spellChecker->ignoreAll(misspelled.text);
-            m_spellHighlighter->refresh();
-        });
 
         for (const SpellHighlighter::GrammarHit &hit
              : m_spellHighlighter->grammarIssuesInBlock(cursor.block().blockNumber())) {
@@ -1530,6 +1483,10 @@ void Editor::resizeEvent(QResizeEvent *event)
         m_inResize = false;
     }
     updateGutter();
+    if (m_underlineOverlay) {
+        m_underlineOverlay->setGeometry(0, 0, viewport()->width(), viewport()->height());
+        m_underlineOverlay->update();
+    }
 }
 
 void Editor::updateViewportMargins()
@@ -1552,6 +1509,10 @@ void Editor::updateGutter()
         return;
     int gutterW = m_gutter->width();
     m_gutter->setGeometry(0, 0, gutterW, viewport()->height() + height() - viewport()->height());
+    if (m_underlineOverlay) {
+        m_underlineOverlay->setGeometry(0, 0, viewport()->width(), viewport()->height());
+        m_underlineOverlay->update();
+    }
 }
 
 void Editor::updateGutterSettings()

@@ -8,6 +8,7 @@
 #include "Editor.h"
 #include "Gutter.h"
 #include "Preferences.h"
+#include "TestConfig.h"
 
 namespace {
 
@@ -164,8 +165,7 @@ TEST_F(GutterWidthTest, GutterIsChildOfEditor)
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    QCoreApplication::setOrganizationName("scribaTest");
-    QCoreApplication::setApplicationName("scribaTest");
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

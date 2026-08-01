@@ -1,10 +1,8 @@
 #include "SpellChecker.h"
-#include "Preferences.h"
+#include "CssUtils.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QSettings>
-#include <QStandardPaths>
 #include <hunspell.hxx>
 
 namespace {
@@ -51,8 +49,7 @@ SpellChecker::~SpellChecker() = default;
 
 QString SpellChecker::configDictDir()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
-        + "/scriba/dictionaries";
+    return CssUtils::scribaConfigDir() + "/dictionaries";
 }
 
 QString SpellChecker::userDictPath() const
@@ -102,26 +99,6 @@ void SpellChecker::writeUserDictionaryWords(const QStringList &words)
     }
 }
 
-QStringList SpellChecker::readIgnoreList()
-{
-    QSettings settings;
-    return settings.value(Preferences::IgnoreList).toStringList();
-}
-
-void SpellChecker::writeIgnoreList(const QStringList &words)
-{
-    QStringList sorted;
-    for (const QString &w : words) {
-        QString lower = w.trimmed().toLower();
-        if (!lower.isEmpty() && !sorted.contains(lower))
-            sorted << lower;
-    }
-    sorted.sort();
-    QSettings settings;
-    settings.setValue(Preferences::IgnoreList, sorted);
-    settings.sync();
-}
-
 bool SpellChecker::findDictionaryFiles(const QString &language, QString &aff, QString &dic) const
 {
     for (const char *bundled : BundledLangs) {
@@ -156,6 +133,118 @@ QStringList SpellChecker::availableLanguages()
     return langs;
 }
 
+bool SpellChecker::isBundledLanguage(const QString &language)
+{
+    for (const char *bundled : BundledLangs) {
+        if (language == QLatin1String(bundled))
+            return true;
+    }
+    return false;
+}
+
+namespace {
+
+// Restrict dictionary base names to the characters used by standard hunspell
+// language codes (e.g. "de_DE", "ca_ES-valencia") and refuse the reserved
+// "user"/"bundled" names so a dictionary can never collide with the user word
+// list or the bundled extraction directory.
+bool isSafeDictionaryBase(const QString &base)
+{
+    if (base.isEmpty() || base == "." || base == "..")
+        return false;
+    if (base == QLatin1String("user") || base == QLatin1String("bundled"))
+        return false;
+    for (QChar c : base) {
+        if (!c.isLetterOrNumber() && c != QLatin1Char('_') && c != QLatin1Char('-'))
+            return false;
+    }
+    return true;
+}
+
+bool copyFileTo(const QString &src, const QString &dst)
+{
+    QFile s(src);
+    if (!s.open(QIODevice::ReadOnly))
+        return false;
+    QFile d(dst);
+    if (!d.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return false;
+    d.write(s.readAll());
+    return true;
+}
+
+// Hunspell tolerates corrupt files silently (it builds an empty table), so
+// validate structurally: a .dic must start with a parseable word count and a
+// .aff must be non-empty.
+bool looksLikeDictionary(const QString &affPath, const QString &dicPath)
+{
+    QFile aff(affPath);
+    if (!aff.open(QIODevice::ReadOnly | QIODevice::Text) || aff.size() == 0)
+        return false;
+
+    QFile dic(dicPath);
+    if (!dic.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+    bool ok = false;
+    const int count = dic.readLine().trimmed().toInt(&ok);
+    return ok && count >= 0;
+}
+
+} // namespace
+
+QString SpellChecker::installDictionary(const QString &affOrDicPath)
+{
+    QFileInfo info(affOrDicPath);
+    if (!info.exists() || !info.isFile())
+        return {};
+
+    const QString base = info.completeBaseName();
+    const QString suffix = info.suffix().toLower();
+    if (!isSafeDictionaryBase(base) || isBundledLanguage(base))
+        return {};
+
+    QString affPath, dicPath;
+    if (suffix == "aff") {
+        affPath = affOrDicPath;
+        dicPath = info.dir().filePath(base + ".dic");
+    } else if (suffix == "dic") {
+        dicPath = affOrDicPath;
+        affPath = info.dir().filePath(base + ".aff");
+    } else {
+        return {};
+    }
+
+    QDir().mkpath(configDictDir());
+    const QString dstAff = configDictDir() + "/" + base + ".aff";
+    const QString dstDic = configDictDir() + "/" + base + ".dic";
+
+    if (QFileInfo::exists(dstAff) && QFileInfo::exists(dstDic))
+        return base;
+
+    if (!copyFileTo(affPath, dstAff) || !copyFileTo(dicPath, dstDic)) {
+        QFile::remove(dstAff);
+        QFile::remove(dstDic);
+        return {};
+    }
+    if (!looksLikeDictionary(dstAff, dstDic)) {
+        QFile::remove(dstAff);
+        QFile::remove(dstDic);
+        return {};
+    }
+    return base;
+}
+
+bool SpellChecker::removeDictionary(const QString &language)
+{
+    if (isBundledLanguage(language) || !isSafeDictionaryBase(language))
+        return false;
+
+    QDir dir(configDictDir());
+    bool removed = QFile::remove(dir.filePath(language + ".aff"));
+    removed = QFile::remove(dir.filePath(language + ".dic")) || removed;
+    return removed;
+}
+
 bool SpellChecker::loadLanguage(const QString &language)
 {
     copyBundledIfNeeded("en_US");
@@ -170,10 +259,6 @@ bool SpellChecker::loadLanguage(const QString &language)
         return false;
 
     m_language = language;
-
-    QSettings settings;
-    const QStringList ignored = settings.value(Preferences::IgnoreList).toStringList();
-    m_ignores = QSet<QString>(ignored.cbegin(), ignored.cend());
 
     m_userWords.clear();
     loadUserDictionary();
@@ -238,35 +323,10 @@ QStringList SpellChecker::userWords() const
     return words;
 }
 
-void SpellChecker::ignoreWord(const QString &word)
-{
-    m_ignores.insert(word.trimmed().toLower());
-}
-
-void SpellChecker::ignoreAll(const QString &word)
-{
-    ignoreWord(word);
-    writeIgnoreList(m_ignores.values());
-}
-
-QStringList SpellChecker::ignoredWords() const
-{
-    QStringList words = m_ignores.values();
-    words.sort();
-    return words;
-}
-
-bool SpellChecker::isIgnored(const QString &word) const
-{
-    return m_ignores.contains(word.trimmed().toLower());
-}
-
 bool SpellChecker::checkWord(const QString &word)
 {
     QString trimmed = word.trimmed();
     if (trimmed.isEmpty() || trimmed.size() == 1)
-        return true;
-    if (isIgnored(trimmed))
         return true;
     if (!m_hunspell)
         return true;

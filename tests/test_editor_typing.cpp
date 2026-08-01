@@ -3,6 +3,7 @@
 
 #include "Editor.h"
 #include "EditorTestHarness.h"
+#include "TestConfig.h"
 
 TEST_F(EditorTestHarness, TypingInsertsTextAndMovesCursor)
 {
@@ -302,8 +303,7 @@ TEST_F(EditorTestHarness, TypingCreatesUndoSteps)
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    app.setOrganizationName("scribaTest");
-    app.setApplicationName("scribaTest");
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -7,8 +7,20 @@
 
 class Editor;
 
+struct CompletionPrefs
+{
+    bool file = false;
+    bool emoji = false;
+    bool language = false;
+
+    static CompletionPrefs all() { return {true, true, true}; }
+};
+
 class EditorTestHarness : public testing::Test
 {
+public:
+    explicit EditorTestHarness(CompletionPrefs prefs = {});
+
 protected:
     void SetUp() override;
     void TearDown() override;
@@ -38,6 +50,8 @@ protected:
     Editor *editor = nullptr;
 
 private:
+    CompletionPrefs m_prefs;
+
     template <typename T>
     void typeOrPress(const T &item)
     {

@@ -13,6 +13,7 @@
 #include <QTextDocument>
 #include <QTextFormat>
 #include <QTextLayout>
+#include "TestConfig.h"
 
 namespace {
 
@@ -124,14 +125,9 @@ protected:
 
     bool hasSpellUnderline(int blockNumber, int pos) const
     {
-        const QTextBlock block = m_doc->findBlockByNumber(blockNumber);
-        const QVector<QTextLayout::FormatRange> ranges = block.layout()->formats();
-        for (const auto &range : ranges) {
-            if (range.start <= pos && pos < range.start + range.length
-                && range.format.property(QTextFormat::TextUnderlineStyle).toInt()
-                       == int(QTextCharFormat::SpellCheckUnderline)) {
+        for (const auto &hit : m_highlighter->spellHitsInBlock(blockNumber)) {
+            if (pos >= hit.start && pos < hit.start + hit.length)
                 return true;
-            }
         }
         return false;
     }
@@ -180,17 +176,6 @@ TEST_F(SpellHighlighterDocumentTest, FrontMatterNotUnderlined)
     EXPECT_TRUE(hasSpellUnderline(3, 0));
 }
 
-TEST_F(SpellHighlighterDocumentTest, IgnoreAllRemovesUnderline)
-{
-    setText("helo");
-    EXPECT_TRUE(hasSpellUnderline(0, 0));
-
-    m_checker.ignoreAll("helo");
-    m_highlighter->refresh();
-    forceRelayout();
-    EXPECT_FALSE(hasSpellUnderline(0, 0));
-}
-
 TEST_F(SpellHighlighterDocumentTest, UserDictionaryRemovesUnderline)
 {
     setText("scribamarkdown");
@@ -202,14 +187,67 @@ TEST_F(SpellHighlighterDocumentTest, UserDictionaryRemovesUnderline)
     EXPECT_FALSE(hasSpellUnderline(0, 0));
 }
 
+class SpellHighlighterHitTest : public SpellHighlighterDocumentTest
+{
+protected:
+    bool covers(int blockNumber, int pos) const
+    {
+        for (const auto &hit : m_highlighter->spellHitsInBlock(blockNumber)) {
+            if (pos >= hit.start && pos < hit.start + hit.length)
+                return true;
+        }
+        return false;
+    }
+};
+
+TEST_F(SpellHighlighterHitTest, MisspelledWordReported)
+{
+    setText("helo world");
+    EXPECT_TRUE(covers(0, 0));
+    EXPECT_TRUE(covers(0, 3));
+    EXPECT_FALSE(covers(0, 5));
+}
+
+TEST_F(SpellHighlighterHitTest, CorrectWordNotReported)
+{
+    setText("hello");
+    EXPECT_FALSE(covers(0, 0));
+}
+
+TEST_F(SpellHighlighterHitTest, FencedCodeBlockNotReported)
+{
+    setText("```\nhelo world\n```\nhelo again");
+    EXPECT_FALSE(covers(0, 0));
+    EXPECT_FALSE(covers(1, 0));
+    EXPECT_FALSE(covers(2, 0));
+    EXPECT_TRUE(covers(3, 0));
+}
+
+TEST_F(SpellHighlighterHitTest, InlineCodeNotReported)
+{
+    setText("helo `helo` helo");
+    EXPECT_TRUE(covers(0, 0));
+    EXPECT_FALSE(covers(0, 7));
+    EXPECT_TRUE(covers(0, 12));
+}
+
+TEST_F(SpellHighlighterHitTest, UserDictionaryClearsHits)
+{
+    setText("helo");
+    EXPECT_TRUE(covers(0, 0));
+
+    m_checker.addToUserDictionary("helo");
+    m_highlighter->refresh();
+    forceRelayout();
+    EXPECT_FALSE(covers(0, 0));
+}
+
 } // namespace
 
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    QCoreApplication::setOrganizationName("scribaTest");
-    QCoreApplication::setApplicationName("scribaTest");
-    QStandardPaths::setTestModeEnabled(true);
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -1,5 +1,6 @@
 #include "CssConfig.h"
 #include "Preferences.h"
+#include <QFile>
 #include <QSettings>
 
 CssConfig::CssConfig()
@@ -7,6 +8,17 @@ CssConfig::CssConfig()
     QSettings settings;
     m_stylesheets = settings.value(Preferences::CssFiles, QStringList()).toStringList();
     m_activeStylesheet = settings.value(Preferences::ActiveCssFile, "").toString();
+    if (!m_activeStylesheet.isEmpty() && !isUsableTheme(m_activeStylesheet)) {
+        m_activeStylesheet.clear();
+        settings.setValue(Preferences::ActiveCssFile, QString());
+    }
+}
+
+bool CssConfig::isUsableTheme(const QString &path) const
+{
+    if (path.startsWith(":/") || path.startsWith("qrc:"))
+        return bundledThemes().contains(path);
+    return QFile::exists(path);
 }
 
 QStringList CssConfig::bundledThemes()

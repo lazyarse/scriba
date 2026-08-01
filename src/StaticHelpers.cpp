@@ -1,4 +1,5 @@
 #include "StaticHelpers.h"
+#include <algorithm>
 #include <QRegularExpression>
 #include <QXmlStreamReader>
 #include <QFile>
@@ -318,6 +319,130 @@ DebounceTimer::DebounceTimer(int interval, QObject *parent)
 void DebounceTimer::arm()
 {
     start();
+}
+
+bool extractLinkPath(const QString &line, int cursorPos, QString &partialPath)
+{
+    static const QRegularExpression re(R"(\!?\[.*?\]\()");
+    QRegularExpressionMatchIterator it = re.globalMatch(line.left(cursorPos));
+    int parenPos = -1;
+    while (it.hasNext()) {
+        QRegularExpressionMatch m = it.next();
+        parenPos = m.capturedEnd();
+    }
+    if (parenPos < 0)
+        return false;
+
+    QString between = line.mid(parenPos, cursorPos - parenPos);
+    if (between.contains(')'))
+        return false;
+
+    partialPath = between;
+    return true;
+}
+
+int linkPathReplaceStart(const QString &line, int cursorPos)
+{
+    static const QRegularExpression re(R"(\!?\[.*?\]\()");
+    QRegularExpressionMatchIterator it = re.globalMatch(line.left(cursorPos));
+    int parenPos = -1;
+    while (it.hasNext()) {
+        QRegularExpressionMatch m = it.next();
+        parenPos = m.capturedEnd();
+    }
+    if (parenPos < 0)
+        return -1;
+
+    QString between = line.mid(parenPos, cursorPos - parenPos);
+    int lastSlash = between.lastIndexOf('/');
+    return lastSlash >= 0 ? parenPos + lastSlash + 1 : parenPos;
+}
+
+bool extractHtmlPath(const QString &line, int cursorPos, QString &value)
+{
+    static const QRegularExpression re(R"((?:src|href)\s*=\s*["']([^"']*)$)");
+    auto match = re.match(line.left(cursorPos));
+    if (!match.hasMatch())
+        return false;
+
+    value = match.captured(1);
+    return true;
+}
+
+int htmlPathReplaceStart(const QString &line, int cursorPos)
+{
+    static const QRegularExpression re(R"((?:src|href)\s*=\s*["']([^"']*)$)");
+    auto match = re.match(line.left(cursorPos));
+    if (!match.hasMatch())
+        return -1;
+
+    QString value = match.captured(1);
+    int valueStart = cursorPos - value.length();
+    int lastSlash = value.lastIndexOf('/');
+    return lastSlash >= 0 ? valueStart + lastSlash + 1 : valueStart;
+}
+
+bool extractEmojiCode(const QString &line, int cursorPos, QString &partialCode)
+{
+    // Inside an open link path the file completion wins, not emoji
+    QString ignored;
+    if (extractLinkPath(line, cursorPos, ignored))
+        return false;
+
+    static const QRegularExpression re(R"(:([a-zA-Z0-9+-][a-zA-Z0-9_+-]*)$)");
+    auto match = re.match(line.left(cursorPos));
+    if (!match.hasMatch())
+        return false;
+
+    partialCode = match.captured(1);
+    return true;
+}
+
+FileCompletionResult matchFileEntries(const QString &partialPath, const QDir &baseDir,
+                                      int limit)
+{
+    QString normalized = partialPath;
+    bool trailingSep = normalized.endsWith('/') || normalized.endsWith('\\');
+    if (trailingSep)
+        normalized.chop(1);
+    QFileInfo pfi(normalized);
+    QString dirPart = trailingSep ? pfi.filePath() : pfi.path();
+    QString filePart = trailingSep ? QString() : pfi.fileName();
+
+    QString searchDir = baseDir.absoluteFilePath(dirPart.isEmpty() ? "." : dirPart);
+    QDir search(searchDir);
+    if (!search.exists())
+        return {};
+
+    QStringList matched;
+    QStringList all = search.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
+    for (const QString &entry : all) {
+        if (entry.startsWith('.') && !filePart.startsWith('.'))
+            continue;
+        if (filePart.isEmpty() || entry.contains(filePart, Qt::CaseInsensitive))
+            matched.append(entry);
+    }
+
+    std::sort(matched.begin(), matched.end(),
+        [&filePart](const QString &a, const QString &b) {
+            bool aPrefix = a.startsWith(filePart, Qt::CaseInsensitive);
+            bool bPrefix = b.startsWith(filePart, Qt::CaseInsensitive);
+            if (aPrefix != bPrefix)
+                return aPrefix;
+            return a < b;
+        });
+
+    QStringList entries;
+    for (const QString &entry : matched) {
+        if (entries.size() >= limit)
+            break;
+        if (QFileInfo(search, entry).isDir())
+            entries.append(entry + "/");
+        else
+            entries.append(entry);
+    }
+
+    return {entries, filePart};
 }
 
 

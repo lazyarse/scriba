@@ -18,6 +18,7 @@
 #include "JsRenderEngine.h"
 #include "CssLoader.h"
 #include "CssConfig.h"
+#include "TestConfig.h"
 
 class HtmlExportTest : public testing::Test
 {
@@ -28,6 +29,11 @@ protected:
         s.setValue(Preferences::TableStriping, true);
         s.setValue(Preferences::EmojiMode,
             Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw));
+        // Seed theme settings so dialog tests don't depend on leftover
+        // QSettings state from other test targets sharing the scribaTest org.
+        QStringList themes = CssConfig::bundledThemes();
+        s.setValue(Preferences::CssFiles, themes);
+        s.setValue(Preferences::ActiveCssFile, themes.first());
 
         config = new CssConfig();
         loader = new CssLoader(config);
@@ -862,8 +868,7 @@ TEST_F(HtmlExportTest, NoHtmlFlagBlocksHtmlInExportPath)
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    app.setOrganizationName("scribaTest");
-    app.setApplicationName("scribaTest");
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

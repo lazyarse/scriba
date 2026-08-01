@@ -2,71 +2,45 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QRegularExpression>
 #include <QTemporaryDir>
+
+#include "StaticHelpers.h"
 
 namespace {
 
 QString extractPartialPath(const QString &line, int cursorPos)
 {
-    static const QRegularExpression re(R"(\!?\[.*?\]\()");
-    QRegularExpressionMatchIterator it = re.globalMatch(line.left(cursorPos));
-    int parenPos = -1;
-    while (it.hasNext()) {
-        QRegularExpressionMatch m = it.next();
-        parenPos = m.capturedEnd();
-    }
-    if (parenPos < 0)
-        return QString();
-    QString between = line.mid(parenPos, cursorPos - parenPos);
-    if (between.contains(')'))
-        return QString();
-    return between;
+    QString path;
+    extractLinkPath(line, cursorPos, path);
+    return path;
 }
 
 QStringList matchEntries(const QString &partialPath, const QDir &baseDir)
 {
-    int lastSlash = partialPath.lastIndexOf('/');
-    QString dirPart = lastSlash >= 0 ? partialPath.left(lastSlash + 1) : QString();
-    QString filePart = lastSlash >= 0 ? partialPath.mid(lastSlash + 1) : partialPath;
-
-    QString searchDir = baseDir.absoluteFilePath(dirPart.isEmpty() ? "." : dirPart);
-    QDir search(searchDir);
-    if (!search.exists())
-        return {};
-
-    QStringList entries;
-    QStringList all = search.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
-    for (const QString &entry : all) {
-        if (entry.startsWith('.') && !filePart.startsWith('.'))
-            continue;
-        if (filePart.isEmpty() || entry.startsWith(filePart, Qt::CaseInsensitive)) {
-            if (QFileInfo(search, entry).isDir())
-                entries.append(entry + "/");
-            else
-                entries.append(entry);
-        }
-    }
-    return entries;
+    return matchFileEntries(partialPath, baseDir).entries;
 }
 
-QString simulateAcceptCompletion(const QString &line, int cursorPos, const QString &completion)
+QString acceptLinkCompletion(const QString &line, int cursorPos, const QString &completion)
 {
-    static const QRegularExpression re(R"(\!?\[.*?\]\()");
-    QRegularExpressionMatchIterator it = re.globalMatch(line.left(cursorPos));
-    int parenPos = -1;
-    while (it.hasNext()) {
-        QRegularExpressionMatch m = it.next();
-        parenPos = m.capturedEnd();
-    }
-    if (parenPos < 0)
+    int replaceStart = linkPathReplaceStart(line, cursorPos);
+    if (replaceStart < 0)
         return line;
-
-    QString between = line.mid(parenPos, cursorPos - parenPos);
-    int lastSlash = between.lastIndexOf('/');
-    int replaceStart = lastSlash >= 0 ? parenPos + lastSlash + 1 : parenPos;
-
     return line.left(replaceStart) + completion;
+}
+
+QString acceptHtmlCompletion(const QString &line, int cursorPos, const QString &completion)
+{
+    int replaceStart = htmlPathReplaceStart(line, cursorPos);
+    if (replaceStart < 0)
+        return line;
+    return line.left(replaceStart) + completion;
+}
+
+void touch(QDir &dir, const QString &name)
+{
+    QFile f(dir.absoluteFilePath(name));
+    (void)f.open(QIODevice::WriteOnly);
+    f.close();
 }
 
 } // anonymous namespace
@@ -74,43 +48,54 @@ QString simulateAcceptCompletion(const QString &line, int cursorPos, const QStri
 TEST(LinkContext, DetectsImageSyntax)
 {
     QString line = "![](resourc";
-    QString path = extractPartialPath(line, line.length());
-    EXPECT_EQ(path, "resourc");
+    EXPECT_EQ(extractPartialPath(line, line.length()), "resourc");
 }
 
 TEST(LinkContext, DetectsLinkSyntax)
 {
     QString line = "[click](resourc";
-    QString path = extractPartialPath(line, line.length());
-    EXPECT_EQ(path, "resourc");
+    EXPECT_EQ(extractPartialPath(line, line.length()), "resourc");
 }
 
 TEST(LinkContext, IgnoresClosedParen)
 {
     QString line = "[click](done) trailing";
-    QString path = extractPartialPath(line, line.length());
-    EXPECT_TRUE(path.isEmpty());
+    EXPECT_TRUE(extractPartialPath(line, line.length()).isEmpty());
 }
 
 TEST(LinkContext, CursorBeforeLink)
 {
     QString line = "before ![](path)";
-    QString path = extractPartialPath(line, 4);
-    EXPECT_TRUE(path.isEmpty());
+    EXPECT_TRUE(extractPartialPath(line, 4).isEmpty());
 }
 
 TEST(LinkContext, DetectsMiddleOfPath)
 {
     QString line = "![](images/scre";
-    QString path = extractPartialPath(line, line.length());
-    EXPECT_EQ(path, "images/scre");
+    EXPECT_EQ(extractPartialPath(line, line.length()), "images/scre");
 }
 
 TEST(LinkContext, ExtractsBetweenOpenAndCursor)
 {
     QString line = "![](some/path/abc def";
-    QString path = extractPartialPath(line, line.length());
-    EXPECT_EQ(path, "some/path/abc def");
+    EXPECT_EQ(extractPartialPath(line, line.length()), "some/path/abc def");
+}
+
+TEST(LinkReplaceStart, ReplacesFileNamePart)
+{
+    QString line = "![](images/scre";
+    EXPECT_EQ(linkPathReplaceStart(line, line.length()), 11);
+}
+
+TEST(LinkReplaceStart, ReplacesWholePathWithoutSlash)
+{
+    QString line = "![](scre";
+    EXPECT_EQ(linkPathReplaceStart(line, line.length()), 4);
+}
+
+TEST(LinkReplaceStart, NotInLinkReturnsMinusOne)
+{
+    EXPECT_EQ(linkPathReplaceStart("plain text", 5), -1);
 }
 
 TEST(PathCompletion, FiltersEntries)
@@ -119,14 +104,9 @@ TEST(PathCompletion, FiltersEntries)
     ASSERT_TRUE(tmpDir.isValid());
     QDir dir(tmpDir.path());
 
-    auto touch = [&](const QString &name) {
-        QFile f(dir.absoluteFilePath(name));
-        (void)f.open(QIODevice::WriteOnly);
-        f.close();
-    };
-    touch("main.css");
-    touch("main.js");
-    touch("README.md");
+    touch(dir, "main.css");
+    touch(dir, "main.js");
+    touch(dir, "README.md");
     dir.mkdir("images");
 
     auto entries = matchEntries("main", dir);
@@ -145,13 +125,8 @@ TEST(PathCompletion, ListsFilesInSubdir)
     ASSERT_TRUE(tmpDir.isValid());
     QDir dir(tmpDir.path());
     dir.mkdir("images");
-    auto touch = [&](const QString &name) {
-        QFile f(dir.absoluteFilePath(name));
-        (void)f.open(QIODevice::WriteOnly);
-        f.close();
-    };
-    touch("images/photo.png");
-    touch("images/photo.jpg");
+    touch(dir, "images/photo.png");
+    touch(dir, "images/photo.jpg");
     dir.mkdir("images/nested");
 
     auto entries = matchEntries("images/ph", dir);
@@ -178,13 +153,8 @@ TEST(PathCompletion, NoHiddenFilesWithoutDot)
     QTemporaryDir tmpDir;
     ASSERT_TRUE(tmpDir.isValid());
     QDir dir(tmpDir.path());
-    auto touch = [&](const QString &name) {
-        QFile f(dir.absoluteFilePath(name));
-        (void)f.open(QIODevice::WriteOnly);
-        f.close();
-    };
-    touch(".hidden");
-    touch("visible");
+    touch(dir, ".hidden");
+    touch(dir, "visible");
 
     auto entries = matchEntries("", dir);
     EXPECT_EQ(entries.size(), 1);
@@ -196,14 +166,9 @@ TEST(PathCompletion, HiddenFilesShownWithDotPrefix)
     QTemporaryDir tmpDir;
     ASSERT_TRUE(tmpDir.isValid());
     QDir dir(tmpDir.path());
-    auto touch = [&](const QString &name) {
-        QFile f(dir.absoluteFilePath(name));
-        (void)f.open(QIODevice::WriteOnly);
-        f.close();
-    };
-    touch(".config");
-    touch(".hidden");
-    touch("visible");
+    touch(dir, ".config");
+    touch(dir, ".hidden");
+    touch(dir, "visible");
 
     auto entries = matchEntries(".", dir);
     EXPECT_EQ(entries.size(), 2);
@@ -216,34 +181,40 @@ TEST(PathCompletion, NoMatchReturnsEmpty)
     QTemporaryDir tmpDir;
     ASSERT_TRUE(tmpDir.isValid());
     QDir dir(tmpDir.path());
-    auto touch = [&](const QString &name) {
-        QFile f(dir.absoluteFilePath(name));
-        (void)f.open(QIODevice::WriteOnly);
-        f.close();
-    };
-    touch("readme.md");
+    touch(dir, "readme.md");
 
     auto entries = matchEntries("zzz", dir);
     EXPECT_TRUE(entries.isEmpty());
 }
 
-TEST(PathCompletion, EmptyPathReturnsEmpty)
+TEST(PathCompletion, EmptyPathListsAllNonHiddenEntries)
 {
     QTemporaryDir tmpDir;
     ASSERT_TRUE(tmpDir.isValid());
     QDir dir(tmpDir.path());
-    auto touch = [&](const QString &name) {
-        QFile f(dir.absoluteFilePath(name));
-        (void)f.open(QIODevice::WriteOnly);
-        f.close();
-    };
-    touch("main.css");
+    touch(dir, "main.css");
 
-    // Empty partialPath → filePart is empty → matchEntries returns all
-    // The caller (showFileCompletion) guards against empty filePart
+    // Empty partialPath → filePart is empty → every non-hidden entry matches.
+    // The callers (Editor) guard against an empty partial path.
     auto entries = matchEntries("", dir);
     EXPECT_EQ(entries.size(), 1);
     EXPECT_EQ(entries.first(), "main.css");
+}
+
+TEST(PathCompletion, SortsPrefixMatchesFirst)
+{
+    QTemporaryDir tmpDir;
+    ASSERT_TRUE(tmpDir.isValid());
+    QDir dir(tmpDir.path());
+    touch(dir, "xmain.css");
+    touch(dir, "main.js");
+    touch(dir, "main.css");
+
+    auto entries = matchEntries("main", dir);
+    ASSERT_EQ(entries.size(), 3);
+    EXPECT_EQ(entries.first(), "main.css") << "prefix matches must sort before substring matches";
+    EXPECT_EQ(entries.at(1), "main.js");
+    EXPECT_EQ(entries.at(2), "xmain.css");
 }
 
 TEST(ChainedCompletion, DirThenFile)
@@ -260,7 +231,7 @@ TEST(ChainedCompletion, DirThenFile)
     auto entries = matchEntries(path, dir);
     ASSERT_EQ(entries.size(), 1);
     ASSERT_EQ(entries.first(), "resources/");
-    line = simulateAcceptCompletion(line, line.length(), entries.first());
+    line = acceptLinkCompletion(line, line.length(), entries.first());
     EXPECT_EQ(line, "![](resources/");
 
     // Step 2: ![](resources/ico[Tab] → single match "icons/"
@@ -273,7 +244,7 @@ TEST(ChainedCompletion, DirThenFile)
     ASSERT_EQ(entries.first(), "icons/");
 
     // acceptCompletion receives only "icons/", replaces "ico" → "icons/"
-    line = simulateAcceptCompletion(line, line.length(), entries.first());
+    line = acceptLinkCompletion(line, line.length(), entries.first());
     EXPECT_EQ(line, "![](resources/icons/");
 }
 
@@ -291,7 +262,7 @@ TEST(ChainedCompletion, NestedSubdir)
     auto entries = matchEntries(path, dir);
     ASSERT_EQ(entries.size(), 1);
     ASSERT_EQ(entries.first(), "a/");
-    line = simulateAcceptCompletion(line, line.length(), entries.first());
+    line = acceptLinkCompletion(line, line.length(), entries.first());
     EXPECT_EQ(line, "![](a/");
 
     line += "b";
@@ -299,7 +270,7 @@ TEST(ChainedCompletion, NestedSubdir)
     entries = matchEntries(path, dir);
     ASSERT_EQ(entries.size(), 1);
     ASSERT_EQ(entries.first(), "b/");
-    line = simulateAcceptCompletion(line, line.length(), entries.first());
+    line = acceptLinkCompletion(line, line.length(), entries.first());
     EXPECT_EQ(line, "![](a/b/");
 
     line += "c";
@@ -307,7 +278,7 @@ TEST(ChainedCompletion, NestedSubdir)
     entries = matchEntries(path, dir);
     ASSERT_EQ(entries.size(), 1);
     ASSERT_EQ(entries.first(), "c/");
-    line = simulateAcceptCompletion(line, line.length(), entries.first());
+    line = acceptLinkCompletion(line, line.length(), entries.first());
     EXPECT_EQ(line, "![](a/b/c/");
 }
 
@@ -326,7 +297,7 @@ TEST(ChainedCompletion, MultiMatchThenNarrow)
     auto entries = matchEntries(path, dir);
     ASSERT_EQ(entries.size(), 1);
     ASSERT_EQ(entries.first(), "docs/");
-    line = simulateAcceptCompletion(line, line.length(), entries.first());
+    line = acceptLinkCompletion(line, line.length(), entries.first());
     EXPECT_EQ(line, "![](docs/");
 
     // Step 2: ![](docs/de[Tab] → multiple matches: "design/", "dev/"
@@ -336,4 +307,126 @@ TEST(ChainedCompletion, MultiMatchThenNarrow)
     ASSERT_EQ(entries.size(), 2);
     EXPECT_TRUE(entries.contains("design/"));
     EXPECT_TRUE(entries.contains("dev/"));
+}
+
+TEST(HtmlContext, DetectsSrcAttribute)
+{
+    QString line = "src=\"resourc";
+    QString value;
+    ASSERT_TRUE(extractHtmlPath(line, line.length(), value));
+    EXPECT_EQ(value, "resourc");
+}
+
+TEST(HtmlContext, DetectsHrefAttribute)
+{
+    QString line = "href='imgs/scre";
+    QString value;
+    ASSERT_TRUE(extractHtmlPath(line, line.length(), value));
+    EXPECT_EQ(value, "imgs/scre");
+}
+
+TEST(HtmlContext, IgnoresClosedAttribute)
+{
+    QString line = "src=\"done\">";
+    QString value;
+    EXPECT_FALSE(extractHtmlPath(line, line.length(), value));
+}
+
+TEST(HtmlContext, LastAttributeWins)
+{
+    QString line = "<img src=\"a\" href=\"b";
+    QString value;
+    ASSERT_TRUE(extractHtmlPath(line, line.length(), value));
+    EXPECT_EQ(value, "b");
+}
+
+TEST(HtmlContext, EmptyValueIsContext)
+{
+    QString line = "src=\"";
+    QString value;
+    ASSERT_TRUE(extractHtmlPath(line, line.length(), value));
+    EXPECT_TRUE(value.isEmpty());
+}
+
+TEST(HtmlReplaceStart, ReplacesFileNamePart)
+{
+    QString line = "src=\"images/scre";
+    EXPECT_EQ(htmlPathReplaceStart(line, line.length()), 12);
+}
+
+TEST(HtmlReplaceStart, ReplacesWholeValueWithoutSlash)
+{
+    QString line = "src=\"scre";
+    EXPECT_EQ(htmlPathReplaceStart(line, line.length()), 5);
+}
+
+TEST(HtmlReplaceStart, NotInContextReturnsMinusOne)
+{
+    QString line = "src=\"done\">";
+    EXPECT_EQ(htmlPathReplaceStart(line, line.length()), -1);
+}
+
+TEST(HtmlReplaceStart, AcceptSimulation)
+{
+    QString line = acceptHtmlCompletion("src=\"images/", 12, "screenshot.png");
+    EXPECT_EQ(line, "src=\"images/screenshot.png");
+}
+
+TEST(EmojiContext, DetectsShortcode)
+{
+    QString code;
+    ASSERT_TRUE(extractEmojiCode(":smi", 4, code));
+    EXPECT_EQ(code, "smi");
+}
+
+TEST(EmojiContext, RejectsInsideLinkPath)
+{
+    QString code;
+    EXPECT_FALSE(extractEmojiCode("![](x:smi", 9, code));
+}
+
+TEST(EmojiContext, AllowsAfterClosedLink)
+{
+    QString code;
+    ASSERT_TRUE(extractEmojiCode("[x](y) :sm", 10, code));
+    EXPECT_EQ(code, "sm");
+}
+
+TEST(EmojiContext, DetectsMidWordColon)
+{
+    QString code;
+    ASSERT_TRUE(extractEmojiCode("foo:smi", 7, code));
+    EXPECT_EQ(code, "smi");
+}
+
+TEST(EmojiContext, DetectsPlusShortcode)
+{
+    QString code;
+    ASSERT_TRUE(extractEmojiCode(":+1", 3, code));
+    EXPECT_EQ(code, "+1");
+}
+
+TEST(EmojiContext, DetectsHyphenShortcode)
+{
+    QString code;
+    ASSERT_TRUE(extractEmojiCode(":a-b", 4, code));
+    EXPECT_EQ(code, "a-b");
+}
+
+TEST(EmojiContext, RejectsUnsupportedChars)
+{
+    QString code;
+    EXPECT_FALSE(extractEmojiCode(":smi!", 5, code));
+}
+
+TEST(EmojiContext, ClosedShortcodeNotContext)
+{
+    QString code;
+    EXPECT_FALSE(extractEmojiCode(":sm:", 4, code));
+}
+
+TEST(EmojiContext, TrailingTextNotContext)
+{
+    QString code;
+    EXPECT_FALSE(extractEmojiCode("foo :smi bar", 11, code));
 }

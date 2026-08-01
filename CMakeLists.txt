@@ -8,12 +8,7 @@ set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebEngineWidgets Svg)
 
-include(FetchContent)
-FetchContent_Declare(mathml2omml
-    GIT_REPOSITORY https://github.com/lazyarse/mathml2omml.git
-    GIT_TAG v2.0.1)
-FetchContent_MakeAvailable(mathml2omml)
-
+add_subdirectory(vendor/mathml2omml)
 add_subdirectory(vendor/hunspell)
 
 # Vendored harper-core grammar engine (see vendor/harper-ffi). It is built with
@@ -104,6 +99,7 @@ add_custom_command(TARGET scriba POST_BUILD
     COMMENT "Removing cached stylesheets from config directory"
     COMMAND ${CMAKE_COMMAND} -E rm -f
         "$ENV{HOME}/.config/scriba/preview-base.css"
+        "$ENV{HOME}/.config/scriba/print-base.css"
 )
 
 install(TARGETS scriba RUNTIME DESTINATION bin)
@@ -220,6 +216,18 @@ if(BUILD_TESTS)
         GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core
     )
 
+    add_library(scriba_test_main STATIC
+        tests/test_main.cpp
+        tests/TestConfig.h
+    )
+    target_include_directories(scriba_test_main PUBLIC
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(scriba_test_main PUBLIC
+        GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets
+    )
+
     add_executable(test_markdown_parser tests/test_markdown_parser.cpp)
     target_link_libraries(test_markdown_parser PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_markdown_parser COMMAND ${_TEST_PREFIX} ./test_markdown_parser)
@@ -294,13 +302,13 @@ if(BUILD_TESTS)
     add_test(NAME test_mchem_helper_dialog COMMAND ${_TEST_PREFIX} ./test_mchem_helper_dialog)
 
     add_executable(test_editor_autocomplete tests/test_editor_autocomplete.cpp)
-    target_link_libraries(test_editor_autocomplete PRIVATE GTest::gtest_main Qt6::Core)
+    target_link_libraries(test_editor_autocomplete PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_editor_autocomplete COMMAND ${_TEST_PREFIX} ./test_editor_autocomplete)
 
     find_package(Qt6 REQUIRED COMPONENTS Test)
     add_executable(test_editor_completion_ui tests/test_editor_completion_ui.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_editor_completion_ui PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell)
+    target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest test_editor_helpers Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell)
     add_test(NAME test_editor_completion_ui COMMAND ${_TEST_PREFIX} ./test_editor_completion_ui)
 
     add_executable(test_folding tests/test_folding.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
@@ -343,6 +351,27 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
+    add_executable(test_emoji_preview tests/test_emoji_preview.cpp
+        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp
+        src/FindDialog.cpp
+        src/LogWindow.cpp
+        src/MermaidDialog.cpp
+        src/KatexHelperDialog.cpp
+        src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
+        src/TableDialog.cpp
+        resources/scriba.qrc
+        resources/twemoji-svg.qrc)
+    target_include_directories(test_emoji_preview PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_compile_definitions(test_emoji_preview PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
+    target_link_libraries(test_emoji_preview PRIVATE
+        scriba_core GTest::gtest test_editor_helpers Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+    add_test(NAME test_emoji_preview COMMAND ${_TEST_PREFIX} ./test_emoji_preview)
+
     add_executable(test_auto_save tests/test_auto_save.cpp
         src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
@@ -360,6 +389,24 @@ if(BUILD_TESTS)
     target_link_libraries(test_auto_save PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
+
+    add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp
+        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
+        src/LogWindow.cpp
+        src/MermaidDialog.cpp
+        src/KatexHelperDialog.cpp
+        src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
+        src/TableDialog.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_dirty_on_load PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_dirty_on_load PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+    add_test(NAME test_dirty_on_load COMMAND ${_TEST_PREFIX} ./test_dirty_on_load)
 
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
     src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
@@ -402,6 +449,22 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
     target_compile_definitions(test_print_css_file PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     target_link_libraries(test_print_css_file PRIVATE GTest::gtest_main Qt6::Core)
     add_test(NAME test_print_css_file COMMAND ${_TEST_PREFIX} ./test_print_css_file)
+
+    add_executable(test_css_loader tests/test_css_loader.cpp
+        src/CssLoader.cpp src/CssConfig.cpp resources/scriba.qrc)
+    target_include_directories(test_css_loader PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_css_loader PRIVATE scriba_core scriba_test_main Qt6::Core)
+    add_test(NAME test_css_loader COMMAND ${_TEST_PREFIX} ./test_css_loader)
+
+    add_executable(test_settings_migration tests/test_settings_migration.cpp)
+    target_include_directories(test_settings_migration PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_settings_migration PRIVATE scriba_core scriba_test_main Qt6::Core)
+    add_test(NAME test_settings_migration COMMAND ${_TEST_PREFIX} ./test_settings_migration)
+
+    add_executable(test_css_config tests/test_css_config.cpp src/CssConfig.cpp)
+    target_include_directories(test_css_config PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_css_config PRIVATE scriba_core scriba_test_main Qt6::Core)
+    add_test(NAME test_css_config COMMAND ${_TEST_PREFIX} ./test_css_config)
 
     add_executable(test_pdf_export tests/test_pdf_export.cpp
         src/ExportPdfDialog.cpp src/JsRenderEngine.cpp src/Preview.cpp

@@ -3,6 +3,7 @@
 #include "UnitConverter.h"
 #include <mathml2omml.h>
 #include <string>
+#include <string_view>
 #include <QBuffer>
 #include <QImage>
 #include <QLoggingCategory>
@@ -40,20 +41,23 @@ struct QtOmmlSink : XmlSink {
     QXmlStreamWriter *w;
     explicit QtOmmlSink(QXmlStreamWriter *writer) : w(writer) {}
 
-    void startElement(const std::string &name) override {
-        w->writeStartElement(QString::fromStdString(name));
+    void startElement(std::string_view name) override {
+        w->writeStartElement(QString::fromUtf8(name.data(),
+                                               static_cast<qsizetype>(name.size())));
     }
 
     void endElement() override {
         w->writeEndElement();
     }
 
-    void attribute(const std::string &name, const std::string &value) override {
-        w->writeAttribute(QString::fromStdString(name), QString::fromStdString(value));
+    void attribute(std::string_view name, std::string_view value) override {
+        w->writeAttribute(QString::fromUtf8(name.data(), static_cast<qsizetype>(name.size())),
+                          QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size())));
     }
 
-    void characters(const std::string &text) override {
-        w->writeCharacters(QString::fromStdString(text));
+    void characters(std::string_view text) override {
+        w->writeCharacters(QString::fromUtf8(text.data(),
+                                             static_cast<qsizetype>(text.size())));
     }
 };
 

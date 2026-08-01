@@ -1,3 +1,4 @@
+
 #include "MainWindow.h"
 #include "Editor.h"
 #include "Preview.h"
@@ -66,6 +67,8 @@ static constexpr int kMsPerMinute = 60000;
 #include <QInputDialog>
 #include <QJsonObject>
 
+bool MainWindow::s_notifyStaleCss = false;
+
 MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
     : QMainWindow(parent)
     , m_parser(new MarkdownParser())
@@ -127,7 +130,18 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
         m_cssLoader->invalidateCache();
         refreshPreviewCss();
         applyStripeSetting();
+    } else if (m_cssConfig->activeStylesheet().isEmpty()) {
+        m_cssConfig->setActiveStylesheet(":/themes/github-light.css");
+        m_cssLoader->invalidateCache();
+        refreshPreviewCss();
     }
+
+    // Warm up both base stylesheets so any stale config-dir copies are
+    // superseded in one pass, then (in the real app) inform the user once.
+    m_cssLoader->previewBaseCss();
+    m_cssLoader->printBaseCss();
+    if (s_notifyStaleCss && !m_cssLoader->staleBaseCssFiles().isEmpty())
+        QTimer::singleShot(0, this, &MainWindow::notifyStaleBaseCss);
 
     QSettings settings;
     int asInterval = settings.value(Preferences::AutoSaveInterval, 0).toInt();
@@ -170,6 +184,33 @@ void MainWindow::showCenteredWarning(const QString &title, const QString &text, 
     msgBox.setInformativeText(informative);
     msgBox.move(QGuiApplication::primaryScreen()->geometry().center() - msgBox.rect().center());
     msgBox.exec();
+}
+
+void MainWindow::notifyStaleBaseCss()
+{
+    QStringList stale = m_cssLoader->staleBaseCssFiles();
+    if (stale.isEmpty())
+        return;
+
+    QStringList backups;
+    for (const QString &path : stale)
+        backups << path + ".bak";
+
+    QMessageBox msgBox(this);
+    msgBox.setIcon(QMessageBox::Information);
+    msgBox.setWindowTitle("Stylesheets Updated");
+    msgBox.setText("Outdated custom stylesheets were found in your configuration "
+                   "and have been replaced with the built-in versions.");
+    msgBox.setInformativeText("Your old files were kept as backups:\n" + backups.join('\n')
+        + "\n\nIf you customised the preview or print styles in an older version "
+          "of Scriba, you can re-apply them from these backups. Note that older "
+          "stylesheets may not be fully compatible with the current rendering engine.");
+    msgBox.setStandardButtons(QMessageBox::Ok);
+    for (auto *btn : msgBox.buttons())
+        btn->setIcon(QIcon());
+    msgBox.exec();
+
+    m_cssLoader->clearStaleBaseCssFlags();
 }
 
 void MainWindow::setupUi()
@@ -511,6 +552,15 @@ void MainWindow::setupMenuBar()
         addTab();
     });
 
+    QMenu *sessionMenu = fileMenu->addMenu("&Session");
+    QAction *saveSessionAction = sessionMenu->addAction("&Save Session As...");
+    connect(saveSessionAction, &QAction::triggered, this, &MainWindow::saveSessionAsAction);
+
+    QAction *loadSessionAction = sessionMenu->addAction("&Load Session...");
+    connect(loadSessionAction, &QAction::triggered, this, &MainWindow::loadSessionAction);
+
+    fileMenu->addSeparator();
+
     QAction *openAction = fileMenu->addAction("&Open...");
     openAction->setShortcut(QKeySequence::Open);
     connect(openAction, &QAction::triggered, this, [this]() {
@@ -570,15 +620,6 @@ void MainWindow::setupMenuBar()
     QAction *exportHtmlAction = exportMenu->addAction("Export as &HTML...");
     exportHtmlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H));
     connect(exportHtmlAction, &QAction::triggered, this, &MainWindow::exportHtml);
-
-    fileMenu->addSeparator();
-
-    QMenu *sessionMenu = fileMenu->addMenu("&Session");
-    QAction *saveSessionAction = sessionMenu->addAction("&Save Session As...");
-    connect(saveSessionAction, &QAction::triggered, this, &MainWindow::saveSessionAsAction);
-
-    QAction *loadSessionAction = sessionMenu->addAction("&Load Session...");
-    connect(loadSessionAction, &QAction::triggered, this, &MainWindow::loadSessionAction);
 
     fileMenu->addSeparator();
 
@@ -991,7 +1032,7 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode){if(!document.body)return false;window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var pct=sh>0?sy/sh:0;if(themeCss)document.getElementById('theme-css').textContent=themeCss;document.body.innerHTML=html;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(function(){window.scrollTo(0,pct*document.body.scrollHeight);});else window.scrollTo(0,pct*document.body.scrollHeight);},1500);return true;}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode){if(!document.body)return false;window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss)document.getElementById('theme-css').textContent=themeCss;document.body.innerHTML=html;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},1500);return true;}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
             "</head><body id=\"preview\">%3"
             "<script>document.addEventListener('click',function(e){"
             "var l=e.target.closest('a');if(!l)return;"
@@ -1557,6 +1598,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
     if (forceReload && existing >= 0) {
         idx = existing;
         m_tabWidget->setCurrentIndex(idx);
+        QSignalBlocker blocker(m_tabs[idx].editor);
         m_tabs[idx].editor->setPlainText(content);
         {
             QSettings s;
@@ -1568,11 +1610,13 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
             cursor.mergeBlockFormat(fmt);
         }
         m_tabs[idx].dirty = false;
+        updateTabLabel(idx);
         info = &m_tabs[idx];
     } else {
         idx = m_tabWidget->currentIndex();
         if (idx >= 0 && idx < m_tabs.size() && m_tabs[idx].filePath.isEmpty() && !m_tabs[idx].dirty && m_tabs[idx].editor->toPlainText().isEmpty()) {
             m_tabs[idx].filePath = filePath;
+            QSignalBlocker blocker(m_tabs[idx].editor);
             m_tabs[idx].editor->setPlainText(content);
             {
                 QSettings s;
@@ -1591,6 +1635,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
             replacedUntitled = true;
         } else {
             idx = addTab(filePath);
+            QSignalBlocker blocker(m_tabs[idx].editor);
             m_tabs[idx].editor->setPlainText(content);
             {
                 QSettings s;
@@ -1947,6 +1992,7 @@ void MainWindow::restoreSession(const QJsonObject &session)
         f.close();
 
         int idx = addTab(path);
+        QSignalBlocker blocker(m_tabs[idx].editor);
         m_tabs[idx].editor->setPlainText(content);
         {
             QSettings s;

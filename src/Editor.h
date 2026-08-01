@@ -12,6 +12,7 @@
 class QCompleter;
 class QAction;
 class QContextMenuEvent;
+class QFontMetrics;
 class Gutter;
 class SpellChecker;
 class GrammarChecker;
@@ -37,6 +38,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
     bool isInsideLinkContext(const QTextCursor &cursor, QString &partialPath) const;
@@ -55,6 +57,8 @@ private:
 
     void applySpellSettings();
     SpellHighlighter::WordHit misspelledWordAt(const QTextCursor &cursor) const;
+    void paintHitRange(QPainter &painter, const QTextBlock &block, int start, int length,
+                       const QColor &color, const QFontMetrics &fm, int underlineY);
 
     void updateViewportMargins();
 
@@ -85,6 +89,7 @@ private:
     std::unique_ptr<SpellChecker> m_spellChecker;
     GrammarChecker *m_grammarChecker = nullptr;
     SpellHighlighter *m_spellHighlighter = nullptr;
+    QWidget *m_underlineOverlay = nullptr;
 
     // Gutter + folding
     Gutter *m_gutter = nullptr;

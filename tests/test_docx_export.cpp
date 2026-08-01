@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 #include "HtmlToOoxml.h"
+#include "TestConfig.h"
 
 class DocxExportTest : public testing::Test
 {
@@ -511,8 +512,7 @@ TEST_F(DocxExportTest, MarginBottomProducesSpacing)
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    app.setOrganizationName("scribaTest");
-    app.setApplicationName("scribaTest");
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

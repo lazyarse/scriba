@@ -6,6 +6,7 @@
 #include <QTextCursor>
 
 #include "Editor.h"
+#include "TestConfig.h"
 
 class FoldingTest : public testing::Test
 {
@@ -320,6 +321,7 @@ TEST_F(FoldingTest, FoldsMarkedDirtyAfterFold)
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
+    setupTestConfig();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

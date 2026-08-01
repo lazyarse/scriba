@@ -2,14 +2,33 @@
 #include <QIcon>
 #include <QMessageBox>
 #include <QStyleFactory>
+#include <QtWebEngineCore/QWebEngineUrlScheme>
 #ifndef Q_OS_WIN
 #include <unistd.h>
 #endif
 #include "MainWindow.h"
 #include "LogWindow.h"
+#include "Preferences.h"
+
+static void registerQrcScheme()
+{
+    // Must run before any Qt WebEngine class is created. Qt registers the qrc
+    // scheme with only SecureScheme|ViewSourceAllowed, which CORS-blocks fonts
+    // (Symbola, KaTeX) loaded via @font-face from pages with a file:// base URL
+    // (live preview, PDF/DOCX export). Pre-registering with CorsEnabled and
+    // LocalAccessAllowed restores the Qt 5 behavior per Qt's documented recipe.
+    QWebEngineUrlScheme qrcScheme(QByteArrayLiteral("qrc"));
+    qrcScheme.setFlags(QWebEngineUrlScheme::SecureScheme
+                       | QWebEngineUrlScheme::LocalAccessAllowed
+                       | QWebEngineUrlScheme::CorsEnabled
+                       | QWebEngineUrlScheme::ViewSourceAllowed);
+    QWebEngineUrlScheme::registerScheme(qrcScheme);
+}
 
 int main(int argc, char *argv[])
 {
+    registerQrcScheme();
+
     QApplication app(argc, argv);
 
 #ifndef Q_OS_WIN
@@ -30,6 +49,9 @@ int main(int argc, char *argv[])
 
     LogWindow::initDebugLogging();
 
+    QSettings settings;
+    Preferences::migrateSettings(settings);
+
     QStringList args = app.arguments();
     bool hasFiles = false;
     for (int i = 1; i < args.size(); ++i) {
@@ -37,6 +59,7 @@ int main(int argc, char *argv[])
         break;
     }
 
+    MainWindow::setNotifyStaleCss(true);
     MainWindow window(nullptr, hasFiles);
     window.showMaximized();
 

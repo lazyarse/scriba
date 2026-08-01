@@ -17,6 +17,8 @@ public:
     void setActiveStylesheet(const QString &path);
 
 private:
+    bool isUsableTheme(const QString &path) const;
+
     QStringList m_stylesheets;
     QString m_activeStylesheet;
 };

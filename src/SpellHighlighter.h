@@ -9,8 +9,9 @@
 class SpellChecker;
 class GrammarChecker;
 class QTimer;
+class QColor;
 
-// Applies red spell-check underlines and orange grammar wave underlines to the
+// Applies red spell-check underlines and green grammar wave underlines to the
 // editor's QTextDocument. Markdown syntax that must not be checked (fenced
 // code, inline code, URLs, HTML tags, emoji shortcodes, math, front matter)
 // is skipped via per-block state tracking and a shared word scanner.
@@ -35,6 +36,10 @@ public:
         QString message;
     };
 
+    // Squiggle colors, shared with Editor's custom underline painting.
+    static QColor spellUnderlineColor();
+    static QColor grammarUnderlineColor();
+
     explicit SpellHighlighter(QTextDocument *document, QObject *parent = nullptr);
 
     void setChecker(SpellChecker *checker);
@@ -53,6 +58,10 @@ public:
     // Grammar issues (start offset + length within the block) for a block.
     QVector<GrammarHit> grammarIssuesInBlock(int blockNumber) const;
 
+    // Misspelled word ranges (start offset + length within the block) for a
+    // block. The Editor paints thick underlines over these + grammar issues.
+    QVector<GrammarHit> spellHitsInBlock(int blockNumber) const;
+
 protected:
     void highlightBlock(const QString &text) override;
 
@@ -68,4 +77,6 @@ private:
     bool m_grammarEnabled = false;
     // blockNumber → grammar issues within the block
     QHash<int, QVector<GrammarHit>> m_grammarIssues;
+    // blockNumber → misspelled word ranges within the block
+    QHash<int, QVector<GrammarHit>> m_spellHits;
 };
