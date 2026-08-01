@@ -639,12 +639,9 @@ void Editor::showFileCompletion(const QString &partialPath)
         maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
     cr.setWidth(maxWidth + 30);
 
-    QTextBlock block = textCursor().block();
-    int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
-
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + lineH + 18));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
     m_completer->popup()->move(popupPos);
 }
 
@@ -712,7 +709,7 @@ void Editor::loadEmojiShortcodes()
         return;
 
     QString content = QString::fromUtf8(file.readAll());
-    static const QRegularExpression re(R"('([^']+)'\s*:\s*'([^']+)')");
+    static const QRegularExpression re(R"('([a-z0-9_+\-]+)'\s*:\s*'([^']+)')");
     auto it = re.globalMatch(content);
     while (it.hasNext()) {
         auto match = it.next();
@@ -750,6 +747,10 @@ void Editor::showEmojiCompletion(const QString &partialCode)
             return a < b;
         });
 
+    int limit = QSettings().value(Preferences::EmojiCompletionLimit, 100).toInt();
+    if (matchedCodes.size() > limit)
+        matchedCodes = matchedCodes.mid(0, limit);
+
     QStringList matches;
     for (const QString &sc : matchedCodes)
         matches.append(QString(":%1:").arg(sc));
@@ -781,12 +782,9 @@ void Editor::showEmojiCompletion(const QString &partialCode)
         maxWidth = qMax(maxWidth, fm.horizontalAdvance(model->item(i)->text()));
     cr.setWidth(maxWidth + 30 + 22);
 
-    QTextBlock block = textCursor().block();
-    int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
-
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + lineH + 18));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
     m_completer->popup()->move(popupPos);
 }
 
@@ -816,10 +814,26 @@ QPixmap Editor::renderEmojiIcon(const QString &emojiStr) const
             }
             parts.append(QString::number(code, 16));
         }
-        parts.removeAll("fe0f");
-        QSvgRenderer renderer(QString(":/twemoji/svg/%1.svg").arg(parts.join("-")));
-        if (renderer.isValid())
+        QStringList stripped = parts;
+        stripped.removeAll("fe0f");
+        QString svgPath;
+        for (const QString &candidate : {stripped.join("-"), parts.join("-")}) {
+            QString path = QString(":/twemoji/svg/%1.svg").arg(candidate);
+            if (QFile::exists(path)) {
+                svgPath = path;
+                break;
+            }
+        }
+        if (!svgPath.isEmpty()) {
+            QSvgRenderer renderer(svgPath);
             renderer.render(&painter, QRectF(0, 0, 18, 18));
+        } else {
+            QFont font("Symbola");
+            font.setPixelSize(16);
+            painter.setFont(font);
+            painter.setPen(Qt::black);
+            painter.drawText(QRect(0, 0, 18, 18), Qt::AlignCenter, emojiStr);
+        }
     } else {
         QFont font("Symbola");
         font.setPixelSize(16);
@@ -988,12 +1002,9 @@ void Editor::showLanguageCompletion(const QString &partialLang)
         maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
     cr.setWidth(maxWidth + 30);
 
-    QTextBlock block = textCursor().block();
-    int lineH = fontMetrics().height() * block.blockFormat().lineHeight() / 100;
-
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + lineH + 18));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
     m_completer->popup()->move(popupPos);
 }
 

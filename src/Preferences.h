@@ -19,6 +19,7 @@ namespace Preferences {
     constexpr const char *TableStriping = "tableStriping";
     constexpr const char *EmojiMode = "emojiMode";
     constexpr const char *EmojiAutoComplete = "emojiAutoComplete";
+    constexpr const char *EmojiCompletionLimit = "emojiCompletionLimit";
     constexpr const char *CentreSingleViewContent = "centreSingleViewContent";
     constexpr const char *CentreSingleViewWidth = "centreSingleViewWidth";
     constexpr const char *SplitViewEditorMaxWidth = "splitViewEditorMaxWidth";

@@ -121,6 +121,15 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_emojiAutoCompleteCheck->setChecked(settings.value(Preferences::EmojiAutoComplete, true).toBool());
         autoCompleteLayout->addWidget(m_emojiAutoCompleteCheck);
 
+        QHBoxLayout *emojiCompRow = new QHBoxLayout();
+        emojiCompRow->addWidget(new QLabel("Emoji autocomplete limit:"));
+        m_emojiCompletionSpin = new QSpinBox();
+        m_emojiCompletionSpin->setRange(5, 500);
+        m_emojiCompletionSpin->setValue(settings.value(Preferences::EmojiCompletionLimit, 100).toInt());
+        emojiCompRow->addWidget(m_emojiCompletionSpin);
+        emojiCompRow->addStretch();
+        autoCompleteLayout->addLayout(emojiCompRow);
+
         m_languageAutoCompleteCheck = new QCheckBox("Enable code language autocomplete");
         m_languageAutoCompleteCheck->setChecked(settings.value(Preferences::LanguageAutoComplete, true).toBool());
         autoCompleteLayout->addWidget(m_languageAutoCompleteCheck);
@@ -882,6 +891,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EmojiMode,
     Preferences::emojiRenderingToString(m_emojiBw->isChecked() ? Preferences::EmojiRendering::Bw : Preferences::EmojiRendering::Color));
         settings.setValue(Preferences::EmojiAutoComplete, m_emojiAutoCompleteCheck->isChecked());
+        settings.setValue(Preferences::EmojiCompletionLimit, m_emojiCompletionSpin->value());
         settings.setValue(Preferences::LanguageAutoComplete, m_languageAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::CentreSingleViewContent, m_centreSingleViewCheck->isChecked());
         settings.setValue(Preferences::CentreSingleViewWidth, m_centreSingleViewWidthSpin->value());

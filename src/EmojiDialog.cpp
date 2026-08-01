@@ -96,7 +96,7 @@ void EmojiDialog::loadEmojiData()
 
     QString content = QString::fromUtf8(file.readAll());
 
-    QRegularExpression re(R"('([^']+)'\s*:\s*'([^']+)')");
+    QRegularExpression re(R"('([a-z0-9_+\-]+)'\s*:\s*'([^']+)')");
     auto it = re.globalMatch(content);
 
     while (it.hasNext()) {

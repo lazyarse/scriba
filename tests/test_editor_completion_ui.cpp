@@ -4,6 +4,8 @@
 #include <QAbstractItemView>
 #include <QDir>
 #include <QFile>
+#include <QMessageLogContext>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
@@ -180,17 +182,22 @@ TEST_F(EditorCompletionHarness, BackspaceOnClosingColonHidesPopup)
 
 TEST_F(EditorCompletionHarness, EmojiPopupSitsBelowCursorLine)
 {
-    typeText(":s");
+    // ":" alone does not open the popup (no partial code yet), so capture the
+    // cursor's global position before the popup exists. Under xvfb the window
+    // can be moved asynchronously while the popup is shown, so comparing
+    // against a post-popup cursor position would be flaky.
+    typeText(":");
+    QRect cursor = editor->cursorRect();
+    QPoint cursorBottomGlobal = editor->viewport()->mapToGlobal(
+        QPoint(cursor.x(), cursor.y() + cursor.height()));
+
+    typeText("s");
     QApplication::processEvents();
 
     ASSERT_NE(editor->completer(), nullptr);
     QAbstractItemView *popup = editor->completer()->popup();
     ASSERT_NE(popup, nullptr);
     ASSERT_TRUE(popup->isVisible());
-
-    QRect cursor = editor->cursorRect();
-    QPoint cursorBottomGlobal = editor->viewport()->mapToGlobal(
-        QPoint(cursor.x(), cursor.y() + cursor.height()));
 
     EXPECT_GE(popup->geometry().y(), cursorBottomGlobal.y())
         << "popup top should be at or below the bottom of the cursor line";
@@ -317,6 +324,71 @@ TEST_F(EditorCompletionHarness, HtmlHrefAttributeCompletes)
     press(Qt::Key_Tab);
     enter();
     EXPECT_EQ(text(), "<a href='resources/icons/");
+}
+
+TEST_F(EditorCompletionHarness, EmojiCompletionLimitsResults)
+{
+    QSettings().setValue(Preferences::EmojiCompletionLimit, 10);
+    typeText(":s");
+    QApplication::processEvents();
+
+    ASSERT_NE(editor->completer(), nullptr);
+    ASSERT_TRUE(editor->completer()->popup()->isVisible());
+    EXPECT_EQ(popupRowCount(), 10);
+}
+
+TEST_F(EditorCompletionHarness, EmojiSuggestionsContainNoGarbageEntries)
+{
+    QSettings().setValue(Preferences::EmojiCompletionLimit, 10);
+    typeText(":s");
+    QApplication::processEvents();
+
+    ASSERT_NE(editor->completer(), nullptr);
+    auto *model = editor->completer()->completionModel();
+    static const QRegularExpression shortcodeRe("^:[a-z0-9_+\\-]+:$");
+    for (int i = 0; i < model->rowCount(); ++i) {
+        QString label = model->index(i, 0).data().toString();
+        EXPECT_TRUE(shortcodeRe.match(label).hasMatch()) << "unexpected suggestion: " << label.toStdString();
+    }
+}
+
+namespace {
+int g_svgWarningCount = 0;
+
+void svgWarningCounter(QtMsgType type, const QMessageLogContext &, const QString &msg)
+{
+    if (type == QtWarningMsg && msg.startsWith("qt.svg: Cannot open file"))
+        ++g_svgWarningCount;
+}
+}
+
+TEST_F(EditorCompletionHarness, EmojiAutocompleteRendersNoMissingSvgWarnings)
+{
+    QSettings().setValue(Preferences::EmojiMode,
+        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Color));
+
+    auto *oldHandler = qInstallMessageHandler(svgWarningCounter);
+    g_svgWarningCount = 0;
+
+    // User repro: typing an emoji shortcode renders icons for every matched
+    // suggestion; every keystroke re-renders the popup. ":fem" and ":pers"
+    // additionally hit shortcodes whose twemoji SVG is a ZWJ sequence
+    // (kept-fe0f name) or genuinely absent from the bundled twemoji set.
+    typeText(":smil");
+    QApplication::processEvents();
+    press(Qt::Key_Escape);
+    typeText(" :rocke");
+    QApplication::processEvents();
+    press(Qt::Key_Escape);
+    typeText(" :fem");
+    QApplication::processEvents();
+    press(Qt::Key_Escape);
+    typeText(" :pers");
+    QApplication::processEvents();
+    press(Qt::Key_Escape);
+
+    qInstallMessageHandler(oldHandler);
+    EXPECT_EQ(g_svgWarningCount, 0) << "autocomplete rendered a twemoji SVG that does not exist";
 }
 
 int main(int argc, char **argv)
