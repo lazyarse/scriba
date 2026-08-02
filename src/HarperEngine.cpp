@@ -86,6 +86,7 @@ HarperEngine::HarperEngine()
 
 HarperEngine::~HarperEngine()
 {
+    QMutexLocker locker(&m_mutex);
     if (m_engine)
         harper_free(m_engine);
 }
@@ -105,6 +106,7 @@ void HarperEngine::setDialect(const QString &dialect)
     else if (dialect == QStringLiteral("Canadian"))
         code = 4;
 
+    QMutexLocker locker(&m_mutex);
     void *engine = harper_init(code);
     if (!engine)
         return; // keep the old engine when the rebuild fails
@@ -121,9 +123,13 @@ QList<GrammarChecker::Issue> HarperEngine::check(const QString &text)
         return issues;
 
     const QByteArray utf8 = text.toUtf8();
-    void *list = harper_lint(m_engine,
-                             reinterpret_cast<const unsigned char *>(utf8.constData()),
-                             size_t(utf8.size()));
+    void *list;
+    {
+        QMutexLocker locker(&m_mutex);
+        list = harper_lint(m_engine,
+                           reinterpret_cast<const unsigned char *>(utf8.constData()),
+                           size_t(utf8.size()));
+    }
     if (!list)
         return issues;
 

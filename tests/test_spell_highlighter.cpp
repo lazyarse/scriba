@@ -23,10 +23,13 @@
 #include <QFile>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QTest>
 #include <QTextBlock>
 #include <QTextDocument>
+#include <QTextEdit>
 #include <QTextFormat>
 #include <QTextLayout>
+#include <atomic>
 #include "TestConfig.h"
 
 namespace {
@@ -254,6 +257,77 @@ TEST_F(SpellHighlighterHitTest, UserDictionaryClearsHits)
     m_highlighter->refresh();
     forceRelayout();
     EXPECT_FALSE(covers(0, 0));
+}
+
+// Grammar-check scheduling regression: a format-only change (which is what
+// rehighlight() performs) must not re-arm the debounced lint timer. Before
+// the fix the lint's own rehighlight() fed back through contentsChanged and
+// re-armed the timer endlessly, re-linting the whole document every 400 ms
+// and re-triggering preview updates.
+//
+// Drives a real QTextEdit (like the app does): typing fires
+// QTextDocument::contentsChange with real removed/added counts, while
+// highlight-only work fires it with (0,0) — which the scheduler must ignore.
+class CountingGrammarChecker : public GrammarChecker
+{
+public:
+    std::atomic<int> checkCount{0};
+
+    QList<Issue> check(const QString &) override
+    {
+        ++checkCount;
+        return {};
+    }
+};
+
+class SpellHighlighterLintTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        QSettings().clear();
+        m_edit = new QTextEdit;
+        m_edit->setPlainText("hello world");
+        m_highlighter = new SpellHighlighter(m_edit->document());
+        m_highlighter->setGrammarChecker(&m_grammar);
+    }
+
+    void TearDown() override
+    {
+        // Destroying the highlighter stops and joins the lint worker thread,
+        // so the checker is never used afterwards.
+        delete m_highlighter;
+        delete m_edit;
+        QSettings().clear();
+    }
+
+    CountingGrammarChecker m_grammar;
+    QTextEdit *m_edit = nullptr;
+    SpellHighlighter *m_highlighter = nullptr;
+};
+
+TEST_F(SpellHighlighterLintTest, FormatOnlyChangeDoesNotReTriggerLint)
+{
+    m_highlighter->setGrammarCheckingEnabled(true);
+    QTest::qWait(700); // initial lint completes
+    ASSERT_EQ(m_grammar.checkCount.load(), 1);
+
+    // Format-only change (e.g. spell-checking toggled, block states updated,
+    // or the lint result itself being applied).
+    m_highlighter->rehighlight();
+    QTest::qWait(700);
+    EXPECT_EQ(m_grammar.checkCount.load(), 1);
+}
+
+TEST_F(SpellHighlighterLintTest, RealEditStillTriggersLint)
+{
+    m_highlighter->setGrammarCheckingEnabled(true);
+    QTest::qWait(700); // initial lint completes
+    ASSERT_EQ(m_grammar.checkCount.load(), 1);
+
+    QTest::keyClicks(m_edit, " more");
+    QTest::qWait(700);
+    EXPECT_EQ(m_grammar.checkCount.load(), 2);
 }
 
 } // namespace

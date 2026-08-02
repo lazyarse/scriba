@@ -15,6 +15,7 @@
 #pragma once
 
 #include "GrammarChecker.h"
+#include <QMutex>
 
 // GrammarChecker backed by the vendored harper-core engine exposed through
 // the C ABI in vendor/harper-ffi. Spelling is deliberately NOT handled here —
@@ -22,6 +23,9 @@
 //
 // Creating an engine loads harper's curated dictionary, so a single shared
 // instance should be reused (see Editor).
+//
+// check() may be called from any thread; access to the (not thread-safe)
+// harper engine is serialized with a mutex.
 class HarperEngine : public GrammarChecker
 {
 public:
@@ -39,6 +43,7 @@ public:
     void setDialect(const QString &dialect);
 
 private:
+    mutable QMutex m_mutex;
     void *m_engine = nullptr; // opaque HarperEngine* from harper_init()
     QString m_dialect;
 };

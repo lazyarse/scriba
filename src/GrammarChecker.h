@@ -15,6 +15,7 @@
 #pragma once
 
 #include <QList>
+#include <QMetaType>
 #include <QString>
 
 // Interface for grammar checking. Implementations are expected to be
@@ -31,5 +32,9 @@ public:
     };
 
     // Runs the check over `text` and returns all issues found.
+    // May be called from a background thread; implementations must be
+    // thread-safe (harper serializes access to its engine with a mutex).
     virtual QList<Issue> check(const QString &text) = 0;
 };
+
+Q_DECLARE_METATYPE(GrammarChecker::Issue)

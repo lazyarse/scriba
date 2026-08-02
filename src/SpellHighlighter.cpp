@@ -13,7 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "SpellHighlighter.h"
-#include "GrammarChecker.h"
 #include "SpellChecker.h"
 #include <QColor>
 #include <QRegularExpression>
@@ -61,8 +60,56 @@ SpellHighlighter::SpellHighlighter(QTextDocument *document, QObject *parent)
     m_lintTimer->setSingleShot(true);
     m_lintTimer->setInterval(400);
     connect(m_lintTimer, &QTimer::timeout, this, &SpellHighlighter::runGrammarLint);
-    connect(document, &QTextDocument::contentsChanged,
+    // Schedule on contentsChange (not contentsChanged): rehighlight() and
+    // other format-only work emit contentsChanged but no contentsChange, so
+    // this prevents the lint from re-arming itself into an infinite loop.
+    connect(document, &QTextDocument::contentsChange,
             this, &SpellHighlighter::scheduleGrammarLint);
+}
+
+GrammarLintWorker::GrammarLintWorker(GrammarChecker *checker)
+    : m_checker(checker)
+{
+}
+
+void GrammarLintWorker::doLint(quint64 generation, const QString &text)
+{
+    QList<GrammarChecker::Issue> issues;
+    if (m_checker)
+        issues = m_checker->check(text);
+    emit lintFinished(generation, text, issues);
+}
+
+SpellHighlighter::~SpellHighlighter()
+{
+    if (m_lintThread) {
+        m_lintThread->quit();
+        m_lintThread->wait();
+        // The thread has stopped; no code runs on it anymore.
+        delete m_lintWorker;
+        delete m_lintThread;
+    }
+}
+
+void SpellHighlighter::ensureLintWorker()
+{
+    if (m_lintThread || !m_grammar)
+        return;
+
+    static const bool typesRegistered = []() {
+        qRegisterMetaType<GrammarChecker::Issue>("GrammarChecker::Issue");
+        qRegisterMetaType<QList<GrammarChecker::Issue>>("QList<GrammarChecker::Issue>");
+        return true;
+    }();
+    Q_UNUSED(typesRegistered);
+
+    m_lintThread = new QThread(this);
+    m_lintThread->setObjectName(QStringLiteral("harper-lint"));
+    m_lintWorker = new GrammarLintWorker(m_grammar);
+    m_lintWorker->moveToThread(m_lintThread);
+    connect(m_lintWorker, &GrammarLintWorker::lintFinished,
+            this, &SpellHighlighter::onLintFinished, Qt::QueuedConnection);
+    m_lintThread->start();
 }
 
 void SpellHighlighter::setChecker(SpellChecker *checker)
@@ -73,6 +120,7 @@ void SpellHighlighter::setChecker(SpellChecker *checker)
 void SpellHighlighter::setGrammarChecker(GrammarChecker *checker)
 {
     m_grammar = checker;
+    ensureLintWorker();
 }
 
 void SpellHighlighter::setSpellCheckingEnabled(bool enabled)
@@ -85,6 +133,7 @@ void SpellHighlighter::setGrammarCheckingEnabled(bool enabled)
 {
     m_grammarEnabled = enabled;
     m_grammarIssues.clear();
+    ++m_lintGeneration; // drop any in-flight lint result
     rehighlight();
     if (enabled)
         m_lintTimer->start();
@@ -199,21 +248,42 @@ void SpellHighlighter::highlightBlock(const QString &text)
         setFormat(0, text.length(), QTextCharFormat());
 }
 
-void SpellHighlighter::scheduleGrammarLint()
+void SpellHighlighter::scheduleGrammarLint(int charsRemoved, int charsAdded)
 {
-    if (m_grammar && m_grammarEnabled)
-        m_lintTimer->start();
+    if (!m_grammar || !m_grammarEnabled)
+        return;
+    // Format-only changes (highlighting, block-state updates) emit
+    // contentsChange with (0,0). Only real text edits need a re-lint —
+    // skipping these also prevents the lint's own rehighlight() from
+    // re-arming the timer into an endless loop.
+    if (charsRemoved == 0 && charsAdded == 0)
+        return;
+    m_lintTimer->start();
 }
 
 void SpellHighlighter::runGrammarLint()
 {
-    m_grammarIssues.clear();
-    if (!m_grammar || !m_grammarEnabled) {
+    if (!m_grammar || !m_grammarEnabled || !m_lintWorker) {
         rehighlight();
         return;
     }
 
-    const QList<GrammarChecker::Issue> issues = m_grammar->check(document()->toPlainText());
+    // Existing underlines stay visible while the fresh lint runs in the
+    // background; they are replaced when the result arrives.
+    const quint64 generation = ++m_lintGeneration;
+    const QString text = document()->toPlainText();
+    m_lintWorker->doLint(generation, text);
+}
+
+void SpellHighlighter::onLintFinished(quint64 generation, const QString &text,
+                                      const QList<GrammarChecker::Issue> &issues)
+{
+    if (generation != m_lintGeneration)
+        return; // superseded by a newer edit or a disable
+    if (text != document()->toPlainText())
+        return; // content changed mid-lint; the edit already scheduled a fresh one
+
+    m_grammarIssues.clear();
     int blockStart = 0;
     for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next()) {
         const int blockLen = block.text().length();

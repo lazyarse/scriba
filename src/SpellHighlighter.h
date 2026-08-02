@@ -14,16 +14,39 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+#include "GrammarChecker.h"
 #include <QHash>
 #include <QList>
 #include <QString>
 #include <QSyntaxHighlighter>
+#include <QThread>
 #include <QVector>
 
 class SpellChecker;
 class GrammarChecker;
 class QTimer;
 class QColor;
+
+// Runs the (expensive, whole-document) grammar check on a background thread.
+// The result is delivered back as a queued signal with a generation tag so
+// stale results (superseded by newer edits) can be dropped.
+class GrammarLintWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit GrammarLintWorker(GrammarChecker *checker);
+
+public slots:
+    void doLint(quint64 generation, const QString &text);
+
+signals:
+    void lintFinished(quint64 generation, const QString &text,
+                      const QList<GrammarChecker::Issue> &issues);
+
+private:
+    GrammarChecker *m_checker = nullptr;
+};
 
 // Applies red spell-check underlines and green grammar wave underlines to the
 // editor's QTextDocument. Markdown syntax that must not be checked (fenced
@@ -32,7 +55,8 @@ class QColor;
 //
 // Spelling is checked word-by-word inside highlightBlock() (hunspell is fast
 // enough for that). Grammar checking is whole-document and expensive, so it
-// runs on a debounced timer and caches per-block issue ranges.
+// runs on a debounced timer and the actual check happens on a background
+// thread; per-block issue ranges are cached here.
 class SpellHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
@@ -55,6 +79,7 @@ public:
     static QColor grammarUnderlineColor();
 
     explicit SpellHighlighter(QTextDocument *document, QObject *parent = nullptr);
+    ~SpellHighlighter() override;
 
     void setChecker(SpellChecker *checker);
     void setGrammarChecker(GrammarChecker *checker);
@@ -80,13 +105,19 @@ protected:
     void highlightBlock(const QString &text) override;
 
 private:
-    void scheduleGrammarLint();
+    void scheduleGrammarLint(int charsRemoved, int charsAdded);
     void runGrammarLint();
+    void onLintFinished(quint64 generation, const QString &text,
+                        const QList<GrammarChecker::Issue> &issues);
+    void ensureLintWorker();
     static QVector<QPair<int, int>> protectedRanges(const QString &line);
 
     SpellChecker *m_checker = nullptr;
     GrammarChecker *m_grammar = nullptr;
     QTimer *m_lintTimer = nullptr;
+    QThread *m_lintThread = nullptr;
+    GrammarLintWorker *m_lintWorker = nullptr;
+    quint64 m_lintGeneration = 0;
     bool m_spellEnabled = true;
     bool m_grammarEnabled = false;
     // blockNumber → grammar issues within the block

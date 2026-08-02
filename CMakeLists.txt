@@ -257,7 +257,7 @@ if(BUILD_TESTS)
 
     add_executable(test_spell_highlighter tests/test_spell_highlighter.cpp resources/scriba.qrc)
     target_include_directories(test_spell_highlighter PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_spell_highlighter PRIVATE GTest::gtest scriba_spell)
+    target_link_libraries(test_spell_highlighter PRIVATE GTest::gtest scriba_spell Qt6::Test)
     add_test(NAME test_spell_highlighter COMMAND ${_TEST_PREFIX} ./test_spell_highlighter)
 
     add_executable(test_grammar_checker tests/test_grammar_checker.cpp)
