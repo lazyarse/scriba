@@ -3,10 +3,8 @@ build
 vendor/*
 !vendor/md4c/
 !vendor/hunspell/
-!vendor/harper-ffi/
 !vendor/mathml2omml/
 !vendor/stoppard/
-vendor/harper-ffi/target
 *.deb
 _CPack_Packages
 .demo-content.md

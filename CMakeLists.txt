@@ -16,18 +16,6 @@ add_subdirectory(vendor/hunspell)
 set(STOPPARD_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendor/stoppard)
 
-# Vendored harper-core grammar engine (see vendor/harper-ffi). It is built with
-# cargo into a static library; rust-toolchain.toml pins the required toolchain.
-set(HARPER_FFI_DIR ${CMAKE_SOURCE_DIR}/vendor/harper-ffi)
-if(WIN32)
-    set(HARPER_FFI_STATIC ${HARPER_FFI_DIR}/target/release/harper_ffi.lib)
-else()
-    set(HARPER_FFI_STATIC ${HARPER_FFI_DIR}/target/release/libharper_ffi.a)
-endif()
-set(HARPER_FFI_CARGO
-    ${CMAKE_COMMAND} -E env CARGO_TERM_COLOR=never
-    cargo build --release --manifest-path ${HARPER_FFI_DIR}/Cargo.toml)
-
 add_executable(scriba WIN32
     src/main.cpp
     src/MainWindow.cpp
@@ -68,7 +56,6 @@ add_executable(scriba WIN32
     src/SpellChecker.cpp
     src/SpellHighlighter.cpp
     src/GrammarChecker.cpp
-    src/HarperEngine.cpp
     src/StoppardEngine.cpp
     vendor/md4c/src/md4c.c
     vendor/md4c/src/md4c-html.c
@@ -92,15 +79,8 @@ target_link_libraries(scriba PRIVATE
     Qt6::PrintSupport
     mathml2omml
     hunspell
-    ${HARPER_FFI_STATIC}
     stoppard
 )
-
-add_custom_command(TARGET scriba PRE_LINK
-    COMMAND ${HARPER_FFI_CARGO}
-    WORKING_DIRECTORY ${HARPER_FFI_DIR}
-    COMMENT "Building harper-ffi (cargo build --release)"
-    VERBATIM)
 
 add_custom_command(TARGET scriba POST_BUILD
     COMMENT "Removing cached stylesheets from config directory"
@@ -211,18 +191,11 @@ if(BUILD_TESTS)
         src/SpellChecker.cpp
         src/SpellHighlighter.cpp
         src/GrammarChecker.cpp
-        src/HarperEngine.cpp
         src/StoppardEngine.cpp
     )
     target_include_directories(scriba_spell PUBLIC ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(scriba_spell PRIVATE HUNSPELL_STATIC)
-    target_link_libraries(scriba_spell PUBLIC scriba_core hunspell ${HARPER_FFI_STATIC} stoppard)
-
-    add_custom_command(TARGET scriba_spell PRE_LINK
-        COMMAND ${HARPER_FFI_CARGO}
-        WORKING_DIRECTORY ${HARPER_FFI_DIR}
-        COMMENT "Building harper-ffi (cargo build --release)"
-        VERBATIM)
+    target_link_libraries(scriba_spell PUBLIC scriba_core hunspell stoppard)
 
     add_library(test_editor_helpers STATIC
         tests/EditorTestHarness.cpp

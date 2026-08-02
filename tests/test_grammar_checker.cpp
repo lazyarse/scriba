@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
-#include "HarperEngine.h"
+#include "StoppardEngine.h"
 #include <QString>
 #include <memory>
 
@@ -24,15 +24,15 @@ class GrammarCheckerTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        m_engine = std::make_unique<HarperEngine>();
+        m_engine = std::make_unique<StoppardEngine>();
     }
 
-    std::unique_ptr<HarperEngine> m_engine;
+    std::unique_ptr<StoppardEngine> m_engine;
 };
 
 TEST_F(GrammarCheckerTest, EngineInitialises)
 {
-    EXPECT_TRUE(m_engine->isAvailable());
+    EXPECT_EQ(m_engine->stoppardDialect(), stoppard::Dialect::American);
 }
 
 TEST_F(GrammarCheckerTest, DetectsGrammarError)
@@ -47,7 +47,7 @@ TEST_F(GrammarCheckerTest, DetectsGrammarError)
 
 TEST_F(GrammarCheckerTest, DoesNotFlagSpelling)
 {
-    // SpellCheck is disabled inside harper — Hunspell owns spelling.
+    // Spelling is deliberately NOT handled by the grammar engine — Hunspell owns it.
     const auto issues = m_engine->check(QStringLiteral("This is helo wrking text."));
     for (const auto &issue : issues)
         EXPECT_FALSE(issue.message.contains(QStringLiteral("Did you mean")))
@@ -90,16 +90,16 @@ TEST_F(GrammarCheckerTest, CleanTextHasNoIssues)
 TEST_F(GrammarCheckerTest, DialectSwitchKeepsEngineUsable)
 {
     m_engine->setDialect(QStringLiteral("British"));
-    EXPECT_TRUE(m_engine->isAvailable());
+    EXPECT_EQ(m_engine->stoppardDialect(), stoppard::Dialect::British);
     const auto issues = m_engine->check(QStringLiteral("I has a cat."));
     EXPECT_FALSE(issues.isEmpty());
 }
 
-TEST_F(GrammarCheckerTest, DialectAffectsRegionalIdioms)
+TEST_F(GrammarCheckerTest, RegionalismsFollowDialect)
 {
     // "in the cards" is an American idiom; British English prefers
-    // "on the cards", so harper flags it only under a British dialect.
-    const QString text = QStringLiteral("The plan is in the cards.");
+    // "on the cards", so stoppard flags it only under a British dialect.
+    const QString text = QStringLiteral("It's in the cards.");
     m_engine->setDialect(QStringLiteral("American"));
     const auto american = m_engine->check(text);
     m_engine->setDialect(QStringLiteral("British"));
@@ -111,7 +111,15 @@ TEST_F(GrammarCheckerTest, DialectAffectsRegionalIdioms)
 TEST_F(GrammarCheckerTest, UnknownDialectFallsBackToAmerican)
 {
     m_engine->setDialect(QStringLiteral("Klingon"));
-    EXPECT_TRUE(m_engine->isAvailable());
+    EXPECT_EQ(m_engine->stoppardDialect(), stoppard::Dialect::American);
+    const auto issues = m_engine->check(QStringLiteral("The cat sat on the mat."));
+    EXPECT_TRUE(issues.isEmpty());
+}
+
+TEST_F(GrammarCheckerTest, NewZealandDialectAccepted)
+{
+    m_engine->setDialect(QStringLiteral("New Zealand"));
+    EXPECT_EQ(m_engine->stoppardDialect(), stoppard::Dialect::NewZealand);
     const auto issues = m_engine->check(QStringLiteral("The cat sat on the mat."));
     EXPECT_TRUE(issues.isEmpty());
 }
