@@ -68,7 +68,7 @@
 Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.
 
 ### Standing on the Shoulders of Giants:
-- [Hunspell](https://github.com/hunspell/hunspell) and [Harper](https://github.com/Automattic/harper/) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
+- [Hunspell](https://github.com/hunspell/hunspell) for privacy-first spell checking, and the bundled stoppard grammar engine (vendored in `vendor/stoppard/`) for privacy-first grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [LaTeX mathematics rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
@@ -101,7 +101,6 @@ Due to Chromium sandbox issues, it's inherently unsafe to run this as `root` in 
   ```
 - GCC/Clang with C++23 support (Linux) or Visual Studio 2022 with "Desktop development with C++" workload (Windows)
 - On Windows: Qt 6.8+ (MSVC 2022 64-bit) from qt.io, CMake, Git for Windows
-- **Rust toolchain** for the grammar checker (Harper engine, compiled on first build via CMake). A `rust-toolchain.toml` pins the required version (1.96.1+); install with [rustup](https://rustup.rs/). The build fetches crates from crates.io (locked by `vendor/harper-ffi/Cargo.lock`), so no vendoring is needed.
 - **Chromium ≥ 140** (for PDF export). Install on Debian/Ubuntu:
   ```bash
   sudo apt install chromium

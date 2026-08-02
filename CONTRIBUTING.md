@@ -21,7 +21,7 @@ scriba/
 │   ├── SpellChecker.cpp        — Hunspell spell-checking wrapper
 │   ├── SpellHighlighter.cpp    — Markdown-aware squiggle highlighter
 │   ├── GrammarChecker.h        — Grammar-check interface
-│   ├── HarperEngine.cpp        — Grammar checker backed by the Harper Rust engine
+│   ├── StoppardEngine.cpp      — Grammar checker backed by the vendored stoppard engine
 │   └── Preferences.h           — Preferences struct (header-only)
 ├── docs/
 │   ├── kitchensink.md          — Sample document (canonical copy)
@@ -59,7 +59,7 @@ scriba/
 │   └── test_grammar_checker.cpp
 └── vendor/
     ├── md4c/                   — Markdown parser library (MIT, tracked in repo, src/ has local patches in patches/)
-    └── harper-ffi/             — Rust FFI crate wrapping the Harper grammar engine (crates.io deps, locked by Cargo.lock)
+    └── stoppard/               — Grammar engine (GPL-3.0, vendored working copy)
 ```
 
 ## Documentation Assets
