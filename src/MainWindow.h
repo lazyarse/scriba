@@ -144,6 +144,7 @@ private:
     QString m_cachedPreviewCss;
     QString m_cachedFullCss;
     QString m_cachedPreviewBaseCss;
+    QString m_cachedOverlayCss;
     bool m_chromeUpdateScheduled = false;
     QToolButton *m_fullscreenBtn = nullptr;
     QToolButton *m_previewBtn = nullptr;

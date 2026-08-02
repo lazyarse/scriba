@@ -101,6 +101,8 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
         if (ok) {
             m_previewInitialized = true;
             syncPreviewScroll();
+        } else {
+            m_preview->hideRenderOverlay();
         }
     });
 
@@ -826,8 +828,10 @@ void MainWindow::refreshPreviewCss()
     bool needPreviewUpdate = (previewCss != m_cachedPreviewCss);
     bool needChromeUpdate = (chromeCss != m_cachedFullCss);
     bool needBaseUpdate = (previewBaseCss != m_cachedPreviewBaseCss);
+    QString overlayCss = CssUtils::renderOverlayCss(rawThemeCss);
+    bool needOverlayUpdate = (overlayCss != m_cachedOverlayCss);
 
-    if (!needPreviewUpdate && !needChromeUpdate && !needBaseUpdate)
+    if (!needPreviewUpdate && !needChromeUpdate && !needBaseUpdate && !needOverlayUpdate)
         return;
 
     if (needPreviewUpdate) {
@@ -835,6 +839,15 @@ void MainWindow::refreshPreviewCss()
         if (m_previewInitialized) {
             QString js = QString("document.getElementById('theme-css').textContent = '%1';")
                 .arg(escapeJsString(previewCss));
+            m_preview->page()->runJavaScript(js);
+        }
+    }
+
+    if (needOverlayUpdate) {
+        m_cachedOverlayCss = overlayCss;
+        if (m_previewInitialized) {
+            QString js = QString("document.getElementById('render-css').textContent = '%1';")
+                .arg(escapeJsString(overlayCss));
             m_preview->page()->runJavaScript(js);
         }
     }
@@ -1048,6 +1061,8 @@ void MainWindow::updatePreview()
     bool cspEnabled = prefs.value(Preferences::EnableCspPreview, true).toBool();
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = baseCss;
+        QString renderCss = CssUtils::renderOverlayCss(rawThemeCss);
+        m_cachedOverlayCss = renderCss;
         bool striping = prefs.value(Preferences::TableStriping, true).toBool();
         QString stripeInit = striping ? QString()
             : QLatin1String(Preferences::TableStripeCss);
@@ -1074,6 +1089,7 @@ void MainWindow::updatePreview()
             "<style id=\"center-css\">%5</style>"
             "<style id=\"split-css\">%6</style>"
             "<style id=\"code-lang-css\">%7</style>"
+            "<style id=\"render-css\">%8</style>"
             "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
@@ -1086,21 +1102,23 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode){if(!document.body)return false;window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss)document.getElementById('theme-css').textContent=themeCss;document.body.innerHTML=html;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},1500);return true;}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();window.vegaLiteReady=initVegaLite();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');});</script>"
-            "</head><body id=\"preview\">%3"
+            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode){if(!document.body)return false;window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss)document.getElementById('theme-css').textContent=themeCss;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},1500);return true;}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.vegaLiteReady=initVegaLite();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
+            "</head><body id=\"preview\">"
+            "<div id=\"scriba-rendering-overlay\">Rendering…</div>"
+            "<div id=\"scriba-content\">%3</div>"
             "<script>document.addEventListener('click',function(e){"
             "var l=e.target.closest('a');if(!l)return;"
             "e.preventDefault();"
             "window.location.hash='scriba-open:'+encodeURIComponent(l.href)"
             "})</script>"
             "</body></html>"
-        ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss, codeLangInit);
+        ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss, codeLangInit, renderCss);
         if (cspEnabled) {
             int headEnd = fullHtml.indexOf("</head>");
             if (headEnd >= 0)
                 fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader));
         }
-        m_preview->setHtml(fullHtml, baseUrl);
+        m_preview->setHtmlWithOverlay(fullHtml, baseUrl);
     } else {
         QString escapedHtml = escapeJsString(html);
         QString escapedCss = cssChanged ? escapeJsString(previewCss) : QString();

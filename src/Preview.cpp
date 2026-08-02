@@ -28,6 +28,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QWebEngineContextMenuRequest>
@@ -77,6 +78,26 @@ Preview::Preview(QWidget *parent)
 void Preview::setHtmlContent(const QString &html)
 {
     setHtml(html);
+}
+
+void Preview::setHtmlWithOverlay(const QString &html, const QUrl &baseUrl)
+{
+    // Blank the current page and show the "Rendering…" overlay BEFORE the new
+    // document starts loading; the overlay then lives in the new document too
+    // (visible by default, hidden after rendering completes).
+    // Deliberately no result callback: a callback still pending when the page
+    // is destroyed is invoked by WebContentsAdapter::clearJavaScriptCallbacks,
+    // and calling setHtml() from there re-entrantly crashes. The deferred
+    // setHtml() still commits after the blank (same renderer message queue).
+    page()->runJavaScript(QStringLiteral("typeof scribaBeginRender!=='undefined'&&scribaBeginRender()"));
+    QTimer::singleShot(0, this, [this, html, baseUrl]() {
+        setHtml(html, baseUrl);
+    });
+}
+
+void Preview::hideRenderOverlay()
+{
+    page()->runJavaScript(QStringLiteral("scribaEndRender()"));
 }
 
 void Preview::setDocumentPath(const QString &path)

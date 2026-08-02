@@ -344,6 +344,23 @@ bool isDarkTheme(const QString &themeCss)
     return themeColors(themeCss).background.lightness() < 128;
 }
 
+QString renderOverlayCss(const QString &themeCss)
+{
+    ThemeColors tc = themeColors(themeCss);
+    // Text blended 25% toward the background: "Rendering…" is paler than the
+    // theme text so it reads as a transient notice rather than real content
+    QColor text(tc.text.red() + (tc.background.red() - tc.text.red()) * 25 / 100,
+                 tc.text.green() + (tc.background.green() - tc.text.green()) * 25 / 100,
+                 tc.text.blue() + (tc.background.blue() - tc.text.blue()) * 25 / 100);
+    return QString(
+        "#scriba-rendering-overlay{"
+        "position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;"
+        "display:flex;align-items:center;justify-content:center;"
+        "background:%1;color:%2;font:39px system-ui,sans-serif;letter-spacing:.04em;"
+        "}"
+    ).arg(tc.background.name(), text.name());
+}
+
 QString splitViewMaxWidthCss(int maxWidth)
 {
     if (maxWidth <= 0)

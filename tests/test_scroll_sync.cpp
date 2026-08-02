@@ -23,6 +23,8 @@
 #include <QSettings>
 #include <QDir>
 #include <QDialog>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTimer>
 
 #include "MainWindow.h"
@@ -450,6 +452,84 @@ TEST_F(ScrollSyncIntegrationTest, SingleFileTabRendersPreviewAfterOpen) {
     QTest::qWait(2000);
 
     EXPECT_TRUE(html.contains("001"));
+}
+
+TEST_F(ScrollSyncIntegrationTest, PreviewTemplateHasRenderOverlayHiddenAfterRender) {
+    window->loadFile(tmpFile->fileName());
+
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    QTest::qWait(300);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i)
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    while (!loaded) {
+        if (!loadSpy.wait(1000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    ASSERT_TRUE(loaded);
+    QTest::qWait(1500);
+
+    QString result;
+    window->preview()->page()->runJavaScript(
+        "(function(){var o=document.getElementById('scriba-rendering-overlay');"
+        "return JSON.stringify({overlay:!!o,content:!!document.getElementById('scriba-content'),"
+        "hidden:!!o&&getComputedStyle(o).display==='none',"
+        "fns:(typeof scribaBeginRender==='function'&&typeof scribaEndRender==='function')});})()",
+        [&](const QVariant &r) { result = r.toString(); });
+    QTest::qWait(1500);
+
+    QJsonDocument doc = QJsonDocument::fromJson(result.toUtf8());
+    ASSERT_FALSE(doc.isNull()) << result.toStdString();
+    QJsonObject obj = doc.object();
+    EXPECT_TRUE(obj.value("overlay").toBool());
+    EXPECT_TRUE(obj.value("content").toBool());
+    EXPECT_TRUE(obj.value("hidden").toBool());
+    EXPECT_TRUE(obj.value("fns").toBool());
+}
+
+TEST_F(ScrollSyncIntegrationTest, TabSwitchPreviewShowsOnlyCurrentDocument) {
+    ASSERT_TRUE(tmpFile->open());
+    tmpFile->resize(0);
+    tmpFile->write("AAA-MARKER\n\nLine two.\n\nLine three.\n");
+    tmpFile->close();
+    window->loadFile(tmpFile->fileName());
+
+    QTemporaryFile second;
+    ASSERT_TRUE(second.open());
+    second.write("BBB-MARKER\n\nOther line.\n\nMore lines.\n");
+    second.close();
+    window->loadFile(second.fileName());
+
+    auto *tabBar = window->findChild<QTabBar *>();
+    ASSERT_NE(tabBar, nullptr);
+    ASSERT_EQ(tabBar->count(), 2);
+
+    auto previewHtml = [this]() {
+        QString html;
+        window->preview()->page()->toHtml([&](const QString &h) { html = h; });
+        QTest::qWait(500);
+        return html;
+    };
+    auto previewSettlesOn = [&](const QString &present, const QString &absent) {
+        for (int attempt = 0; attempt < 12; ++attempt) {
+            QString html = previewHtml();
+            if (html.contains(present) && !html.contains(absent))
+                return true;
+            QTest::qWait(1000);
+        }
+        return false;
+    };
+
+    // Currently on tab B (the second file): only B's content may be visible
+    EXPECT_TRUE(previewSettlesOn("BBB-MARKER", "AAA-MARKER"));
+
+    // Switch back to tab A: stale B content must be gone once A renders
+    tabBar->setCurrentIndex(0);
+    EXPECT_TRUE(previewSettlesOn("AAA-MARKER", "BBB-MARKER"));
+
+    // And forward to tab B again
+    tabBar->setCurrentIndex(1);
+    EXPECT_TRUE(previewSettlesOn("BBB-MARKER", "AAA-MARKER"));
 }
 
 /* ========== Test G: togglePreview without initialized preview ========== */

@@ -50,6 +50,8 @@ public:
     QString documentPath() const;
     void scrollToLine(int line);
     void scrollToPercent(double pct);
+    void setHtmlWithOverlay(const QString &html, const QUrl &baseUrl);
+    void hideRenderOverlay();
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;

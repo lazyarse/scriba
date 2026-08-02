@@ -381,3 +381,41 @@ TEST(CssUtilsTest, SplitViewMaxWidthCapsAndCenters) {
     EXPECT_TRUE(css.contains("margin:0 auto!important"));
     EXPECT_FALSE(css.contains("max-width:none"));
 }
+
+TEST(CssUtilsTest, RenderOverlayUsesLightThemeBackground) {
+    QString css = CssUtils::renderOverlayCss("body { background: #ffffff; color: #333333; }");
+    EXPECT_TRUE(css.contains("#scriba-rendering-overlay"));
+    EXPECT_TRUE(css.contains("background:#ffffff"));
+    EXPECT_FALSE(css.contains("::before"));
+    EXPECT_FALSE(css.contains("scribaSpin"));
+}
+
+TEST(CssUtilsTest, RenderOverlayUsesDarkThemeBackground) {
+    QString css = CssUtils::renderOverlayCss("body { background: #282a36; color: #f8f8f2; }");
+    EXPECT_TRUE(css.contains("background:#282a36"));
+}
+
+TEST(CssUtilsTest, RenderOverlayTextIsPalerThanThemeText) {
+    auto colorOf = [](const QString &themeCss) {
+        QString css = CssUtils::renderOverlayCss(themeCss);
+        QRegularExpression re("color:(#[0-9a-fA-F]{6})");
+        auto m = re.match(css);
+        return m.hasMatch() ? QColor(m.captured(1)) : QColor();
+    };
+
+    QColor light = colorOf("body { background: #ffffff; color: #333333; }");
+    ASSERT_TRUE(light.isValid());
+    // Blended 25% toward the white background -> lighter than the theme text
+    EXPECT_GT(light.lightness(), QColor("#333333").lightness());
+
+    QColor dark = colorOf("body { background: #282a36; color: #f8f8f2; }");
+    ASSERT_TRUE(dark.isValid());
+    // Blended 25% toward the dark background -> darker than the theme text
+    EXPECT_LT(dark.lightness(), QColor("#f8f8f2").lightness());
+}
+
+TEST(CssUtilsTest, RenderOverlayFallsBackToWhite) {
+    QString css = CssUtils::renderOverlayCss("h1 { color: red; }");
+    EXPECT_TRUE(css.contains("background:#ffffff"));
+    EXPECT_FALSE(css.contains("rgba(0,0,0,0)"));
+}
