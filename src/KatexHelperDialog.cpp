@@ -164,6 +164,7 @@ KatexHelperDialog::KatexHelperDialog(const QString &themeCss, QWidget *parent)
     CssUtils::ThemeColors colors = CssUtils::themeColors(themeCss);
     m_themeBg = colors.background;
     m_themeTxt = colors.text;
+    m_themeCss = themeCss;
     m_uiFontSizePt = QSettings().value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt();
 
     setWindowTitle("Insert Equation");
@@ -183,7 +184,7 @@ void KatexHelperDialog::setupUi()
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(8);
 
-    m_preview = createPreviewView(this);
+    m_preview = createPreviewView(this, m_themeCss);
     m_preview->setFixedHeight(150);
     mainLayout->addWidget(m_preview);
 

@@ -14,6 +14,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+#include <QColor>
+#include <QString>
 #include <QWebEnginePage>
 #include <QWebEngineView>
 
@@ -37,7 +39,7 @@ protected:
     bool acceptNavigationRequest(const QUrl &url, NavigationType type, bool isMainFrame) override;
 };
 
-QWebEngineView *createPreviewView(QWidget *parent);
+QWebEngineView *createPreviewView(QWidget *parent, const QString &themeCss = QString());
 
 class Preview : public QWebEngineView
 {
@@ -52,11 +54,13 @@ public:
     void scrollToPercent(double pct);
     void setHtmlWithOverlay(const QString &html, const QUrl &baseUrl);
     void hideRenderOverlay();
+    void setThemeBackgroundColor(const QColor &color);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     QString m_documentPath;
+    QColor m_backgroundColor;
 };
 

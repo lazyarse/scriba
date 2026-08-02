@@ -167,7 +167,7 @@ void MermaidDialog::setupUi()
     widthRow->addStretch();
     rightLayout->addLayout(widthRow);
 
-    m_preview = createPreviewView(rightWidget);
+    m_preview = createPreviewView(rightWidget, m_themeCss);
     rightLayout->addWidget(m_preview, 1);
 
     splitter->addWidget(leftPanel);

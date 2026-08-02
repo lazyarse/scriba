@@ -47,5 +47,6 @@ private:
     QTimer *m_previewTimer;
     QColor m_themeBg;
     QColor m_themeTxt;
+    QString m_themeCss;
     int m_uiFontSizePt = CssUtils::kUiFontSizePt;
 };

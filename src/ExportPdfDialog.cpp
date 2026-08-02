@@ -405,7 +405,7 @@ void ExportPdfDialog::setupUi()
     leftLayout->addWidget(exportGroup);
     leftLayout->addStretch();
 
-    m_preview = createPreviewView(this);
+    m_preview = createPreviewView(this, m_loader->themeCss());
     m_preview->settings()->setAttribute(QWebEngineSettings::PdfViewerEnabled, true);
     m_preview->settings()->setAttribute(QWebEngineSettings::PluginsEnabled, true);
 

@@ -101,6 +101,49 @@ static double scrollbarFraction(QScrollBar *sb) {
     return range > 0 ? (sb->value() - sb->minimum()) / range : 0.0;
 }
 
+/* ========== Test: preview page background before first paint ========== */
+
+class PreviewBackgroundTest : public testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        if (!QCoreApplication::instance()) {
+            static int argc = 1;
+            static char arg0[] = "test_scroll_sync";
+            static char *argv[] = { arg0, nullptr };
+            new QApplication(argc, argv);
+        }
+    }
+};
+
+TEST_F(PreviewBackgroundTest, ThemeBackgroundPaintedOnPage) {
+    Preview preview;
+    preview.setThemeBackgroundColor(QColor("#282a36"));
+    EXPECT_EQ(preview.page()->backgroundColor(), QColor("#282a36"));
+}
+
+TEST_F(PreviewBackgroundTest, InvalidBackgroundIsIgnored) {
+    Preview preview;
+    preview.setThemeBackgroundColor(QColor("#282a36"));
+    QColor before = preview.page()->backgroundColor();
+    preview.setThemeBackgroundColor(QColor::Invalid);
+    EXPECT_EQ(preview.page()->backgroundColor(), before);
+}
+
+TEST_F(PreviewBackgroundTest, CreatePreviewViewMatchesTheme) {
+    const QString darkTheme = QStringLiteral(
+        "#editor{background-color:#282a36;color:#f8f8f2}\n"
+        "body{background-color:#282a36;color:#f8f8f2}");
+    QWebEngineView *view = createPreviewView(nullptr, darkTheme);
+    EXPECT_EQ(view->page()->backgroundColor(), QColor("#282a36"));
+    delete view;
+}
+
+TEST_F(PreviewBackgroundTest, CreatePreviewViewDefaultsNoTheme) {
+    QWebEngineView *view = createPreviewView(nullptr);
+    EXPECT_EQ(view->page()->backgroundColor(), QColor("#ffffff"));
+    delete view;
+}
+
 /* ========== Test B: Editor scroll after cursor restore ========== */
 
 class EditorScrollTest : public testing::Test {

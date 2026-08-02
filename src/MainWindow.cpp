@@ -831,6 +831,8 @@ void MainWindow::refreshPreviewCss()
     QString overlayCss = CssUtils::renderOverlayCss(rawThemeCss);
     bool needOverlayUpdate = (overlayCss != m_cachedOverlayCss);
 
+    m_preview->setThemeBackgroundColor(CssUtils::themeColors(rawThemeCss).background);
+
     if (!needPreviewUpdate && !needChromeUpdate && !needBaseUpdate && !needOverlayUpdate)
         return;
 

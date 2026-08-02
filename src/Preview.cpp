@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "Preview.h"
+#include "CssUtils.h"
 #include "StaticHelpers.h"
 #include <QAbstractButton>
 #include <QClipboard>
@@ -73,6 +74,17 @@ Preview::Preview(QWidget *parent)
     setPage(new PreviewPage(this));
     page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
     page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, true);
+}
+
+void Preview::setThemeBackgroundColor(const QColor &color)
+{
+    if (!color.isValid() || color == m_backgroundColor)
+        return;
+    m_backgroundColor = color;
+    // Paint the page's canvas with the theme background so the preview is never
+    // white before the document's content commits its first frame.
+    page()->setBackgroundColor(color);
+    setStyleSheet(QStringLiteral("QWebEngineView{background-color:%1}").arg(color.name()));
 }
 
 void Preview::setHtmlContent(const QString &html)
@@ -232,9 +244,19 @@ void Preview::contextMenuEvent(QContextMenuEvent *event)
     menu.exec(event->globalPos());
 }
 
-QWebEngineView *createPreviewView(QWidget *parent)
+QWebEngineView *createPreviewView(QWidget *parent, const QString &themeCss)
 {
     auto *view = new QWebEngineView(parent);
-    view->setPage(new PreviewPage(view));
+    auto *page = new PreviewPage(view);
+    view->setPage(page);
+if (!themeCss.isEmpty()) {
+        // Keep dialog-level previews on their theme background before first paint
+        // instead of flashing Chromium's default white.
+        QColor bg = CssUtils::themeColors(themeCss).background;
+        if (bg.isValid()) {
+            page->setBackgroundColor(bg);
+            view->setStyleSheet(QStringLiteral("QWebEngineView{background-color:%1}").arg(bg.name()));
+        }
+    }
     return view;
 }
