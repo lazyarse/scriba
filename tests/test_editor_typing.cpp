@@ -105,6 +105,22 @@ TEST_F(EditorTestHarness, EmptyDashListItemClearsToNewline)
     assertCursor(1, 0);
 }
 
+TEST_F(EditorTestHarness, DoubleEnterAfterListItemsStopsListAutocomplete)
+{
+    typeLine("- item 1");
+    typeLine("item2");
+    EXPECT_EQ(text(), "- item 1\n- item2\n- ");
+    assertCursor(2, 2);
+
+    enter();
+    EXPECT_EQ(text(), "- item 1\n- item2\n\n");
+    assertCursor(3, 0);
+
+    enter();
+    EXPECT_EQ(text(), "- item 1\n- item2\n\n\n");
+    assertCursor(4, 0);
+}
+
 TEST_F(EditorTestHarness, EmptyOrderedListItemClearsToNewline)
 {
     typeLine("1. ");
