@@ -90,7 +90,7 @@ sudo apt install xvfb xdotool
 pip install -r scripts/requirements.txt
 ```
 
-Both scripts expect a pre-built binary at `build/scriba`.
+Both scripts expect a pre-built binary at `build/scriba`. The main window opens at Qt's default 640×480 (it doesn't set its own size), so both scripts size it manually with `xdotool windowsize` before capturing (`update-screenshot.sh:22`, `create-autocomplete-demo.py:77`).
 
 ### Keyboard Shortcuts
 
