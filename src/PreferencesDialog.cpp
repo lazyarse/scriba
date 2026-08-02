@@ -37,6 +37,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QStackedWidget>
+#include <QScrollArea>
 #include <QColorDialog>
 #include <QDoubleSpinBox>
 #include <QStyledItemDelegate>
@@ -70,7 +71,7 @@ PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidg
 {
     setupUi(themeBgColor, themeFgColor);
     setWindowTitle("Preferences");
-    resize(450, 600);
+    resize(600, 600);
 }
 
 void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &themeFgColor)
@@ -96,6 +97,17 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     m_pages = new QStackedWidget;
     contentLayout->addWidget(m_pages, 1);
     mainLayout->addLayout(contentLayout, 1);
+
+    auto wrapPage = [&themeBgColor](QWidget *page) -> QScrollArea * {
+        QScrollArea *scroll = new QScrollArea;
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setWidget(page);
+        scroll->viewport()->setStyleSheet(
+            QString("background-color: %1;").arg(themeBgColor));
+        return scroll;
+    };
 
     QSettings settings;
 
@@ -228,7 +240,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addStretch();
 
-        m_pages->addWidget(page);
+        m_pages->addWidget(wrapPage(page));
         m_pageList->addItem("General");
     }
 
@@ -319,7 +331,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addStretch();
 
-        m_pages->addWidget(page);
+        m_pages->addWidget(wrapPage(page));
         m_pageList->addItem("Themes");
     }
 
@@ -523,7 +535,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         layout->addWidget(gutterGroup);
         layout->addStretch();
 
-        m_pages->addWidget(page);
+        m_pages->addWidget(wrapPage(page));
         m_pageList->addItem("Editor");
     }
 
@@ -686,7 +698,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addStretch();
 
-        m_pages->addWidget(page);
+        m_pages->addWidget(wrapPage(page));
         m_pageList->addItem("Writing");
     }
 
@@ -878,7 +890,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
                 reloadLanguages(QString());
         });
 
-        m_pages->addWidget(page);
+        m_pages->addWidget(wrapPage(page));
         m_pageList->addItem("Spelling");
     }
 
@@ -938,7 +950,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addStretch();
 
-        m_pages->addWidget(page);
+        m_pages->addWidget(wrapPage(page));
         m_pageList->addItem("Security");
     }
 
