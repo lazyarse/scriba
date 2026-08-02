@@ -402,6 +402,24 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
+    add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp
+        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
+        src/LogWindow.cpp
+        src/MermaidDialog.cpp
+        src/KatexHelperDialog.cpp
+        src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
+        src/TableDialog.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_multi_tab_typing PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_multi_tab_typing PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+    add_test(NAME test_multi_tab_typing COMMAND ${_TEST_PREFIX} ./test_multi_tab_typing)
+
     add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp
         src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp

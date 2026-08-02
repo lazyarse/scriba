@@ -56,6 +56,7 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
+    void insertParagraphWithLineHeight(QKeyEvent *event);
     bool isInsideLinkContext(const QTextCursor &cursor, QString &partialPath) const;
     bool isInsideHtmlPathContext(const QTextCursor &cursor, QString &partialPath) const;
     void showFileCompletion(const QString &partialPath);

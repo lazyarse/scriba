@@ -108,6 +108,29 @@ void Editor::setCurrentFile(const QString &path)
     m_currentFile = path;
 }
 
+void Editor::insertParagraphWithLineHeight(QKeyEvent *event)
+{
+    // Qt's QTextControl swallows the paragraph separator on an empty block
+    // with a non-default block format (its "second enter resets the
+    // paragraph style" heuristic). The app stores the line-height setting
+    // in every block's format, so normalize the current block to the
+    // default format, let the default handler insert the new paragraph,
+    // then restore the app's line-height on both blocks.
+    QTextBlockFormat lineHeightFmt;
+    lineHeightFmt.setLineHeight(QSettings().value(Preferences::EditorLineHeight,
+                                                  Preferences::DefaultEditorLineHeight).toInt(),
+                                QTextBlockFormat::ProportionalHeight);
+    QTextCursor edit = textCursor();
+    edit.beginEditBlock();
+    edit.setBlockFormat(QTextBlockFormat());
+    QTextEdit::keyPressEvent(event);
+    edit = textCursor();
+    edit.mergeBlockFormat(lineHeightFmt);
+    edit.movePosition(QTextCursor::PreviousBlock);
+    edit.mergeBlockFormat(lineHeightFmt);
+    edit.endEditBlock();
+}
+
 void Editor::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Escape) {
@@ -137,7 +160,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
-                QTextEdit::keyPressEvent(event);
+                insertParagraphWithLineHeight(event);
                 return;
             }
             QTextEdit::keyPressEvent(event);
@@ -164,7 +187,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
-                QTextEdit::keyPressEvent(event);
+                insertParagraphWithLineHeight(event);
                 return;
             }
 
@@ -192,6 +215,9 @@ void Editor::keyPressEvent(QKeyEvent *event)
             setTextCursor(cursor);
             return;
         }
+
+        insertParagraphWithLineHeight(event);
+        return;
     }
 
     if (event->key() == Qt::Key_Tab || event->key() == Qt::Key_Backtab) {

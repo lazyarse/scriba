@@ -121,6 +121,21 @@ TEST_F(EditorTestHarness, DoubleEnterAfterListItemsStopsListAutocomplete)
     assertCursor(4, 0);
 }
 
+TEST_F(EditorTestHarness, EnterAfterHeadingTwiceLeavesCursorTwoLinesBelow)
+{
+    typeLine("# Title");
+    EXPECT_EQ(text(), "# Title\n");
+    assertCursor(1, 0);
+
+    enter();
+    EXPECT_EQ(text(), "# Title\n\n");
+    assertCursor(2, 0);
+
+    enter();
+    EXPECT_EQ(text(), "# Title\n\n\n");
+    assertCursor(3, 0);
+}
+
 TEST_F(EditorTestHarness, EmptyOrderedListItemClearsToNewline)
 {
     typeLine("1. ");
