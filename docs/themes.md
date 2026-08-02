@@ -121,7 +121,7 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 | `%7` | `bg` | editor background | theme `#editor` | theme `#editor` |
 | `%8` | `txtStr` | editor text | theme `#editor` | theme `#editor` |
 | `%9` | `dim` | disabled/dim text | `#999999` | `#777777` |
-| `%10` | `sideBg` | sidebar background, stylesheet-list background | `bg` × 130% | `bg` |
+| `%10` | `sideBg` | sidebar background, preferences stylesheet-list background | `bg` × 130% | `bg` |
 | `%11` | `chkImg` | checkbox tick image | light image | dark image |
 | `%12` | `chkBg` | checkbox/groupbox indicator background | `track` | `bg` |
 | `%13` | `chkCheckedBg` | checked indicator background | `hover` (or `--checkbox-checked-bg`) | `bg` × 83% (or `--checkbox-checked-bg`) |
@@ -147,11 +147,11 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 | QRadioButton::indicator:checked | `%2` | | `%4`, dot `%20` (disabled: no dot) |
 | QListWidget | `%2` | `%3` | |
 | QListWidget::item | selected `%5`, hover `%1` | selected `%6` | |
-| `#category-list` (preferences pages) | `%10` | `%3` | |
-| `#category-list::item` | selected `%5`, hover `%1` | selected `%6` | |
-| `#stylesheet-list` (theme list) | `%10` | `%3` | |
-| `#stylesheet-list::item` | selected `%5`, hover `%1` | selected `%6` | |
-| `#stylesheet-list` scrollbar track | `%2` | | handle `%4` |
+| `#preferences-page-list` (preferences pages) | `%10` | `%3` | |
+| `#preferences-page-list::item` | selected `%5`, hover `%1` | selected `%6` | |
+| `#preferences-stylesheet-list` (theme list) | `%10` | `%3` | |
+| `#preferences-stylesheet-list::item` | selected `%5`, hover `%1` | selected `%6` | |
+| `#preferences-stylesheet-list` scrollbar track | `%2` | | handle `%4` |
 | QTextEdit / QPlainTextEdit | `%2` | `%3` | |
 | QPushButton | `%4`, hover `%5` | `%3` | `%19` |
 | QLabel | | `%3`, disabled `%9` | |

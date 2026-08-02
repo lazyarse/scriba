@@ -76,7 +76,7 @@ private:
     QSpinBox *m_spWpmSpin = nullptr;
     QLabel *m_selectionCountLabel = nullptr;
     std::vector<QCheckBox *> m_metricChecks;
-    QListWidget *m_categoryList;
+    QListWidget *m_pageList;
     QStackedWidget *m_pages;
     QListWidget *m_listWidget;
     QPushButton *m_addButton;

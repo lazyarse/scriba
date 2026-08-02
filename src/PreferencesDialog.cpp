@@ -82,16 +82,16 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     QHBoxLayout *contentLayout = new QHBoxLayout();
     contentLayout->setSpacing(12);
 
-    m_categoryList = new QListWidget;
-    m_categoryList->setMaximumWidth(150);
-    m_categoryList->setMinimumWidth(120);
-    m_categoryList->setFrameShape(QFrame::NoFrame);
-    QFont catFont = m_categoryList->font();
-    catFont.setPointSize(catFont.pointSize() + 3);
-    m_categoryList->setFont(catFont);
-    m_categoryList->setObjectName("category-list");
-    m_categoryList->setItemDelegate(new FocuslessItemDelegate(m_categoryList));
-    contentLayout->addWidget(m_categoryList);
+    m_pageList = new QListWidget;
+    m_pageList->setMaximumWidth(150);
+    m_pageList->setMinimumWidth(120);
+    m_pageList->setFrameShape(QFrame::NoFrame);
+    QFont pageFont = m_pageList->font();
+    pageFont.setPointSize(pageFont.pointSize() + 3);
+    m_pageList->setFont(pageFont);
+    m_pageList->setObjectName("preferences-page-list");
+    m_pageList->setItemDelegate(new FocuslessItemDelegate(m_pageList));
+    contentLayout->addWidget(m_pageList);
 
     m_pages = new QStackedWidget;
     contentLayout->addWidget(m_pages, 1);
@@ -229,7 +229,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         layout->addStretch();
 
         m_pages->addWidget(page);
-        m_categoryList->addItem("General");
+        m_pageList->addItem("General");
     }
 
     /* --- Page 1: Themes --- */
@@ -290,7 +290,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QHBoxLayout *listRow = new QHBoxLayout();
         m_listWidget = new QListWidget();
         m_listWidget->setFrameShape(QFrame::NoFrame);
-        m_listWidget->setObjectName("stylesheet-list");
+        m_listWidget->setObjectName("preferences-stylesheet-list");
 
         QVBoxLayout *btnLayout = new QVBoxLayout();
         m_addButton = new QPushButton("&Add");
@@ -312,7 +312,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         layout->addStretch();
 
         m_pages->addWidget(page);
-        m_categoryList->addItem("Themes");
+        m_pageList->addItem("Themes");
     }
 
     /* --- Page 2: Editor --- */
@@ -516,7 +516,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         layout->addStretch();
 
         m_pages->addWidget(page);
-        m_categoryList->addItem("Editor");
+        m_pageList->addItem("Editor");
     }
 
     /* --- Page 3: Writing --- */
@@ -679,7 +679,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         layout->addStretch();
 
         m_pages->addWidget(page);
-        m_categoryList->addItem("Writing");
+        m_pageList->addItem("Writing");
     }
 
     /* --- Page 4: Spelling --- */
@@ -871,7 +871,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         });
 
         m_pages->addWidget(page);
-        m_categoryList->addItem("Spelling");
+        m_pageList->addItem("Spelling");
     }
 
     /* --- Page 5: Security --- */
@@ -931,7 +931,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         layout->addStretch();
 
         m_pages->addWidget(page);
-        m_categoryList->addItem("Security");
+        m_pageList->addItem("Security");
     }
 
     /* --- Connections --- */
@@ -941,11 +941,11 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     connect(m_editButton, &QPushButton::clicked, this, &PreferencesDialog::editStylesheet);
     connect(m_editPreviewBtn, &QPushButton::clicked, this, &PreferencesDialog::editPreviewBaseCss);
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
-    connect(m_categoryList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
+    connect(m_pageList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
     connect(m_grammarCheckCheck, &QCheckBox::toggled, m_harperDialectCombo, &QWidget::setEnabled);
 
     populateStylesheetList();
-    m_categoryList->setCurrentRow(0);
+    m_pageList->setCurrentRow(0);
 
     /* --- Dialog Buttons --- */
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);

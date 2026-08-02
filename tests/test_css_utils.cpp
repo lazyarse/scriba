@@ -151,16 +151,16 @@ TEST(CssUtilsTest, MenuBarAndTabBarNoNativeBorder) {
     EXPECT_TRUE(tabBar.contains("border: none"));
 }
 
-TEST(CssUtilsTest, CategoryListNoFocusOutline) {
+TEST(CssUtilsTest, PageListNoFocusOutline) {
     QString css = CssUtils::deriveChromeCss("body { background: #1a1a2e; }");
-    EXPECT_TRUE(css.contains("#category-list::item"));
+    EXPECT_TRUE(css.contains("#preferences-page-list::item"));
     EXPECT_TRUE(css.contains("outline: none"));
 }
 
 TEST(CssUtilsTest, StylesheetListScrollbarTrack) {
     QString css = CssUtils::deriveChromeCss("body { background: #1a1a2e; }");
-    EXPECT_TRUE(css.contains("#stylesheet-list QScrollBar:vertical"));
-    EXPECT_TRUE(css.contains("#stylesheet-list QScrollBar:horizontal"));
+    EXPECT_TRUE(css.contains("#preferences-stylesheet-list QScrollBar:vertical"));
+    EXPECT_TRUE(css.contains("#preferences-stylesheet-list QScrollBar:horizontal"));
 }
 
 TEST(CssUtilsTest, StylesheetListHoverVisible) {
@@ -176,7 +176,7 @@ TEST(CssUtilsTest, StylesheetListHoverVisible) {
         return m.hasMatch() ? m.captured(1).trimmed() : QString();
     };
 
-    QString listRule = ruleFor("#stylesheet-list");
+    QString listRule = ruleFor("#preferences-stylesheet-list");
     QString hoverRule = ruleFor("QListWidget::item:hover");
     ASSERT_FALSE(listRule.isEmpty());
     ASSERT_FALSE(hoverRule.isEmpty());
