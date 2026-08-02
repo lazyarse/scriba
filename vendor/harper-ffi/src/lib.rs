@@ -61,14 +61,31 @@ fn byte_offsets(text: &str) -> Vec<usize> {
     offsets
 }
 
-/// Create a lint engine for English Markdown.
+/// Map a `harper_init` dialect code to a [`Dialect`]. Unknown codes fall back
+/// to American, matching the historic default.
+fn dialect_from_code(code: u8) -> Dialect {
+    match code {
+        1 => Dialect::British,
+        2 => Dialect::Australian,
+        3 => Dialect::Indian,
+        4 => Dialect::Canadian,
+        _ => Dialect::American,
+    }
+}
+
+/// Create a lint engine for English Markdown in the given dialect
+/// (`dialect_code`: 0 American, 1 British, 2 Australian, 3 Indian, 4
+/// Canadian; anything else falls back to American).
 ///
 /// The `SpellCheck` rule is disabled: the host application handles spelling
 /// with Hunspell. Returns a null pointer on failure (e.g. an internal panic).
 #[no_mangle]
-pub extern "C" fn harper_init() -> *mut HarperEngine {
+pub extern "C" fn harper_init(dialect_code: u8) -> *mut HarperEngine {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let mut group = LintGroup::new_curated(FstDictionary::curated(), Dialect::American);
+        let mut group = LintGroup::new_curated(
+            FstDictionary::curated(),
+            dialect_from_code(dialect_code),
+        );
         group.config.set_rule_enabled("SpellCheck", false);
         Box::into_raw(Box::new(group)) as *mut HarperEngine
     }));
@@ -220,7 +237,7 @@ mod tests {
     /// Lint `text` through the public FFI surface and drain the results,
     /// freeing every handle along the way.
     fn lint_all(text: &str) -> Vec<(usize, usize, String)> {
-        let engine = harper_init();
+        let engine = harper_init(0);
         assert!(!engine.is_null(), "harper_init failed");
 
         let list = unsafe { harper_lint(engine, text.as_ptr(), text.len()) };
@@ -260,6 +277,17 @@ mod tests {
     }
 
     #[test]
+    fn dialect_codes_map_to_expected_dialects() {
+        use harper_core::Dialect;
+        assert_eq!(dialect_from_code(0), Dialect::American);
+        assert_eq!(dialect_from_code(1), Dialect::British);
+        assert_eq!(dialect_from_code(2), Dialect::Australian);
+        assert_eq!(dialect_from_code(3), Dialect::Indian);
+        assert_eq!(dialect_from_code(4), Dialect::Canadian);
+        assert_eq!(dialect_from_code(255), Dialect::American);
+    }
+
+    #[test]
     fn spelling_is_not_flagged() {
         let issues = lint_all("This is helo wrking text.");
         assert!(
@@ -291,7 +319,7 @@ mod tests {
 
     #[test]
     fn null_pointers_are_handled_gracefully() {
-        assert!(!harper_init().is_null());
+        assert!(!harper_init(0).is_null());
         assert!(unsafe { harper_lint(ptr::null_mut(), ptr::null(), 0) }.is_null());
         assert_eq!(harper_issues_len(ptr::null()), 0);
         assert_eq!(harper_issue_start(ptr::null(), 0), 0);

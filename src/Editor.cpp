@@ -1045,6 +1045,10 @@ void Editor::applySpellSettings()
     }
     m_spellHighlighter->setSpellCheckingEnabled(spellEnabled && loaded);
     m_spellHighlighter->setGrammarCheckingEnabled(grammarEnabled);
+
+    if (auto *harper = dynamic_cast<HarperEngine *>(m_grammarChecker))
+        harper->setDialect(s.value(Preferences::HarperDialect, QStringLiteral("American")).toString());
+
     m_spellHighlighter->refresh();
 }
 

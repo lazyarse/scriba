@@ -33,6 +33,12 @@ public:
     // Whether the underlying engine could be initialised.
     bool isAvailable() const { return m_engine != nullptr; }
 
+    // Rebuilds the engine for the given English dialect ("American",
+    // "British", "Australian", "Indian", "Canadian"). Unknown names fall
+    // back to American. No-op when the dialect is unchanged.
+    void setDialect(const QString &dialect);
+
 private:
     void *m_engine = nullptr; // opaque HarperEngine* from harper_init()
+    QString m_dialect;
 };

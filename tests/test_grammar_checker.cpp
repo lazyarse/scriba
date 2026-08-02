@@ -70,4 +70,33 @@ TEST_F(GrammarCheckerTest, CleanTextHasNoIssues)
     EXPECT_TRUE(issues.isEmpty());
 }
 
+TEST_F(GrammarCheckerTest, DialectSwitchKeepsEngineUsable)
+{
+    m_engine->setDialect(QStringLiteral("British"));
+    EXPECT_TRUE(m_engine->isAvailable());
+    const auto issues = m_engine->check(QStringLiteral("I has a cat."));
+    EXPECT_FALSE(issues.isEmpty());
+}
+
+TEST_F(GrammarCheckerTest, DialectAffectsRegionalIdioms)
+{
+    // "in the cards" is an American idiom; British English prefers
+    // "on the cards", so harper flags it only under a British dialect.
+    const QString text = QStringLiteral("The plan is in the cards.");
+    m_engine->setDialect(QStringLiteral("American"));
+    const auto american = m_engine->check(text);
+    m_engine->setDialect(QStringLiteral("British"));
+    const auto british = m_engine->check(text);
+    EXPECT_FALSE(british.isEmpty());
+    EXPECT_TRUE(american.isEmpty());
+}
+
+TEST_F(GrammarCheckerTest, UnknownDialectFallsBackToAmerican)
+{
+    m_engine->setDialect(QStringLiteral("Klingon"));
+    EXPECT_TRUE(m_engine->isAvailable());
+    const auto issues = m_engine->check(QStringLiteral("The cat sat on the mat."));
+    EXPECT_TRUE(issues.isEmpty());
+}
+
 } // namespace

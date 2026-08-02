@@ -13,13 +13,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "HarperEngine.h"
+#include "Preferences.h"
 #include <QByteArray>
+#include <QSettings>
 #include <QVector>
 #include <cstddef>
 
 // Plain C ABI from vendor/harper-ffi/src/lib.rs. usize = size_t.
 extern "C" {
-    void *harper_init();
+    void *harper_init(unsigned char dialect_code);
     void *harper_lint(void *engine, const unsigned char *text, size_t text_len);
     size_t harper_issues_len(const void *list);
     size_t harper_issue_start(const void *list, size_t i);
@@ -75,14 +77,41 @@ int byteToChar(const QVector<int> &offsets, int byte)
 } // namespace
 
 HarperEngine::HarperEngine()
-    : m_engine(harper_init())
 {
+    // An empty m_dialect forces the first setDialect() call (below) to build
+    // the engine, so the initial engine already matches the saved preference.
+    QSettings settings;
+    setDialect(settings.value(Preferences::HarperDialect, QStringLiteral("American")).toString());
 }
 
 HarperEngine::~HarperEngine()
 {
     if (m_engine)
         harper_free(m_engine);
+}
+
+void HarperEngine::setDialect(const QString &dialect)
+{
+    if (dialect == m_dialect)
+        return;
+
+    unsigned char code = 0; // American (fallback for unknown names)
+    if (dialect == QStringLiteral("British"))
+        code = 1;
+    else if (dialect == QStringLiteral("Australian"))
+        code = 2;
+    else if (dialect == QStringLiteral("Indian"))
+        code = 3;
+    else if (dialect == QStringLiteral("Canadian"))
+        code = 4;
+
+    void *engine = harper_init(code);
+    if (!engine)
+        return; // keep the old engine when the rebuild fails
+    if (m_engine)
+        harper_free(m_engine);
+    m_engine = engine;
+    m_dialect = dialect;
 }
 
 QList<GrammarChecker::Issue> HarperEngine::check(const QString &text)

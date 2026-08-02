@@ -41,7 +41,7 @@ Artifacts: `target/release/libharper_ffi.a` (static) and
 
 | Function               | Signature                                            | Notes                                  |
 | ---------------------- | ---------------------------------------------------- | -------------------------------------- |
-| `harper_init`          | `() -> HarperEngine*`                                | English Markdown engine, SpellCheck off. Null on failure. |
+| `harper_init`          | `(u8) -> HarperEngine*`                              | English Markdown engine, SpellCheck off. `u8` = dialect code: 0 American (default), 1 British, 2 Australian, 3 Indian, 4 Canadian; unknown codes fall back to American. Null on failure. |
 | `harper_lint`          | `(engine, u8*, len) -> HarperIssueList*`             | Byte offsets. Null on failure.         |
 | `harper_issues_len`    | `(list) -> usize`                                    | 0 for null list.                       |
 | `harper_issue_start`   | `(list, i) -> usize`                                 | Byte offset of issue `i`. 0 if invalid.|

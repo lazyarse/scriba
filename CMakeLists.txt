@@ -257,7 +257,7 @@ if(BUILD_TESTS)
 
     add_executable(test_grammar_checker tests/test_grammar_checker.cpp)
     target_include_directories(test_grammar_checker PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_grammar_checker PRIVATE GTest::gtest_main scriba_spell)
+    target_link_libraries(test_grammar_checker PRIVATE scriba_test_main scriba_spell)
     add_test(NAME test_grammar_checker COMMAND ${_TEST_PREFIX} ./test_grammar_checker)
 
     add_executable(test_editor_list_continuation tests/test_editor_list_continuation.cpp)

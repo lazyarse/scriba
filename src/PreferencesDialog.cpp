@@ -703,6 +703,24 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(checkGroup);
 
+        QGroupBox *grammarGroup = new QGroupBox("Grammar");
+        QFormLayout *grammarLayout = new QFormLayout(grammarGroup);
+        grammarLayout->setContentsMargins(12, 12, 12, 12);
+
+        m_harperDialectCombo = new QComboBox;
+        m_harperDialectCombo->addItem("American");
+        m_harperDialectCombo->addItem("British");
+        m_harperDialectCombo->addItem("Australian");
+        m_harperDialectCombo->addItem("Indian");
+        m_harperDialectCombo->addItem("Canadian");
+        const int dialectIndex = m_harperDialectCombo->findText(
+            settings.value(Preferences::HarperDialect, QStringLiteral("American")).toString());
+        m_harperDialectCombo->setCurrentIndex(dialectIndex < 0 ? 0 : dialectIndex);
+        m_harperDialectCombo->setEnabled(m_grammarCheckCheck->isChecked());
+        grammarLayout->addRow("Dialect:", m_harperDialectCombo);
+
+        layout->addWidget(grammarGroup);
+
         auto stripButtonIcons = [](const QList<QPushButton *> &buttons) {
             for (auto *btn : buttons)
                 btn->setIcon(QIcon());
@@ -924,6 +942,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     connect(m_editPreviewBtn, &QPushButton::clicked, this, &PreferencesDialog::editPreviewBaseCss);
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
     connect(m_categoryList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
+    connect(m_grammarCheckCheck, &QCheckBox::toggled, m_harperDialectCombo, &QWidget::setEnabled);
 
     populateStylesheetList();
     m_categoryList->setCurrentRow(0);
@@ -986,6 +1005,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
         settings.setValue(Preferences::DictionaryLanguage, m_languageCombo->currentData().toString());
+        settings.setValue(Preferences::HarperDialect, m_harperDialectCombo->currentText());
         QStringList customWords;
         for (int i = 0; i < m_customWordsList->count(); ++i)
             customWords << m_customWordsList->item(i)->text();
