@@ -30,7 +30,7 @@
 | --- | --- | --- |
 | [![Writing](docs/images/preferences-writing.png)](docs/images/preferences-writing.png) | [![Spelling](docs/images/preferences-spelling.png)](docs/images/preferences-spelling.png) | [![Security](docs/images/preferences-security.png)](docs/images/preferences-security.png) |
 
-### Dialogs
+### Dialogues
 
 | Insert Table | Emoji Picker | KaTeX Equation |
 | --- | --- | --- |
@@ -51,7 +51,7 @@
 - Load / Save multiple documents in a `session` with a tabbed interface
 - Pick up exactly where you left off with cursor and view-port restore in documents
 - Privacy-first, in-editor spell and grammar check. Import audience-specific word sets with ease: legal, medical, technical or "My Little Pony" — all options naturally configurable
-- Print and PDF export using print-specific CSS stylesheets
+- Print and PDF export using print-specific CSS style sheets
 - Readability metrics to keep you audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
 - Find and Replace with optional regex search and replacement back-references
 - PDF, DOCX, and HTML export
@@ -67,12 +67,12 @@
 
 Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.
 
-### Standing on the shoulders of giants:
+### Standing on the Shoulders of Giants:
 - [Hunspell](https://github.com/hunspell/hunspell) and [Harper](https://github.com/Automattic/harper/) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
-- [LaTeX math rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
+- [LaTeX mathematics rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
-- [Vega-Lite data visualization](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
+- [Vega-Lite data visualisation](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
 - [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with GitHub Flavour Markdown support
 
 ### And a few more things...
@@ -86,11 +86,11 @@ Scriba is free software released under the [GNU General Public License v3.0](LIC
 
 ## Custom CSS / Themes
 
-See [themes.md](docs/themes.md) for how to write themes, customize admonition icons, and understand the selector structure.
+See [themes.md](docs/themes.md) for how to write themes, customise admonition icons, and understand the selector structure.
 
 ## Security
 
-Due to Chromium's sandbox issues, it's inheritently unsafe to run this as `root` incase you inadvertedly run crafted HTML code.
+Due to Chromium sandbox issues, it's inherently unsafe to run this as `root` in case you inadvertently run crafted HTML code.
 
 ## Prerequisites
 
