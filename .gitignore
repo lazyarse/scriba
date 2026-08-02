@@ -1,4 +1,5 @@
 build
+/Testing/
 vendor/*
 !vendor/md4c/
 !vendor/hunspell/
