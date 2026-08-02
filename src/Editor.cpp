@@ -88,6 +88,7 @@ Editor::Editor(QWidget *parent)
     applySpellSettings();
 
     m_underlineOverlay = new QWidget(viewport());
+    m_underlineOverlay->setObjectName(QStringLiteral("underline-overlay"));
     m_underlineOverlay->setAttribute(Qt::WA_TranslucentBackground);
     m_underlineOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
     m_underlineOverlay->setGeometry(0, 0, viewport()->width(), viewport()->height());
@@ -1512,6 +1513,18 @@ void Editor::resizeEvent(QResizeEvent *event)
         m_inResize = false;
     }
     updateGutter();
+    if (m_underlineOverlay) {
+        m_underlineOverlay->setGeometry(0, 0, viewport()->width(), viewport()->height());
+        m_underlineOverlay->update();
+    }
+}
+
+void Editor::scrollContentsBy(int dx, int dy)
+{
+    QTextEdit::scrollContentsBy(dx, dy);
+    // QWidget::scroll() (used by the base implementation) moves child widgets
+    // of the viewport along with the content, which would drift the underline
+    // overlay out of sync with the text. Re-anchor it to the viewport origin.
     if (m_underlineOverlay) {
         m_underlineOverlay->setGeometry(0, 0, viewport()->width(), viewport()->height());
         m_underlineOverlay->update();

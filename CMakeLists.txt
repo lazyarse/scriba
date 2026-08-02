@@ -338,6 +338,11 @@ if(BUILD_TESTS)
     target_link_libraries(test_editor_typing PRIVATE GTest::gtest test_editor_helpers scriba_spell)
     add_test(NAME test_editor_typing COMMAND ${_TEST_PREFIX} ./test_editor_typing)
 
+    add_executable(test_underline_overlay tests/test_underline_overlay.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
+    target_include_directories(test_underline_overlay PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_underline_overlay PRIVATE GTest::gtest scriba_spell)
+    add_test(NAME test_underline_overlay COMMAND ${_TEST_PREFIX} ./test_underline_overlay)
+
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
         src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
