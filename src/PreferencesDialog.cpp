@@ -739,17 +739,18 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QFormLayout *grammarLayout = new QFormLayout(grammarGroup);
         grammarLayout->setContentsMargins(12, 12, 12, 12);
 
-        m_harperDialectCombo = new QComboBox;
-        m_harperDialectCombo->addItem("American");
-        m_harperDialectCombo->addItem("British");
-        m_harperDialectCombo->addItem("Australian");
-        m_harperDialectCombo->addItem("Indian");
-        m_harperDialectCombo->addItem("Canadian");
-        const int dialectIndex = m_harperDialectCombo->findText(
-            settings.value(Preferences::HarperDialect, QStringLiteral("American")).toString());
-        m_harperDialectCombo->setCurrentIndex(dialectIndex < 0 ? 0 : dialectIndex);
-        m_harperDialectCombo->setEnabled(m_grammarCheckCheck->isChecked());
-        grammarLayout->addRow("Dialect:", m_harperDialectCombo);
+        m_grammarDialectCombo = new QComboBox;
+        m_grammarDialectCombo->addItem("American");
+        m_grammarDialectCombo->addItem("British");
+        m_grammarDialectCombo->addItem("Australian");
+        m_grammarDialectCombo->addItem("Indian");
+        m_grammarDialectCombo->addItem("Canadian");
+        m_grammarDialectCombo->addItem("New Zealand");
+        const int dialectIndex = m_grammarDialectCombo->findText(
+            settings.value(Preferences::GrammarDialect, QStringLiteral("American")).toString());
+        m_grammarDialectCombo->setCurrentIndex(dialectIndex < 0 ? 0 : dialectIndex);
+        m_grammarDialectCombo->setEnabled(m_grammarCheckCheck->isChecked());
+        grammarLayout->addRow("Dialect:", m_grammarDialectCombo);
 
         layout->addWidget(grammarGroup);
 
@@ -974,7 +975,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     connect(m_editPreviewBtn, &QPushButton::clicked, this, &PreferencesDialog::editPreviewBaseCss);
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
     connect(m_pageList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
-    connect(m_grammarCheckCheck, &QCheckBox::toggled, m_harperDialectCombo, &QWidget::setEnabled);
+    connect(m_grammarCheckCheck, &QCheckBox::toggled, m_grammarDialectCombo, &QWidget::setEnabled);
 
     populateStylesheetList();
     m_pageList->setCurrentRow(0);
@@ -1040,7 +1041,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
         settings.setValue(Preferences::DictionaryLanguage, m_languageCombo->currentData().toString());
-        settings.setValue(Preferences::HarperDialect, m_harperDialectCombo->currentText());
+        settings.setValue(Preferences::GrammarDialect, m_grammarDialectCombo->currentText());
         QStringList customWords;
         for (int i = 0; i < m_customWordsList->count(); ++i)
             customWords << m_customWordsList->item(i)->text();

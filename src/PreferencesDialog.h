@@ -131,7 +131,7 @@ private:
     QCheckBox *m_spellCheckCheck;
     QCheckBox *m_grammarCheckCheck;
     QComboBox *m_languageCombo;
-    QComboBox *m_harperDialectCombo;
+    QComboBox *m_grammarDialectCombo;
     QListWidget *m_customWordsList;
 };
 

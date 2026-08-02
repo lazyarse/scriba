@@ -15,7 +15,7 @@
 #include "Editor.h"
 #include "GrammarChecker.h"
 #include "Gutter.h"
-#include "HarperEngine.h"
+#include "StoppardEngine.h"
 #include "Preferences.h"
 #include "SpellChecker.h"
 #include "StaticHelpers.h"
@@ -49,12 +49,16 @@
 
 namespace {
 
-// HarperEngine loads harper's curated dictionary on construction, so every
-// Editor tab shares one instance instead of paying that cost per tab.
+// StoppardEngine is stateless and cheap to construct (no dictionary load), so
+// each Editor tab gets its own instance — unlike HarperEngine, which had to be
+// shared because loading harper's curated dictionary was expensive.
 GrammarChecker *sharedGrammarChecker()
 {
-    static HarperEngine instance;
-    return &instance;
+    QSettings settings;
+    const QString dialect = settings
+        .value(Preferences::GrammarDialect, QStringLiteral("American"))
+        .toString();
+    return new StoppardEngine(dialect);
 }
 
 } // namespace
@@ -81,10 +85,10 @@ Editor::Editor(QWidget *parent)
     });
 
     m_spellChecker = std::make_unique<SpellChecker>();
-    m_grammarChecker = sharedGrammarChecker();
+    m_grammarChecker.reset(sharedGrammarChecker());
     m_spellHighlighter = new SpellHighlighter(document(), this);
     m_spellHighlighter->setChecker(m_spellChecker.get());
-    m_spellHighlighter->setGrammarChecker(m_grammarChecker);
+    m_spellHighlighter->setGrammarChecker(m_grammarChecker.get());
     applySpellSettings();
 
     m_underlineOverlay = new QWidget(viewport());
@@ -1073,8 +1077,8 @@ void Editor::applySpellSettings()
     m_spellHighlighter->setSpellCheckingEnabled(spellEnabled && loaded);
     m_spellHighlighter->setGrammarCheckingEnabled(grammarEnabled);
 
-    if (auto *harper = dynamic_cast<HarperEngine *>(m_grammarChecker))
-        harper->setDialect(s.value(Preferences::HarperDialect, QStringLiteral("American")).toString());
+    if (auto *stoppard = dynamic_cast<StoppardEngine *>(m_grammarChecker.get()))
+        stoppard->setDialect(s.value(Preferences::GrammarDialect, QStringLiteral("American")).toString());
 
     m_spellHighlighter->refresh();
 }

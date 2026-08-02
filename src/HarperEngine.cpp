@@ -84,7 +84,7 @@ HarperEngine::HarperEngine()
     // An empty m_dialect forces the first setDialect() call (below) to build
     // the engine, so the initial engine already matches the saved preference.
     QSettings settings;
-    setDialect(settings.value(Preferences::HarperDialect, QStringLiteral("American")).toString());
+    setDialect(settings.value(Preferences::GrammarDialect, QStringLiteral("American")).toString());
 }
 
 HarperEngine::~HarperEngine()

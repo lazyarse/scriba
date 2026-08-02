@@ -103,7 +103,7 @@ private:
     QAction *m_mermaidAction = nullptr;
 
     std::unique_ptr<SpellChecker> m_spellChecker;
-    GrammarChecker *m_grammarChecker = nullptr;
+    std::unique_ptr<GrammarChecker> m_grammarChecker;
     SpellHighlighter *m_spellHighlighter = nullptr;
     QWidget *m_underlineOverlay = nullptr;
 
