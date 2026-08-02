@@ -361,7 +361,7 @@ class DemoScribe:
         self.press("Return"); self.capture()
         self.type_str('```')
         self.press("Return"); self.pause(6)
-        self.press("Return"); self.pause(15)
+        self.press("Return"); self.pause(30)
 
     def run(self):
         self.start_scriba()
