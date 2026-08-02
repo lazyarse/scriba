@@ -168,6 +168,8 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
 
     return QStringLiteral(
         "QDialog { background-color: %2; }\n"
+        "QScrollArea { background-color: %2; border: none; }\n"
+        "QScrollArea > QWidget > QWidget { background-color: %2; }\n"
         "QGroupBox { color: %3; font-weight: bold; font-size: @FONT_SIZE@pt; border: 1px solid %4; margin-top: 14px; }\n"
         "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; padding: 2px 8px; color: %3; font-weight: bold; font-size: @FONT_SIZE@pt; }\n"
         "QGroupBox::indicator { width: 14px; height: 14px; background-color: %12; border: 1px solid %4; }\n"

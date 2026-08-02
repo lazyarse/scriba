@@ -98,14 +98,12 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     contentLayout->addWidget(m_pages, 1);
     mainLayout->addLayout(contentLayout, 1);
 
-    auto wrapPage = [&themeBgColor](QWidget *page) -> QScrollArea * {
+    auto wrapPage = [](QWidget *page) -> QScrollArea * {
         QScrollArea *scroll = new QScrollArea;
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
         scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         scroll->setWidget(page);
-        scroll->viewport()->setStyleSheet(
-            QString("background-color: %1;").arg(themeBgColor));
         return scroll;
     };
 

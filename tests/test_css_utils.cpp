@@ -198,6 +198,17 @@ TEST(CssUtilsTest, GutterRulePresent) {
     EXPECT_TRUE(lightCss.contains("#gutter { background-color:"));
 }
 
+TEST(CssUtilsTest, ScrollAreaThemed) {
+    // Pages wrapped in QScrollArea must inherit the themed chrome CSS instead
+    // of an inline viewport stylesheet shadowing the app-wide rules
+    QString darkCss = CssUtils::deriveChromeCss("body { background: #282a36; }");
+    EXPECT_TRUE(darkCss.contains("QScrollArea { background-color:"));
+    EXPECT_TRUE(darkCss.contains("QScrollArea > QWidget > QWidget { background-color:"));
+    QString lightCss = CssUtils::deriveChromeCss("body { background: #ffffff; }");
+    EXPECT_TRUE(lightCss.contains("QScrollArea { background-color:"));
+    EXPECT_TRUE(lightCss.contains("QScrollArea > QWidget > QWidget { background-color:"));
+}
+
 TEST(CssUtilsTest, GutterColorsDerived) {
     auto mix = [](const QColor &a, const QColor &b, int percentOfB) {
         return QColor(

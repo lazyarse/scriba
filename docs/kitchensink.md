@@ -1,4 +1,4 @@
-# Scriba Sample
+# Kitchen Sink
 
 A quick tour of what Scriba can do.
 
