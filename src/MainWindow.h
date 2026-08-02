@@ -21,7 +21,8 @@
 #include <QLabel>
 #include <QTimer>
 #include <QTextDocument>
-#include <QTabWidget>
+#include <QTabBar>
+#include <QStackedWidget>
 #include <QVector>
 #include <QJsonObject>
 
@@ -135,7 +136,8 @@ private:
     CssConfig *m_cssConfig;
     CssLoader *m_cssLoader;
     QFileSystemWatcher *m_cssWatcher;
-    QTabWidget *m_tabWidget;
+    QTabBar *m_tabBar;
+    QStackedWidget *m_editorStack;
     QVector<TabInfo> m_tabs;
     int m_connectedTabIndex = -1;
     bool m_previewInitialized = false;

@@ -162,8 +162,12 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
     if (asInterval > 0)
         m_autoSaveTimer->start(asInterval * kMsPerMinute);
 
-    connect(m_tabWidget, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
-    connect(m_tabWidget, &QTabWidget::tabCloseRequested, this, &MainWindow::onTabCloseRequested);
+    connect(m_tabBar, &QTabBar::currentChanged, this, [this](int index) {
+        if (index >= 0 && index < m_editorStack->count())
+            m_editorStack->setCurrentIndex(index);
+        onTabChanged(index);
+    });
+    connect(m_tabBar, &QTabBar::tabCloseRequested, this, &MainWindow::onTabCloseRequested);
 
     addTab();
 
@@ -229,39 +233,48 @@ void MainWindow::notifyStaleBaseCss()
 
 void MainWindow::setupUi()
 {
-    m_splitter = new QSplitter(Qt::Horizontal, this);
-    setCentralWidget(m_splitter);
+    m_tabBar = new QTabBar();
+    m_tabBar->setTabsClosable(true);
+    m_tabBar->setMovable(true);
+    m_tabBar->setDrawBase(false);
+    m_tabBar->setElideMode(Qt::ElideRight);
 
-    m_tabWidget = new QTabWidget();
-    m_tabWidget->setTabsClosable(true);
-    m_tabWidget->setDocumentMode(true);
-    m_tabWidget->tabBar()->setDrawBase(false);
-    m_tabWidget->setMovable(true);
+    m_editorStack = new QStackedWidget();
+
+    m_splitter = new QSplitter(Qt::Horizontal, this);
+    m_splitter->setChildrenCollapsible(false);
+    m_splitter->setHandleWidth(1);
 
     m_preview = new Preview(this);
 
     if (m_previewState == 0) {
-        m_splitter->addWidget(m_tabWidget);
+        m_splitter->addWidget(m_editorStack);
         m_preview->setVisible(false);
     } else if (m_previewState == 3) {
         m_splitter->addWidget(m_preview);
-        m_tabWidget->setVisible(false);
+        m_editorStack->setVisible(false);
     } else if (m_previewState == 1) {
-        m_splitter->addWidget(m_tabWidget);
+        m_splitter->addWidget(m_editorStack);
         m_splitter->addWidget(m_preview);
     } else {
         m_splitter->addWidget(m_preview);
-        m_splitter->addWidget(m_tabWidget);
+        m_splitter->addWidget(m_editorStack);
     }
 
-    m_splitter->setChildrenCollapsible(false);
-    m_splitter->setHandleWidth(1);
     m_splitter->setSizes({600, 600});
     m_splitter->setStretchFactor(0, 1);
     if (m_previewState != 0 && m_previewState != 3) {
         m_splitter->setStretchFactor(1, 1);
         m_splitter->handle(1)->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     }
+
+    auto *central = new QWidget(this);
+    auto *centralLayout = new QVBoxLayout(central);
+    centralLayout->setContentsMargins(0, 0, 0, 0);
+    centralLayout->setSpacing(0);
+    centralLayout->addWidget(m_tabBar);
+    centralLayout->addWidget(m_splitter, 1);
+    setCentralWidget(central);
 
     if (m_previewState == 0 || m_previewState == 3) {
         QSettings settings;
@@ -305,7 +318,7 @@ int MainWindow::addTab(const QString &filePath)
 {
     int existing = findTabByPath(filePath);
     if (existing >= 0) {
-        m_tabWidget->setCurrentIndex(existing);
+        m_tabBar->setCurrentIndex(existing);
         return existing;
     }
 
@@ -317,13 +330,14 @@ int MainWindow::addTab(const QString &filePath)
     QString label = filePath.isEmpty() ? QStringLiteral("Untitled")
                                        : QFileInfo(filePath).fileName();
 
-    // Populate m_tabs BEFORE QTabWidget::addTab so currentChanged handlers
+    // Populate m_tabs BEFORE adding the tab so currentChanged handlers
     // (which fire synchronously for the first tab) can find the TabInfo.
     int idx = m_tabs.size();
     m_tabs.append({editor, filePath, false});
-    m_tabWidget->addTab(editor, label);
-    m_tabWidget->setCurrentIndex(idx);
-    m_tabWidget->setTabToolTip(idx, filePath.isEmpty() ? QString() : filePath);
+    m_editorStack->addWidget(editor);
+    m_tabBar->addTab(label);
+    m_tabBar->setCurrentIndex(idx);
+    m_tabBar->setTabToolTip(idx, filePath.isEmpty() ? QString() : filePath);
 
     connect(editor->document(), &QTextDocument::contentsChange, this,
         [this, editor](int, int charsRemoved, int charsAdded) {
@@ -370,7 +384,8 @@ void MainWindow::removeTab(int index)
 
     Editor *editor = m_tabs[index].editor;
     m_tabs.removeAt(index);
-    m_tabWidget->removeTab(index);
+    m_editorStack->removeWidget(editor);
+    m_tabBar->removeTab(index);
     delete editor;
     updateTabBarVisibility();
 }
@@ -432,13 +447,13 @@ void MainWindow::disconnectActiveEditor()
 
 void MainWindow::connectActiveEditor()
 {
-    int idx = m_tabWidget->currentIndex();
+    int idx = m_tabBar->currentIndex();
     connectTabEditor(idx);
 }
 
 Editor *MainWindow::currentEditor() const
 {
-    int idx = m_tabWidget->currentIndex();
+    int idx = m_tabBar->currentIndex();
     if (idx < 0 || idx >= m_tabs.size())
         return nullptr;
     return m_tabs[idx].editor;
@@ -446,7 +461,7 @@ Editor *MainWindow::currentEditor() const
 
 TabInfo *MainWindow::activeTabInfo()
 {
-    int idx = m_tabWidget->currentIndex();
+    int idx = m_tabBar->currentIndex();
     if (idx < 0 || idx >= m_tabs.size())
         return nullptr;
     return &m_tabs[idx];
@@ -462,7 +477,7 @@ void MainWindow::updateTabLabel(int index)
                                            : QFileInfo(info.filePath).fileName();
     if (info.dirty)
         name += QStringLiteral(" *");
-    m_tabWidget->setTabText(index, name);
+    m_tabBar->setTabText(index, name);
 }
 
 void MainWindow::setTabDirty(int index, bool dirty)
@@ -555,7 +570,7 @@ void MainWindow::showSaveDiscardDialog(int index)
 
 void MainWindow::closeCurrentTab()
 {
-    int idx = m_tabWidget->currentIndex();
+    int idx = m_tabBar->currentIndex();
     onTabCloseRequested(idx);
 }
 
@@ -679,17 +694,17 @@ void MainWindow::setupMenuBar()
     QAction *nextTabAction = viewMenu->addAction("&Next Tab");
     nextTabAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Tab));
     connect(nextTabAction, &QAction::triggered, this, [this]() {
-        int count = m_tabWidget->count();
+        int count = m_tabBar->count();
         if (count > 1)
-            m_tabWidget->setCurrentIndex((m_tabWidget->currentIndex() + 1) % count);
+            m_tabBar->setCurrentIndex((m_tabBar->currentIndex() + 1) % count);
     });
 
     QAction *prevTabAction = viewMenu->addAction("&Previous Tab");
     prevTabAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab));
     connect(prevTabAction, &QAction::triggered, this, [this]() {
-        int count = m_tabWidget->count();
+        int count = m_tabBar->count();
         if (count > 1)
-            m_tabWidget->setCurrentIndex((m_tabWidget->currentIndex() - 1 + count) % count);
+            m_tabBar->setCurrentIndex((m_tabBar->currentIndex() - 1 + count) % count);
     });
 
     for (int i = 1; i <= 10; ++i) {
@@ -698,8 +713,8 @@ void MainWindow::setupMenuBar()
         QAction *tabAction = new QAction(QString("Switch to Tab %1").arg(i), this);
         tabAction->setShortcut(QKeySequence(Qt::ALT | key));
         connect(tabAction, &QAction::triggered, this, [this, i]() {
-            if (i - 1 < m_tabWidget->count())
-                m_tabWidget->setCurrentIndex(i - 1);
+            if (i - 1 < m_tabBar->count())
+                m_tabBar->setCurrentIndex(i - 1);
         });
         addAction(tabAction);
     }
@@ -1477,11 +1492,11 @@ void MainWindow::togglePreview()
 
     if (m_previewState == 0) {
         m_preview->setVisible(false);
-        m_tabWidget->setVisible(true);
+        m_editorStack->setVisible(true);
         if (ed) applyEditorContentWidth(ed);
         applyPreviewSplitWidth();
     } else if (m_previewState == 3) {
-        m_tabWidget->setVisible(false);
+        m_editorStack->setVisible(false);
         m_preview->setVisible(true);
         if (ed) applyEditorContentWidth(ed);
         applyPreviewSplitWidth();
@@ -1493,9 +1508,9 @@ void MainWindow::togglePreview()
                 QStringLiteral("document.getElementById('center-css').textContent='%1'").arg(css));
         }
     } else if (m_previewState == 1) {
-        m_splitter->insertWidget(0, m_tabWidget);
+        m_splitter->insertWidget(0, m_editorStack);
         m_splitter->insertWidget(1, m_preview);
-        m_tabWidget->setVisible(true);
+        m_editorStack->setVisible(true);
         m_preview->setVisible(true);
         if (ed) applyEditorContentWidth(ed);
         applyPreviewSplitWidth();
@@ -1504,9 +1519,9 @@ void MainWindow::togglePreview()
                 QStringLiteral("document.getElementById('center-css').textContent=''"));
     } else {
         m_splitter->insertWidget(0, m_preview);
-        m_splitter->insertWidget(1, m_tabWidget);
+        m_splitter->insertWidget(1, m_editorStack);
         m_preview->setVisible(true);
-        m_tabWidget->setVisible(true);
+        m_editorStack->setVisible(true);
         if (ed) applyEditorContentWidth(ed);
         applyPreviewSplitWidth();
         if (m_previewInitialized)
@@ -1620,7 +1635,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
 
     int existing = findTabByPath(filePath);
     if (!forceReload && existing >= 0) {
-        m_tabWidget->setCurrentIndex(existing);
+        m_tabBar->setCurrentIndex(existing);
         file.close();
         return;
     }
@@ -1634,7 +1649,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
 
     if (forceReload && existing >= 0) {
         idx = existing;
-        m_tabWidget->setCurrentIndex(idx);
+        m_tabBar->setCurrentIndex(idx);
         QSignalBlocker blocker(m_tabs[idx].editor);
         m_tabs[idx].editor->setPlainText(content);
         {
@@ -1650,7 +1665,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
         updateTabLabel(idx);
         info = &m_tabs[idx];
     } else {
-        idx = m_tabWidget->currentIndex();
+        idx = m_tabBar->currentIndex();
         if (idx >= 0 && idx < m_tabs.size() && m_tabs[idx].filePath.isEmpty() && !m_tabs[idx].dirty && m_tabs[idx].editor->toPlainText().isEmpty()) {
             m_tabs[idx].filePath = filePath;
             QSignalBlocker blocker(m_tabs[idx].editor);
@@ -1668,7 +1683,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
             m_tabs[idx].dirty = false;
             info = &m_tabs[idx];
             updateTabLabel(idx);
-            m_tabWidget->setTabToolTip(idx, filePath);
+            m_tabBar->setTabToolTip(idx, filePath);
             replacedUntitled = true;
         } else {
             idx = addTab(filePath);
@@ -1721,9 +1736,9 @@ void MainWindow::saveFile(const QString &filePath)
     ed->setCurrentFile(filePath);
     info->dirty = false;
 
-    int idx = m_tabWidget->currentIndex();
+    int idx = m_tabBar->currentIndex();
     updateTabLabel(idx);
-    m_tabWidget->setTabToolTip(idx, filePath);
+    m_tabBar->setTabToolTip(idx, filePath);
 
     setWindowTitle("Scriba - " + filePath);
     m_preview->setDocumentPath(filePath);
@@ -1968,7 +1983,7 @@ QJsonObject MainWindow::serializeSession() const
     QJsonArray files;
     QJsonArray cursors;
 
-    int rawActive = m_tabWidget->currentIndex();
+    int rawActive = m_tabBar->currentIndex();
     int fileActive = 0;
     int activeIndex = -1;
     for (int i = 0; i < m_tabs.size(); ++i) {
@@ -2016,11 +2031,12 @@ void MainWindow::restoreSession(const QJsonObject &session)
                             && !m_tabs[0].dirty && m_tabs[0].editor->toPlainText().isEmpty());
 
     if (firstTabIsEmpty) {
-        int idx = m_tabWidget->currentIndex();
+        int idx = m_tabBar->currentIndex();
         disconnectTabEditor(idx);
         Editor *ed = m_tabs[idx].editor;
         m_tabs.removeAt(idx);
-        m_tabWidget->removeTab(idx);
+        m_editorStack->removeWidget(ed);
+        m_tabBar->removeTab(idx);
         delete ed;
     }
 
@@ -2073,8 +2089,8 @@ void MainWindow::restoreSession(const QJsonObject &session)
         }
     }
 
-    if (active >= 0 && active < m_tabWidget->count())
-        m_tabWidget->setCurrentIndex(active);
+    if (active >= 0 && active < m_tabBar->count())
+        m_tabBar->setCurrentIndex(active);
 
     updateTabBarVisibility();
     if (auto *ed = currentEditor())
@@ -2127,7 +2143,7 @@ void MainWindow::loadSessionAction()
     }
 
     while (m_tabs.size() > 1) {
-        int idx = m_tabWidget->currentIndex();
+        int idx = m_tabBar->currentIndex();
         removeTab(idx);
     }
 
@@ -2145,7 +2161,7 @@ void MainWindow::loadSessionAction()
 
 void MainWindow::updateTabBarVisibility()
 {
-    m_tabWidget->tabBar()->setVisible(m_tabs.size() > 1);
+    m_tabBar->setVisible(m_tabs.size() > 1);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

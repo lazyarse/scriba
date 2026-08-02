@@ -17,7 +17,8 @@
 #include <QDialog>
 #include <QTemporaryFile>
 #include <QSettings>
-#include <QTabWidget>
+#include <QTabBar>
+#include <QStackedWidget>
 #include <QTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -58,21 +59,21 @@ protected:
     }
 
     static QString tabText(MainWindow *w) {
-        QTabWidget *tabs = w->findChild<QTabWidget *>();
+        QTabBar *tabs = w->findChild<QTabBar *>();
         if (!tabs || tabs->count() == 0)
             return QString();
         return tabs->tabText(0);
     }
 
     static QString activeTabText(MainWindow *w) {
-        QTabWidget *tabs = w->findChild<QTabWidget *>();
+        QTabBar *tabs = w->findChild<QTabBar *>();
         if (!tabs || tabs->count() == 0)
             return QString();
         return tabs->tabText(tabs->currentIndex());
     }
 
     static bool anyTabDirty(MainWindow *w) {
-        QTabWidget *tabs = w->findChild<QTabWidget *>();
+        QTabBar *tabs = w->findChild<QTabBar *>();
         if (!tabs)
             return false;
         for (int i = 0; i < tabs->count(); ++i) {
@@ -149,10 +150,13 @@ TEST_F(DirtyOnLoadTest, RecheckSpellingDoesNotDirtyAnyTab) {
     QApplication::processEvents();
     ASSERT_FALSE(anyTabDirty(window));
 
-    if (auto *tabs = window->findChild<QTabWidget *>()) {
+    if (auto *tabs = window->findChild<QTabBar *>()) {
+        auto *stack = window->findChild<QStackedWidget *>();
         for (int i = 0; i < tabs->count(); ++i) {
-            if (auto *ed = qobject_cast<Editor *>(tabs->widget(i)))
-                ed->recheckSpelling();
+            if (stack && i < stack->count()) {
+                if (auto *ed = qobject_cast<Editor *>(stack->widget(i)))
+                    ed->recheckSpelling();
+            }
         }
     }
     QApplication::processEvents();

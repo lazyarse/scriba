@@ -26,21 +26,21 @@ _Autocomplete Examples_
 
 | General | Themes | Editor |
 | --- | --- | --- |
-| ![General](docs/images/preferences-general.png) | ![Themes](docs/images/preferences-themes.png) | ![Editor](docs/images/preferences-editor.png) |
+| [![General](docs/images/preferences-general.png)](docs/images/preferences-general.png) | [![Themes](docs/images/preferences-themes.png)](docs/images/preferences-themes.png) | [![Editor](docs/images/preferences-editor.png)](docs/images/preferences-editor.png) |
 
 | Writing | Spelling | Security |
 | --- | --- | --- |
-| ![Writing](docs/images/preferences-writing.png) | ![Spelling](docs/images/preferences-spelling.png) | ![Security](docs/images/preferences-security.png) |
+| [![Writing](docs/images/preferences-writing.png)](docs/images/preferences-writing.png) | [![Spelling](docs/images/preferences-spelling.png)](docs/images/preferences-spelling.png) | [![Security](docs/images/preferences-security.png)](docs/images/preferences-security.png) |
 
 ### Dialogs
 
 | Insert Table | Emoji Picker | KaTeX Equation |
 | --- | --- | --- |
-| ![Insert Table](docs/images/table-dialog.png) | ![Emoji Picker](docs/images/emoji-picker.png) | ![KaTeX Equation](docs/images/katex-dialog.png) |
+| [![Insert Table](docs/images/table-dialog.png)](docs/images/table-dialog.png) | [![Emoji Picker](docs/images/emoji-picker.png)](docs/images/emoji-picker.png) | [![KaTeX Equation](docs/images/katex-dialog.png)](docs/images/katex-dialog.png) |
 
 | Chemistry Notation | Chart Builder | Mermaid Chart |
 | --- | --- | --- |
-| ![Chemistry Notation](docs/images/mchem-dialog.png) | ![Chart Builder](docs/images/vega-lite-dialog.png) | ![Mermaid Chart](docs/images/mermaid-dialog.png) |
+| [![Chemistry Notation](docs/images/mchem-dialog.png)](docs/images/mchem-dialog.png) | [![Chart Builder](docs/images/vega-lite-dialog.png)](docs/images/vega-lite-dialog.png) | [![Mermaid Chart](docs/images/mermaid-dialog.png)](docs/images/mermaid-dialog.png) |
 
 ---
 

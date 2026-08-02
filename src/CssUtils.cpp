@@ -246,7 +246,6 @@ QString deriveChromeCss(const QString &themeCss)
         "QTableCornerButton::section { background-color: %2; border: 1px solid %4; }\n"
         "QHeaderView { background-color: %2; }\n"
         "QHeaderView::section { background-color: %2; color: %3; padding: 4px; border: 1px solid %4; font-weight: bold; }\n"
-        "QTabWidget::pane { background-color: %2; border: none; }\n"
         "QTabBar { background-color: %2; border: none; }\n"
         "QTabBar::tab { background-color: %2; color: %3; padding: 6px 16px; border: 1px solid %4; }\n"
         "QTabBar::tab:selected { background-color: %7; color: %3; border: none; }\n"
