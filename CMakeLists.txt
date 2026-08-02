@@ -69,6 +69,7 @@ add_executable(scriba WIN32
     src/SpellHighlighter.cpp
     src/GrammarChecker.cpp
     src/HarperEngine.cpp
+    src/StoppardEngine.cpp
     vendor/md4c/src/md4c.c
     vendor/md4c/src/md4c-html.c
     vendor/md4c/src/entity.c
@@ -211,6 +212,7 @@ if(BUILD_TESTS)
         src/SpellHighlighter.cpp
         src/GrammarChecker.cpp
         src/HarperEngine.cpp
+        src/StoppardEngine.cpp
     )
     target_include_directories(scriba_spell PUBLIC ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(scriba_spell PRIVATE HUNSPELL_STATIC)
