@@ -23,7 +23,7 @@ inline constexpr int kUiFontSizePt = 10;
 
 struct ThemeColors { QColor background; QColor text; };
 
-QString deriveChromeCss(const QString &themeCss);
+QString deriveChromeCss(const QString &themeCss, int uiFontSizePt = kUiFontSizePt);
 QString scribaConfigDir();
 QColor chromeTextColor(const QString &themeCss);
 ThemeColors themeColors(const QString &themeCss);

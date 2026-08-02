@@ -177,7 +177,7 @@ TEST(CssUtilsTest, StylesheetListHoverVisible) {
     };
 
     QString listRule = ruleFor("#preferences-stylesheet-list");
-    QString hoverRule = ruleFor("QListWidget::item:hover");
+    QString hoverRule = ruleFor("QListWidget::item:hover:!selected");
     ASSERT_FALSE(listRule.isEmpty());
     ASSERT_FALSE(hoverRule.isEmpty());
 
@@ -329,6 +329,25 @@ TEST(CssUtilsTest, DialogWidgetsShareFontSize) {
         QStringLiteral("QComboBox"),
         QStringLiteral("QComboBox QAbstractItemView"),
         QStringLiteral("QTableWidget, QTableView"),
+    };
+    for (const QString &selector : selectors) {
+        QRegularExpression re(QStringLiteral("%1\\s*\\{[^}]*\\}").arg(selector));
+        auto m = re.match(css);
+        ASSERT_TRUE(m.hasMatch()) << "missing rule for " << selector.toStdString();
+        EXPECT_TRUE(m.captured(0).contains(expected)) << selector.toStdString();
+    }
+}
+
+TEST(CssUtilsTest, ChromeFontSizeRespectsParameter) {
+    QString css = CssUtils::deriveChromeCss("body { background: #ffffff; }", 14);
+    EXPECT_FALSE(css.contains("@FONT_SIZE@"));
+    const QString expected = QStringLiteral("font-size: 14pt");
+    const QStringList selectors = {
+        QStringLiteral("QGroupBox"),
+        QStringLiteral("QCheckBox"),
+        QStringLiteral("QLabel"),
+        QStringLiteral("QPushButton"),
+        QStringLiteral("#stats-label"),
     };
     for (const QString &selector : selectors) {
         QRegularExpression re(QStringLiteral("%1\\s*\\{[^}]*\\}").arg(selector));

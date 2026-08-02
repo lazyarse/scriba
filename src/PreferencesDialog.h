@@ -43,6 +43,7 @@ public:
 signals:
     void stylesheetChanged();
     void editorSettingsChanged(const QString &fontFamily, int fontSize, int lineHeight, int padding);
+    void uiFontSizeChanged(int uiFontSizePt);
 
 private slots:
     void addStylesheet();
@@ -113,6 +114,7 @@ private:
     QSpinBox *m_splitPreviewWidthSpin;
     QComboBox *m_editorFontCombo;
     QSpinBox *m_editorFontSizeSpin;
+    QSpinBox *m_uiFontSizeSpin;
     QSpinBox *m_editorLineHeightSpin;
     QSpinBox *m_editorPaddingSpin;
     QGroupBox *m_overrideGroup;

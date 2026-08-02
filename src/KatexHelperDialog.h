@@ -16,6 +16,7 @@
 
 #include <QDialog>
 #include <QColor>
+#include "CssUtils.h"
 
 class QWebEngineView;
 class QPlainTextEdit;
@@ -47,5 +48,6 @@ private:
     QTimer *m_previewTimer;
     QColor m_themeBg;
     QColor m_themeTxt;
+    int m_uiFontSizePt = CssUtils::kUiFontSizePt;
 };
 

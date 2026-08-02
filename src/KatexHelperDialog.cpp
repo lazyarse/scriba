@@ -16,7 +16,9 @@
 #include "StaticHelpers.h"
 #include "Preview.h"
 #include "CssUtils.h"
+#include "Preferences.h"
 
+#include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -162,6 +164,7 @@ KatexHelperDialog::KatexHelperDialog(const QString &themeCss, QWidget *parent)
     CssUtils::ThemeColors colors = CssUtils::themeColors(themeCss);
     m_themeBg = colors.background;
     m_themeTxt = colors.text;
+    m_uiFontSizePt = QSettings().value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt();
 
     setWindowTitle("Insert Equation");
     resize(640, 700);
@@ -323,7 +326,7 @@ QWidget *KatexHelperDialog::createCheatSheet(QWidget *parent)
         for (int i = 0; i < sec.count; ++i) {
             QLabel *cmdLabel = new QLabel(
                 QString("<code style='font-size:%1pt;'>%2</code>")
-                    .arg(CssUtils::kUiFontSizePt)
+                    .arg(m_uiFontSizePt)
                     .arg(QString::fromUtf8(sec.entries[i].command)), secBox);
             QTextBrowser *exLabel = new QTextBrowser(secBox);
             exLabel->setOpenExternalLinks(false);
@@ -337,7 +340,7 @@ QWidget *KatexHelperDialog::createCheatSheet(QWidget *parent)
                 "background-color:%1;color:%2;'>%3</div>")
                 .arg(m_themeBg.name(), m_themeTxt.name(),
                      QString::fromUtf8(sec.entries[i].example).replace("<", "&lt;").replace(">", "&gt;"))
-                .arg(CssUtils::kUiFontSizePt));
+                .arg(m_uiFontSizePt));
 
             QPushButton *insertBtn = new QPushButton("+", secBox);
             insertBtn->setFixedSize(24, 24);

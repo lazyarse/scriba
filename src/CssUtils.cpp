@@ -63,7 +63,7 @@ QColor chromeTextColor(const QString &themeCss)
         : QColor(QStringLiteral("#333333"));
 }
 
-QString deriveChromeCss(const QString &themeCss)
+QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
 {
     auto extractBg = [&](const QString &selector) {
         QRegularExpression re(
@@ -285,7 +285,7 @@ QString deriveChromeCss(const QString &themeCss)
         btnBorder.name()  // %19 — push button border
     ).arg(
         radioImg         // %20 — radio checked dot
-    ).replace(QStringLiteral("@FONT_SIZE@"), QString::number(kUiFontSizePt));
+    ).replace(QStringLiteral("@FONT_SIZE@"), QString::number(uiFontSizePt));
 }
 
 ThemeColors themeColors(const QString &themeCss)

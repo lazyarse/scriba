@@ -269,6 +269,20 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         appearanceLayout->addWidget(m_showCodeLangExportCheck);
 
         appearanceLayout->addSpacing(4);
+        auto *uiFontLabel = new QLabel("<b>UI font size</b>");
+        appearanceLayout->addWidget(uiFontLabel);
+
+        m_uiFontSizeSpin = new QSpinBox();
+        m_uiFontSizeSpin->setRange(8, 24);
+        m_uiFontSizeSpin->setSuffix(" pt");
+        m_uiFontSizeSpin->setValue(settings.value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt());
+        auto *uiFontForm = new QFormLayout;
+        uiFontForm->addRow("Dialogs, menus & chrome:", m_uiFontSizeSpin);
+        appearanceLayout->addLayout(uiFontForm);
+        connect(m_uiFontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            [this](int v) { emit uiFontSizeChanged(v); });
+
+        appearanceLayout->addSpacing(4);
         auto *emojiLabel = new QLabel("<b>Emoji rendering</b>");
         appearanceLayout->addWidget(emojiLabel);
 
@@ -998,6 +1012,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
          settings.setValue(Preferences::FileAutoComplete, m_filenameAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::EditorFontFamily, m_editorFontCombo->currentText());
         settings.setValue(Preferences::EditorFontSize, m_editorFontSizeSpin->value());
+        settings.setValue(Preferences::UiFontSize, m_uiFontSizeSpin->value());
         settings.setValue(Preferences::EditorLineHeight, m_editorLineHeightSpin->value());
         settings.setValue(Preferences::EditorPadding, m_editorPaddingSpin->value());
         settings.setValue(Preferences::EditorColorOverride, m_overrideGroup->isChecked());

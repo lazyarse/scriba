@@ -816,8 +816,10 @@ void MainWindow::setupMenuBar()
 
 void MainWindow::refreshPreviewCss()
 {
+    QSettings settings;
     QString rawThemeCss = m_cssLoader->themeCss();
-    QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss);
+    int uiFontSize = settings.value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt();
+    QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss, uiFontSize);
     QString previewCss = chromeCss + rawThemeCss;
     QString previewBaseCss = m_cssLoader->previewBaseCss();
 
@@ -1023,7 +1025,8 @@ void MainWindow::updatePreview()
 
     QString rawThemeCss = m_cssLoader->themeCss();
     QString baseCss = m_cssLoader->previewBaseCss();
-    QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss);
+    int uiFontSize = prefs.value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt();
+    QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss, uiFontSize);
     QString previewCss = chromeCss + rawThemeCss;
     QString mermaidTheme = CssUtils::isDarkTheme(rawThemeCss)
         ? QStringLiteral("dark") : QStringLiteral("default");
@@ -1143,6 +1146,8 @@ void MainWindow::showPreferences()
             applyStyleSheetToAllEditors(f, s, p);
             applyEditorLineHeight(lh);
         });
+    connect(&dlg, &PreferencesDialog::uiFontSizeChanged, this,
+        [this](int) { refreshPreviewCss(); });
     QSettings s;
     if (dlg.exec() == QDialog::Accepted) {
         applyStyleSheetToAllEditors();
