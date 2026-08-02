@@ -143,6 +143,7 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
         m_cssLoader->invalidateCache();
         refreshPreviewCss();
         applyStripeSetting();
+        applyCodeLangSetting();
     } else if (m_cssConfig->activeStylesheet().isEmpty()) {
         m_cssConfig->setActiveStylesheet(":/themes/github-light.css");
         m_cssLoader->invalidateCache();
@@ -942,6 +943,21 @@ void MainWindow::applyStripeSetting()
     m_preview->page()->runJavaScript(js);
 }
 
+void MainWindow::applyCodeLangSetting()
+{
+    if (!m_previewInitialized)
+        return;
+    QSettings settings;
+    bool enabled = settings.value(Preferences::ShowCodeLangPreview, true).toBool();
+    QString css = enabled ? QString()
+        : QLatin1String(Preferences::HideCodeLangCss);
+    QString js = QString(
+        "var e=document.getElementById('code-lang-css');"
+        "if(e)e.textContent='%1';"
+    ).arg(escapeJsString(css));
+    m_preview->page()->runJavaScript(js);
+}
+
 void MainWindow::applyEditorContentWidth(Editor *editor)
 {
     if (!editor)
@@ -1017,6 +1033,9 @@ void MainWindow::updatePreview()
         bool striping = prefs.value(Preferences::TableStriping, true).toBool();
         QString stripeInit = striping ? QString()
             : QLatin1String(Preferences::TableStripeCss);
+        bool showCodeLang = prefs.value(Preferences::ShowCodeLangPreview, true).toBool();
+        QString codeLangInit = showCodeLang ? QString()
+            : QLatin1String(Preferences::HideCodeLangCss);
         QString centerCss;
         if (m_previewState == 3) {
             bool centre = prefs.value(Preferences::CentreSingleViewContent, true).toBool();
@@ -1036,6 +1055,7 @@ void MainWindow::updatePreview()
             "<style id=\"stripe-css\">%4</style>"
             "<style id=\"center-css\">%5</style>"
             "<style id=\"split-css\">%6</style>"
+            "<style id=\"code-lang-css\">%7</style>"
             "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
@@ -1056,7 +1076,7 @@ void MainWindow::updatePreview()
             "window.location.hash='scriba-open:'+encodeURIComponent(l.href)"
             "})</script>"
             "</body></html>"
-        ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss);
+        ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss, codeLangInit);
         if (cspEnabled) {
             int headEnd = fullHtml.indexOf("</head>");
             if (headEnd >= 0)
@@ -1100,6 +1120,7 @@ void MainWindow::showPreferences()
         syncCssWatcher();
         refreshPreviewCss();
         applyStripeSetting();
+        applyCodeLangSetting();
     };
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
     connect(&dlg, &PreferencesDialog::editorSettingsChanged, this,
@@ -1774,6 +1795,8 @@ void MainWindow::exportDocx()
     if (prefs.value(Preferences::StripExportScripts, true).toBool())
         html = JsRenderEngine::stripScriptTags(html);
     QString css = m_cssLoader->previewBaseCss() + "\n" + m_cssLoader->themeCss();
+    if (!prefs.value(Preferences::ShowCodeLangExport, true).toBool())
+        css += QStringLiteral("\n") + QLatin1String(Preferences::HideCodeLangCss);
 
     QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
@@ -1892,6 +1915,9 @@ void MainWindow::exportHtml()
     // Responsive SVG rule for Vega-Lite charts (baked-in SVG width needs to scale)
     exportCss += QStringLiteral(
         "\n.vega-lite-chart svg{max-width:100%;height:auto;width:auto!important}");
+
+    if (!prefs.value(Preferences::ShowCodeLangExport, true).toBool())
+        exportCss += QStringLiteral("\n") + QLatin1String(Preferences::HideCodeLangCss);
 
     // Include KaTeX CSS so math renders correctly without external dependencies
     QString katexCss = JsRenderEngine::katexCss();

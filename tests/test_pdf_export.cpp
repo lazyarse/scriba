@@ -64,6 +64,7 @@ protected:
     {
         QSettings s;
         s.setValue(Preferences::TableStriping, true);
+        s.setValue(Preferences::ShowCodeLangExport, true);
         s.setValue(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw));
 
         config = new CssConfig();
@@ -132,6 +133,26 @@ TEST_F(PrintExportTest, BuildHtmlTableStripingEnabledOmitsOverride)
     QString html = PrintExportAccess::buildFullHtml(dlg, "/* stripped */");
 
     EXPECT_FALSE(html.contains("tr:nth-child(even)"));
+}
+
+TEST_F(PrintExportTest, BuildHtmlCodeLangExportDisabledInjectsOverride)
+{
+    QSettings s;
+    s.setValue(Preferences::ShowCodeLangExport, false);
+
+    QString html = PrintExportAccess::buildFullHtml(dlg, "/* code lang */");
+
+    EXPECT_TRUE(html.contains("pre[data-lang]::before{content:none}"));
+}
+
+TEST_F(PrintExportTest, BuildHtmlCodeLangExportEnabledOmitsOverride)
+{
+    QSettings s;
+    s.setValue(Preferences::ShowCodeLangExport, true);
+
+    QString html = PrintExportAccess::buildFullHtml(dlg, "/* code lang */");
+
+    EXPECT_FALSE(html.contains("pre[data-lang]::before{content:none}"));
 }
 
 TEST_F(PrintExportTest, BuildHtmlEmojiModeColor)

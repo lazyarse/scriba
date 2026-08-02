@@ -248,6 +248,14 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
         appearanceLayout->addWidget(m_stripeCheck);
 
+        m_showCodeLangPreviewCheck = new QCheckBox("Show language label on fenced code blocks (preview)");
+        m_showCodeLangPreviewCheck->setChecked(settings.value(Preferences::ShowCodeLangPreview, true).toBool());
+        appearanceLayout->addWidget(m_showCodeLangPreviewCheck);
+
+        m_showCodeLangExportCheck = new QCheckBox("Show language label on fenced code blocks (exports)");
+        m_showCodeLangExportCheck->setChecked(settings.value(Preferences::ShowCodeLangExport, true).toBool());
+        appearanceLayout->addWidget(m_showCodeLangExportCheck);
+
         appearanceLayout->addSpacing(4);
         auto *emojiLabel = new QLabel("<b>Emoji rendering</b>");
         appearanceLayout->addWidget(emojiLabel);
@@ -958,6 +966,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::ReopenLastSession, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
+        settings.setValue(Preferences::ShowCodeLangPreview, m_showCodeLangPreviewCheck->isChecked());
+        settings.setValue(Preferences::ShowCodeLangExport, m_showCodeLangExportCheck->isChecked());
         settings.setValue(Preferences::EmojiMode,
     Preferences::emojiRenderingToString(m_emojiBw->isChecked() ? Preferences::EmojiRendering::Bw : Preferences::EmojiRendering::Color));
         settings.setValue(Preferences::EmojiAutoComplete, m_emojiAutoCompleteCheck->isChecked());

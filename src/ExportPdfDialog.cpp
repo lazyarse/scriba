@@ -524,6 +524,10 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
     if (!stripeCss.isEmpty())
         mergedCss += QStringLiteral("\n") + stripeCss;
 
+    bool showCodeLang = settings.value(Preferences::ShowCodeLangExport, true).toBool();
+    if (!showCodeLang)
+        mergedCss += QStringLiteral("\n") + QLatin1String(Preferences::HideCodeLangCss);
+
     QString emojiMode = settings.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
 

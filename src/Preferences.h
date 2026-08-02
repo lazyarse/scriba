@@ -84,6 +84,10 @@ namespace Preferences {
 
     constexpr const char *TableStripeCss = "tr:nth-child(even){background-color:transparent}";
     constexpr const char *TableStripePdfCss = "tr:nth-child(even),tr:nth-child(even) td{background-color:transparent !important}";
+    constexpr const char *HideCodeLangCss = "pre[data-lang]::before{content:none}";
+
+    constexpr const char *ShowCodeLangPreview = "showCodeLangPreview";
+    constexpr const char *ShowCodeLangExport = "showCodeLangExport";
 
     enum class EmojiRendering { Bw, Color };
 

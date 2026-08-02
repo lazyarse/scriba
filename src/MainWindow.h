@@ -101,6 +101,7 @@ private:
     void applyStyleSheetToAllEditors();
     void applyStyleSheetToAllEditors(const QString &fontFamily, int fontSize, int padding);
     void applyStripeSetting();
+    void applyCodeLangSetting();
     void applyEditorContentWidth(Editor *editor);
     void applyPreviewSplitWidth();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);

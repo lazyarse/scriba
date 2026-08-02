@@ -93,6 +93,8 @@ private:
     QCheckBox *m_enableCspPreviewCheck;
     QCheckBox *m_enableCspExportCheck;
     QCheckBox *m_stripeCheck;
+    QCheckBox *m_showCodeLangPreviewCheck;
+    QCheckBox *m_showCodeLangExportCheck;
     QCheckBox *m_filenameAutoCompleteCheck;
     QCheckBox *m_autoSaveExitCheck;
     QCheckBox *m_autoSaveCheck;
