@@ -18,9 +18,7 @@
 
 ![Screenshot](docs/images/screenshot.png)
 
-
 ![Autocomplete Demo](docs/images/autocomplete-demo.gif)
-_Autocomplete Examples_
 
 ### Preferences
 
