@@ -34,11 +34,11 @@ xvfb-run -a sh -c '
         return 1
     }
 
-    # capture <title> <outfile>: wait for dialog, let WebEngine render, shoot
+    # capture <title> <outfile> [sleep]: wait for dialog, let WebEngine render, shoot
     capture() {
         local W
         W=$(waitwin "$1") || { echo "WARN: window \"$1\" not found"; return 1; }
-        sleep 4
+        sleep "${3:-4}"
         import -window "$W" "$2"
         xdotool key Escape
         sleep 1
@@ -110,6 +110,11 @@ xvfb-run -a sh -c '
     # --- Mermaid chart helper (default pie chart) ---
     open ctrl+m
     capture "Mermaid Chart" '"$OUT_DIR"'/mermaid-dialog.png
+
+    # --- Print / Export PDF (long wait: WebEngine load, vega/mermaid
+    # promises, chromium --print-to-pdf, then preview reload) ---
+    open ctrl+p
+    capture "Print / Export PDF" '"$OUT_DIR"'/print-pdf-dialog.png 12
 
     kill $PID 2>/dev/null
     wait $PID 2>/dev/null

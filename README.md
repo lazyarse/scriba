@@ -42,6 +42,10 @@ _Autocomplete Examples_
 | --- | --- | --- |
 | [![Chemistry Notation](docs/images/mchem-dialog.png)](docs/images/mchem-dialog.png) | [![Chart Builder](docs/images/vega-lite-dialog.png)](docs/images/vega-lite-dialog.png) | [![Mermaid Chart](docs/images/mermaid-dialog.png)](docs/images/mermaid-dialog.png) |
 
+| Print / Export PDF |
+| --- |
+| [![Print / Export PDF](docs/images/print-pdf-dialog.png)](docs/images/print-pdf-dialog.png) |
+
 ---
 
 ## Features
