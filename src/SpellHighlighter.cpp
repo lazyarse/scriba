@@ -290,7 +290,8 @@ void SpellHighlighter::onLintFinished(quint64 generation, const QString &text,
         for (const auto &issue : issues) {
             if (issue.start >= blockStart && issue.start < blockStart + blockLen) {
                 m_grammarIssues[block.blockNumber()].append({issue.start - blockStart,
-                                                             issue.length, issue.message});
+                                                             issue.length, issue.message,
+                                                             issue.suggestions});
             }
         }
         blockStart += blockLen + 1;

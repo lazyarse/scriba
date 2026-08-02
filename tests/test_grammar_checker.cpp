@@ -54,6 +54,23 @@ TEST_F(GrammarCheckerTest, DoesNotFlagSpelling)
             << issue.message.toStdString();
 }
 
+TEST_F(GrammarCheckerTest, ProvidesSuggestions)
+{
+    // A fixable error (subject-verb agreement) must come with at least one
+    // replace-with suggestion so the context menu can offer one-click fixes.
+    const auto issues = m_engine->check(QStringLiteral("I has a cat."));
+    bool hasSuggestion = false;
+    for (const auto &issue : issues) {
+        for (const auto &suggestion : issue.suggestions) {
+            if (suggestion.kind == GrammarChecker::Issue::SuggestionKind::Replace
+                && !suggestion.text.isEmpty())
+                hasSuggestion = true;
+        }
+    }
+    EXPECT_TRUE(hasSuggestion)
+        << "expected a replace-with suggestion for 'I has a cat.'";
+}
+
 TEST_F(GrammarCheckerTest, RangesWithinBounds)
 {
     const QString text = QStringLiteral("I has a cat. Héllo wörld.");

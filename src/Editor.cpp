@@ -1389,7 +1389,15 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
 
-    QTextCursor cursor = textCursor();
+    // Right-click acts on the clicked position: move the caret there so the
+    // spelling/grammar lookup and the context-sensitive actions below match
+    // where the user clicked. A live selection is kept (for "Make Link").
+    QTextCursor cursor = cursorForPosition(event->pos());
+    if (textCursor().hasSelection())
+        cursor = textCursor();
+    else
+        setTextCursor(cursor);
+
     const SpellHighlighter::WordHit misspelled = misspelledWordAt(cursor);
     if (!misspelled.text.isEmpty()) {
         QMenu *suggestions = menu.addMenu("Spelling: " + misspelled.text);
@@ -1418,18 +1426,66 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
             m_spellHighlighter->refresh();
         });
 
-        for (const SpellHighlighter::GrammarHit &hit
-             : m_spellHighlighter->grammarIssuesInBlock(cursor.block().blockNumber())) {
-            if (cursor.positionInBlock() >= hit.start
-                && cursor.positionInBlock() <= hit.start + hit.length) {
-                menu.addSeparator();
-                QAction *msg = menu.addAction("Grammar: " + hit.message);
-                msg->setEnabled(false);
-                break;
-            }
+        menu.addSeparator();
+    }
+
+    // Grammar issues under the cursor: the justification for the squiggle
+    // plus one-click fixes suggested by the checker.
+    bool grammarAdded = false;
+    for (const SpellHighlighter::GrammarHit &hit
+         : m_spellHighlighter->grammarIssuesInBlock(cursor.block().blockNumber())) {
+        if (cursor.positionInBlock() < hit.start
+            || cursor.positionInBlock() > hit.start + hit.length)
+            continue;
+
+        if (!grammarAdded) {
+            menu.addSeparator();
+            grammarAdded = true;
         }
 
-        menu.addSeparator();
+        QAction *msg = menu.addAction("Grammar: " + hit.message);
+        msg->setEnabled(false);
+
+        if (hit.suggestions.isEmpty())
+            continue;
+
+        QMenu *suggestions = menu.addMenu("Suggestions");
+        const int blockNumber = cursor.block().blockNumber();
+        for (const GrammarChecker::Issue::Suggestion &suggestion : hit.suggestions) {
+            QString label;
+            switch (suggestion.kind) {
+            case GrammarChecker::Issue::SuggestionKind::Replace:
+                label = "Replace with '" + suggestion.text + "'";
+                break;
+            case GrammarChecker::Issue::SuggestionKind::Remove:
+                label = "Remove";
+                break;
+            case GrammarChecker::Issue::SuggestionKind::InsertAfter:
+                label = "Insert '" + suggestion.text + "' after";
+                break;
+            }
+            QAction *action = suggestions->addAction(label);
+            connect(action, &QAction::triggered, this,
+                    [this, blockNumber, hit, suggestion]() {
+                        const QTextBlock block = document()->findBlockByNumber(blockNumber);
+                        if (!block.isValid())
+                            return;
+                        QTextCursor fix(document());
+                        fix.setPosition(block.position() + hit.start);
+                        fix.setPosition(block.position() + hit.start + hit.length,
+                                        QTextCursor::KeepAnchor);
+                        if (suggestion.kind
+                            == GrammarChecker::Issue::SuggestionKind::InsertAfter) {
+                            fix.setPosition(block.position() + hit.start + hit.length);
+                            fix.insertText(suggestion.text);
+                        } else if (suggestion.kind
+                                   == GrammarChecker::Issue::SuggestionKind::Remove) {
+                            fix.removeSelectedText();
+                        } else {
+                            fix.insertText(suggestion.text);
+                        }
+                    });
+        }
     }
 
     for (QAction *action : m_insertActions)

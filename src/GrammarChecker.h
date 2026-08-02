@@ -17,6 +17,7 @@
 #include <QList>
 #include <QMetaType>
 #include <QString>
+#include <QVector>
 
 // Interface for grammar checking. Implementations are expected to be
 // expensive (e.g. harper) — callers should debounce invocations.
@@ -26,9 +27,19 @@ public:
     virtual ~GrammarChecker();
 
     struct Issue {
+        // How a suggestion fixes the issue. All kinds apply to the issue's
+        // own [start, start + length) span.
+        enum class SuggestionKind { Replace, Remove, InsertAfter };
+
+        struct Suggestion {
+            SuggestionKind kind = SuggestionKind::Replace;
+            QString text;
+        };
+
         int start = 0;   // offset relative to the start of the checked text
         int length = 0;
         QString message;
+        QVector<Suggestion> suggestions;
     };
 
     // Runs the check over `text` and returns all issues found.

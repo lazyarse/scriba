@@ -27,6 +27,9 @@ extern "C" {
     size_t harper_issue_start(const void *list, size_t i);
     size_t harper_issue_len(const void *list, size_t i);
     const unsigned char *harper_issue_message(const void *list, size_t i, size_t *out_len);
+    size_t harper_issue_suggestion_count(const void *list, size_t i);
+    const unsigned char *harper_issue_suggestion(const void *list, size_t i, size_t j,
+                                                 unsigned char *out_kind, size_t *out_len);
     void harper_free_issues(void *list);
     void harper_free(void *engine);
 }
@@ -151,7 +154,25 @@ QList<GrammarChecker::Issue> HarperEngine::check(const QString &text)
         const int end = qMin(byteToChar(charOffsets, endByte), lastChar);
         if (end <= start)
             continue;
-        issues.append({start, end - start, message});
+
+        QVector<Issue::Suggestion> suggestions;
+        const size_t sugCount = harper_issue_suggestion_count(list, i);
+        suggestions.reserve(int(sugCount));
+        for (size_t j = 0; j < sugCount; ++j) {
+            unsigned char kind = 0;
+            size_t textLen = 0;
+            const unsigned char *textPtr = harper_issue_suggestion(list, i, j, &kind, &textLen);
+            Issue::Suggestion suggestion;
+            suggestion.kind = kind == 1 ? Issue::SuggestionKind::Remove
+                             : kind == 2 ? Issue::SuggestionKind::InsertAfter
+                                         : Issue::SuggestionKind::Replace;
+            if (textPtr)
+                suggestion.text = QString::fromUtf8(reinterpret_cast<const char *>(textPtr),
+                                                    int(textLen));
+            suggestions.append(suggestion);
+        }
+
+        issues.append({start, end - start, message, suggestions});
     }
     harper_free_issues(list);
     return issues;

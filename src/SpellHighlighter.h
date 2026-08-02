@@ -72,6 +72,7 @@ public:
         int start = 0; // offset within the block
         int length = 0;
         QString message;
+        QVector<GrammarChecker::Issue::Suggestion> suggestions;
     };
 
     // Squiggle colors, shared with Editor's custom underline painting.
