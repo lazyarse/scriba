@@ -1,0 +1,12 @@
+I can has a cat. | I can have a cat. | R1
+She can goes to the store. | She can go to the store. | R1
+We could went there. | We could go there. | R1
+He might gone home. | He might go home. | R1
+I can going now. | I can go now. | R1
+I can't has a dog. | I can't have a dog. | R1
+You must not has it. | You must not have it. | R1
+can has been | can have been | R1
+will goes | will go | R1
+can have | can have | R1
+could go | could go | R1
+can't wait | can't wait | R1

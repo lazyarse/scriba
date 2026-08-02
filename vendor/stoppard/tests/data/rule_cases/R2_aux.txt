@@ -1,0 +1,12 @@
+She has go home. | She has gone home. | R2
+I have went there. | I have gone there. | R2
+He did went. | He did go. | R2
+She does goes. | She does go. | R2
+He has been go. | He has been going. | R2
+It has been take. | It has been taking. | R2
+I am has a cat. | I am having a cat. | R2
+They are went. | They are going. | R2
+I have to go. | I have to go. | R2
+I have got a cat. | I have got a cat. | R2
+He has gone. | He has gone. | R2
+She has walked. | She has walked. | R2

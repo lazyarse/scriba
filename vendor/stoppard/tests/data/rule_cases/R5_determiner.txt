@@ -1,0 +1,7 @@
+These cat can run. | These cats can run. | R5
+Many child can go. | Many children can go. | R5
+I saw those box. | I saw those boxes. | R5
+This dogs bark. | This dog bark. | R5
+Each cats has a toy. | Each cat has a toy. | R5
+These water is cold. | These water is cold. | R5
+This is a dog. | This is a dog. | R5

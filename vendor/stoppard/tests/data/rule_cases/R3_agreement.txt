@@ -1,0 +1,13 @@
+I has a cat. | I have a cat. | R3
+They goes home. | They go home. | R3
+He walk to school. | He walks to school. | R3
+She run fast. | She runs fast. | R3
+I has been there. | I have been there. | R3
+They is going. | They are going. | R3
+He have a cat. | He has a cat. | R3
+The list of items are here. | The list of items is here. | R3
+The boxes on the table is here. | The boxes on the table are here. | R3
+The police is here. | The police are here. | R3
+The team are winning. | The team is winning. | R3
+Watch it break. | Watch it break. | R3
+The cat sat on the mat. | The cat sat on the mat. | R3

@@ -1,0 +1,135 @@
+She can sing very well.
+We will meet at noon.
+They should read the book.
+I could hear the music from here.
+You must finish the work today.
+He might come to the party.
+The cat can sleep all day.
+We would like some tea.
+I shall write a letter.
+They may leave early.
+The dog can run fast.
+She will bring the report.
+We must clean the kitchen.
+You can sit here.
+He should call his mother.
+I will help you with the box.
+They could see the mountains.
+The children may play outside.
+She might forget the keys.
+We would enjoy the show.
+She has gone to the store.
+I have finished my homework.
+They have seen the film.
+He has written a letter.
+We have eaten lunch.
+The team has played well.
+She is working at home.
+They are building a house.
+I am reading a book.
+He was walking to school.
+We were watching the game.
+The children have been playing.
+I have been thinking about it.
+She has been waiting for an hour.
+They had already left.
+He had done his best.
+I have got a new phone.
+She has walked to work.
+We have visited the museum.
+The birds have flown south.
+The cat sits on the mat.
+The dogs bark at night.
+He walks to school every day.
+She runs in the park.
+The children play in the yard.
+My brother likes coffee.
+The birds sing in the morning.
+The teacher writes on the board.
+The sun rises in the east.
+Water boils at one hundred degrees.
+The list of names is on the desk.
+The box of books is heavy.
+The key to the door is lost.
+The price of eggs is rising.
+The men in the room are talking.
+There is a book on the table.
+There are many stars in the sky.
+I have a blue car.
+She has a new job.
+We have two cats.
+The house has a big garden.
+I am happy today.
+She is very kind.
+They are good friends.
+It was a cold day.
+We were tired after the trip.
+He is a doctor.
+The weather is nice today.
+I want to go home.
+She tried to open the door.
+We need to leave now.
+He likes to read books.
+They decided to stay.
+I hope to see you soon.
+She wants to learn Spanish.
+We plan to travel in June.
+He began to speak.
+I look forward to seeing you.
+She needs to rest.
+This book is interesting.
+That dog is friendly.
+These apples are fresh.
+Those houses are old.
+Many people came to the show.
+Each student has a book.
+A cat sleeps on the sofa.
+An apple a day is good.
+This water is cold.
+The milk is in the fridge.
+My cat likes this food.
+I went to the store.
+He gave the book to her.
+She sat next to me.
+They asked us to wait.
+We thanked them for the gift.
+You and I will go together.
+Between you and me, this is easy.
+Give it to us.
+Tell him the news.
+She saw him yesterday.
+I do not know the answer.
+She never goes there.
+He did not see anyone.
+There is no reason to worry.
+Nobody came to the meeting.
+Nothing was wrong.
+I have never been there.
+We did not say anything.
+She has no money.
+He never lies.
+The cat sat on the mat.
+The dog chased the ball.
+A bird flew over the house.
+The old man walked slowly.
+The children laughed at the story.
+The sun was warm that day.
+She opened the window quietly.
+The letter arrived on Tuesday.
+He found a coin on the street.
+The town lay by the river.
+The farmer grew corn and wheat.
+The stars shone in the dark sky.
+She drank a glass of water.
+They built a wooden fence.
+The river flows to the sea.
+Stoppard is a markdown editor.
+The editor supports many themes.
+Users can write in markdown.
+The preview shows the rendered document.
+This document contains a table.
+All files are stored locally.
+The app works without an internet connection.
+Please read the user guide.
+The build produces a single binary.
+Tests run in the build directory.

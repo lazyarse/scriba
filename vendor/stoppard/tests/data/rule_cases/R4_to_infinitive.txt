@@ -1,0 +1,5 @@
+I want to has a cat. | I want to have a cat. | R4
+She tried to went home. | She tried to go home. | R4
+I need to goes now. | I need to go now. | R4
+I look forward to going. | I look forward to going. | R4
+I want to go. | I want to go. | R4

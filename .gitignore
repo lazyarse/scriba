@@ -5,6 +5,7 @@ vendor/*
 !vendor/hunspell/
 !vendor/harper-ffi/
 !vendor/mathml2omml/
+!vendor/stoppard/
 vendor/harper-ffi/target
 *.deb
 _CPack_Packages

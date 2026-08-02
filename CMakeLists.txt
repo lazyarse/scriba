@@ -11,6 +11,11 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebEngineWidgets S
 add_subdirectory(vendor/mathml2omml)
 add_subdirectory(vendor/hunspell)
 
+# Vendored stoppard grammar engine (see vendor/stoppard). Scriba never builds or
+# fetches its gtest suite — the option is forced OFF as a safety net.
+set(STOPPARD_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+add_subdirectory(vendor/stoppard)
+
 # Vendored harper-core grammar engine (see vendor/harper-ffi). It is built with
 # cargo into a static library; rust-toolchain.toml pins the required toolchain.
 set(HARPER_FFI_DIR ${CMAKE_SOURCE_DIR}/vendor/harper-ffi)
@@ -87,6 +92,7 @@ target_link_libraries(scriba PRIVATE
     mathml2omml
     hunspell
     ${HARPER_FFI_STATIC}
+    stoppard
 )
 
 add_custom_command(TARGET scriba PRE_LINK
@@ -164,7 +170,17 @@ target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSIO
 option(BUILD_TESTS "Build unit tests" OFF)
 
 if(BUILD_TESTS)
-    find_package(GTest REQUIRED)
+    find_package(GTest QUIET)
+    if(NOT GTest_FOUND)
+        if(WIN32)
+            message(FATAL_ERROR
+                "GTest not found. Install it (e.g. vcpkg install gtest and pass "
+                "-DCMAKE_TOOLCHAIN_FILE, or build googletest and set gtest_DIR).")
+        else()
+            message(FATAL_ERROR
+                "GTest not found. Install it, e.g. sudo apt install libgtest-dev")
+        endif()
+    endif()
 
     enable_testing()
 
@@ -198,7 +214,7 @@ if(BUILD_TESTS)
     )
     target_include_directories(scriba_spell PUBLIC ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(scriba_spell PRIVATE HUNSPELL_STATIC)
-    target_link_libraries(scriba_spell PUBLIC scriba_core hunspell ${HARPER_FFI_STATIC})
+    target_link_libraries(scriba_spell PUBLIC scriba_core hunspell ${HARPER_FFI_STATIC} stoppard)
 
     add_custom_command(TARGET scriba_spell PRE_LINK
         COMMAND ${HARPER_FFI_CARGO}
