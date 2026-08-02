@@ -24,7 +24,22 @@ class CssHighlighter : public QSyntaxHighlighter
     Q_OBJECT
 
 public:
-    explicit CssHighlighter(const QString &themeCss, QTextDocument *parent);
+    struct Palette {
+        QColor background;
+        QColor foreground;
+        QColor comment;
+        QColor punct;
+        QColor string;
+        QColor keyword;
+        QColor property;
+        QColor hexColor;
+        QColor number;
+        QColor selector;
+    };
+
+    static Palette paletteFor(bool dark);
+
+    explicit CssHighlighter(bool dark, QTextDocument *parent);
 
 protected:
     void highlightBlock(const QString &text) override;
@@ -36,6 +51,4 @@ private:
     };
     QVector<HighlightRule> m_rules;
     QTextCharFormat m_commentFormat;
-    QTextCharFormat m_punctFormat;
 };
-

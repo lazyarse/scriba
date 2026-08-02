@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "CssEditorDialog.h"
 #include "CssHighlighter.h"
+#include "CssUtils.h"
 #include "StaticHelpers.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -67,7 +68,12 @@ CssEditorDialog::CssEditorDialog(const QString &title, const QString &css, const
 
     m_editor->setLineWrapMode(QPlainTextEdit::NoWrap);
 
-    new CssHighlighter(themeCss, m_editor->document());
+    const bool dark = CssUtils::isDarkTheme(themeCss);
+    const auto palette = CssHighlighter::paletteFor(dark);
+    m_editor->setStyleSheet(QString("QPlainTextEdit { background-color: %1; color: %2; }")
+        .arg(palette.background.name(), palette.foreground.name()));
+
+    new CssHighlighter(dark, m_editor->document());
 
     layout->addWidget(m_editor, 1);
 

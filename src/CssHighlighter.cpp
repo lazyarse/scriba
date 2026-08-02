@@ -15,35 +15,40 @@
 #include "CssHighlighter.h"
 #include <QTextDocument>
 
-CssHighlighter::CssHighlighter(const QString &themeCss, QTextDocument *parent)
+CssHighlighter::Palette CssHighlighter::paletteFor(bool dark)
+{
+    if (dark) {
+        return {
+            QColor("#1e1e1e"), // background
+            QColor("#d4d4d4"), // foreground
+            QColor("#6a9955"), // comment
+            QColor("#8c8c8c"), // punct
+            QColor("#ce9178"), // string
+            QColor("#569cd6"), // keyword / at-rule
+            QColor("#9cdcfe"), // property
+            QColor("#d19a66"), // hexColor
+            QColor("#b5cea8"), // number
+            QColor("#d7ba7d"), // selector
+        };
+    }
+    return {
+        QColor("#ffffff"), // background
+        QColor("#24292e"), // foreground
+        QColor("#6a737d"), // comment
+        QColor("#6a737d"), // punct
+        QColor("#032f62"), // string
+        QColor("#d73a49"), // keyword / at-rule
+        QColor("#005cc5"), // property
+        QColor("#6f42c1"), // hexColor
+        QColor("#098658"), // number
+        QColor("#22863a"), // selector
+    };
+}
+
+CssHighlighter::CssHighlighter(bool dark, QTextDocument *parent)
     : QSyntaxHighlighter(parent)
 {
-    auto extractHljsColor = [&](const QString &className) -> QColor {
-        QRegularExpression re(
-            QStringLiteral("\\.hljs-%1[^{]*\\{[^}]*?color\\s*:\\s*([^;}\"]+)").arg(className));
-        QRegularExpressionMatchIterator it = re.globalMatch(themeCss);
-        QColor result;
-        while (it.hasNext())
-            result = QColor(it.next().captured(1).trimmed());
-        return result;
-    };
-
-    QColor commentCol   = extractHljsColor("comment");
-    QColor stringCol    = extractHljsColor("string");
-    QColor keywordCol   = extractHljsColor("keyword");
-    QColor attrCol      = extractHljsColor("attr");
-    QColor numberCol    = extractHljsColor("number");
-    QColor symbolCol    = extractHljsColor("symbol");
-    QColor nameCol      = extractHljsColor("name");
-    QColor builtInCol   = extractHljsColor("built_in");
-    QColor punctCol     = extractHljsColor("punctuation");
-
-    auto hasColor = [](const QColor &c) { return c.isValid() && c.alpha() > 0; };
-
-    m_commentFormat.setForeground(hasColor(commentCol) ? commentCol : QColor("#999999"));
-    m_commentFormat.setFontItalic(true);
-
-    m_punctFormat.setForeground(hasColor(punctCol) ? punctCol : QColor("#999999"));
+    const Palette p = paletteFor(dark);
 
     auto makeFormat = [](const QColor &col, bool bold = false) {
         QTextCharFormat f;
@@ -52,46 +57,37 @@ CssHighlighter::CssHighlighter(const QString &themeCss, QTextDocument *parent)
         return f;
     };
 
-    // Multi-line comments: /* ... */
-    // (rules are empty; handled entirely in highlightBlock via block state)
+    m_commentFormat.setForeground(p.comment);
+    m_commentFormat.setFontItalic(true);
 
     // Strings: "..." or '...'
-    if (hasColor(stringCol))
-        m_rules.append({QRegularExpression(R"("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')"),
-                        makeFormat(stringCol)});
+    m_rules.append({QRegularExpression(R"("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')"),
+                    makeFormat(p.string)});
 
     // !important
-    if (hasColor(keywordCol))
-        m_rules.append({QRegularExpression(QStringLiteral("!important")),
-                        makeFormat(keywordCol, true)});
+    m_rules.append({QRegularExpression(QStringLiteral("!important")),
+                    makeFormat(p.keyword, true)});
 
     // At-rules: @media, @font-face, etc.
-    if (hasColor(keywordCol))
-        m_rules.append({QRegularExpression(QStringLiteral("[@][a-zA-Z][\\w-]*")),
-                        makeFormat(keywordCol)});
+    m_rules.append({QRegularExpression(QStringLiteral("[@][a-zA-Z][\\w-]*")),
+                    makeFormat(p.keyword)});
 
     // Properties: word followed by :
-    if (hasColor(attrCol))
-        m_rules.append({QRegularExpression(QStringLiteral("\\b[a-zA-Z][\\w-]*(?=\\s*:)")),
-                        makeFormat(attrCol)});
+    m_rules.append({QRegularExpression(QStringLiteral("\\b[a-zA-Z][\\w-]*(?=\\s*:)")),
+                    makeFormat(p.property)});
 
     // Hex colors: # followed by 3-8 hex digits
-    if (hasColor(symbolCol))
-        m_rules.append({QRegularExpression(QStringLiteral("#(?:[0-9a-fA-F]{3,8})\\b")),
-                        makeFormat(symbolCol)});
+    m_rules.append({QRegularExpression(QStringLiteral("#(?:[0-9a-fA-F]{3,8})\\b")),
+                    makeFormat(p.hexColor)});
 
     // Numbers with units: e.g. 16px, 2.5em, 100%, 1.45
-    if (hasColor(numberCol))
-        m_rules.append({QRegularExpression(QStringLiteral("\\b\\d+\\.?\\d*(?:px|em|rem|%|pt|cm|mm|in|vh|vw|vmin|vmax|fr|s|ms|deg|rad|turn)?\\b")),
-                        makeFormat(numberCol)});
+    m_rules.append({QRegularExpression(QStringLiteral("\\b\\d+\\.?\\d*(?:px|em|rem|%|pt|cm|mm|in|vh|vw|vmin|vmax|fr|s|ms|deg|rad|turn)?\\b")),
+                    makeFormat(p.number)});
 
     // Selectors: identifiers not followed by : (so properties are excluded)
-    if (hasColor(nameCol)) {
-        QTextCharFormat selectorFmt = makeFormat(nameCol);
-        selectorFmt.setFontWeight(QFont::Bold);
-        m_rules.append({QRegularExpression(QStringLiteral("(?<=^|[{,\\s])\\s*([a-zA-Z][\\w-]*)(?!\\s*:)")),
-                        selectorFmt});
-    }
+    QTextCharFormat selectorFmt = makeFormat(p.selector, true);
+    m_rules.append({QRegularExpression(QStringLiteral("(?<=^|[{,\\s])\\s*([a-zA-Z][\\w-]*)\\b(?!\\s*:)")),
+                    selectorFmt});
 }
 
 void CssHighlighter::highlightBlock(const QString &text)

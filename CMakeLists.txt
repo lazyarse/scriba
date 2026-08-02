@@ -242,6 +242,11 @@ if(BUILD_TESTS)
     target_link_libraries(test_css_utils PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_css_utils COMMAND ${_TEST_PREFIX} ./test_css_utils)
 
+    add_executable(test_css_highlighter tests/test_css_highlighter.cpp src/CssHighlighter.cpp)
+    target_include_directories(test_css_highlighter PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_css_highlighter PRIVATE scriba_test_main)
+    add_test(NAME test_css_highlighter COMMAND ${_TEST_PREFIX} ./test_css_highlighter)
+
     add_executable(test_static_helpers tests/test_static_helpers.cpp resources/scriba.qrc)
     target_link_libraries(test_static_helpers PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_static_helpers COMMAND ${_TEST_PREFIX} ./test_static_helpers)
