@@ -8,6 +8,16 @@ A quick tour of what Scriba can do.
 
 > Block quote with **inline** styling.
 
+## Header Links
+
+Jump to any heading in this document by linking to its slug:
+
+- [Typography](#typography)
+- [Mermaid Diagrams](#mermaid-diagrams)
+- [Find & Replace](#find-replace)
+
+Write `[text](#heading)` for same-document jumps and `[text](other.md#heading)` to jump to a heading in another markdown file. Links to headings that don't exist get an amber squiggle in the editor.
+
 ## Images
 
 Resize with `#WIDTHxHEIGHT` suffix appended to the image URL:
