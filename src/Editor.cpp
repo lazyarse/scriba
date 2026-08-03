@@ -50,8 +50,7 @@
 namespace {
 
 // StoppardEngine is stateless and cheap to construct (no dictionary load), so
-// each Editor tab gets its own instance — unlike HarperEngine, which had to be
-// shared because loading harper's curated dictionary was expensive.
+// each Editor tab gets its own instance.
 GrammarChecker *sharedGrammarChecker()
 {
     QSettings settings;

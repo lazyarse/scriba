@@ -20,7 +20,7 @@
 #include <QVector>
 
 // Interface for grammar checking. Implementations are expected to be
-// expensive (e.g. harper) — callers should debounce invocations.
+// expensive — callers should debounce invocations.
 class GrammarChecker
 {
 public:
@@ -44,7 +44,7 @@ public:
 
     // Runs the check over `text` and returns all issues found.
     // May be called from a background thread; implementations must be
-    // thread-safe (harper serializes access to its engine with a mutex).
+    // thread-safe.
     virtual QList<Issue> check(const QString &text) = 0;
 };
 

@@ -17,6 +17,7 @@
 #include "GrammarChecker.h"
 #include <QHash>
 #include <QList>
+#include <QSet>
 #include <QString>
 #include <QSyntaxHighlighter>
 #include <QThread>
@@ -53,10 +54,14 @@ private:
 // code, inline code, URLs, HTML tags, emoji shortcodes, math, front matter)
 // is skipped via per-block state tracking and a shared word scanner.
 //
-// Spelling is checked word-by-word inside highlightBlock() (hunspell is fast
-// enough for that). Grammar checking is whole-document and expensive, so it
-// runs on a debounced timer and the actual check happens on a background
-// thread; per-block issue ranges are cached here.
+// Spelling is checked word-by-word (hunspell is fast enough for that), but
+// not on every keystroke: an edit makes its blocks "stale" (underlines
+// cleared) until the check runs again, which happens immediately when the
+// edit inserts a separator (space, punctuation, newline) — i.e. the word is
+// complete — or after a short debounce, so words that are still being typed
+// are not flagged as typos. Grammar checking is whole-document and
+// expensive, so it runs on a debounced timer and the actual check happens
+// on a background thread; per-block issue ranges are cached here.
 class SpellHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
@@ -106,6 +111,8 @@ protected:
     void highlightBlock(const QString &text) override;
 
 private:
+    void scheduleSpellCheck(int position, int charsRemoved, int charsAdded);
+    void runSpellCheck();
     void scheduleGrammarLint(int charsRemoved, int charsAdded);
     void runGrammarLint();
     void onLintFinished(quint64 generation, const QString &text,
@@ -116,11 +123,19 @@ private:
     SpellChecker *m_checker = nullptr;
     GrammarChecker *m_grammar = nullptr;
     QTimer *m_lintTimer = nullptr;
+    QTimer *m_spellTimer = nullptr;
     QThread *m_lintThread = nullptr;
     GrammarLintWorker *m_lintWorker = nullptr;
     quint64 m_lintGeneration = 0;
     bool m_spellEnabled = true;
     bool m_grammarEnabled = false;
+    // Blocks edited since their last spell check: underlines stay cleared
+    // until runSpellCheck() re-checks them.
+    QSet<int> m_staleBlocks;
+    // Document block count from the previous edit, to detect block
+    // insertions/removals (they renumber every following block, so all of
+    // them must be re-checked, not just the edited range).
+    int m_lastBlockCount = 0;
     // blockNumber → grammar issues within the block
     QHash<int, QVector<GrammarHit>> m_grammarIssues;
     // blockNumber → misspelled word ranges within the block

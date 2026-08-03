@@ -330,6 +330,93 @@ TEST_F(SpellHighlighterLintTest, RealEditStillTriggersLint)
     EXPECT_EQ(m_grammar.checkCount.load(), 2);
 }
 
+// Spell checking is deferred so that words currently being typed are not
+// flagged as typos: an edit makes its block "stale" (underlines cleared)
+// until the check runs again, which happens immediately when a separator
+// (space, punctuation, newline) is typed, or after a short debounce when the
+// user pauses mid-word. These tests drive a real QTextEdit like the app
+// does — typing is what fires QTextDocument::contentsChange.
+class SpellHighlighterSpellDebounceTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        QSettings().clear();
+        QDir().mkpath(SpellChecker::configDictDir());
+        QFile::remove(SpellChecker::configDictDir() + "/user.dic");
+        ASSERT_TRUE(m_checker.loadLanguage("en_US"));
+        m_edit = new QTextEdit;
+        m_edit->setPlainText("hello world");
+        m_highlighter = new SpellHighlighter(m_edit->document());
+        m_highlighter->setChecker(&m_checker);
+        m_highlighter->refresh(); // baseline check of "hello world"
+    }
+
+    void TearDown() override
+    {
+        delete m_highlighter;
+        delete m_edit;
+        QFile::remove(SpellChecker::configDictDir() + "/user.dic");
+        QSettings().clear();
+    }
+
+    bool covers(int blockNumber, int pos) const
+    {
+        for (const auto &hit : m_highlighter->spellHitsInBlock(blockNumber))
+            if (pos >= hit.start && pos < hit.start + hit.length)
+                return true;
+        return false;
+    }
+
+    SpellChecker m_checker;
+    QTextEdit *m_edit = nullptr;
+    SpellHighlighter *m_highlighter = nullptr;
+};
+
+TEST_F(SpellHighlighterSpellDebounceTest, WordBeingTypedNotFlagged)
+{
+    m_edit->moveCursor(QTextCursor::End);
+    // Appends "helo" to "hello world" → "hello worldhelo". No separator is
+    // typed, so the misspelled "worldhelo" must not be flagged mid-typing.
+    QTest::keyClicks(m_edit, "helo");
+    EXPECT_FALSE(covers(0, 6));
+    EXPECT_FALSE(covers(0, 14));
+}
+
+TEST_F(SpellHighlighterSpellDebounceTest, SeparatorTriggersImmediateCheck)
+{
+    m_edit->moveCursor(QTextCursor::End);
+    QTest::keyClicks(m_edit, "helo");
+    QTest::keyClick(m_edit, Qt::Key_Space);
+    EXPECT_TRUE(covers(0, 6));  // "worldhelo" is complete now → flagged
+    EXPECT_FALSE(covers(0, 0)); // "hello" is correct
+}
+
+TEST_F(SpellHighlighterSpellDebounceTest, PauseTriggersDebouncedCheck)
+{
+    m_edit->moveCursor(QTextCursor::End);
+    QTest::keyClicks(m_edit, "helo");
+    EXPECT_FALSE(covers(0, 6));
+
+    QTest::qWait(700); // debounce (400 ms) fires
+    EXPECT_TRUE(covers(0, 6));
+}
+
+TEST_F(SpellHighlighterSpellDebounceTest, EditingFlaggedWordAgainClearsUnderline)
+{
+    m_edit->moveCursor(QTextCursor::End);
+    QTest::keyClicks(m_edit, "helo");
+    QTest::keyClick(m_edit, Qt::Key_Space);
+    ASSERT_TRUE(covers(0, 6));
+
+    // Insert a letter in the middle of the flagged word: the edit is now
+    // mid-word again, so the underline clears until the next check.
+    m_edit->moveCursor(QTextCursor::Left);
+    m_edit->moveCursor(QTextCursor::Left);
+    QTest::keyClick(m_edit, Qt::Key_X);
+    EXPECT_FALSE(covers(0, 6));
+}
+
 } // namespace
 
 int main(int argc, char **argv)

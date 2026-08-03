@@ -39,6 +39,13 @@ QTextCharFormat grammarFormat()
     return fmt;
 }
 
+// A separator ends a word: space, punctuation, newline, hyphen (scanWords()
+// splits on hyphens anyway), etc. Apostrophes stay inside words.
+bool isWordSeparator(QChar c)
+{
+    return !c.isLetterOrNumber() && c != QLatin1Char('\'') && c != QChar(0x2019);
+}
+
 } // namespace
 
 QColor SpellHighlighter::spellUnderlineColor()
@@ -54,15 +61,23 @@ QColor SpellHighlighter::grammarUnderlineColor()
 SpellHighlighter::SpellHighlighter(QTextDocument *document, QObject *parent)
     : QSyntaxHighlighter(document)
     , m_lintTimer(new QTimer(this))
+    , m_spellTimer(new QTimer(this))
+    , m_lastBlockCount(document->blockCount())
 {
     if (parent)
         setParent(parent);
     m_lintTimer->setSingleShot(true);
     m_lintTimer->setInterval(400);
     connect(m_lintTimer, &QTimer::timeout, this, &SpellHighlighter::runGrammarLint);
+    m_spellTimer->setSingleShot(true);
+    m_spellTimer->setInterval(400);
+    connect(m_spellTimer, &QTimer::timeout, this, &SpellHighlighter::runSpellCheck);
     // Schedule on contentsChange (not contentsChanged): rehighlight() and
     // other format-only work emit contentsChanged but no contentsChange, so
-    // this prevents the lint from re-arming itself into an infinite loop.
+    // this prevents the checks from re-arming themselves into an infinite
+    // loop.
+    connect(document, &QTextDocument::contentsChange,
+            this, &SpellHighlighter::scheduleSpellCheck);
     connect(document, &QTextDocument::contentsChange,
             this, &SpellHighlighter::scheduleGrammarLint);
 }
@@ -104,7 +119,7 @@ void SpellHighlighter::ensureLintWorker()
     Q_UNUSED(typesRegistered);
 
     m_lintThread = new QThread(this);
-    m_lintThread->setObjectName(QStringLiteral("harper-lint"));
+    m_lintThread->setObjectName(QStringLiteral("grammar-lint"));
     m_lintWorker = new GrammarLintWorker(m_grammar);
     m_lintWorker->moveToThread(m_lintThread);
     connect(m_lintWorker, &GrammarLintWorker::lintFinished,
@@ -126,6 +141,11 @@ void SpellHighlighter::setGrammarChecker(GrammarChecker *checker)
 void SpellHighlighter::setSpellCheckingEnabled(bool enabled)
 {
     m_spellEnabled = enabled;
+    if (!enabled) {
+        m_spellHits.clear();
+        m_staleBlocks.clear();
+        m_spellTimer->stop();
+    }
     rehighlight();
 }
 
@@ -142,9 +162,102 @@ void SpellHighlighter::setGrammarCheckingEnabled(bool enabled)
 void SpellHighlighter::refresh()
 {
     m_grammarIssues.clear();
+    m_spellHits.clear();
+    m_staleBlocks.clear();
+    if (m_spellEnabled && m_checker && m_checker->isLoaded()) {
+        for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next())
+            m_staleBlocks.insert(block.blockNumber());
+        runSpellCheck();
+    }
     rehighlight();
     if (m_grammar && m_grammarEnabled)
         m_lintTimer->start();
+}
+
+void SpellHighlighter::scheduleSpellCheck(int position, int charsRemoved, int charsAdded)
+{
+    if (!m_spellEnabled || !m_checker || !m_checker->isLoaded())
+        return;
+    // Format-only changes (highlighting, block-state updates) emit
+    // contentsChange with (0,0) — the edits' own reformats. Skip those, or
+    // the checks would re-arm themselves into an endless loop.
+    if (charsRemoved == 0 && charsAdded == 0)
+        return;
+
+    // A removal-only change spanning the whole document is a load or replace
+    // (setPlainText, clear, select-all-delete) rather than typing; likewise a
+    // multi-character insertion at position 0 fills an empty document (a
+    // paste, or the contentsChange QTextDocumentLayout emits when it is
+    // attached to a bare document). Both are loads: check the new content
+    // right away. (Single-keystroke edits into an empty document have
+    // charsAdded == 1 and stay on the debounce path.)
+    const bool fullReplace = position == 0 && charsAdded == 0
+        && charsRemoved >= document()->characterCount() - 1;
+    const bool wholeDocInsert = position == 0 && charsRemoved == 0 && charsAdded > 1;
+
+    // Block insertions/removals renumber every following block, so their
+    // cached hits would end up on the wrong lines: re-check everything from
+    // the first affected block on.
+    const bool structureChanged = document()->blockCount() != m_lastBlockCount;
+    m_lastBlockCount = document()->blockCount();
+
+    QTextBlock first = document()->findBlock(position);
+    QTextBlock last = structureChanged
+        ? document()->lastBlock()
+        : document()->findBlock(position + qMax(charsAdded, charsRemoved));
+    // The edit may end exactly at the end of the document, where no block
+    // exists; the last block is then the affected one.
+    if (!last.isValid())
+        last = document()->lastBlock();
+    if (!first.isValid() || !last.isValid())
+        return;
+    const int lastNumber = last.blockNumber();
+    for (QTextBlock block = first; block.isValid() && block.blockNumber() <= lastNumber; block = block.next()) {
+        m_staleBlocks.insert(block.blockNumber());
+        // Drop cached hits so no underlines linger while the word is being
+        // typed; runSpellCheck() repopulates them.
+        m_spellHits.remove(block.blockNumber());
+    }
+
+    if (fullReplace || wholeDocInsert) {
+        runSpellCheck();
+        return;
+    }
+
+    // Check immediately when the edit itself completes a word — the inserted
+    // character is a separator (space, punctuation, newline, hyphen, ...).
+    // Note the character *after* the change is not a signal: at a block end
+    // it is the paragraph separator, so mid-word typing at the end of a line
+    // would be flagged on every keystroke. Mid-word typing and pure
+    // deletions (the user may be editing an incomplete word) go to the
+    // debounce timer instead.
+    const QChar lastInserted = charsAdded > 0
+        ? document()->characterAt(position + charsAdded - 1) : QChar();
+    if (charsAdded > 0 && isWordSeparator(lastInserted))
+        runSpellCheck();
+    else
+        m_spellTimer->start();
+}
+
+void SpellHighlighter::runSpellCheck()
+{
+    if (!m_spellEnabled || !m_checker || !m_checker->isLoaded())
+        return;
+    const QList<int> staleBlocks = m_staleBlocks.values();
+    for (int blockNumber : staleBlocks) {
+        m_staleBlocks.remove(blockNumber);
+        const QTextBlock block = document()->findBlockByNumber(blockNumber);
+        if (!block.isValid())
+            continue; // block deleted; the cache entry was dropped when it went stale
+        QVector<GrammarHit> hits;
+        for (const WordHit &word : scanWords(block.text())) {
+            if (!m_checker->checkWord(word.text))
+                hits.append({word.start, word.length});
+        }
+        m_spellHits[blockNumber] = hits;
+        // Re-run highlightBlock() so formats and the underline overlay repaint.
+        rehighlightBlock(block);
+    }
 }
 
 QVector<QPair<int, int>> SpellHighlighter::protectedRanges(const QString &line)
@@ -203,8 +316,6 @@ void SpellHighlighter::highlightBlock(const QString &text)
     const bool opener = fenceRe.match(text).hasMatch();
     const bool isFrontMatterBoundary = frontMatterRe.match(text).hasMatch();
 
-    m_spellHits.remove(blockNumber);
-
     int newState = 0;
     if (state == 1) {
         newState = opener ? 0 : 1;
@@ -221,6 +332,8 @@ void SpellHighlighter::highlightBlock(const QString &text)
         && !(blockNumber == 0 && isFrontMatterBoundary);
     if (!checkable) {
         setFormat(0, text.length(), QTextCharFormat());
+        m_spellHits.remove(blockNumber);
+        m_staleBlocks.remove(blockNumber);
         return;
     }
 
@@ -236,12 +349,24 @@ void SpellHighlighter::highlightBlock(const QString &text)
     }
 
     if (m_spellEnabled && m_checker && m_checker->isLoaded()) {
-        for (const WordHit &word : scanWords(text)) {
-            if (!m_checker->checkWord(word.text)) {
-                m_spellHits[blockNumber].append({word.start, word.length});
-                applied = true;
+        if (!m_staleBlocks.contains(blockNumber)) {
+            if (!m_spellHits.contains(blockNumber)) {
+                // Block never checked (freshly loaded/replaced document whose
+                // edit was not a user keystroke): check now so the first
+                // paint shows the underlines.
+                QVector<GrammarHit> hits;
+                for (const WordHit &word : scanWords(text)) {
+                    if (!m_checker->checkWord(word.text))
+                        hits.append({word.start, word.length});
+                }
+                m_spellHits[blockNumber] = hits;
             }
+            if (!m_spellHits.value(blockNumber).isEmpty())
+                applied = true;
         }
+    } else {
+        m_spellHits.remove(blockNumber);
+        m_staleBlocks.remove(blockNumber);
     }
 
     if (!applied)

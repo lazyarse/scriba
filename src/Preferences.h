@@ -156,7 +156,7 @@ namespace Preferences {
             settings.setValue(ReopenLastSession, settings.value("reopenLastFile"));
         settings.remove("reopenLastFile");
 
-        // v1 → v2: harperDialect renamed to grammarDialect.
+        // v1 → v2: dialect key renamed to grammarDialect.
         if (!settings.contains(GrammarDialect) && settings.contains("harperDialect"))
             settings.setValue(GrammarDialect, settings.value("harperDialect"));
         settings.remove("harperDialect");
