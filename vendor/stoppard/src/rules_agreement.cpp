@@ -142,10 +142,12 @@ private:
             if (verb.verbForm == VerbForm::ThirdSingular && takesBase(subj)) {
                 out.push_back(makeIssue(a, verb, u"The verb must agree with the subject.", verb.lemma));
             } else if (verb.verbForm == VerbForm::Base && pronounPerson(subj) == 3
+                       && subj.number == -1
                        && wordText(a, subj) != u"it") {
                 const VerbForms vf = lookupVerbForms(verb.lemma);
                 out.push_back(makeIssue(a, verb, u"The verb must agree with the subject.", vf.third));
             } else if (verb.verbForm == VerbForm::PastParticiple && pronounPerson(subj) == 3
+                       && subj.number == -1
                        && wordText(a, subj) != u"it") {
                 // run/cut/hit: participle spelling == base, but the token could
                 // be a base ("she run fast"). Only when the past differs ("she

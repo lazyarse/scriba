@@ -1,0 +1,37 @@
+I like swimming to. | I like swimming too. | R12
+She enjoys reading to. | She enjoys reading too. | R12
+He hates driving to. | He hates driving too. | R12
+They love hiking to. | They love hiking too. | R12
+its going to rain | it's going to rain | R12
+its been a while | it's been a while | R12
+its done | it's done | R12
+your going to be late | you're going to be late | R12
+your going to love this | you're going to love this | R12
+your going to regret it | you're going to regret it | R12
+their is a problem | there is a problem | R12
+their may be trouble | there may be trouble | R12
+their will be time | there will be time | R12
+bigger then him | bigger than him | R12
+taller then a house | taller than a house | R12
+sooner then I arrived | sooner than I arrived | R12
+better then me | better than me | R12
+less then two | less than two | R12
+more then enough | more than enough | R12
+I want to. | I want to. | R12
+I'm going to. | I'm going to. | R12
+I am trying to. | I am trying to. | R12
+I like swimming too. | I like swimming too. | R12
+I went to the store. | I went to the store. | R12
+its tail is fluffy | its tail is fluffy | R12
+its being here surprised me | its being here surprised me | R12
+its going to the store | its going to the store | R12
+your car is here | your car is here | R12
+your writing is good | your writing is good | R12
+I appreciate your going to the store. | I appreciate your going to the store. | R12
+your going to the party | your going to the party | R12
+their cat sleeps | their cat sleeps | R12
+their being here matters | their being here matters | R12
+water then sleep | water then sleep | R12
+I would rather then go. | I would rather then go. | R12
+then we left. | then we left. | R12
+the then president | the then president | R12

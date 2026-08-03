@@ -11,3 +11,7 @@ The police is here. | The police are here. | R3
 The team are winning. | The team is winning. | R3
 Watch it break. | Watch it break. | R3
 The cat sat on the mat. | The cat sat on the mat. | R3
+They walk to school. | They walk to school. | R3
+They run fast. | They run fast. | R3
+They love hiking. | They love hiking. | R3
+They like pizza. | They like pizza. | R3

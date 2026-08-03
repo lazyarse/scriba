@@ -392,16 +392,16 @@ into stem + `'s`/`'re`) are **not** in the lexicon → they tag `Unknown`. R12
 therefore fires only on the closed-form member in a slot that provably requires
 its sibling:
 
-| wrong (closed token) | provable slot | correction |
-|---|---|---|
-| `to` | sentence-final (next is `.`/`,`/end) | `too` |
-| `too` | before base verb (infinitive slot) | `to` |
-| `its` | before a Verb | `it's` |
-| `it's` | before a Noun (possessive slot) | `its` |
-| `your` | before a Verb | `you're` |
-| `their` | before `be`/aux/modal ("there is a") | `there` |
-| `then` | after a comparative (-er / `more`) | `than` |
-| `who's` | before a Noun (possessive) | `whose` |
+| wrong (closed token) | provable slot | correction | status |
+|---|---|---|---|
+| `to` | sentence-final (next is `.`/`,`/end) | `too` | v1 |
+| `too` | before base verb (infinitive slot) | `to` | **deferred** — bare verbs tag `Unknown` (no verb dictionary yet, M9); the required signal is not positionally provable |
+| `its` | before a Verb | `it's` | v1 |
+| `it's` | before a Noun (possessive slot) | `its` | **deferred** — after `'s` the next word tags `VB`, not `N`; "it's time"/"it's fun" would be false positives without noun detection (M9) |
+| `your` | before a Verb | `you're` | v1 |
+| `their` | before `be`/aux/modal ("there is a") | `there` | v1 |
+| `then` | after a comparative (-er / `more`) | `than` | v1 |
+| `who's` | before a Noun (possessive) | `whose` | **deferred** — same noun-detection blocker as `it's` (M9) |
 
 ### 17.3 Table-driven, closed and curated (R9 model)
 
@@ -410,23 +410,44 @@ entries, each `{ wrong token → correction }` plus a small per-entry guard
 predicate (like R9's `gottenParticiple` at `rules_regionalisms.cpp:127-131`)
 that encodes the provable slot, reusing the LCS diff for span/suggestion. Every
 entry is a deliberate precision-reviewed decision, not a word dump. Seed table
-(v1, all guard-verified): the 8 rows in 17.2.
+(v1, all guard-verified): the 5 "v1" rows in 17.2. The three "deferred" rows
+are blocked on the M9 dictionary pass and are NOT registered.
 
 - **Message**: short plain-English instruction, e.g. "Did you mean \"too\"
   (also)?" — with the suggestion.
 - **Match-case**: suggestions preserve the source's case (as in R9).
+- **Registry order**: R12 sorts after R9; both are single-span single-token
+  issues, so no overlap with earlier rules exists in the seed set.
 
 ### 17.4 Guards forced by R12
 - Never fire on UNKNOWN tokens (precision guarantee) — the closed member is
 the trigger, its Unknown sibling is the expected replacement.
 - `to/too`: never fire when `to` governs an infinitive ("I like to swim") or an
-object; only sentence-final "to".
-- `its/it's`: never fire on possessive-"its" followed by a noun ("its tail");
-  `it's` only fires when a possessive determiner is required.
-- `their/there`: never fire on bare "there"/expletive followed by a verb
-  (that is the correct usage); only possessive-"their" in expletive slot.
-- `then/than`: only after a comparative (the strong signal); never bare "then"
-  (sequence "then we left" stays clean).
+object; only sentence-final "to". The sentence-final signal requires the
+preceding word to be a **gerund** ("I like swimming to."); a stranded
+infinitive ("I want to.", "I'm going to.") stays clean — the gerund's
+preceding token being an auxiliary/modal, or the gerund being "going"
+(going-to future), suppresses the fire.
+- `its/it's`: fires on "its" before a Verb or be/do/have auxiliary ("its been
+  a while" — "been" is an Auxiliary). A gerund (including "being"/"having",
+  which tag Auxiliary) only fires when it heads the going-to future ("its
+  going to rain"): "its going to the store" (PP) and the possessive gerund
+  ("its being here surprised me") stay clean via the Determiner check on the
+  word after "to". Never fires on possessive-"its" followed by a noun ("its
+  tail").
+- `your/you're`: fires on "your" + gerund + "to" + **non-Determiner** ("your
+  going to be late"). The determiner check keeps the possessive gerund clean
+  ("I appreciate your going to the store").
+- `their/there`: fires on possessive-"their" before be/aux/modal ("their is a
+  problem"), never on gerund auxiliaries — "their being here matters" is a
+  legitimate possessive gerund. Never fires on bare "there"/expletive followed
+  by a verb.
+- `then/than`: fires only when the preceding word is a comparative — surface
+  `more`/`less`, or an "-er" ending — and, for "-er" words, the following word
+  is a Pronoun or Determiner ("bigger then him", "taller then a house"). The
+  Pronoun/Determiner requirement separates a true comparative from a
+  content-noun "-er" word ("water then sleep" stays clean, as do "the then
+  president", "then we left").
 - **Zero-false-positive bar**: every entry must keep `clean_corpus*.txt`
   zero-issue and the mutation "exactly one issue" invariant.
 
@@ -442,8 +463,80 @@ object; only sentence-final "to".
 In addition to the precision (clean) + positive/negative (per-rule) tests, R12
 adds a **recall check**: `tests/data/recall_corpus.txt` — real-world error
 sentences in the same `wrong | right | rule` format, not rule-split, run by a
-new `TEST(RRecall)` (asserts no existing rule regresses). v1 target a few
+new `TEST(RRecall)`. Unlike the rule-case harness (§15, exact span via LCS),
+Recall asserts **presence only**: the `wrong` side must produce at least one
+issue whose start falls within the LCS-derived mismatch span (reordering
+errors like R13's "us one" produce insert-only runs; the presence check is
+what makes them testable there). v1 target a few
 hundred lines, sourced as original minimal pairs (Harper's MIT/MT test patterns
 and LanguageTool examples are *inspiration* only, never copied — §15 layer 4).
 `clean_corpus*` remains the zero-false-positive gate; the recall corpus is the
 zero-false-negative counterpart.
+
+## 18. Pronoun + numeral ("us one" → "one of us", R13)
+
+### 18.1 The error and its provability
+
+"for us one" → "for one of us". The error is **word order + missing "of"**: a
+plural pronoun is immediately followed by the numeral `one` where the numeral
+must precede the pronoun with "of" between.
+
+Why the rule is provable:
+- `we`, `us`, `they`, `them` are closed-lexicon pronouns (`lexicon.cpp:215,237,242`).
+- `one` is **not** in the lexicon; it tags `Unknown` (a bare word with no
+  context after an object pronoun clears both contexts — tagger.cpp:99-113).
+- Rules never fire on Unknown — so R13 fires on the **closed pronoun** with a
+  **surface-text check** of the following token (`a.text.substr(...)` — the same
+  mechanism R4 uses for the "to" check, rules_to_infinitive.cpp:36).
+
+### 18.2 Seed table (v1)
+
+| wrong | correction | guard |
+|---|---|---|
+| `us one` | `one of us` | object pronoun `us`/`them` or subject `we`/`they` followed by surface `one` |
+| `them one` | `one of them` | same |
+| `we one` | `one of us` | same |
+| `they one` | `one of them` | same |
+
+- Suggestion preserves the source's case (`matchCase`): "Us one" → "One of us".
+- The suggested text is "one of <pronoun>" (the correction column).
+- `you` is excluded (ambiguous number, `lexicon.cpp:264`); `her`/`him`/`me` are
+  excluded (singular — "for her one" is not a real-world error pattern).
+- Numerals other than `one` are excluded: "us two" is idiomatic ("for us two"),
+  so the rule must not generalize to any numeral.
+- **Registry order**: R13 sorts **before R6** (pronoun case). "Us one asked"
+  is also a subject-slot error (R6 suggests "We" — the wrong fix); with R13
+  earlier, its "One of us" wins the dedup.
+
+### 18.3 Guards (zero-false-positive bar)
+- Fires only on the closed pronoun; the following token must be the **surface
+  text** "one" (folded case-insensitive), adjacent (no punctuation between).
+- Object pronouns (`us`/`them`) additionally require a **preceding
+  Preposition** ("for us one" is the error; the ditransitive "Give us one."
+  is correct English). Sentence-initial "Us one asked" has no preceding token
+  and fires — matching the `matchCase` example above.
+- Never fires on "one of us" / "one of them" themselves — there the pronoun
+  follows the preposition, not "one".
+- Never fires when "one" is followed by an Unknown token ("us one cat" is
+  nonsense, not an error worth flagging; conservative skip — the Unknown
+  check stands in for the noun check until M9).
+- Sentence-initial "one" ("One of us went") is untouched — the pronoun is not
+  immediately before it.
+- Keeps `clean_corpus*.txt` zero-issue and the mutation "exactly one issue"
+  invariant.
+
+### 18.4 Test harness note (important)
+The rule-case harness (`tests/test_rule_cases.cpp` `diffRuns`) derives expected
+spans via **token-level LCS**. Reordering cases like "us one" → "one of us"
+produce insert-only edit runs (zero-length spans) that no issue can match — the
+LCS model cannot express a swap. Therefore:
+- **Positive cases** for R13 live in a dedicated gtest suite
+  (`test_rules_pronoun_numeral.cpp`) asserting exact start/length/suggestion,
+  **not** in `rule_cases/R13_*.txt`.
+- The `rule_cases` file (if any) holds only identical-side lines (clean checks)
+  and substitution-style cases where LCS is sound.
+
+### 18.5 Recall corpus
+"for us one" and "for them one" lines belong in `recall_corpus.txt` (§17.6) —
+run by `TEST(Recall)`, which asserts at least one issue (start may differ from
+the LCS-derived span; only presence is checked there — see 17.6).

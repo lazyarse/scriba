@@ -236,3 +236,4 @@ TEST(RuleCases, R6) { runFile("R6_pronoun_case.txt", "R6", Dialect::American); }
 TEST(RuleCases, R7) { runFile("R7_double_modal.txt", "R7", Dialect::American); }
 TEST(RuleCases, R8) { runFile("R8_double_negative.txt", "R8", Dialect::American); }
 TEST(RuleCases, R9) { runFile("R9_regionalisms.txt", "R9", Dialect::British); }
+TEST(RuleCases, R12) { runFile("R12_confusion.txt", "R12", Dialect::American); }

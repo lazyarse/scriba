@@ -1,0 +1,30 @@
+I can has a cat. | I can have a cat. | R1
+She can goes to the store. | She can go to the store. | R1
+We could went there. | We could go there. | R1
+She has go home. | She has gone home. | R2
+I have went there. | I have gone there. | R2
+He did went. | He did go. | R2
+I has a cat. | I have a cat. | R3
+They goes home. | They go home. | R3
+She run fast. | She runs fast. | R3
+I want to has a cat. | I want to have a cat. | R4
+She tried to went home. | She tried to go home. | R4
+These cat can run. | These cats can run. | R5
+This dogs bark. | This dog bark. | R5
+Me went home. | I went home. | R6
+Give it to she. | Give it to her. | R6
+Us saw them. | We saw them. | R6
+I can could go. | I can go. | R7
+She will can do it. | She will do it. | R7
+I don't never go. | I don't ever go. | R8
+I don't know nothing. | I don't know anything. | R8
+It's in the cards. | It's on the cards. | R9
+I like swimming to. | I like swimming too. | R12
+its going to rain | it's going to rain | R12
+your going to be late | you're going to be late | R12
+their is a problem | there is a problem | R12
+bigger then him | bigger than him | R12
+for us one | for one of us | R13
+for them one | for one of them | R13
+we one should go | one of us should go | R13
+they one left | one of them left | R13

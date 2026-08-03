@@ -91,6 +91,9 @@ public:
             const u16string_view w = wordText(a, toks[i]);
 
             if (toks[i].pcase == PronounCase::Object) {
+                // Object of a preposition is never a subject: "One of them
+                // went" — the verb belongs to the NP head, not the pronoun.
+                if (i > 0 && toks[i - 1].pos == PosTag::Preposition) continue;
                 // Subject position: next content token must be Verb/Auxiliary.
                 // Coordination ("me and John") is out of scope.
                 if (i + 1 < toks.size() && toks[i + 1].pos == PosTag::Conjunction)

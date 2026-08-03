@@ -20,6 +20,8 @@ add_library(stoppard STATIC
     src/rules_double_modal.cpp
     src/rules_double_negative.cpp
     src/rules_regionalisms.cpp
+    src/rules_confusion.cpp
+    src/rules_pronoun_numeral.cpp
     src/engine.cpp
 )
 target_include_directories(stoppard PUBLIC include)

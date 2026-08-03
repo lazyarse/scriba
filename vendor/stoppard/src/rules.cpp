@@ -15,6 +15,7 @@
 #include <algorithm>
 
 #include "rules.h"
+#include "rules_confusion.h"
 #include "rules_double_modal.h"
 #include "rules_double_negative.h"
 #include "rules_regionalisms.h"
@@ -24,12 +25,14 @@
 #include "rules_determiner.h"
 #include "rules_modal.h"
 #include "rules_pronoun_case.h"
+#include "rules_pronoun_numeral.h"
 
 namespace stoppard {
 namespace {
 
-// Explicit registry in priority order (R1..R9). Overlapping issues: earlier
-// rule wins, so R1 must sort before R3 (both fire on "I can has").
+// Explicit registry in priority order (R1..R13). Overlapping issues: earlier
+// rule wins, so R1 must sort before R3 (both fire on "I can has"), and R13
+// before R6 ("Us one asked": R6's "We" would shadow R13's "One of us").
 const std::vector<const Rule*>& registry()
 {
     static const std::vector<const Rule*> rules = {
@@ -38,10 +41,12 @@ const std::vector<const Rule*>& registry()
         &agreementRule(),
         &toInfinitiveRule(),
         &determinerNounAgreementRule(),
+        &pronounNumeralRule(),
         &pronounCaseRule(),
         &doubleModalRule(),
         &doubleNegativeRule(),
         &regionalismsRule(),
+        &confusionRule(),
     };
     return rules;
 }

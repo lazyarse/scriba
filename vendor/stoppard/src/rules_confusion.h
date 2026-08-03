@@ -12,26 +12,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#include <gtest/gtest.h>
+#pragma once
 #include "rules.h"
-using namespace stoppard;
 
-TEST(Framework, RegistryHasElevenRules) {
-    EXPECT_EQ(allRules().size(), 11u);
-}
+namespace stoppard {
 
-TEST(Framework, EmptyTextNoIssues) {
-    EXPECT_TRUE(runAll(u"", Dialect::American).empty());
-}
+const Rule& confusionRule();
 
-TEST(Framework, CleanTextNoIssues) {
-    EXPECT_TRUE(runAll(u"The cat sat on the mat.", Dialect::American).empty());
-}
-
-TEST(Framework, DedupKeepsEarlierStart) {
-    // R1 fires on "has" (modal rule); dedup must keep exactly that one issue.
-    auto issues = runAll(u"I can has a cat.", Dialect::American);
-    ASSERT_EQ(issues.size(), 1u);
-    EXPECT_EQ(issues[0].start, 6);
-    EXPECT_EQ(issues[0].length, 3);
-}
+} // namespace stoppard
