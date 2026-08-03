@@ -1366,6 +1366,9 @@ bool MainWindow::findText(const QString &text, bool backward, bool useRegex, boo
     Editor *ed = currentEditor();
     if (!ed) return false;
 
+    QScrollBar *scrollBar = ed->verticalScrollBar();
+    const int scrollBefore = scrollBar->value();
+
     QTextDocument::FindFlags flags;
     if (caseSensitive)
         flags |= QTextDocument::FindCaseSensitively;
@@ -1394,6 +1397,8 @@ bool MainWindow::findText(const QString &text, bool backward, bool useRegex, boo
 
     if (!found)
         statusBar()->showMessage("No matches found", 3000);
+    else if (scrollBar->value() != scrollBefore)
+        ed->centerCursor();
 
     return found;
 }

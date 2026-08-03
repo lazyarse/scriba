@@ -17,6 +17,10 @@
 #include <QSignalSpy>
 #include <QTest>
 #include <QTextCursor>
+#include <QTextBlock>
+#include <QScrollBar>
+#include <QPushButton>
+#include <QDialog>
 
 #include "FindDialog.h"
 #include "MainWindow.h"
@@ -192,6 +196,18 @@ protected:
 
     void TearDown() override {
         delete window;
+    }
+
+    static void clickButton(QWidget *parent, const QString &label)
+    {
+        const QString wanted = QString(label).remove('&');
+        for (auto *btn : parent->findChildren<QPushButton *>()) {
+            if (btn->text().remove('&') == wanted) {
+                QTest::mouseClick(btn, Qt::LeftButton);
+                return;
+            }
+        }
+        FAIL() << "button not found: " << qPrintable(label);
     }
 
     MainWindow *window = nullptr;
@@ -491,6 +507,122 @@ TEST_F(FindDialogIntegrationTest, RegexReplaceWithNoMatch)
     QApplication::processEvents();
 
     EXPECT_EQ(editor->toPlainText(), "hello world");
+}
+
+TEST_F(FindDialogIntegrationTest, FindDoesNotScrollVisibleMatch)
+{
+    auto *editor = window->editor();
+    QString text;
+    for (int i = 0; i < 300; ++i)
+        text += "line " + QString::number(i) + "\n";
+    editor->setPlainText(text);
+    QApplication::processEvents();
+
+    QTextCursor c(editor->document()->findBlockByNumber(150));
+    editor->setTextCursor(c);
+    QApplication::processEvents();
+    auto *sb = editor->verticalScrollBar();
+    int absY = editor->cursorRect().top() + sb->value();
+    sb->setValue(qMax(0, absY - editor->viewport()->height() / 3));
+    QApplication::processEvents();
+    const int scrollBefore = sb->value();
+
+    window->toggleFindDialog();
+    QApplication::processEvents();
+
+    auto *dialog = window->findChild<FindDialog *>();
+    ASSERT_NE(dialog, nullptr);
+    dialog->focusSearchInput();
+    QTest::keyClicks(dialog->focusWidget(), "line 152");
+    clickButton(dialog, "&Next >");
+    QApplication::processEvents();
+
+    EXPECT_EQ(editor->verticalScrollBar()->value(), scrollBefore);
+    QTextCursor found = editor->textCursor();
+    EXPECT_TRUE(found.hasSelection());
+    EXPECT_EQ(found.selectionStart(),
+              editor->document()->findBlockByNumber(152).position());
+}
+
+TEST_F(FindDialogIntegrationTest, FindCentersMatchBelowViewport)
+{
+    auto *editor = window->editor();
+    QString text;
+    for (int i = 0; i < 150; ++i)
+        text += "line " + QString::number(i) + "\n";
+    text += "needle\n";
+    for (int i = 151; i < 300; ++i)
+        text += "line " + QString::number(i) + "\n";
+    editor->setPlainText(text);
+    QApplication::processEvents();
+
+    QTextCursor c(editor->document()->findBlockByNumber(10));
+    editor->setTextCursor(c);
+    QApplication::processEvents();
+    editor->verticalScrollBar()->setValue(0);
+    QApplication::processEvents();
+
+    window->toggleFindDialog();
+    QApplication::processEvents();
+
+    auto *dialog = window->findChild<FindDialog *>();
+    ASSERT_NE(dialog, nullptr);
+    dialog->focusSearchInput();
+    QTest::keyClicks(dialog->focusWidget(), "needle");
+    clickButton(dialog, "&Next >");
+    QApplication::processEvents();
+
+    const int vh = editor->viewport()->height();
+    const QRect cr = editor->cursorRect();
+    EXPECT_GT(cr.center().y(), vh * 0.25);
+    EXPECT_LT(cr.center().y(), vh * 0.75);
+}
+
+TEST_F(FindDialogIntegrationTest, FindCentersWrappedMatch)
+{
+    auto *editor = window->editor();
+    QString text;
+    for (int i = 0; i < 40; ++i)
+        text += "line " + QString::number(i) + "\n";
+    text += "needle\n";
+    for (int i = 41; i < 300; ++i)
+        text += "line " + QString::number(i) + "\n";
+    editor->setPlainText(text);
+    QApplication::processEvents();
+
+    QTextCursor c(editor->document()->findBlockByNumber(260));
+    editor->setTextCursor(c);
+    QApplication::processEvents();
+
+    window->toggleFindDialog();
+    QApplication::processEvents();
+
+    auto *dialog = window->findChild<FindDialog *>();
+    ASSERT_NE(dialog, nullptr);
+    dialog->focusSearchInput();
+    QTest::keyClicks(dialog->focusWidget(), "needle");
+clickButton(dialog, "&Next >");
+    QApplication::processEvents();
+
+    const int vh = editor->viewport()->height();
+    const QRect cr = editor->cursorRect();
+    EXPECT_GT(cr.center().y(), vh * 0.25);
+    EXPECT_LT(cr.center().y(), vh * 0.75);
+    EXPECT_EQ(editor->textCursor().selectionStart(),
+              editor->document()->findBlockByNumber(40).position());
+}
+
+TEST_F(FindDialogIntegrationTest, ReturnInSearchInputDoesNotFirePrev)
+{
+    window->toggleFindDialog();
+    QApplication::processEvents();
+    auto *dialog = window->findChild<FindDialog *>();
+    QSignalSpy spy(dialog, &FindDialog::findPrevRequested);
+    dialog->focusSearchInput();
+    QTest::keyClicks(dialog->focusWidget(), "foo");
+    QTest::keyClick(dialog->focusWidget(), Qt::Key_Return);
+    QApplication::processEvents();
+    EXPECT_EQ(spy.count(), 0);
 }
 
 int main(int argc, char **argv) {

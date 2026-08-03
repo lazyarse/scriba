@@ -39,6 +39,8 @@ FindDialog::FindDialog(QWidget *parent)
     auto *findNextBtn = new QPushButton("&Next >");
     stripButtonIcon(findPrevBtn);
     stripButtonIcon(findNextBtn);
+    findPrevBtn->setAutoDefault(false);
+    findNextBtn->setAutoDefault(false);
     grid->addWidget(findPrevBtn, 0, 2);
     grid->addWidget(findNextBtn, 0, 3);
     grid->addWidget(replaceLabel, 1, 0);
@@ -49,6 +51,8 @@ FindDialog::FindDialog(QWidget *parent)
     auto *replaceAllBtn = new QPushButton("Replace &All");
     stripButtonIcon(replaceBtn);
     stripButtonIcon(replaceAllBtn);
+    replaceBtn->setAutoDefault(false);
+    replaceAllBtn->setAutoDefault(false);
     grid->addWidget(replaceBtn, 1, 2);
     grid->addWidget(replaceAllBtn, 1, 3);
     layout->addLayout(grid);
