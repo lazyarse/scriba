@@ -643,7 +643,7 @@ bool Editor::eventFilter(QObject *obj, QEvent *event)
         painter.setRenderHint(QPainter::Antialiasing, false);
 
         const QFontMetrics fm(font());
-        const int underlineY = fm.ascent() + fm.underlinePos();
+        const int underlineY = fm.ascent() + fm.underlinePos() + kUnderlineDropPx;
         const QTextDocument *doc = document();
         for (QTextBlock block = doc->firstBlock(); block.isValid(); block = block.next()) {
             if (!block.isVisible())
@@ -670,7 +670,7 @@ void Editor::paintHitRange(QPainter &painter, const QTextBlock &block, int start
     const QTextLayout *layout = block.layout();
     if (!layout || layout->lineCount() == 0)
         return;
-    painter.setPen(QPen(color, 2, Qt::SolidLine, Qt::FlatCap));
+    painter.setPen(QPen(color, kUnderlinePenWidthPx, Qt::SolidLine, Qt::FlatCap));
     for (int i = 0; i < layout->lineCount(); ++i) {
         const QTextLine line = layout->lineAt(i);
         const int a = qMax(start, line.textStart());

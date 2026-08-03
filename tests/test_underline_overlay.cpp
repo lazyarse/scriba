@@ -135,7 +135,7 @@ TEST_F(UnderlineOverlayTest, UnderlineStaysUnderMisspelledWordAfterScroll)
     const QRect leftRect = m_editor->cursorRect(left);
     const QRect rightRect = m_editor->cursorRect(right);
     const QFontMetrics fm(m_editor->font());
-    const int underlineY = leftRect.top() + fm.ascent() + fm.underlinePos();
+    const int underlineY = leftRect.top() + fm.ascent() + fm.underlinePos() + Editor::kUnderlineDropPx;
 
     // The overlay's local space must coincide with the viewport's; account for
     // any drift via overlay->pos() so the check tracks the real on-screen word.
@@ -196,7 +196,7 @@ TEST_F(UnderlineOverlayTest, AmberUnderlinePaintedForBrokenLink)
     const QRect leftRect = m_editor->cursorRect(left);
     const QRect rightRect = m_editor->cursorRect(right);
     const QFontMetrics fm(m_editor->font());
-    const int underlineY = leftRect.top() + fm.ascent() + fm.underlinePos();
+    const int underlineY = leftRect.top() + fm.ascent() + fm.underlinePos() + Editor::kUnderlineDropPx;
 
     const QPoint expected(leftRect.left() - overlay->pos().x(),
                           underlineY - overlay->pos().y());

@@ -48,6 +48,9 @@ public:
     void setMermaidAction(QAction *action);
     void recheckSpelling();
 
+    static constexpr int kUnderlineDropPx = 2;     // extra px below fm.underlinePos()
+    static constexpr int kUnderlinePenWidthPx = 3; // thickness of painted underlines
+
 protected:
     void keyPressEvent(QKeyEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
