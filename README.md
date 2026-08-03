@@ -26,9 +26,9 @@
 | --- | --- | --- |
 | [![General](docs/images/preferences-general.png)](docs/images/preferences-general.png) | [![Themes](docs/images/preferences-themes.png)](docs/images/preferences-themes.png) | [![Editor](docs/images/preferences-editor.png)](docs/images/preferences-editor.png) |
 
-| Writing | Spelling | Security |
-| --- | --- | --- |
-| [![Writing](docs/images/preferences-writing.png)](docs/images/preferences-writing.png) | [![Spelling](docs/images/preferences-spelling.png)](docs/images/preferences-spelling.png) | [![Security](docs/images/preferences-security.png)](docs/images/preferences-security.png) |
+| Writing | Spelling | Security | Preview |
+| --- | --- | --- | --- |
+| [![Writing](docs/images/preferences-writing.png)](docs/images/preferences-writing.png) | [![Spelling](docs/images/preferences-spelling.png)](docs/images/preferences-spelling.png) | [![Security](docs/images/preferences-security.png)](docs/images/preferences-security.png) | [![Preview](docs/images/preferences-preview.png)](docs/images/preferences-preview.png) |
 
 ### Dialogues
 

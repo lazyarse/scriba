@@ -121,6 +121,9 @@ private:
     QPushButton *m_editorBgBtn;
     QPushButton *m_editorFontBtn;
 
+    // Preview
+    QSpinBox *m_heavyRenderDelaySpin;
+
     // Gutter
     QCheckBox *m_showLineNumbersCheck;
     QGroupBox *m_gutterOverrideGroup;

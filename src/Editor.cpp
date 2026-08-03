@@ -76,7 +76,7 @@ Editor::Editor(QWidget *parent)
 
     auto *foldTimer = new QTimer(this);
     foldTimer->setSingleShot(true);
-    foldTimer->setInterval(300);
+    foldTimer->setInterval(Debounce::FoldScan);
     connect(foldTimer, &QTimer::timeout, this, &Editor::scanHeadersAndFolds);
     connect(document(), &QTextDocument::contentsChanged, this, [this, foldTimer]() {
         if (!m_updatingFolds)

@@ -89,7 +89,7 @@ VegaLiteDialog::VegaLiteDialog(QWidget *parent)
     setWindowTitle("Chart Builder");
     resize(1100, 700);
 
-    m_previewTimer = new DebounceTimer(300, this);
+    m_previewTimer = new DebounceTimer(Debounce::DialogPreview, this);
     connect(m_previewTimer, &QTimer::timeout, this, &VegaLiteDialog::updatePreview);
 
     setupUi();

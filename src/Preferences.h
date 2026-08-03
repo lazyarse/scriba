@@ -18,6 +18,8 @@
 #include <QString>
 #include <QStringList>
 
+#include "StaticHelpers.h"
+
 namespace Preferences {
     constexpr const char *CssFiles = "cssFiles";
     constexpr const char *ActiveCssFile = "activeCssFile";
@@ -44,6 +46,9 @@ namespace Preferences {
     constexpr const char *FileCompletionLimit = "fileCompletionLimit";
     constexpr const char *FileAutoComplete = "fileAutoComplete";
     constexpr const char *LanguageAutoComplete = "languageAutoComplete";
+
+    constexpr const char *HeavyRenderDelay = "heavyRenderDelay";
+    constexpr int DefaultHeavyRenderDelay = Debounce::HeavyRender;
 
     constexpr const char *ConfigVersion = "configVersion";
     constexpr int CurrentConfigVersion = 1;

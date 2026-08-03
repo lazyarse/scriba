@@ -252,6 +252,7 @@ See the [Vega-Lite docs](https://vega.github.io/vega-lite/) for the full spec re
   ]
 }
 ```
+
 ## Find & Replace
 
 Use <kbd>Ctrl+F</kbd> to search. Enable **Regex** to use patterns and capture groups in replace.

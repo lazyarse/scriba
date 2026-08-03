@@ -107,7 +107,7 @@ void MermaidDialog::setupUi()
 
     auto *mainLayout = new QVBoxLayout(this);
 
-    m_previewTimer = new DebounceTimer(300, this);
+    m_previewTimer = new DebounceTimer(Debounce::DialogPreview, this);
     connect(m_previewTimer, &QTimer::timeout, this, &MermaidDialog::updatePreview);
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);

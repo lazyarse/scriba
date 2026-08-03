@@ -15,6 +15,7 @@
 #include "SpellHighlighter.h"
 #include "LinkValidator.h"
 #include "SpellChecker.h"
+#include "StaticHelpers.h"
 #include <QColor>
 #include <QDateTime>
 #include <QDir>
@@ -111,10 +112,10 @@ SpellHighlighter::SpellHighlighter(QTextDocument *document, QObject *parent)
     if (parent)
         setParent(parent);
     m_lintTimer->setSingleShot(true);
-    m_lintTimer->setInterval(400);
+    m_lintTimer->setInterval(Debounce::SpellCheck);
     connect(m_lintTimer, &QTimer::timeout, this, &SpellHighlighter::runGrammarLint);
     m_spellTimer->setSingleShot(true);
-    m_spellTimer->setInterval(400);
+    m_spellTimer->setInterval(Debounce::SpellCheck);
     connect(m_spellTimer, &QTimer::timeout, this, &SpellHighlighter::runSpellCheck);
     // Schedule on contentsChange (not contentsChanged): rehighlight() and
     // other format-only work emit contentsChanged but no contentsChange, so

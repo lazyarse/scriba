@@ -551,7 +551,42 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_pageList->addItem("Editor");
     }
 
-    /* --- Page 3: Writing --- */
+    /* --- Page 3: Preview --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *renderGroup = new QGroupBox("Rendering");
+        QVBoxLayout *renderLayout = new QVBoxLayout(renderGroup);
+        renderLayout->addSpacing(8);
+
+        auto *renderLabel = new QLabel("Diagrams, equations and charts in the preview only "
+            "re-render after you pause typing for this long. Lower values make the preview "
+            "feel more responsive on small documents; higher values save CPU on large ones.");
+        renderLabel->setWordWrap(true);
+        renderLayout->addWidget(renderLabel);
+
+        m_heavyRenderDelaySpin = new QSpinBox();
+        m_heavyRenderDelaySpin->setRange(200, 5000);
+        m_heavyRenderDelaySpin->setSingleStep(150);
+        m_heavyRenderDelaySpin->setSuffix(" ms");
+        m_heavyRenderDelaySpin->setValue(settings.value(Preferences::HeavyRenderDelay,
+            Preferences::DefaultHeavyRenderDelay).toInt());
+        auto *renderForm = new QFormLayout;
+        renderForm->addRow("Heavy render delay:", m_heavyRenderDelaySpin);
+        renderLayout->addLayout(renderForm);
+
+        layout->addWidget(renderGroup);
+
+        layout->addStretch();
+
+        m_pages->addWidget(wrapPage(page));
+        m_pageList->addItem("Preview");
+    }
+
+    /* --- Page 4: Writing --- */
     {
         QWidget *page = new QWidget;
         QVBoxLayout *layout = new QVBoxLayout(page);
@@ -714,7 +749,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_pageList->addItem("Writing");
     }
 
-    /* --- Page 4: Spelling --- */
+    /* --- Page 5: Spelling --- */
     {
         QWidget *page = new QWidget;
         QVBoxLayout *layout = new QVBoxLayout(page);
@@ -941,7 +976,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_pageList->addItem("Spelling");
     }
 
-    /* --- Page 5: Security --- */
+    /* --- Page 6: Security --- */
     {
         QWidget *page = new QWidget;
         QVBoxLayout *layout = new QVBoxLayout(page);
@@ -1072,6 +1107,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::GutterColorOverride, m_gutterOverrideGroup->isChecked());
         settings.setValue(Preferences::GutterBgColor, m_gutterBgBtn->text());
         settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());
+        settings.setValue(Preferences::HeavyRenderDelay, m_heavyRenderDelaySpin->value());
         settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
         settings.setValue(Preferences::LinkCheckEnabled, m_linkCheckCheck->isChecked());

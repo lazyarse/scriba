@@ -170,7 +170,7 @@ KatexHelperDialog::KatexHelperDialog(const QString &themeCss, QWidget *parent)
     setWindowTitle("Insert Equation");
     resize(640, 700);
 
-    m_previewTimer = new DebounceTimer(300, this);
+    m_previewTimer = new DebounceTimer(Debounce::DialogPreview, this);
     connect(m_previewTimer, &QTimer::timeout, this, &KatexHelperDialog::updatePreview);
 
     setupUi();
