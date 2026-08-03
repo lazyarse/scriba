@@ -46,6 +46,38 @@ bool isWordSeparator(QChar c)
     return !c.isLetterOrNumber() && c != QLatin1Char('\'') && c != QChar(0x2019);
 }
 
+// Block context for spell checking: 0 = plain, 1 = fenced code, 2 = front
+// matter. Shared by highlightBlock() (which gets the previous state from the
+// document) and runSpellCheck() (which tracks the state itself while walking
+// the blocks).
+struct BlockContext {
+    int state = 0;
+    bool checkable = true;
+};
+
+BlockContext blockContext(int blockNumber, const QString &text, int previousState)
+{
+    static const QRegularExpression fenceRe(R"(^\s*(?:```+|~~~+))");
+    static const QRegularExpression frontMatterRe(R"(^\s*---\s*$)");
+
+    const bool opener = fenceRe.match(text).hasMatch();
+    const bool isFrontMatterBoundary = frontMatterRe.match(text).hasMatch();
+
+    BlockContext ctx;
+    if (previousState == 1) {
+        ctx.state = opener ? 0 : 1;
+    } else if (previousState == 2) {
+        ctx.state = isFrontMatterBoundary ? 0 : 2;
+    } else if (blockNumber == 0 && isFrontMatterBoundary) {
+        ctx.state = 2;
+    } else if (opener) {
+        ctx.state = 1;
+    }
+    ctx.checkable = previousState != 1 && previousState != 2 && !opener
+        && !(blockNumber == 0 && isFrontMatterBoundary);
+    return ctx;
+}
+
 } // namespace
 
 QColor SpellHighlighter::spellUnderlineColor()
@@ -97,6 +129,16 @@ void GrammarLintWorker::doLint(quint64 generation, const QString &text)
 
 SpellHighlighter::~SpellHighlighter()
 {
+    // ~QSyntaxHighlighter detaches the document (setDocument(nullptr) →
+    // finishEdit()), which re-emits contentsChange; drop our connections first
+    // so the slots are never invoked on a dying object (the QObject
+    // auto-disconnect would only happen in ~QObject, which runs later).
+    if (QTextDocument *doc = document()) {
+        disconnect(doc, &QTextDocument::contentsChange,
+                   this, &SpellHighlighter::scheduleSpellCheck);
+        disconnect(doc, &QTextDocument::contentsChange,
+                   this, &SpellHighlighter::scheduleGrammarLint);
+    }
     if (m_lintThread) {
         m_lintThread->quit();
         m_lintThread->wait();
@@ -243,21 +285,36 @@ void SpellHighlighter::runSpellCheck()
 {
     if (!m_spellEnabled || !m_checker || !m_checker->isLoaded())
         return;
-    const QList<int> staleBlocks = m_staleBlocks.values();
-    for (int blockNumber : staleBlocks) {
+
+    // Walk the whole document so fence/front-matter state stays consistent
+    // even when only some blocks are stale (the state machine must advance
+    // across the blocks in between).
+    int state = 0;
+    bool any = false;
+    for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next()) {
+        const int blockNumber = block.blockNumber();
+        const BlockContext ctx = blockContext(blockNumber, block.text(), state);
+        state = ctx.state;
+
+        if (!m_staleBlocks.contains(blockNumber))
+            continue;
+        any = true;
         m_staleBlocks.remove(blockNumber);
-        const QTextBlock block = document()->findBlockByNumber(blockNumber);
-        if (!block.isValid())
-            continue; // block deleted; the cache entry was dropped when it went stale
+        if (!ctx.checkable) {
+            m_spellHits.remove(blockNumber);
+            continue;
+        }
         QVector<GrammarHit> hits;
         for (const WordHit &word : scanWords(block.text())) {
             if (!m_checker->checkWord(word.text))
                 hits.append({word.start, word.length});
         }
         m_spellHits[blockNumber] = hits;
-        // Re-run highlightBlock() so formats and the underline overlay repaint.
-        rehighlightBlock(block);
     }
+    // Entries left over refer to blocks deleted since they were marked stale.
+    m_staleBlocks.clear();
+    if (any)
+        emit spellHitsChanged();
 }
 
 QVector<QPair<int, int>> SpellHighlighter::protectedRanges(const QString &line)
@@ -308,29 +365,12 @@ QList<SpellHighlighter::WordHit> SpellHighlighter::scanWords(const QString &line
 
 void SpellHighlighter::highlightBlock(const QString &text)
 {
-    static const QRegularExpression fenceRe(R"(^\s*(?:```+|~~~+))");
-    static const QRegularExpression frontMatterRe(R"(^\s*---\s*$)");
-
     const int blockNumber = currentBlock().blockNumber();
-    const int state = previousBlockState(); // 0 = plain, 1 = fenced code, 2 = front matter
-    const bool opener = fenceRe.match(text).hasMatch();
-    const bool isFrontMatterBoundary = frontMatterRe.match(text).hasMatch();
+    const int previousState = previousBlockState();
+    const BlockContext ctx = blockContext(blockNumber, text, previousState);
+    setCurrentBlockState(ctx.state);
 
-    int newState = 0;
-    if (state == 1) {
-        newState = opener ? 0 : 1;
-    } else if (state == 2) {
-        newState = isFrontMatterBoundary ? 0 : 2;
-    } else if (blockNumber == 0 && isFrontMatterBoundary) {
-        newState = 2;
-    } else if (opener) {
-        newState = 1;
-    }
-    setCurrentBlockState(newState);
-
-    const bool checkable = state != 1 && state != 2 && !opener
-        && !(blockNumber == 0 && isFrontMatterBoundary);
-    if (!checkable) {
+    if (!ctx.checkable) {
         setFormat(0, text.length(), QTextCharFormat());
         m_spellHits.remove(blockNumber);
         m_staleBlocks.remove(blockNumber);

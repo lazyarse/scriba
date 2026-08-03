@@ -102,6 +102,11 @@ Editor::Editor(QWidget *parent)
             m_underlineOverlay, QOverload<>::of(&QWidget::update));
     connect(document(), &QTextDocument::contentsChanged,
             m_underlineOverlay, QOverload<>::of(&QWidget::update));
+    // Spell underlines are painted from the spell-hit cache, which is
+    // refreshed asynchronously (word-boundary or debounced check): repaint
+    // the overlay when a check completes.
+    connect(m_spellHighlighter, &SpellHighlighter::spellHitsChanged,
+            m_underlineOverlay, QOverload<>::of(&QWidget::update));
 }
 
 Editor::~Editor() = default;

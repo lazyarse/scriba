@@ -108,6 +108,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 ## CRITICAL
 
 - NEVER COMMIT, REVERT, ADD, DELETE, CHECKOUT, STAGE, OR OTHERWISE MUTATE REPO HISTORY WITHOUT EXPLICIT PERMISSION. NO EXCEPTIONS.
+- NEVER RUN `git stash` WITHOUT ASKING FOR CONFIRMATION FIRST. Stashing captures the whole working tree, so it can clobber or swallow simultaneous edits (the user or another agent may be editing the same files). If a stash is needed for a baseline check, ask first, and prefer non-destructive alternatives where possible.
 
 ## Gotchas
 

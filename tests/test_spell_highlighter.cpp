@@ -22,6 +22,7 @@
 #include <QDir>
 #include <QFile>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTest>
 #include <QTextBlock>
@@ -415,6 +416,26 @@ TEST_F(SpellHighlighterSpellDebounceTest, EditingFlaggedWordAgainClearsUnderline
     m_edit->moveCursor(QTextCursor::Left);
     QTest::keyClick(m_edit, Qt::Key_X);
     EXPECT_FALSE(covers(0, 6));
+}
+
+TEST_F(SpellHighlighterSpellDebounceTest, CheckCompletionEmitsSignal)
+{
+    QSignalSpy spy(m_highlighter, &SpellHighlighter::spellHitsChanged);
+
+    // Mid-word typing defers the check (and the signal)...
+    m_edit->moveCursor(QTextCursor::End);
+    QTest::keyClicks(m_edit, "helo");
+    EXPECT_EQ(spy.count(), 0);
+
+    // ...a separator checks immediately...
+    QTest::keyClick(m_edit, Qt::Key_Space);
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_TRUE(covers(0, 6));
+
+    // ...and a pause lets the debounced check run and signal too.
+    QTest::keyClicks(m_edit, "zzz");
+    QTest::qWait(700);
+    EXPECT_GT(spy.count(), 1);
 }
 
 } // namespace

@@ -107,6 +107,13 @@ public:
     // block. The Editor paints thick underlines over these + grammar issues.
     QVector<GrammarHit> spellHitsInBlock(int blockNumber) const;
 
+signals:
+    // The spell-hit cache was refreshed (after a debounced or word-boundary
+    // check). The Editor repaints its underline overlay on this. Emitted
+    // instead of calling rehighlightBlock(): that would run inside the
+    // document's contentsChange emission and re-enter the highlighter.
+    void spellHitsChanged();
+
 protected:
     void highlightBlock(const QString &text) override;
 
