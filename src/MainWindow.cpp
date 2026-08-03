@@ -586,7 +586,7 @@ void MainWindow::setupMenuBar()
         addTab();
     });
 
-    QMenu *sessionMenu = fileMenu->addMenu("&Session");
+    QMenu *sessionMenu = fileMenu->addMenu("S&ession");
     QAction *saveSessionAction = sessionMenu->addAction("&Save Session As...");
     connect(saveSessionAction, &QAction::triggered, this, &MainWindow::saveSessionAsAction);
 
@@ -739,7 +739,7 @@ void MainWindow::setupMenuBar()
         dlg.exec();
     });
 
-    QAction *katexAction = toolsMenu->addAction("KaTeX &Equation...");
+    QAction *katexAction = toolsMenu->addAction("&KaTeX Equation...");
     katexAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
     connect(katexAction, &QAction::triggered, this, &MainWindow::showKatexHelper);
 
@@ -753,7 +753,7 @@ void MainWindow::setupMenuBar()
     chartAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
     connect(chartAction, &QAction::triggered, this, &MainWindow::showChartBuilder);
 
-    QAction *mermaidAction = toolsMenu->addAction("Mermaid &Chart...");
+    QAction *mermaidAction = toolsMenu->addAction("&Mermaid Chart...");
     mermaidAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
     connect(mermaidAction, &QAction::triggered, this, [this]() {
         MermaidDialog dlg(m_cssLoader->themeCss(), this);
