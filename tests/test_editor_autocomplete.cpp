@@ -201,6 +201,63 @@ TEST(PathCompletion, NoMatchReturnsEmpty)
     EXPECT_TRUE(entries.isEmpty());
 }
 
+TEST(PathCompletion, SequentialFragmentMatchesSkippingChars)
+{
+    QTemporaryDir tmpDir;
+    ASSERT_TRUE(tmpDir.isValid());
+    QDir dir(tmpDir.path());
+    touch(dir, "scriba.svg");
+    touch(dir, "other.txt");
+
+    // "scrsvg" appears in "scriba.svg" in order with skipped characters
+    auto entries = matchEntries("scrsvg", dir);
+    ASSERT_EQ(entries.size(), 1);
+    EXPECT_EQ(entries.first(), "scriba.svg");
+}
+
+TEST(PathCompletion, OutOfOrderFragmentDoesNotMatch)
+{
+    QTemporaryDir tmpDir;
+    ASSERT_TRUE(tmpDir.isValid());
+    QDir dir(tmpDir.path());
+    touch(dir, "scriba.svg");
+
+    // Characters exist but not in order: g comes after r in "scriba.svg"
+    auto entries = matchEntries("sgr", dir);
+    EXPECT_TRUE(entries.isEmpty());
+}
+
+TEST(PathCompletion, SequentialMatchSortsDenserFirst)
+{
+    QTemporaryDir tmpDir;
+    ASSERT_TRUE(tmpDir.isValid());
+    QDir dir(tmpDir.path());
+    touch(dir, "fullscreen.svg");
+    touch(dir, "scriba.svg");
+
+    // Both match "scrsvg" sequentially with equal gaps, but "scriba.svg"
+    // starts matching at position 0 vs 4 in "fullscreen.svg" — it must rank first.
+    auto entries = matchEntries("scrsvg", dir);
+    ASSERT_EQ(entries.size(), 2);
+    EXPECT_EQ(entries.at(0), "scriba.svg");
+    EXPECT_EQ(entries.at(1), "fullscreen.svg");
+}
+
+TEST(PathCompletion, SequentialMatchSortsEarliestStartFirst)
+{
+    QTemporaryDir tmpDir;
+    ASSERT_TRUE(tmpDir.isValid());
+    QDir dir(tmpDir.path());
+    touch(dir, "scriba.svg");
+    touch(dir, "mysvg.txt");
+
+    // Both match "svg" contiguously (zero gaps); the earlier start wins.
+    auto entries = matchEntries("svg", dir);
+    ASSERT_EQ(entries.size(), 2);
+    EXPECT_EQ(entries.at(0), "mysvg.txt");
+    EXPECT_EQ(entries.at(1), "scriba.svg");
+}
+
 TEST(PathCompletion, EmptyPathListsAllNonHiddenEntries)
 {
     QTemporaryDir tmpDir;

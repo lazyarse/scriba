@@ -60,6 +60,7 @@ protected:
         touch("README.md");
         touch("resources/icons/logo.svg");
         touch("resources/icons/favicon.ico");
+        touch("resources/icons/scriba.svg");
 
         editor->setCurrentFile(currentFilePath);
     }
@@ -164,6 +165,67 @@ TEST_F(EditorCompletionHarness, FileCompletionLimitsResults)
     EXPECT_EQ(popupRowCount(), 20);
 }
 
+TEST_F(EditorCompletionHarness, FileCompletionHidesWhenNarrowedToNoMatch)
+{
+    typeText("![](resources/icons/logo");
+    QApplication::processEvents();
+    ASSERT_GT(popupRowCount(), 0) << "popup visible while 'logo' matches";
+
+    typeText("x");
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden when no entry contains the typed fragment";
+    EXPECT_EQ(text(), "![](resources/icons/logox");
+}
+
+TEST_F(EditorCompletionHarness, FileCompletionSequentialFragment)
+{
+    // "scrsvg" matches "scriba.svg" sequentially, skipping "iba."
+    typeText("![](resources/icons/scrsvg");
+    QApplication::processEvents();
+
+    ASSERT_NE(editor->completer(), nullptr);
+    ASSERT_TRUE(editor->completer()->popup()->isVisible());
+    ASSERT_EQ(popupRowCount(), 1);
+    EXPECT_EQ(editor->completer()->completionModel()->index(0, 0).data().toString(), "scriba.svg");
+
+    enter();
+    EXPECT_EQ(text(), "![](resources/icons/scriba.svg)");
+}
+
+TEST_F(EditorCompletionHarness, FileCompletionSequentialSortsDenserFirst)
+{
+    {
+        QFile f(tmpDir.path() + "/resources/icons/fullscreen.svg");
+        (void)f.open(QIODevice::WriteOnly);
+        f.close();
+    }
+
+    // Both match "scrsvg"; "scriba.svg" starts matching earlier (position 0 vs 4),
+    // so it must rank above "fullscreen.svg".
+    typeText("![](resources/icons/scrsvg");
+    QApplication::processEvents();
+
+    ASSERT_NE(editor->completer(), nullptr);
+    ASSERT_TRUE(editor->completer()->popup()->isVisible());
+    ASSERT_EQ(popupRowCount(), 2);
+    auto *model = editor->completer()->completionModel();
+    EXPECT_EQ(model->index(0, 0).data().toString(), "scriba.svg");
+    EXPECT_EQ(model->index(1, 0).data().toString(), "fullscreen.svg");
+
+    enter();
+    EXPECT_EQ(text(), "![](resources/icons/scriba.svg)");
+}
+
+TEST_F(EditorCompletionHarness, TypingCloseParenHidesFilePopup)
+{
+    typeText("![](resources/icons/logo");
+    QApplication::processEvents();
+    ASSERT_GT(popupRowCount(), 0);
+
+    typeText(")");
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden after leaving the link context";
+    EXPECT_EQ(text(), "![](resources/icons/logo)");
+}
+
 TEST_F(EditorCompletionHarness, EmojiBackspaceUpdatesPopup)
 {
     typeText(":smi");
@@ -192,6 +254,28 @@ TEST_F(EditorCompletionHarness, BackspaceOnClosingColonHidesPopup)
     press(Qt::Key_Backspace);
     EXPECT_EQ(popupRowCount(), -1) << "popup hidden when only ':' remains";
     EXPECT_EQ(text(), QString(":"));
+}
+
+TEST_F(EditorCompletionHarness, EmojiCompletionHidesWhenNarrowedToNoMatch)
+{
+    typeText(":smil");
+    QApplication::processEvents();
+    ASSERT_GT(popupRowCount(), 0);
+
+    typeText("z");
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden when no shortcode contains the typed fragment";
+    EXPECT_EQ(text(), ":smilz");
+}
+
+TEST_F(EditorCompletionHarness, EmojiClosingColonHidesPopup)
+{
+    typeText(":sm");
+    QApplication::processEvents();
+    ASSERT_GT(popupRowCount(), 0);
+
+    typeText(":");
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden when the shortcode is closed";
+    EXPECT_EQ(text(), ":sm:");
 }
 
 TEST_F(EditorCompletionHarness, EmojiPopupSitsBelowCursorLine)
@@ -285,6 +369,28 @@ TEST_F(EditorCompletionHarness, CodeFenceBackspaceUpdatesPopup)
     press(Qt::Key_Backspace);
     EXPECT_EQ(popupRowCount(), -1) << "popup hidden when only ``` remains";
     EXPECT_EQ(text(), "```");
+}
+
+TEST_F(EditorCompletionHarness, CodeFenceHidesWhenNarrowedToNoMatch)
+{
+    editor->clear();
+    typeText("```pytho");
+    ASSERT_GT(popupRowCount(), 0);
+
+    typeText("z");
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden when no language contains the typed fragment";
+    EXPECT_EQ(text(), "```pythoz");
+}
+
+TEST_F(EditorCompletionHarness, CodeFenceSpaceHidesPopup)
+{
+    editor->clear();
+    typeText("```py");
+    ASSERT_GT(popupRowCount(), 0);
+
+    typeText(" ");
+    EXPECT_EQ(popupRowCount(), -1) << "popup hidden when a space leaves the language context";
+    EXPECT_EQ(text(), "```py ");
 }
 
 TEST_F(EditorCompletionHarness, NoCompletionOnClosingFence)

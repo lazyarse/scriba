@@ -220,6 +220,37 @@ void Editor::keyPressEvent(QKeyEvent *event)
             return;
         }
 
+        // Folded section: Enter at the end of a folded header line (or while the
+        // cursor sits in the hidden body) inserts the new paragraph just below the
+        // fold so typed text stays visible instead of vanishing into hidden blocks.
+        int bn = cursor.blockNumber();
+        int foldedHeader = -1;
+        for (auto it = m_foldedHeaders.constBegin(); it != m_foldedHeaders.constEnd(); ++it) {
+            if (*it <= bn && (foldedHeader < 0 || *it > foldedHeader))
+                foldedHeader = *it;
+        }
+        if (foldedHeader >= 0) {
+            int end = effectiveSectionEnd(foldedHeader);
+            bool onHeader = bn == foldedHeader;
+            bool atHeaderEnd = onHeader && cursor.positionInBlock() == cursor.block().text().length();
+            if ((atHeaderEnd || (!onHeader && bn < end)) && bn < end) {
+                QTextCursor target = textCursor();
+                if (end == document()->blockCount() && !m_foldEndPins.contains(foldedHeader)) {
+                    // Fold runs to EOF: pin the bottom here so the new paragraph
+                    // (and anything typed below it) stays visible past the re-scan.
+                    target.movePosition(QTextCursor::End);
+                    m_foldEndPins.insert(foldedHeader, target.position());
+                } else {
+                    QTextBlock eb = document()->findBlockByNumber(end);
+                    target.setPosition(eb.position() + eb.length() - 1);
+                }
+                setTextCursor(target);
+                insertParagraphWithLineHeight(event);
+                event->accept();
+                return;
+            }
+        }
+
         insertParagraphWithLineHeight(event);
         return;
     }
@@ -569,22 +600,25 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
     } else if (!event->text().isEmpty()) {
         QChar c = event->text()[0];
+        bool shown = false;
         if (c.isLetterOrNumber() || c == '_' || c == ':' || c == '+' || c == '-' || c == '.' || c == '/') {
             QString partialPath;
             if (isInsideLinkContext(textCursor(), partialPath))
-                showFileCompletion(partialPath);
+                shown = showFileCompletion(partialPath);
             else {
                 QString htmlPath;
                 if (isInsideHtmlPathContext(textCursor(), htmlPath))
-                    showFileCompletion(htmlPath);
+                    shown = showFileCompletion(htmlPath);
             }
             QString partialCode;
             if (isInsideEmojiContext(textCursor(), partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool())
-                showEmojiCompletion(partialCode);
+                shown = showEmojiCompletion(partialCode) || shown;
             QString partialLang;
             if (isInsideLanguageContext(textCursor(), partialLang) && QSettings().value(Preferences::LanguageAutoComplete, true).toBool())
-                showLanguageCompletion(partialLang);
+                shown = showLanguageCompletion(partialLang) || shown;
         }
+        if (!shown && m_completer && m_completer->popup()->isVisible())
+            m_completer->popup()->hide();
     }
 }
 
@@ -649,19 +683,22 @@ bool Editor::isInsideHtmlPathContext(const QTextCursor &cursor, QString &partial
     return extractHtmlPath(cursor.block().text(), cursor.positionInBlock(), partialPath);
 }
 
-void Editor::showFileCompletion(const QString &partialPath)
+bool Editor::showFileCompletion(const QString &partialPath)
 {
     if (m_currentFile.isEmpty() ||
         !QSettings().value(Preferences::FileAutoComplete, true).toBool())
-        return;
+        return false;
 
     QFileInfo fi(m_currentFile);
     QDir dir = fi.absoluteDir();
 
     FileCompletionResult result = matchFileEntries(partialPath, dir,
         QSettings().value(Preferences::FileCompletionLimit, 20).toInt());
-    if (result.entries.isEmpty())
-        return;
+    if (result.entries.isEmpty()) {
+        if (m_completer)
+            m_completer->popup()->hide();
+        return false;
+    }
 
     if (!m_completer) {
         m_completer = new QCompleter(this);
@@ -688,6 +725,7 @@ void Editor::showFileCompletion(const QString &partialPath)
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
     QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
     m_completer->popup()->move(popupPos);
+    return true;
 }
 
 void Editor::acceptCompletion(const QString &completion)
@@ -772,7 +810,7 @@ bool Editor::isInsideEmojiContext(const QTextCursor &cursor, QString &partialCod
     return extractEmojiCode(cursor.block().text(), cursor.positionInBlock(), partialCode);
 }
 
-void Editor::showEmojiCompletion(const QString &partialCode)
+bool Editor::showEmojiCompletion(const QString &partialCode)
 {
     QStringList matchedCodes;
     for (const QString &sc : m_emojiShortcodes) {
@@ -780,8 +818,11 @@ void Editor::showEmojiCompletion(const QString &partialCode)
             matchedCodes.append(sc);
     }
 
-    if (matchedCodes.isEmpty())
-        return;
+    if (matchedCodes.isEmpty()) {
+        if (m_completer)
+            m_completer->popup()->hide();
+        return false;
+    }
 
     std::sort(matchedCodes.begin(), matchedCodes.end(),
         [&partialCode](const QString &a, const QString &b) {
@@ -831,6 +872,7 @@ void Editor::showEmojiCompletion(const QString &partialCode)
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
     QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
     m_completer->popup()->move(popupPos);
+    return true;
 }
 
 QPixmap Editor::renderEmojiIcon(const QString &emojiStr) const
@@ -993,11 +1035,11 @@ bool Editor::isInsideLanguageContext(const QTextCursor &cursor, QString &partial
     return true;
 }
 
-void Editor::showLanguageCompletion(const QString &partialLang)
+bool Editor::showLanguageCompletion(const QString &partialLang)
 {
     if (partialLang.isEmpty() ||
         !QSettings().value(Preferences::LanguageAutoComplete, true).toBool())
-        return;
+        return false;
 
     QStringList matches;
     const QHash<QString, QStringList> &langs = codeLanguages();
@@ -1014,8 +1056,11 @@ void Editor::showLanguageCompletion(const QString &partialLang)
             }
         }
     }
-    if (matches.isEmpty())
-        return;
+    if (matches.isEmpty()) {
+        if (m_completer)
+            m_completer->popup()->hide();
+        return false;
+    }
 
     std::sort(matches.begin(), matches.end(),
         [&partialLang](const QString &a, const QString &b) {
@@ -1051,6 +1096,7 @@ void Editor::showLanguageCompletion(const QString &partialLang)
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
     QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
     m_completer->popup()->move(popupPos);
+    return true;
 }
 
 void Editor::applySpellSettings()
@@ -1781,6 +1827,12 @@ void Editor::scanHeadersAndFolds()
         }
     }
     m_foldedHeaders = stillValid;
+    for (auto it = m_foldEndPins.begin(); it != m_foldEndPins.end();) {
+        if (!m_headerLevel.contains(it.key()) || !document()->findBlock(it.value()).isValid())
+            it = m_foldEndPins.erase(it);
+        else
+            ++it;
+    }
     if (m_gutter)
         m_gutter->setFoldedBlocks(m_foldedHeaders);
     m_updatingFolds = false;
@@ -1788,7 +1840,7 @@ void Editor::scanHeadersAndFolds()
 
 void Editor::applyFoldForHeader(int blockNumber, int level, bool hide)
 {
-    int end = sectionEndBlock(blockNumber, level);
+    int end = effectiveSectionEnd(blockNumber);
     QTextBlock block = document()->findBlockByNumber(blockNumber + 1);
     while (block.isValid() && block.blockNumber() < end) {
         block.setVisible(!hide);
@@ -1811,6 +1863,18 @@ int Editor::sectionEndBlock(int fromBlock, int level) const
     return document()->blockCount();
 }
 
+int Editor::effectiveSectionEnd(int headerBlock) const
+{
+    int end = sectionEndBlock(headerBlock, m_headerLevel.value(headerBlock));
+    auto it = m_foldEndPins.find(headerBlock);
+    if (it != m_foldEndPins.end()) {
+        QTextBlock pinned = document()->findBlock(it.value());
+        if (pinned.isValid() && pinned.blockNumber() > headerBlock && pinned.blockNumber() <= end)
+            end = pinned.blockNumber();
+    }
+    return end;
+}
+
 void Editor::toggleFold(int blockNumber)
 {
     if (!m_headerLevel.contains(blockNumber))
@@ -1824,6 +1888,7 @@ void Editor::toggleFold(int blockNumber)
         // Unfold
         applyFoldForHeader(blockNumber, level, false);
         m_foldedHeaders.remove(blockNumber);
+        m_foldEndPins.remove(blockNumber);
     } else {
         // Fold
         applyFoldForHeader(blockNumber, level, true);
@@ -1902,6 +1967,12 @@ void Editor::restoreFolds(const QList<int> &foldedBlocks)
             applyFoldForHeader(bn, m_headerLevel[bn], true);
     }
     m_foldedHeaders = newFolds;
+    for (auto it = m_foldEndPins.begin(); it != m_foldEndPins.end();) {
+        if (!newFolds.contains(it.key()))
+            it = m_foldEndPins.erase(it);
+        else
+            ++it;
+    }
     m_updatingFolds = false;
 
     if (m_gutter)

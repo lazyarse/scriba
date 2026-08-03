@@ -359,3 +359,91 @@ The OOS list is seven rules that share **five underlying capabilities**. Build t
 **M8 — Tense consistency (C6, research-heavy)**: "Yesterday I go to the store"→"went", "I went to the store and buy milk"→"bought"; clean: "She said she goes tomorrow" (backshift exception), "I usually go", "If I were you" (irrealis), "It's time we went". Highest false-positive risk of all — guards first (reported speech, habituals, conditionals, polite would/could), fire report-only (no auto-fix) in the first cut.
 
 Each milestone adds its `rule_cases/` file + corpus mutations per §15.
+
+## 17. Out-of-scope vs. Stoppard's orthography (word-confusion, R12)
+
+**Naming note:** R10 is the future a/an phonetic rule (M6, §16) and R11 is
+"There is/are" agreement (M4.5) — so this rule is **R12**. Both the working
+title in earlier task notes and the committed id are R12. Rule-case files use
+R12.
+
+### 17.1 The problem boundary — what belongs here
+
+"Orthography" splits into three classes. Only the middle one is R12's job:
+
+| Class | Examples | Owner |
+|---|---|---|
+| **Spelling** (misspelt words) | recieve, alot, seperate | Hunspell — Stoppard never fires |
+| **Regional orthography** | color/colour, -ise/-ize | **Explicitly OUT** (§14.2) — Hunspell |
+| **Word-confusion** (wrong-word choice; both spellings legal) | to/too, their/there/they're, its/it's, your/you're, whose/who's, then/than | **R12 (this rule)** |
+| **Content-word homophones** | lose/loose, affect/effect, advice/advise, cite/site, brake/break | **OUT (§17.5)** |
+
+The partitioning rule is **provability**: R12 fires only when a closed-lexicon
+member of a pair occurs in a text slot that provably requires its sibling. Every
+entry needs **exactly one** provable signal (tag context, sentence position,
+POS) — otherwise it lands in the OUT class.
+
+### 17.2 Tag provability (the driver)
+
+`its`, `their`, `your`, `whose`, `than`, `to` are closed-lexicon tokens
+(`lexicon.cpp`). Their homophone siblings (`there`, `too`, `two`, and the
+contractions `it's`/`you're`/`they're`/`who's`, which the tokenizer decomposes
+into stem + `'s`/`'re`) are **not** in the lexicon → they tag `Unknown`. R12
+therefore fires only on the closed-form member in a slot that provably requires
+its sibling:
+
+| wrong (closed token) | provable slot | correction |
+|---|---|---|
+| `to` | sentence-final (next is `.`/`,`/end) | `too` |
+| `too` | before base verb (infinitive slot) | `to` |
+| `its` | before a Verb | `it's` |
+| `it's` | before a Noun (possessive slot) | `its` |
+| `your` | before a Verb | `you're` |
+| `their` | before `be`/aux/modal ("there is a") | `there` |
+| `then` | after a comparative (-er / `more`) | `than` |
+| `who's` | before a Noun (possessive) | `whose` |
+
+### 17.3 Table-driven, closed and curated (R9 model)
+
+Same machinery as R9 (`rules_regionalisms.cpp`): a closed `constexpr` table of
+entries, each `{ wrong token → correction }` plus a small per-entry guard
+predicate (like R9's `gottenParticiple` at `rules_regionalisms.cpp:127-131`)
+that encodes the provable slot, reusing the LCS diff for span/suggestion. Every
+entry is a deliberate precision-reviewed decision, not a word dump. Seed table
+(v1, all guard-verified): the 8 rows in 17.2.
+
+- **Message**: short plain-English instruction, e.g. "Did you mean \"too\"
+  (also)?" — with the suggestion.
+- **Match-case**: suggestions preserve the source's case (as in R9).
+
+### 17.4 Guards forced by R12
+- Never fire on UNKNOWN tokens (precision guarantee) — the closed member is
+the trigger, its Unknown sibling is the expected replacement.
+- `to/too`: never fire when `to` governs an infinitive ("I like to swim") or an
+object; only sentence-final "to".
+- `its/it's`: never fire on possessive-"its" followed by a noun ("its tail");
+  `it's` only fires when a possessive determiner is required.
+- `their/there`: never fire on bare "there"/expletive followed by a verb
+  (that is the correct usage); only possessive-"their" in expletive slot.
+- `then/than`: only after a comparative (the strong signal); never bare "then"
+  (sequence "then we left" stays clean).
+- **Zero-false-positive bar**: every entry must keep `clean_corpus*.txt`
+  zero-issue and the mutation "exactly one issue" invariant.
+
+### 17.5 Explicitly OUT (document, don't lint)
+- Content-word homophones (lose/loose, affect/effect, advice/advise, brake/break,
+  cite/site, weather/whether) — both sides tag `Unknown` in their asserting
+  contexts in v1, so they are unprovable and out of scope. Left to a future
+  dictionary/NLU pass.
+- **a/an** — the Phonetics rule (C4/M6, R10 by roadmap) — deliberately separate
+  from R12; it needs a sound classifier, not a word-confusion table.
+
+### 17.6 Regression/recall layer
+In addition to the precision (clean) + positive/negative (per-rule) tests, R12
+adds a **recall check**: `tests/data/recall_corpus.txt` — real-world error
+sentences in the same `wrong | right | rule` format, not rule-split, run by a
+new `TEST(RRecall)` (asserts no existing rule regresses). v1 target a few
+hundred lines, sourced as original minimal pairs (Harper's MIT/MT test patterns
+and LanguageTool examples are *inspiration* only, never copied — §15 layer 4).
+`clean_corpus*` remains the zero-false-positive gate; the recall corpus is the
+zero-false-negative counterpart.

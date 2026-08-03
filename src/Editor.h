@@ -59,17 +59,17 @@ private:
     void insertParagraphWithLineHeight(QKeyEvent *event);
     bool isInsideLinkContext(const QTextCursor &cursor, QString &partialPath) const;
     bool isInsideHtmlPathContext(const QTextCursor &cursor, QString &partialPath) const;
-    void showFileCompletion(const QString &partialPath);
+    bool showFileCompletion(const QString &partialPath);
     void acceptCompletion(const QString &completion);
 
     void loadEmojiShortcodes();
     bool isInsideEmojiContext(const QTextCursor &cursor, QString &partialCode) const;
-    void showEmojiCompletion(const QString &partialCode);
+    bool showEmojiCompletion(const QString &partialCode);
     void acceptEmojiCompletion(const QString &completion);
     QPixmap renderEmojiIcon(const QString &emojiStr) const;
 
     bool isInsideLanguageContext(const QTextCursor &cursor, QString &partialLang) const;
-    void showLanguageCompletion(const QString &partialLang);
+    bool showLanguageCompletion(const QString &partialLang);
 
     void applySpellSettings();
     SpellHighlighter::WordHit misspelledWordAt(const QTextCursor &cursor) const;
@@ -111,6 +111,7 @@ private:
     Gutter *m_gutter = nullptr;
     QMap<int, int> m_headerLevel; // blockNumber → heading level 1-6
     QSet<int> m_foldedHeaders;
+    QMap<int, qsizetype> m_foldEndPins; // folded header blockNumber → pinned fold-bottom character position
     bool m_updatingFolds = false;
 
     void setupGutter();
@@ -118,6 +119,7 @@ private:
     void applyGutterColors();
     void scanHeadersAndFolds();
     void applyFoldForHeader(int blockNumber, int level, bool hide);
+    int effectiveSectionEnd(int headerBlock) const;
     void toggleFold(int blockNumber);
     int findPrevHeader(int fromBlock) const;
     int findNextHeader(int fromBlock) const;

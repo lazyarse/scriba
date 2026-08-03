@@ -24,6 +24,8 @@
 #include <QPainter>
 #include <QSvgRenderer>
 #include <QAbstractButton>
+#include <QPair>
+#include <QVector>
 
 QString escapeJsString(const QString &s)
 {
@@ -412,6 +414,41 @@ bool extractEmojiCode(const QString &line, int cursorPos, QString &partialCode)
     return true;
 }
 
+// Sequential (fuzzy) match: every character of the fragment appears in the
+// entry in order, possibly with skipped characters in between. Subsumes plain
+// substring containment, so "scrsvg" matches "scriba.svg". The score ranks
+// matches: fewer skipped characters and an earlier first-match position make a
+// match feel tighter (a prefix match scores 0/0 and always ranks first).
+struct FileMatchScore
+{
+    bool matched = false;
+    int gaps = 0;      // characters skipped between matched fragment chars
+    int firstPos = 0;  // position of the first matched character
+};
+
+static FileMatchScore scoreFileMatch(const QString &entry, const QString &fragment)
+{
+    if (fragment.isEmpty())
+        return {true, 0, 0};
+    int f = 0;
+    int prev = -1;
+    int gaps = 0;
+    int first = -1;
+    for (int i = 0; i < entry.size() && f < fragment.size(); ++i) {
+        if (entry[i].toLower() == fragment[f].toLower()) {
+            if (prev >= 0)
+                gaps += i - prev - 1;
+            else
+                first = i;
+            prev = i;
+            ++f;
+        }
+    }
+    if (f < fragment.size())
+        return {false, 0, 0};
+    return {true, gaps, first};
+}
+
 FileCompletionResult matchFileEntries(const QString &partialPath, const QDir &baseDir,
                                       int limit)
 {
@@ -428,28 +465,30 @@ FileCompletionResult matchFileEntries(const QString &partialPath, const QDir &ba
     if (!search.exists())
         return {};
 
-    QStringList matched;
+    QVector<QPair<QString, FileMatchScore>> scored;
     QStringList all = search.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
     for (const QString &entry : all) {
         if (entry.startsWith('.') && !filePart.startsWith('.'))
             continue;
-        if (filePart.isEmpty() || entry.contains(filePart, Qt::CaseInsensitive))
-            matched.append(entry);
+        FileMatchScore score = scoreFileMatch(entry, filePart);
+        if (score.matched)
+            scored.append({entry, score});
     }
 
-    std::sort(matched.begin(), matched.end(),
-        [&filePart](const QString &a, const QString &b) {
-            bool aPrefix = a.startsWith(filePart, Qt::CaseInsensitive);
-            bool bPrefix = b.startsWith(filePart, Qt::CaseInsensitive);
-            if (aPrefix != bPrefix)
-                return aPrefix;
-            return a < b;
+    std::sort(scored.begin(), scored.end(),
+        [](const QPair<QString, FileMatchScore> &a, const QPair<QString, FileMatchScore> &b) {
+            if (a.second.gaps != b.second.gaps)
+                return a.second.gaps < b.second.gaps;
+            if (a.second.firstPos != b.second.firstPos)
+                return a.second.firstPos < b.second.firstPos;
+            return a.first < b.first;
         });
 
     QStringList entries;
-    for (const QString &entry : matched) {
+    for (const auto &match : scored) {
         if (entries.size() >= limit)
             break;
+        const QString &entry = match.first;
         if (QFileInfo(search, entry).isDir())
             entries.append(entry + "/");
         else

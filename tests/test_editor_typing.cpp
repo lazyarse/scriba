@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 #include <QApplication>
+#include <QTextBlock>
 
 #include "Editor.h"
 #include "EditorTestHarness.h"
@@ -343,6 +344,79 @@ TEST_F(EditorTestHarness, TypingCreatesUndoSteps)
     for (int i = 0; i < chars; ++i)
         editor->redo();
     EXPECT_EQ(text(), "hello");
+}
+
+TEST_F(EditorTestHarness, EnterOnFoldedHeaderInsertsBelowFoldToEOF)
+{
+    setContent("# Section\nline1\nline2");
+    waitForFolds();
+    editor->restoreFolds({0});
+    placeCursor(0, 9);
+    press(Qt::Key_Return);
+    waitForFolds();
+
+    EXPECT_EQ(text(), "# Section\nline1\nline2\n");
+    auto *doc = editor->document();
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()) << "blank below the fold is visible";
+    EXPECT_EQ(editor->foldedBlockNumbers(), QList<int>({0}));
+    assertCursor(3, 0);
+
+    typeLine("new text");
+    waitForFolds();
+    EXPECT_EQ(text(), "# Section\nline1\nline2\nnew text\n");
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible()) << "typed text below the fold stays visible";
+}
+
+TEST_F(EditorTestHarness, EnterOnFoldedHeaderInsertsBelowTerminatingHeading)
+{
+    setContent("# S1\ncontent\n# S2\nmore");
+    waitForFolds();
+    editor->restoreFolds({0});
+    placeCursor(0, 5);
+    press(Qt::Key_Return);
+    waitForFolds();
+
+    EXPECT_EQ(text(), "# S1\ncontent\n# S2\n\nmore");
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible()) << "folded body still hidden";
+    EXPECT_TRUE(doc->findBlockByNumber(2).isVisible()) << "terminating heading stays visible";
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()) << "blank below terminating heading is visible";
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible());
+    EXPECT_EQ(editor->foldedBlockNumbers(), QList<int>({0}));
+    assertCursor(3, 0);
+
+    typeLine("typed");
+    waitForFolds();
+    EXPECT_EQ(text(), "# S1\ncontent\n# S2\ntyped\n\nmore");
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()) << "typed text stays visible";
+}
+
+TEST_F(EditorTestHarness, EnterMidFoldedHeaderSplitsNormally)
+{
+    setContent("# S1\ncontent\n# S2\nmore");
+    waitForFolds();
+    editor->restoreFolds({0});
+    placeCursor(0, 2);
+    press(Qt::Key_Return);
+    waitForFolds();
+
+    EXPECT_EQ(text(), "# \nS1\ncontent\n# S2\nmore");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, EnterInHiddenRegionRedirectsBelowFold)
+{
+    setContent("# S1\nline1\nline2\n# S2\nmore");
+    waitForFolds();
+    editor->restoreFolds({0});
+    placeCursor(2, 0);
+    press(Qt::Key_Return);
+    waitForFolds();
+
+    EXPECT_EQ(text(), "# S1\nline1\nline2\n# S2\n\nmore");
+    auto *doc = editor->document();
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible()) << "blank below the fold is visible";
+    assertCursor(4, 0);
 }
 
 int main(int argc, char **argv)
