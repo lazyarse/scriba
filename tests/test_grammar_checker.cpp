@@ -47,7 +47,8 @@ TEST_F(GrammarCheckerTest, DetectsGrammarError)
 
 TEST_F(GrammarCheckerTest, DoesNotFlagSpelling)
 {
-    // Spelling is deliberately NOT handled by the grammar engine — Hunspell owns it.
+    // Spelling is deliberately NOT handled by the grammar engine — the
+    // dictionary pass lives in SpellChecker (which wraps stoppard too).
     const auto issues = m_engine->check(QStringLiteral("This is helo wrking text."));
     for (const auto &issue : issues)
         EXPECT_FALSE(issue.message.contains(QStringLiteral("Did you mean")))

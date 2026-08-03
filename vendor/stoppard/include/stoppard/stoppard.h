@@ -14,11 +14,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+#include <atomic>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace stoppard {
+
+class SpellData;   // spelling dictionaries (§19); see spellcheck.h
 
 enum class SuggestionKind { Replace, Remove, InsertAfter };
 
@@ -32,6 +36,7 @@ struct Issue {
 };
 
 enum class Dialect { American, British, Australian, Indian, Canadian, NewZealand };
+enum class Language { None, American, British };   // spelling (§19); None = grammar-only
 
 struct Regionalism {
     std::u16string wrong;       // lowercase phrase
@@ -47,12 +52,36 @@ DialectProfile profileFor(Dialect dialect);   // impl lands in M3
 class Engine {
 public:
     explicit Engine(Dialect dialect = Dialect::American);
-    std::vector<Issue> check(std::u16string_view text) const;  // impl lands in M4
+    std::vector<Issue> check(std::u16string_view text) const;  // thread-safe; snapshots config at call start
     Dialect dialect() const;
     void setDialect(Dialect d);
+    void setLanguage(Language l);   // spelling dictionary (§19); default None
+    void setUserWords(std::vector<std::u16string> words);  // atomic swap (§19.2)
+    // Plain word-list dictionaries (one word per line). maoriPath and
+    // canadianPath may be empty: the Māori exemption list (§19.7, consulted
+    // under Dialect::NewZealand) and the Canadian spelling allowance
+    // (§19.3, consulted under Dialect::Canadian). Loads the immutable
+    // spelling data eagerly; call before check() for spelling to take
+    // effect. Spelling is skipped silently if a path cannot be read.
+    void setDictionaryPaths(std::string enUSPath, std::string enGBPath,
+                            std::string maoriPath, std::string canadianPath = {});
+
+    // Per-word spelling queries (SPEC §19.5): the same token policy and
+    // dictionary checks the spelling pass inside check() applies to each
+    // token. Policy-skipped words (digits, hyphenated compounds, all-caps)
+    // are never misspelled. spellSuggestions() returns the case-matched
+    // suggestion list, empty when the word is clean or spelling is off.
+    bool isMisspelled(std::u16string_view word) const;
+    std::vector<std::u16string> spellSuggestions(std::u16string_view word) const;
 
 private:
-    Dialect m_dialect;
+    struct Config {
+        Dialect dialect = Dialect::American;
+        Language language = Language::None;
+        std::vector<std::u16string> userWords;
+    };
+    std::atomic<std::shared_ptr<const Config>> m_config;
+    std::atomic<std::shared_ptr<const SpellData>> m_spellData;
 };
 
 } // namespace stoppard

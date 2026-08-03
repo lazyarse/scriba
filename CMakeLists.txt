@@ -9,7 +9,6 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network WebEngineWidgets Svg)
 
 add_subdirectory(vendor/mathml2omml)
-add_subdirectory(vendor/hunspell)
 
 # Vendored stoppard grammar engine (see vendor/stoppard). Scriba never builds or
 # fetches its gtest suite — the option is forced OFF as a safety net.
@@ -79,7 +78,6 @@ target_link_libraries(scriba PRIVATE
     Qt6::Svg
     Qt6::PrintSupport
     mathml2omml
-    hunspell
     stoppard
 )
 
@@ -147,7 +145,7 @@ endif()
 
 include(CPack)
 
-target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}" HUNSPELL_STATIC)
+target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
 
 option(BUILD_TESTS "Build unit tests" OFF)
 
@@ -196,8 +194,7 @@ if(BUILD_TESTS)
         src/StoppardEngine.cpp
     )
     target_include_directories(scriba_spell PUBLIC ${CMAKE_SOURCE_DIR}/src)
-    target_compile_definitions(scriba_spell PRIVATE HUNSPELL_STATIC)
-    target_link_libraries(scriba_spell PUBLIC scriba_core hunspell stoppard Qt6::Network)
+    target_link_libraries(scriba_spell PUBLIC scriba_core stoppard Qt6::Network)
 
     add_library(test_editor_helpers STATIC
         tests/EditorTestHarness.cpp

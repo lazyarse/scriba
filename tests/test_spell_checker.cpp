@@ -12,6 +12,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// SpellChecker (M10): the bundled dictionaries are stoppard plain word lists
+// (en-US/en-GB + Māori/Canadian allowances), imported dictionaries are plain
+// .txt word lists that union with the active base dictionary, and the user
+// dictionary keeps its count-header format.
 #include <gtest/gtest.h>
 #include "SpellChecker.h"
 #include "Preferences.h"
@@ -26,20 +31,17 @@
 
 namespace {
 
-// Copy the bundled en_US dictionary pair from the qrc bundle into dirPath
-// under a new base name, returning the path of the .aff file.
-QString copyBundledAs(const QString &dirPath, const QString &base)
+// Write a plain word list into dirPath under `base`.txt, returning its path.
+QString writeWordList(const QString &dirPath, const QString &base,
+                      const QStringList &words)
 {
-    for (const char *ext : {".aff", ".dic"}) {
-        QFile src(QStringLiteral(":/dictionaries/en_US") + QLatin1String(ext));
-        if (!src.open(QIODevice::ReadOnly))
-            return {};
-        QFile dst(dirPath + "/" + base + QLatin1String(ext));
-        if (!dst.open(QIODevice::WriteOnly | QIODevice::Truncate))
-            return {};
-        dst.write(src.readAll());
-    }
-    return dirPath + "/" + base + ".aff";
+    QDir().mkpath(dirPath);
+    QFile f(dirPath + "/" + base + ".txt");
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate))
+        return {};
+    f.write(words.join('\n').toUtf8());
+    f.write("\n");
+    return f.fileName();
 }
 
 class SpellCheckerTest : public ::testing::Test
@@ -59,11 +61,16 @@ protected:
 
 } // namespace
 
-TEST_F(SpellCheckerTest, AvailableLanguagesIncludesBundled)
+TEST_F(SpellCheckerTest, AvailableLanguagesAreTheBundledTwo)
 {
+    // availableLanguages() also extracts the bundled dictionaries on first use.
     QStringList langs = SpellChecker::availableLanguages();
-    EXPECT_TRUE(langs.contains("en_US"));
-    EXPECT_TRUE(langs.contains("en_GB"));
+    EXPECT_EQ(langs, QStringList({"en_US", "en_GB"}));
+    EXPECT_TRUE(QFileInfo::exists(SpellChecker::configDictDir() + "/bundled/en-US.txt"));
+    EXPECT_TRUE(QFileInfo::exists(SpellChecker::configDictDir() + "/bundled/en-GB.txt"));
+    EXPECT_TRUE(QFileInfo::exists(SpellChecker::configDictDir() + "/bundled/maori-nz.txt"));
+    EXPECT_TRUE(QFileInfo::exists(SpellChecker::configDictDir() + "/bundled/canadian-en.txt"));
+    EXPECT_TRUE(QFileInfo::exists(SpellChecker::configDictDir() + "/bundled/keyboard-en-GB.txt"));
 }
 
 TEST_F(SpellCheckerTest, LoadBundledLanguage)
@@ -89,6 +96,7 @@ TEST_F(SpellCheckerTest, CorrectWordPasses)
     ASSERT_TRUE(checker.loadLanguage("en_US"));
     EXPECT_TRUE(checker.checkWord("hello"));
     EXPECT_TRUE(checker.checkWord("dictionary"));
+    EXPECT_TRUE(checker.checkWord("cat"));
 }
 
 TEST_F(SpellCheckerTest, MisspelledWordFails)
@@ -97,6 +105,15 @@ TEST_F(SpellCheckerTest, MisspelledWordFails)
     ASSERT_TRUE(checker.loadLanguage("en_US"));
     EXPECT_FALSE(checker.checkWord("helo"));
     EXPECT_FALSE(checker.checkWord("speling"));
+}
+
+TEST_F(SpellCheckerTest, TokenPolicySkipsAreNeverFlagged)
+{
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+    EXPECT_TRUE(checker.checkWord("recieve-this"));  // hyphenated compound
+    EXPECT_TRUE(checker.checkWord("2recieve"));      // digit-bearing
+    EXPECT_TRUE(checker.checkWord("RECIEVE"));       // all-caps
 }
 
 TEST_F(SpellCheckerTest, SuggestionsProvided)
@@ -108,14 +125,22 @@ TEST_F(SpellCheckerTest, SuggestionsProvided)
     EXPECT_TRUE(sugg.contains("hello"));
 }
 
+TEST_F(SpellCheckerTest, CaseMatchedSuggestions)
+{
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+    const QStringList sugg = checker.suggestions("Recieve");
+    ASSERT_FALSE(sugg.isEmpty());
+    EXPECT_EQ(sugg.front(), "Receive");
+}
+
 TEST_F(SpellCheckerTest, AddToUserDictionaryStopsFlagging)
 {
     SpellChecker checker;
     ASSERT_TRUE(checker.loadLanguage("en_US"));
     const QString word = "scribamarkdown";
 
-    QFile f(SpellChecker::configDictDir() + "/user.dic");
-    f.remove();
+    QFile::remove(SpellChecker::configDictDir() + "/user.dic");
 
     EXPECT_FALSE(checker.checkWord(word));
     checker.addToUserDictionary(word);
@@ -176,7 +201,7 @@ TEST_F(SpellCheckerTest, ParseWordListHandlesCrlf)
         QStringList({"alpha", "beta", "gamma"}));
 }
 
-TEST_F(SpellCheckerTest, ParseWordListSkipsHunspellCountHeader)
+TEST_F(SpellCheckerTest, ParseWordListSkipsCountHeader)
 {
     // user.dic-style file: leading count line must not become a word
     EXPECT_EQ(SpellChecker::parseWordList(QStringLiteral("3\nalpha\nbeta\ngamma\n")),
@@ -219,106 +244,146 @@ TEST_F(SpellCheckerTest, RemoveDictionaryRefusesBundled)
 {
     EXPECT_FALSE(SpellChecker::removeDictionary("en_US"));
     EXPECT_FALSE(SpellChecker::removeDictionary("en_GB"));
-    EXPECT_TRUE(SpellChecker::availableLanguages().contains("en_US"));
-    EXPECT_TRUE(SpellChecker::availableLanguages().contains("en_GB"));
+    EXPECT_TRUE(SpellChecker::importedDictionaries().isEmpty());
 }
 
 TEST_F(SpellCheckerTest, RemoveDictionaryRefusesReservedBase)
 {
     EXPECT_FALSE(SpellChecker::removeDictionary("user"));
     EXPECT_FALSE(SpellChecker::removeDictionary("bundled"));
+    // Bundled file names are not removable imported lists either.
+    EXPECT_FALSE(SpellChecker::removeDictionary("en-US"));
 }
 
-TEST_F(SpellCheckerTest, InstallThenRemoveUserDictionary)
+TEST_F(SpellCheckerTest, InstallThenRemoveImportedList)
 {
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
-    ASSERT_FALSE(copyBundledAs(dir.path(), "zz_ZZ").isEmpty());
+    const QString path = writeWordList(dir.path(), "technical", {"zqzx", "scribamarkdown"});
+    ASSERT_FALSE(path.isEmpty());
 
-    const QString lang = SpellChecker::installDictionary(dir.path() + "/zz_ZZ.aff");
-    ASSERT_EQ(lang, "zz_ZZ");
-    EXPECT_TRUE(SpellChecker::availableLanguages().contains("zz_ZZ"));
+    const QString base = SpellChecker::installDictionary(path);
+    ASSERT_EQ(base, "technical");
+    EXPECT_TRUE(SpellChecker::importedDictionaries().contains("technical"));
 
     SpellChecker checker;
-    ASSERT_TRUE(checker.loadLanguage("zz_ZZ"));
-    EXPECT_EQ(checker.language(), "zz_ZZ");
-    EXPECT_TRUE(checker.checkWord("hello"));
-    EXPECT_FALSE(checker.checkWord("helo"));
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+    EXPECT_FALSE(checker.checkWord("zzzzzzzx"));   // not in any list
+    EXPECT_TRUE(checker.checkWord("zqzx"));        // imported word passes
+    EXPECT_TRUE(checker.checkWord("scribamarkdown"));
 
-    EXPECT_TRUE(SpellChecker::removeDictionary("zz_ZZ"));
-    EXPECT_FALSE(SpellChecker::availableLanguages().contains("zz_ZZ"));
-
-    SpellChecker checker2;
-    EXPECT_FALSE(checker2.loadLanguage("zz_ZZ"));
-    SpellChecker::removeDictionary("zz_ZZ");
+    EXPECT_TRUE(SpellChecker::removeDictionary("technical"));
+    EXPECT_FALSE(SpellChecker::importedDictionaries().contains("technical"));
 }
 
-TEST_F(SpellCheckerTest, InstallDictionaryFromDicFileWorks)
+TEST_F(SpellCheckerTest, ImportedListIsLanguageIndependent)
 {
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
-    ASSERT_FALSE(copyBundledAs(dir.path(), "fr_FR").isEmpty());
+    const QString path = writeWordList(dir.path(), "technical", {"scribamarkdown"});
+    ASSERT_FALSE(path.isEmpty());
+    ASSERT_EQ(SpellChecker::installDictionary(path), "technical");
 
-    const QString lang = SpellChecker::installDictionary(dir.path() + "/fr_FR.dic");
-    EXPECT_EQ(lang, "fr_FR");
-    EXPECT_TRUE(SpellChecker::availableLanguages().contains("fr_FR"));
-    SpellChecker::removeDictionary("fr_FR");
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_GB"));
+    EXPECT_TRUE(checker.checkWord("scribamarkdown"));
+    SpellChecker::removeDictionary("technical");
 }
 
 TEST_F(SpellCheckerTest, ReinstallExistingDictionaryIsIdempotent)
 {
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
-    ASSERT_FALSE(copyBundledAs(dir.path(), "it_IT").isEmpty());
+    const QString path = writeWordList(dir.path(), "myterms", {"zqzx"});
+    ASSERT_FALSE(path.isEmpty());
 
-    EXPECT_EQ(SpellChecker::installDictionary(dir.path() + "/it_IT.aff"), "it_IT");
-    EXPECT_EQ(SpellChecker::installDictionary(dir.path() + "/it_IT.aff"), "it_IT");
-    SpellChecker::removeDictionary("it_IT");
+    EXPECT_EQ(SpellChecker::installDictionary(path), "myterms");
+    EXPECT_EQ(SpellChecker::installDictionary(path), "myterms");
+    SpellChecker::removeDictionary("myterms");
 }
 
-TEST_F(SpellCheckerTest, InstallDictionaryRequiresSiblingFile)
+TEST_F(SpellCheckerTest, InstallRequiresTxtSuffix)
 {
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
-    QFile aff(dir.path() + "/de_DE.aff");
-    ASSERT_TRUE(aff.open(QIODevice::WriteOnly | QIODevice::Text));
-    aff.write("SET UTF-8\n");
-    aff.close();
+    const QString path = writeWordList(dir.path(), "de_DE", {"hallo"});
+    ASSERT_FALSE(path.isEmpty());
+    const QString renamed = dir.path() + "/de_DE.aff";
+    ASSERT_TRUE(QFile::copy(path, renamed));
 
-    EXPECT_TRUE(SpellChecker::installDictionary(dir.path() + "/de_DE.aff").isEmpty());
-    EXPECT_FALSE(SpellChecker::availableLanguages().contains("de_DE"));
+    EXPECT_TRUE(SpellChecker::installDictionary(renamed).isEmpty());
+    EXPECT_TRUE(SpellChecker::importedDictionaries().isEmpty());
 }
 
-TEST_F(SpellCheckerTest, InstallDictionaryRejectsCorruptPair)
+TEST_F(SpellCheckerTest, InstallRejectsEmptyList)
 {
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
-    QFile aff(dir.path() + "/es_ES.aff");
-    ASSERT_TRUE(aff.open(QIODevice::WriteOnly | QIODevice::Text));
-    aff.write("SET UTF-8\n");
-    aff.close();
-    QFile dic(dir.path() + "/es_ES.dic");
-    ASSERT_TRUE(dic.open(QIODevice::WriteOnly | QIODevice::Text));
-    dic.write("not-a-number\nfoo\n");
-    dic.close();
+    const QString path = writeWordList(dir.path(), "empty", QStringList());
+    ASSERT_FALSE(path.isEmpty());
 
-    EXPECT_TRUE(SpellChecker::installDictionary(dir.path() + "/es_ES.aff").isEmpty());
-    EXPECT_FALSE(SpellChecker::availableLanguages().contains("es_ES"));
-    EXPECT_FALSE(QFileInfo::exists(SpellChecker::configDictDir() + "/es_ES.aff"));
-    EXPECT_FALSE(QFileInfo::exists(SpellChecker::configDictDir() + "/es_ES.dic"));
+    EXPECT_TRUE(SpellChecker::installDictionary(path).isEmpty());
+    EXPECT_FALSE(SpellChecker::importedDictionaries().contains("empty"));
 }
 
-TEST_F(SpellCheckerTest, InstallDictionaryRejectsUnsafeBase)
+TEST_F(SpellCheckerTest, InstallRejectsUnsafeBase)
 {
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
-    QFile aff(dir.path() + "/user.aff");
-    ASSERT_TRUE(aff.open(QIODevice::WriteOnly | QIODevice::Text));
-    aff.write("SET UTF-8\n");
-    aff.close();
+    for (const char *base : {"user", "bundled", "en-US"}) {
+        const QString path = writeWordList(dir.path(), QLatin1String(base), {"zqzx"});
+        ASSERT_FALSE(path.isEmpty());
+        EXPECT_TRUE(SpellChecker::installDictionary(path).isEmpty())
+            << base << " must not be importable";
+    }
+    EXPECT_TRUE(SpellChecker::importedDictionaries().isEmpty());
+}
 
-    EXPECT_TRUE(SpellChecker::installDictionary(dir.path() + "/user.aff").isEmpty());
-    EXPECT_FALSE(SpellChecker::availableLanguages().contains("user"));
+TEST_F(SpellCheckerTest, DefaultLanguageForDialect)
+{
+    EXPECT_EQ(SpellChecker::defaultLanguageForDialect("American"), "en_US");
+    EXPECT_EQ(SpellChecker::defaultLanguageForDialect("Canadian"), "en_US");
+    EXPECT_EQ(SpellChecker::defaultLanguageForDialect("British"), "en_GB");
+    EXPECT_EQ(SpellChecker::defaultLanguageForDialect("Australian"), "en_GB");
+    EXPECT_EQ(SpellChecker::defaultLanguageForDialect("Indian"), "en_GB");
+    EXPECT_EQ(SpellChecker::defaultLanguageForDialect("New Zealand"), "en_GB");
+    EXPECT_EQ(SpellChecker::defaultLanguageForDialect("Klingon"), "en_US");   // unknown
+}
+
+TEST_F(SpellCheckerTest, DialectAllowances)
+{
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+    checker.setDialect("Canadian");
+    EXPECT_TRUE(checker.checkWord("centre"));    // Canadian allowance
+    EXPECT_FALSE(checker.checkWord("favour"));   // en-GB-only, no allowance
+    checker.setDialect("American");
+    EXPECT_FALSE(checker.checkWord("centre"));
+
+    SpellChecker nz;
+    ASSERT_TRUE(nz.loadLanguage("en_GB"));
+    nz.setDialect("New Zealand");
+    EXPECT_TRUE(nz.checkWord("whanau"));         // Māori exemption
+}
+
+TEST_F(SpellCheckerTest, FollowDialectSelectsDictionary)
+{
+    QSettings().setValue(Preferences::GrammarDialect, "British");
+    QSettings().setValue(Preferences::DictionaryLanguage, QString());
+
+    SpellChecker checker;
+    checker.setDialect("British");
+    ASSERT_TRUE(checker.loadLanguage(SpellChecker::defaultLanguageForDialect("British")));
+    EXPECT_EQ(checker.language(), "en_GB");
+    EXPECT_TRUE(checker.checkWord("colour"));
+    EXPECT_FALSE(checker.checkWord("color"));
+}
+
+TEST_F(SpellCheckerTest, ImportedListMarkedDictionaryIsNotLanguage)
+{
+    // An imported list is a union, not a selectable language.
+    SpellChecker checker;
+    EXPECT_FALSE(checker.loadLanguage("technical"));
 }
 
 int main(int argc, char **argv)

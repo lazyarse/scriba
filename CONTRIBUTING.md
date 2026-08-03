@@ -18,7 +18,7 @@ scriba/
 │   ├── FindDialog.cpp          — Find text dialog
 │   ├── ExportPdfDialog.cpp     — PDF export dialog
 │   ├── StaticHelpers.cpp       — List continuation, indent/outdent helpers
-│   ├── SpellChecker.cpp        — Hunspell spell-checking wrapper
+│   ├── SpellChecker.cpp        — Spell-checking wrapper (stoppard-backed)
 │   ├── SpellHighlighter.cpp    — Markdown-aware squiggle highlighter
 │   ├── GrammarChecker.h        — Grammar-check interface
 │   ├── StoppardEngine.cpp      — Grammar checker backed by the vendored stoppard engine

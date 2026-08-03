@@ -17,14 +17,16 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
-#include <memory>
 
-class Hunspell;
+#include "stoppard/stoppard.h"
 
-// Wraps the vendored hunspell engine. Owns the active language dictionary and
-// the per-user word dictionary. Bundled en_US/en_GB dictionaries are extracted
-// from the qrc bundle on first use (hunspell needs real file paths, not qrc://
-// virtual ones).
+// Wraps the vendored stoppard spelling engine (vendor/stoppard). Owns the
+// active base dictionary (en_US / en_GB), the per-user word dictionary and
+// the imported word lists (plain .txt, one word per line). Bundled
+// dictionaries are extracted from the qrc bundle on first use (stoppard needs
+// real file paths, not qrc:// virtual ones); extracted copies carry a version
+// marker so a stale config copy is superseded to .bak when a bundled
+// dictionary changes.
 class SpellChecker
 {
 public:
@@ -33,7 +35,11 @@ public:
 
     bool loadLanguage(const QString &language);
     QString language() const { return m_language; }
-    bool isLoaded() const { return m_hunspell != nullptr; }
+    bool isLoaded() const { return !m_language.isEmpty(); }
+    // Dialect for the spelling allowances (Canadian/Māori lists). Accepts the
+    // same strings as StoppardEngine ("American", "British", "Australian",
+    // "Indian", "Canadian", "New Zealand").
+    void setDialect(const QString &dialect);
 
     bool checkWord(const QString &word);
     QStringList suggestions(const QString &word);
@@ -42,11 +48,17 @@ public:
     void removeFromUserDictionary(const QString &word);
     QStringList userWords() const;
 
+    // The base language a dialect selects under the "follow dialect" setting.
+    static QString defaultLanguageForDialect(const QString &dialect);
+
     static QStringList availableLanguages();
     static QString configDictDir();
     static bool isBundledLanguage(const QString &language);
-    static QString installDictionary(const QString &affOrDicPath);
-    static bool removeDictionary(const QString &language);
+    // Imported dictionaries (plain word lists): copied into the config dir,
+    // merged into the active dictionary set; language-independent (§19.3).
+    static QStringList importedDictionaries();
+    static QString installDictionary(const QString &txtPath);
+    static bool removeDictionary(const QString &base);
 
     // File/settings-level accessors (usable without a loaded language) so the
     // Preferences dialog can manage the list independently of any editor.
@@ -54,16 +66,18 @@ public:
     static void writeUserDictionaryWords(const QStringList &words);
 
     // Parses user-supplied word list text (one word per line) into trimmed,
-    // non-empty words. A leading integer count line (hunspell user.dic header)
-    // is skipped so such files import cleanly.
+    // non-empty words. A leading integer count line (user.dic header) is
+    // skipped so such files import cleanly.
     static QStringList parseWordList(const QString &text);
 
 private:
-    bool findDictionaryFiles(const QString &language, QString &aff, QString &dic) const;
+    void applyEngineConfig();
     void loadUserDictionary();
+    QStringList importedWords() const;
     QString userDictPath() const;
 
-    std::unique_ptr<Hunspell> m_hunspell;
+    stoppard::Engine m_engine;
     QString m_language;
+    QString m_dialect = QStringLiteral("American");
     QSet<QString> m_userWords;
 };

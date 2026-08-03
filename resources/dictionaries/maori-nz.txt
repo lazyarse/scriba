@@ -1,0 +1,42 @@
+# Māori loanwords exempted from the spelling pass when the dialect is
+# NewZealand (SPEC §19.7). De-accented forms: lookup folds both sides
+# (macrons stripped), so whanau and whānau both pass. Seed list from the
+# SPEC; grows toward ~30-60 entries at M9.
+whanau
+hapu
+iwi
+marae
+kai
+korero
+ki
+ka
+mihi
+karakia
+haka
+powhiri
+whakapapa
+whenua
+manuhiri
+tangihanga
+whanaunga
+mahi
+pakeha
+kaumatua
+wananga
+tupuna
+taniwha
+kohanga
+reo
+aotearoa
+mana
+tapu
+tamariki
+wahine
+hikoi
+koha
+taonga
+awa
+maunga
+motu
+whare
+kainga

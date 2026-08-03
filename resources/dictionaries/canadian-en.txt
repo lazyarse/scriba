@@ -1,0 +1,20 @@
+# Canadian spelling allowance (SPEC §19.3). Canadian English follows the
+# American dictionary plus a short list of standard Canadian spellings that
+# en-US lacks ("centre", "colour"...). Consulted only when the dialect is
+# Canadian (mirrors the maori-nz.txt mechanism). De-accented forms; lookup
+# folds both sides. Each entry verified present in en-GB.txt and absent
+# from en-US.txt (data/CHECKSUMS.txt provenance).
+centre
+theatre
+colour
+colouring
+neighbour
+honour
+favourite
+cheque
+defence
+offence
+licence
+practise
+fibre
+litre

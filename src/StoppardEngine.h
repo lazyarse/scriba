@@ -22,7 +22,7 @@
 
 // GrammarChecker backed by the vendored stoppard grammar engine
 // (vendor/stoppard). Spelling is deliberately NOT handled here — the app owns
-// spelling via Hunspell.
+// spelling via SpellChecker (which also wraps stoppard, its dictionary pass).
 //
 // Unlike HarperEngine, the engine is stateless: stoppard::Engine holds only
 // the dialect and check() is const with no mutable state, so a single instance

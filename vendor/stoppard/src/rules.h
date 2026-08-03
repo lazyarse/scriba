@@ -46,4 +46,9 @@ const std::vector<const Rule*>& allRules();
 // Full pipeline: tokenize -> tag -> chunk -> rules -> dedup (overlapping starts).
 std::vector<Issue> runAll(std::u16string_view text, Dialect dialect);
 
+// Sort by start (stable) and drop any issue whose start falls inside the span
+// of a previously kept issue. Grammar issues precede spelling issues in
+// Engine::check, so on overlap the grammar rule wins.
+std::vector<Issue> dedupIssues(std::vector<Issue> issues);
+
 } // namespace stoppard

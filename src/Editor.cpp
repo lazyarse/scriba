@@ -1121,11 +1121,18 @@ void Editor::applySpellSettings()
     const bool spellEnabled = s.value(Preferences::SpellCheckEnabled, true).toBool();
     const bool grammarEnabled = s.value(Preferences::GrammarCheckEnabled, false).toBool();
     const bool linkEnabled = s.value(Preferences::LinkCheckEnabled, true).toBool();
-    const QString language = s.value(Preferences::DictionaryLanguage, QStringLiteral("en_US")).toString();
+    // Empty = "follow dialect": the grammar dialect selects the base dictionary.
+    const QString language = s.value(Preferences::DictionaryLanguage).toString();
+    const QString dialect = s.value(Preferences::GrammarDialect, QStringLiteral("American")).toString();
+
+    m_spellChecker->setDialect(dialect);
 
     bool loaded = false;
     if (spellEnabled) {
-        loaded = m_spellChecker->loadLanguage(language);
+        const QString resolved = language.isEmpty()
+            ? SpellChecker::defaultLanguageForDialect(dialect)
+            : language;
+        loaded = m_spellChecker->loadLanguage(resolved);
         if (!loaded) {
             for (const QString &lang : SpellChecker::availableLanguages()) {
                 if (m_spellChecker->loadLanguage(lang)) {
@@ -1140,7 +1147,7 @@ void Editor::applySpellSettings()
     m_spellHighlighter->setLinkCheckingEnabled(linkEnabled);
 
     if (auto *stoppard = dynamic_cast<StoppardEngine *>(m_grammarChecker.get()))
-        stoppard->setDialect(s.value(Preferences::GrammarDialect, QStringLiteral("American")).toString());
+        stoppard->setDialect(dialect);
 
     m_spellHighlighter->refresh();
 }

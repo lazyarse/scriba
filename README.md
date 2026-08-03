@@ -68,7 +68,7 @@
 Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.
 
 ### Standing on the Shoulders of Giants:
-- [Hunspell](https://github.com/hunspell/hunspell) for privacy-first spell checking, and the bundled stoppard grammar engine (vendored in `vendor/stoppard/`) for privacy-first grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
+- The bundled stoppard engine (vendored in `vendor/stoppard/`) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [LaTeX mathematics rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper

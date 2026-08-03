@@ -1,22 +1,31 @@
 # Bundled Spellcheck Dictionaries
 
-Hunspell (`*.aff` / `*.dic`) dictionaries bundled with Scriba and registered in
-`resources/scriba.qrc`.
+Plain word lists (`.txt`, one word per line) bundled with Scriba and
+registered in `resources/scriba.qrc`. Extracted from the vendored stoppard
+repository (`data/`), which derives them from [SCOWL](http://wordlist.sourceforge.net)
+plus dialect allowance lists and Māori exemptions.
 
-| File   | Source | Version | License |
-|--------|--------|---------|---------|
-| `en_US.aff` / `en_US.dic` | [LibreOffice dictionaries](https://github.com/LibreOffice/dictionaries/tree/master/en), derived from [SCOWL](http://wordlist.sourceforge.net) | 2020.12.07 | SCOWL BSD-style (see [README_en_US](https://github.com/LibreOffice/dictionaries/blob/master/en/README_en_US.txt)) |
-| `en_GB.aff` / `en_GB.dic` | [LibreOffice dictionaries](https://github.com/LibreOffice/dictionaries/tree/master/en) | current master | LGPL (Kevin Atkinson's original wordlist, extensively extended) |
+| File             | Source | License |
+|------------------|--------|---------|
+| `en-US.txt`      | stoppard `data/` (SCOWL US) | SCOWL BSD-style |
+| `en-GB.txt`      | stoppard `data/` (SCOWL GB) | SCOWL BSD-style |
+| `maori-nz.txt`   | stoppard `data/` (SCOWL NZ + Māori exemptions) | SCOWL BSD-style |
+| `canadian-en.txt`| stoppard `data/` (Canadian allowances) | SCOWL BSD-style |
+| `keyboard-en-GB.txt` | stoppard `data/` (keyboard-first GB variants) | SCOWL BSD-style |
 
 ## Adding / upgrading a bundled dictionary
 
-1. Download the `.aff` and `.dic` pair from the source above.
-2. Save as `resources/dictionaries/<lang>.{aff,dic}`.
-3. Register both files in `resources/scriba.qrc`.
-4. Rebuild.
+1. Add or update the word list in stoppard's `data/` (keep it in sync with
+   `vendor/stoppard/data/`).
+2. Copy it to `resources/dictionaries/<name>.txt`.
+3. Register it in `resources/scriba.qrc`.
+4. Rebuild. The bundled copy is extracted to
+   `~/.config/scriba/dictionaries/bundled/` on first use (a stale copy whose
+   `# scriba-dict-version:` marker doesn't match the bundle is superseded to
+   `.bak`).
 
-User-installed dictionaries are not bundled: Preferences → Spelling →
-"Import Dictionary…" copies an `.aff`/`.dic` pair into the per-user config
-directory (`~/.config/scriba/dictionaries/`), where it becomes available in
-the language dropdown. "Remove Dictionary" deletes an installed pair again
-(the bundled `en_US`/`en_GB` dictionaries cannot be removed).
+User-installed word lists are not bundled: Preferences → Spelling →
+"Import Word Lists…" copies a `.txt` list into the per-user config directory
+(`~/.config/scriba/dictionaries/`), where it applies to every language and
+dialect. "Remove" deletes an installed list again (bundled lists cannot be
+removed).

@@ -68,7 +68,12 @@ std::vector<Issue> runAll(std::u16string_view text, Dialect dialect)
     for (const Rule *r : registry())
         r->run(a, issues);
 
-    // Dedup: sort by (start, priority), drop any issue whose start falls
+    return dedupIssues(std::move(issues));
+}
+
+std::vector<Issue> dedupIssues(std::vector<Issue> issues)
+{
+    // Dedup: sort by start (stable), drop any issue whose start falls
     // inside the span of a higher-priority kept issue (start < last.end).
     std::stable_sort(issues.begin(), issues.end(),
                      [](const Issue &x, const Issue &y) { return x.start < y.start; });

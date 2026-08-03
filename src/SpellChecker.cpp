@@ -17,42 +17,112 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <hunspell.hxx>
+#include <QRegularExpression>
+#include <QCryptographicHash>
+#include <vector>
 
 namespace {
 
-constexpr const char *BundledLangs[] = {"en_US", "en_GB"};
+constexpr const char *BundledFiles[] = {"en-US.txt", "en-GB.txt", "maori-nz.txt",
+                                        "canadian-en.txt", "keyboard-en-GB.txt"};
 
 QString bundledDictDir()
 {
     return SpellChecker::configDictDir() + "/bundled";
 }
 
+// Supersede a stale extracted copy to `<file>.bak`, mirroring CssLoader.
+void supersedeStaleFile(const QString &path)
+{
+    QFile::remove(path + ".bak");
+    if (!QFile::rename(path, path + ".bak"))
+        QFile::remove(path);
+}
+
+// The version marker that guards a config-dir copy against a changed bundled
+// dictionary. A '#' first line is skipped by stoppard's word-list reader.
+QString dictMarker(const QString &hash)
+{
+    return QStringLiteral("# scriba-dict-version: %1\n").arg(hash);
+}
+
+QString extractDictMarker(const QString &text)
+{
+    static const QRegularExpression re(
+        QStringLiteral("^# scriba-dict-version: ([0-9a-f]{64})\\s*$"));
+    for (const QString &line : text.split(QLatin1Char('\n'))) {
+        const QRegularExpressionMatch m = re.match(line);
+        if (m.hasMatch())
+            return m.captured(1);
+    }
+    return {};
+}
+
+// Extract `name` from the qrc bundle to the config dir, honouring a version
+// marker: a config copy is used only while its marker matches the current
+// bundle hash; otherwise it is superseded to .bak and the bundle is written
+// fresh. Returns false only when the resource itself is missing.
 bool copyBundledIfNeeded(const QString &name)
 {
     QDir().mkpath(bundledDictDir());
-    bool ok = true;
-    for (const char *ext : {".aff", ".dic"}) {
-        QString target = bundledDictDir() + "/" + name + ext;
-        QString source = ":/dictionaries/" + name + ext;
-        QFile src(source);
-        if (!src.exists())
-            continue;
-        if (QFileInfo::exists(target)
-            && QFileInfo(target).size() == src.size())
-            continue;
-        if (!src.open(QIODevice::ReadOnly)) {
-            ok = false;
-            continue;
-        }
-        QFile dst(target);
-        if (!dst.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            ok = false;
-            continue;
-        }
-        dst.write(src.readAll());
+    QFile src(":/dictionaries/" + name);
+    if (!src.open(QIODevice::ReadOnly))
+        return false;
+    const QByteArray content = src.readAll();
+    const QString expected = QString::fromLatin1(
+        QCryptographicHash::hash(content, QCryptographicHash::Sha256).toHex());
+    const QString target = bundledDictDir() + "/" + name;
+
+    QFile dst(target);
+    if (dst.open(QIODevice::ReadOnly)) {
+        if (extractDictMarker(QString::fromUtf8(dst.readAll())) == expected)
+            return true;
+        supersedeStaleFile(target);
     }
-    return ok;
+    QFile out(target);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return false;
+    out.write(dictMarker(expected).toUtf8());
+    out.write(content);
+    return true;
+}
+
+// Restrict dictionary base names to letters/digits/_/- and refuse the reserved
+// "user"/"bundled" names and the bundled dictionary file names so an imported
+// list can never collide with the user word list or the bundled copies.
+bool isSafeDictionaryBase(const QString &base)
+{
+    if (base.isEmpty() || base == QLatin1String(".") || base == QLatin1String(".."))
+        return false;
+    if (base == QLatin1String("user") || base == QLatin1String("bundled"))
+        return false;
+    for (QChar c : base) {
+        if (!c.isLetterOrNumber() && c != QLatin1Char('_') && c != QLatin1Char('-'))
+            return false;
+    }
+    return true;
+}
+
+// Bases of the bundled dictionary files (extracted copies live in the
+// bundled/ subdir, so a config-dir file with one of these names would never
+// be used — refuse them as import/remove targets).
+bool isBundledFileName(const QString &base)
+{
+    return base == QLatin1String("en-US") || base == QLatin1String("en-GB")
+        || base == QLatin1String("maori-nz") || base == QLatin1String("canadian-en")
+        || base == QLatin1String("keyboard-en-GB");
+}
+
+bool copyFileTo(const QString &src, const QString &dst)
+{
+    QFile s(src);
+    if (!s.open(QIODevice::ReadOnly))
+        return false;
+    QFile d(dst);
+    if (!d.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return false;
+    d.write(s.readAll());
+    return true;
 }
 
 } // namespace
@@ -136,170 +206,101 @@ QStringList SpellChecker::parseWordList(const QString &text)
     return words;
 }
 
-bool SpellChecker::findDictionaryFiles(const QString &language, QString &aff, QString &dic) const
+QString SpellChecker::defaultLanguageForDialect(const QString &dialect)
 {
-    for (const char *bundled : BundledLangs) {
-        if (language == QLatin1String(bundled)) {
-            aff = bundledDictDir() + "/" + language + ".aff";
-            dic = bundledDictDir() + "/" + language + ".dic";
-            return QFileInfo::exists(aff) && QFileInfo::exists(dic);
-        }
-    }
-    aff = configDictDir() + "/" + language + ".aff";
-    dic = configDictDir() + "/" + language + ".dic";
-    return QFileInfo::exists(aff) && QFileInfo::exists(dic);
+    if (dialect == QStringLiteral("British") || dialect == QStringLiteral("Australian")
+        || dialect == QStringLiteral("Indian") || dialect == QStringLiteral("New Zealand"))
+        return QStringLiteral("en_GB");
+    return QStringLiteral("en_US");   // American (the default) / Canadian / unknown
 }
 
 QStringList SpellChecker::availableLanguages()
 {
-    QStringList langs;
-    for (const char *bundled : BundledLangs) {
-        if (copyBundledIfNeeded(bundled))
-            langs << QLatin1String(bundled);
-    }
-    QDir dir(configDictDir());
-    const QStringList affFiles = dir.entryList({"*.aff"}, QDir::Files);
-    for (const QString &aff : affFiles) {
-        QString base = QFileInfo(aff).completeBaseName();
-        if (base.isEmpty() || base == "user")
-            continue;
-        if (dir.exists(base + ".dic") && !langs.contains(base))
-            langs << base;
-    }
-    langs.sort();
-    return langs;
+    for (const char *file : BundledFiles)
+        copyBundledIfNeeded(QLatin1String(file));
+    return {QStringLiteral("en_US"), QStringLiteral("en_GB")};
 }
 
 bool SpellChecker::isBundledLanguage(const QString &language)
 {
-    for (const char *bundled : BundledLangs) {
-        if (language == QLatin1String(bundled))
-            return true;
+    return language == QLatin1String("en_US") || language == QLatin1String("en_GB");
+}
+
+QStringList SpellChecker::importedDictionaries()
+{
+    QStringList lists;
+    QDir dir(configDictDir());
+    for (const QString &txt : dir.entryList({QStringLiteral("*.txt")}, QDir::Files)) {
+        const QString base = QFileInfo(txt).completeBaseName();
+        if (base.isEmpty() || base == QLatin1String("user"))
+            continue;
+        if (isBundledFileName(base) || !isSafeDictionaryBase(base))
+            continue;
+        lists << base;
     }
-    return false;
+    lists.sort();
+    return lists;
 }
 
-namespace {
-
-// Restrict dictionary base names to the characters used by standard hunspell
-// language codes (e.g. "de_DE", "ca_ES-valencia") and refuse the reserved
-// "user"/"bundled" names so a dictionary can never collide with the user word
-// list or the bundled extraction directory.
-bool isSafeDictionaryBase(const QString &base)
+QString SpellChecker::installDictionary(const QString &txtPath)
 {
-    if (base.isEmpty() || base == "." || base == "..")
-        return false;
-    if (base == QLatin1String("user") || base == QLatin1String("bundled"))
-        return false;
-    for (QChar c : base) {
-        if (!c.isLetterOrNumber() && c != QLatin1Char('_') && c != QLatin1Char('-'))
-            return false;
-    }
-    return true;
-}
-
-bool copyFileTo(const QString &src, const QString &dst)
-{
-    QFile s(src);
-    if (!s.open(QIODevice::ReadOnly))
-        return false;
-    QFile d(dst);
-    if (!d.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        return false;
-    d.write(s.readAll());
-    return true;
-}
-
-// Hunspell tolerates corrupt files silently (it builds an empty table), so
-// validate structurally: a .dic must start with a parseable word count and a
-// .aff must be non-empty.
-bool looksLikeDictionary(const QString &affPath, const QString &dicPath)
-{
-    QFile aff(affPath);
-    if (!aff.open(QIODevice::ReadOnly | QIODevice::Text) || aff.size() == 0)
-        return false;
-
-    QFile dic(dicPath);
-    if (!dic.open(QIODevice::ReadOnly | QIODevice::Text))
-        return false;
-    bool ok = false;
-    const int count = dic.readLine().trimmed().toInt(&ok);
-    return ok && count >= 0;
-}
-
-} // namespace
-
-QString SpellChecker::installDictionary(const QString &affOrDicPath)
-{
-    QFileInfo info(affOrDicPath);
+    QFileInfo info(txtPath);
     if (!info.exists() || !info.isFile())
         return {};
-
+    if (info.suffix().toLower() != QLatin1String("txt"))
+        return {};
     const QString base = info.completeBaseName();
-    const QString suffix = info.suffix().toLower();
-    if (!isSafeDictionaryBase(base) || isBundledLanguage(base))
+    if (isBundledFileName(base) || !isSafeDictionaryBase(base))
         return {};
 
-    QString affPath, dicPath;
-    if (suffix == "aff") {
-        affPath = affOrDicPath;
-        dicPath = info.dir().filePath(base + ".dic");
-    } else if (suffix == "dic") {
-        dicPath = affOrDicPath;
-        affPath = info.dir().filePath(base + ".aff");
-    } else {
+    QFile src(txtPath);
+    if (!src.open(QIODevice::ReadOnly | QIODevice::Text))
         return {};
-    }
+    const QStringList words = parseWordList(QString::fromUtf8(src.readAll()));
+    if (words.isEmpty())
+        return {};   // a word list with no words is not a dictionary
 
     QDir().mkpath(configDictDir());
-    const QString dstAff = configDictDir() + "/" + base + ".aff";
-    const QString dstDic = configDictDir() + "/" + base + ".dic";
+    const QString dst = configDictDir() + "/" + base + ".txt";
+    if (QFileInfo::exists(dst))
+        return base;   // idempotent reinstall
 
-    if (QFileInfo::exists(dstAff) && QFileInfo::exists(dstDic))
-        return base;
-
-    if (!copyFileTo(affPath, dstAff) || !copyFileTo(dicPath, dstDic)) {
-        QFile::remove(dstAff);
-        QFile::remove(dstDic);
+    if (!copyFileTo(txtPath, dst))
         return {};
-    }
-    if (!looksLikeDictionary(dstAff, dstDic)) {
-        QFile::remove(dstAff);
-        QFile::remove(dstDic);
-        return {};
-    }
     return base;
 }
 
-bool SpellChecker::removeDictionary(const QString &language)
+bool SpellChecker::removeDictionary(const QString &base)
 {
-    if (isBundledLanguage(language) || !isSafeDictionaryBase(language))
+    if (isBundledFileName(base) || !isSafeDictionaryBase(base))
         return false;
+    return QFile::remove(configDictDir() + "/" + base + ".txt");
+}
 
-    QDir dir(configDictDir());
-    bool removed = QFile::remove(dir.filePath(language + ".aff"));
-    removed = QFile::remove(dir.filePath(language + ".dic")) || removed;
-    return removed;
+QStringList SpellChecker::importedWords() const
+{
+    QStringList words;
+    for (const QString &base : importedDictionaries()) {
+        QFile file(configDictDir() + "/" + base + ".txt");
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        words << parseWordList(QString::fromUtf8(file.readAll()));
+    }
+    return words;
 }
 
 bool SpellChecker::loadLanguage(const QString &language)
 {
-    copyBundledIfNeeded("en_US");
-    copyBundledIfNeeded("en_GB");
-
-    QString aff, dic;
-    if (!findDictionaryFiles(language, aff, dic))
+    if (language != QLatin1String("en_US") && language != QLatin1String("en_GB"))
         return false;
-
-    m_hunspell = std::make_unique<Hunspell>(aff.toUtf8().constData(), dic.toUtf8().constData());
-    if (!m_hunspell)
-        return false;
-
+    for (const char *name : BundledFiles) {
+        if (!copyBundledIfNeeded(QLatin1String(name)))
+            return false;
+    }
     m_language = language;
-
     m_userWords.clear();
     loadUserDictionary();
-
+    applyEngineConfig();
     return true;
 }
 
@@ -323,8 +324,50 @@ void SpellChecker::loadUserDictionary()
         if (word.isEmpty())
             continue;
         m_userWords.insert(word);
-        m_hunspell->add(word.toStdString());
     }
+}
+
+void SpellChecker::applyEngineConfig()
+{
+    if (!isLoaded())
+        return;
+
+    if (m_dialect == QStringLiteral("British"))
+        m_engine.setDialect(stoppard::Dialect::British);
+    else if (m_dialect == QStringLiteral("Australian"))
+        m_engine.setDialect(stoppard::Dialect::Australian);
+    else if (m_dialect == QStringLiteral("Indian"))
+        m_engine.setDialect(stoppard::Dialect::Indian);
+    else if (m_dialect == QStringLiteral("Canadian"))
+        m_engine.setDialect(stoppard::Dialect::Canadian);
+    else if (m_dialect == QStringLiteral("New Zealand"))
+        m_engine.setDialect(stoppard::Dialect::NewZealand);
+    else
+        m_engine.setDialect(stoppard::Dialect::American);
+
+    m_engine.setLanguage(m_language == QLatin1String("en_GB")
+                             ? stoppard::Language::British
+                             : stoppard::Language::American);
+    m_engine.setDictionaryPaths((bundledDictDir() + "/en-US.txt").toStdString(),
+                                (bundledDictDir() + "/en-GB.txt").toStdString(),
+                                (bundledDictDir() + "/maori-nz.txt").toStdString(),
+                                (bundledDictDir() + "/canadian-en.txt").toStdString());
+
+    QStringList merged = m_userWords.values();
+    merged << importedWords();
+    merged.removeDuplicates();
+    std::vector<std::u16string> words;
+    words.reserve(static_cast<size_t>(merged.size()));
+    for (const QString &w : merged)
+        words.push_back(w.toStdU16String());
+    m_engine.setUserWords(std::move(words));
+}
+
+void SpellChecker::setDialect(const QString &dialect)
+{
+    m_dialect = dialect;
+    if (isLoaded())
+        applyEngineConfig();
 }
 
 void SpellChecker::addToUserDictionary(const QString &word)
@@ -333,11 +376,9 @@ void SpellChecker::addToUserDictionary(const QString &word)
     if (trimmed.isEmpty() || m_userWords.contains(trimmed))
         return;
 
-    if (m_hunspell)
-        m_hunspell->add(trimmed.toStdString());
-
     m_userWords.insert(trimmed);
     writeUserDictionaryWords(m_userWords.values());
+    applyEngineConfig();
 }
 
 void SpellChecker::removeFromUserDictionary(const QString &word)
@@ -346,11 +387,8 @@ void SpellChecker::removeFromUserDictionary(const QString &word)
         return;
 
     writeUserDictionaryWords(m_userWords.values());
-
-    // hunspell has no runtime "remove" — rebuild the active instance so the
-    // word is flagged again immediately (also reloads ignores + user words).
-    if (!m_language.isEmpty())
-        loadLanguage(m_language);
+    // The engine's user-word set is swapped atomically — no reload needed.
+    applyEngineConfig();
 }
 
 QStringList SpellChecker::userWords() const
@@ -365,18 +403,17 @@ bool SpellChecker::checkWord(const QString &word)
     QString trimmed = word.trimmed();
     if (trimmed.isEmpty() || trimmed.size() == 1)
         return true;
-    if (!m_hunspell)
+    if (!isLoaded())
         return true;
-    return m_hunspell->spell(trimmed.toStdString());
+    return !m_engine.isMisspelled(trimmed.toStdU16String());
 }
 
 QStringList SpellChecker::suggestions(const QString &word)
 {
-    if (!m_hunspell)
+    if (!isLoaded())
         return {};
     QStringList result;
-    char **slst = nullptr;
-    for (const std::string &s : m_hunspell->suggest(word.trimmed().toStdString()))
-        result << QString::fromStdString(s);
+    for (const std::u16string &s : m_engine.spellSuggestions(word.trimmed().toStdU16String()))
+        result << QString::fromStdU16String(s);
     return result;
 }

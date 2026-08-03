@@ -775,35 +775,90 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
             return code;
         };
 
-        auto *importDictBtn = new QPushButton(tr("&Import Dictionary..."));
-        auto *removeDictBtn = new QPushButton(tr("Re&move Dictionary"));
-        stripButtonIcons({importDictBtn, removeDictBtn});
-
-        auto reloadLanguages = [this, languageLabel, removeDictBtn](const QString &select) {
-            m_languageCombo->blockSignals(true);
-            m_languageCombo->clear();
-            for (const QString &code : SpellChecker::availableLanguages())
-                m_languageCombo->addItem(languageLabel(code), code);
-            int idx = m_languageCombo->findData(select);
-            if (idx < 0)
-                idx = m_languageCombo->findData("en_US");
-            m_languageCombo->setCurrentIndex(idx < 0 ? 0 : idx);
-            m_languageCombo->blockSignals(false);
-            removeDictBtn->setEnabled(
-                !SpellChecker::isBundledLanguage(m_languageCombo->currentData().toString()));
-        };
-
         m_languageCombo = new QComboBox;
-        reloadLanguages(settings.value(Preferences::DictionaryLanguage, "en_US").toString());
-        dictionaryLayout->addRow("Language:", m_languageCombo);
+        // data() == "" ("Follow dialect") lets the grammar dialect select the
+        // base dictionary — the default; an explicit language is an override.
+        m_languageCombo->addItem(tr("Follow dialect"), QString());
+        m_languageCombo->addItem(languageLabel("en_US"), "en_US");
+        m_languageCombo->addItem(languageLabel("en_GB"), "en_GB");
+        const QString storedLang = settings.value(Preferences::DictionaryLanguage).toString();
+        int langIdx = m_languageCombo->findData(storedLang);
+        m_languageCombo->setCurrentIndex(langIdx < 0 ? 0 : langIdx);
+        dictionaryLayout->addRow(tr("Language:"), m_languageCombo);
 
-        QHBoxLayout *dictButtons = new QHBoxLayout();
-        dictButtons->addWidget(importDictBtn);
-        dictButtons->addWidget(removeDictBtn);
-        dictButtons->addStretch();
-        dictionaryLayout->addRow(dictButtons);
+        auto *langNote = new QLabel(tr(
+            "Follow dialect uses the Grammar dialect setting to pick the base "
+            "dictionary (American/Canadian -> English (US), the rest -> English (UK))."));
+        langNote->setWordWrap(true);
+        langNote->setStyleSheet("color: gray; padding: 8px;");
+        dictionaryLayout->addRow(QString(), langNote);
 
         layout->addWidget(dictionaryGroup);
+
+        QGroupBox *importGroup = new QGroupBox("Imported Word Lists");
+        QVBoxLayout *importLayout = new QVBoxLayout(importGroup);
+        importLayout->addSpacing(8);
+
+        m_importedList = new QListWidget;
+        m_importedList->setMinimumHeight(60);
+        importLayout->addWidget(m_importedList);
+
+        auto *importDictBtn = new QPushButton(tr("&Import Word List..."));
+        auto *removeDictBtn = new QPushButton(tr("Re&move Word List"));
+        stripButtonIcons({importDictBtn, removeDictBtn});
+        QHBoxLayout *importButtons = new QHBoxLayout();
+        importButtons->addWidget(importDictBtn);
+        importButtons->addWidget(removeDictBtn);
+        importButtons->addStretch();
+        importLayout->addLayout(importButtons);
+
+        auto reloadImported = [this, removeDictBtn]() {
+            m_importedList->clear();
+            m_importedList->addItems(SpellChecker::importedDictionaries());
+            removeDictBtn->setEnabled(m_importedList->currentRow() >= 0);
+        };
+
+        // Imported word lists are language-independent unions: they add words
+        // to whichever base dictionary is active.
+        auto *importNote = new QLabel(tr(
+            "Imported word lists and custom words are language-independent for now: "
+            "they apply to every language and dialect."));
+        importNote->setWordWrap(true);
+        importNote->setStyleSheet("color: gray; padding: 8px;");
+        importLayout->addWidget(importNote);
+
+        layout->addWidget(importGroup);
+
+        connect(m_importedList, &QListWidget::itemSelectionChanged, this,
+                [removeDictBtn, this]() {
+                    removeDictBtn->setEnabled(m_importedList->currentItem() != nullptr);
+                });
+        connect(importDictBtn, &QPushButton::clicked, this, [this, reloadImported]() {
+            const QString path = QFileDialog::getOpenFileName(this, tr("Import Word List"),
+                QDir::homePath(), tr("Word lists (*.txt)"));
+            if (path.isEmpty())
+                return;
+            const QString base = SpellChecker::installDictionary(path);
+            if (base.isEmpty()) {
+                QMessageBox::warning(this, tr("Import Word List"),
+                    tr("Could not import the file. It must be a plain word list "
+                       "(one word per line, .txt) with a safe name (e.g. technical-terms)."));
+                return;
+            }
+            reloadImported();
+        });
+        connect(removeDictBtn, &QPushButton::clicked, this, [this, reloadImported]() {
+            QListWidgetItem *item = m_importedList->currentItem();
+            if (!item)
+                return;
+            const QString base = item->text();
+            if (QMessageBox::question(this, tr("Remove Word List"),
+                                      tr("Remove the \"%1\" word list?").arg(base))
+                != QMessageBox::Yes)
+                return;
+            if (SpellChecker::removeDictionary(base))
+                reloadImported();
+        });
 
         QGroupBox *customGroup = new QGroupBox("Custom Words");
         QVBoxLayout *customLayout = new QVBoxLayout(customGroup);
@@ -880,31 +935,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
                 return;
             }
             mergeParsedWords(SpellChecker::parseWordList(QString::fromUtf8(file.readAll())));
-        });
-        connect(importDictBtn, &QPushButton::clicked, this, [this, reloadLanguages]() {
-            const QString path = QFileDialog::getOpenFileName(this, tr("Import Dictionary"),
-                QDir::homePath(), tr("Hunspell dictionaries (*.aff *.dic)"));
-            if (path.isEmpty())
-                return;
-            const QString lang = SpellChecker::installDictionary(path);
-            if (lang.isEmpty()) {
-                QMessageBox::warning(this, tr("Import Dictionary"),
-                    tr("Could not import the dictionary. The file must be a valid Hunspell "
-                       ".aff/.dic pair with a standard language name (e.g. de_DE)."));
-                return;
-            }
-            reloadLanguages(lang);
-        });
-        connect(removeDictBtn, &QPushButton::clicked, this, [this, reloadLanguages]() {
-            const QString lang = m_languageCombo->currentData().toString();
-            if (lang.isEmpty() || SpellChecker::isBundledLanguage(lang))
-                return;
-            if (QMessageBox::question(this, tr("Remove Dictionary"),
-                    tr("Remove the \"%1\" dictionary?").arg(lang))
-                != QMessageBox::Yes)
-                return;
-            if (SpellChecker::removeDictionary(lang))
-                reloadLanguages(QString());
         });
 
         m_pages->addWidget(wrapPage(page));
