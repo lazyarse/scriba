@@ -46,7 +46,7 @@ namespace Preferences {
     constexpr const char *LanguageAutoComplete = "languageAutoComplete";
 
     constexpr const char *ConfigVersion = "configVersion";
-    constexpr int CurrentConfigVersion = 2;
+    constexpr int CurrentConfigVersion = 1;
 
     constexpr const char *EditorFontFamily = "editorFontFamily";
     constexpr const char *EditorFontSize = "editorFontSize";
@@ -157,11 +157,6 @@ namespace Preferences {
             settings.setValue(ReopenLastSession, settings.value("reopenLastFile"));
         settings.remove("reopenLastFile");
 
-        // v1 → v2: dialect key renamed to grammarDialect.
-        if (!settings.contains(GrammarDialect) && settings.contains("harperDialect"))
-            settings.setValue(GrammarDialect, settings.value("harperDialect"));
-        settings.remove("harperDialect");
-
         static const QStringList removedKeys = {
             QStringLiteral("darkMode"),
             QStringLiteral("editorOnLeft"),
@@ -173,7 +168,6 @@ namespace Preferences {
             QStringLiteral("enabledCssFiles"),
             QStringLiteral("EditorFont"),
             QStringLiteral("editorFont"),
-            QStringLiteral("harperDialect"),
         };
         for (const QString &key : removedKeys)
             settings.remove(key);
