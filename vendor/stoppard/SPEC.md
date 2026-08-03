@@ -60,22 +60,29 @@ struct Issue {
 };
 
 enum class Dialect { American, British, Australian, Indian, Canadian };
+enum class Language { None, American, British };   // spelling (§19); None = grammar-only
 
 class Engine {
 public:
     explicit Engine(Dialect dialect = Dialect::American);
-    std::vector<Issue> check(std::u16string_view text) const;  // thread-safe; no mutable state
+    std::vector<Issue> check(std::u16string_view text) const;  // thread-safe; snapshots config at call start
     Dialect dialect() const; void setDialect(Dialect d);
+    void setLanguage(Language l);                   // spelling dictionary (§19); default None
+    void setUserWords(std::vector<std::u16string> words);  // atomic swap (§19.2)
 };
 
 }
 ```
 
+Engine's mutable config (dialect, spelling language, user words) is swapped
+**atomically**: `check()` snapshots it at call start, so the no-mutex
+thread-safety contract (§5) is unchanged by §19's additions.
+
 UTF-16 spans match `QString` indexing exactly — Scriba's byte↔char conversion bridge (HarperEngine.cpp:39-78, 139-154) is deleted, not reimplemented.
 
 ## 5. Pipeline
 
-`check()`: **tokenize → tag → chunk → run rules (priority order) → dedup → issues sorted by start**. All state is local to the call; `Engine` holds only the dialect. Lexicon/morphology tables are immutable globals → safe to share across threads.
+`check()`: **tokenize → tag → chunk → run rules (priority order) → spelling pass (§19, only when Language ≠ None) → dedup → issues sorted by start**. All state is local to the call; `Engine` holds only the atomically-swapped config snapshot (§4). Lexicon/morphology tables are immutable globals → safe to share across threads.
 
 ## 6. Components
 
@@ -226,20 +233,21 @@ A dialect is not a flag but a **profile** the engine carries into every `check()
 struct DialectProfile {
     bool collectivePluralAgreement = false;  // "the team are winning"
     std::vector<Regionalism> regionalisms;   // phrase corrections active in this dialect
+    Language defaultDictionary;              // spelling dictionary (§19.3), resolves "follow dialect"
 };
 DialectProfile profileFor(Dialect);          // immutable, built once
 ```
 
 Profile table (v1):
 
-| Dialect | Collective plural | Notes |
-|---|---|---|
-| American | no | singular-only |
-| Canadian | no | follows American on agreement |
-| British | yes | both accepted |
-| Australian | yes | |
-| Indian | yes | |
-| New Zealand | yes | tracks BrE/AuE; Maori loanwords (whanau, kai, marae, iwi...) hit the Unknown tag and are never flagged by construction |
+| Dialect | Collective plural | Default dictionary | Notes |
+|---|---|---|---|
+| American | no | `American` (en-US) | singular-only |
+| Canadian | no | `American` (en-US) | follows American on agreement and spelling |
+| British | yes | `British` (en-GB) | |
+| Australian | yes | `British` (en-GB) | |
+| Indian | yes | `British` (en-GB) | |
+| New Zealand | yes | `British` (en-GB) | + Māori loanword exemptions (§19.7); tracks BrE/AuE; Maori loanwords (whanau, kai, marae, iwi...) hit the Unknown tag (never flagged by grammar rules) and are exempt from the spelling pass |
 
 ### 14.2 Regionalisms (R9) — the dialect rule
 Table-driven mini-rules; each entry `{ dialects-where-wrong, phrase → correction, message }`. Rules R1-R8 consult the profile via `analysis.dialect`; the table is the only dialect-gated phrase data in the engine, and it is *closed and curated* (each entry is a deliberate variant decision, not a word dump).
@@ -257,7 +265,10 @@ Seed entries:
 
 This seed restores the old `DialectAffectsRegionalIdioms` behavior — the scriba test survives, renamed `RegionalismsFollowDialect`.
 
-**Explicitly out**: spelling variants (color/colour, -ise/-ize) — Hunspell owns spelling; Stoppard never touches orthography.
+**Explicitly out of R9**: spelling variants (color/colour, -ise/-ize) are not
+regionalism corrections — they are handled by the R14 spelling pass (§19), whose
+dialect-selected dictionary accepts the dialect's orthography ("colour" is
+correct under the en-GB list, flagged under en-US).
 
 ### 14.3 Dialect affects agreement (R3 extension)
 R3 consults `collectivePluralAgreement`: when a noun head is in the **collective-noun table** (~60 words: team, government, committee, staff, family, audience, crowd, public, board, council, press, army, navy...) — dialects with plural agreement never flag "the team are"; American/Canadian accept only singular. Extra table column: always-plural nouns (police, cattle, clergy...) which never take singular agreement in any dialect.
@@ -280,6 +291,7 @@ tests/data/
 │   ├── R1_modal.txt       # lines:  wrong | right | rule-id
 │   ├── ... one per rule
 │   └── mutations.txt      # transformation operators
+├── spelling_reference.txt # R14 suggestion-parity set: misspelled | correct (one per line)
 └── scripts/fetch_corpus.py  # regenerates clean_corpus.txt from the sources below
 ```
 
@@ -358,6 +370,13 @@ The OOS list is seven rules that share **five underlying capabilities**. Build t
 
 **M8 — Tense consistency (C6, research-heavy)**: "Yesterday I go to the store"→"went", "I went to the store and buy milk"→"bought"; clean: "She said she goes tomorrow" (backshift exception), "I usually go", "If I were you" (irrealis), "It's time we went". Highest false-positive risk of all — guards first (reported speech, habituals, conditionals, polite would/could), fire report-only (no auto-fix) in the first cut.
 
+**M9 — Spelling engine (R14, stoppard-only; §19)** → the whole spelling feature lands inside stoppard with its own tests, no scriba changes:
+- `Language` enum + `Engine::setLanguage`/`setUserWords`, plain-wordlist dictionaries (en-US/en-GB, SCOWL-derived BSD — the LGPL LibreOffice `en_GB.dic` is deliberately not used), dialect→dictionary default (override-capable, §14.1), NZ Māori exemptions, case policy.
+- Suggestion engine (candidate generation + n-gram scoring) with the **hunspell-parity bar**: a reference misspelling set (`tests/data/spelling_reference.txt`) captured from hunspell's output during development; acceptance thresholds recorded from the reference run (expected ≈ top-1 ≥ 90%, top-5 ≥ 98% — exact numbers filed in §19.4 once measured).
+- Scriba keeps hunspell until M10 — the two engines coexist during M9's test phase, which is exactly what makes the parity bar measurable.
+
+**M10 — Scriba swap-out (§19.9)**: delete `vendor/hunspell` + the hunspell link in `scriba_spell`; rewrite `SpellChecker`'s core onto stoppard's spelling pass (keep the squiggle overlay, context-menu suggestions, user-dictionary add/remove, Preferences → Spelling page); settings unification — dialect selects the default dictionary, the Spelling page language dropdown remains as an explicit override ("Follow dialect" is the default entry); dictionary import redefined from `.aff/.dic` pairs to plain word lists (`.txt`, one word per line); bundled dictionaries no longer ship `.aff` files; `resources/dictionaries/` becomes plain `en-US.txt`/`en-GB.txt` (+ any user-installed lists in `~/.config/scriba/dictionaries/`).
+
 Each milestone adds its `rule_cases/` file + corpus mutations per §15.
 
 ## 17. Out-of-scope vs. Stoppard's orthography (word-confusion, R12)
@@ -373,8 +392,8 @@ R12.
 
 | Class | Examples | Owner |
 |---|---|---|
-| **Spelling** (misspelt words) | recieve, alot, seperate | Hunspell — Stoppard never fires |
-| **Regional orthography** | color/colour, -ise/-ize | **Explicitly OUT** (§14.2) — Hunspell |
+| **Spelling** (misspelt words) | recieve, alot, seperate | **R14 (M9, §19)** — plain-wordlist pass, dialect-selected dictionary |
+| **Regional orthography** | color/colour, -ise/-ize | **R14's dictionary** (dialect-consistent; §14.2, §19.3) — never R9 |
 | **Word-confusion** (wrong-word choice; both spellings legal) | to/too, their/there/they're, its/it's, your/you're, whose/who's, then/than | **R12 (this rule)** |
 | **Content-word homophones** | lose/loose, affect/effect, advice/advise, cite/site, brake/break | **OUT (§17.5)** |
 
@@ -540,3 +559,199 @@ LCS model cannot express a swap. Therefore:
 "for us one" and "for them one" lines belong in `recall_corpus.txt` (§17.6) —
 run by `TEST(Recall)`, which asserts at least one issue (start may differ from
 the LCS-derived span; only presence is checked there — see 17.6).
+
+## 19. Spelling (R14) — the dictionary pass
+
+**Naming note:** R10 (a/an, M6), R11 (there-is/are, M4.5), R12 (word-confusion,
+§17), R13 (pronoun+numeral, §18) are taken — this rule is **R14**. Rule-case
+files use R14.
+
+### 19.1 The problem boundary
+Spelling moves **in scope** (§17.1's original "Hunspell — Stoppard never fires"
+is superseded): stoppard replaces the vendored hunspell engine in scriba
+(M10). Stoppard's spelling is a **dictionary pass**, not a tag-context rule —
+misspelt words carry no POS signal, so the existing rule machinery does not
+apply. What stays out:
+- **Word-confusion** (R12) and **content-word homophones** (§17.5) are
+  spelling-correct — the pass never fires on them ("lose"/"loose" are both in
+  the dictionary).
+- **Regional orthography** (color/colour, -ise/-ize) is handled by the
+  dictionary, not by R9 (§14.2): the en-US list accepts "color", the en-GB
+  list "colour" (and both -ise and -ize, which are legal in British).
+- The pass never fires on **closed-lexicon tokens** (pronouns, determiners,
+  auxiliaries, contractions like "it's"/"don't" — the tokenizer decomposes
+  these; they are exempt by construction).
+
+### 19.2 Model and Engine API
+```cpp
+enum class Language { None, American, British };
+```
+- `Language::None` = grammar-only (today's behavior for any consumer that does
+  not opt in). `check()` runs the grammar rules always, the spelling pass only
+  when a language is set.
+- `Engine::setLanguage(Language)` selects the active dictionary; the default
+  is `None`.
+- `Engine::setUserWords(std::vector<std::u16string>)` — atomic swap of the
+  per-user word set (scriba's `SpellChecker` user dictionary, M10). The engine
+  stays stateless between `check()` calls and the swap is not visible mid-
+  check, preserving the no-mutex thread-safety contract (`StoppardEngine.cpp`
+  depends on it).
+- The pass consumes the tokenizer's output. **Trigger set**: every `Word`
+  token that is not a closed-lexicon entry (§6.2) and not a contraction
+  fragment (§6.1's decomposition, e.g. `n't`, `'s`, `'ll`) — *regardless of
+  the tagger's output*: the tagger's suffix heuristics (§6.4.3) can tag a
+  misspelling ("recieving" → `-ing` gerund), so the pass must **not** key off
+  the `Unknown` tag. Hits are skipped; misses produce `Issue`s (one per
+  token, span = the token). This is the one intentional exception to §6.4's
+  "rules must not fire on Unknown" — spelling is a dictionary pass, and its
+  precision guarantee is the dictionary, not the tagger.
+
+### 19.3 Dictionaries and the dialect default
+- **Format**: plain word lists, one word per line, lowercase, **base +
+  inflected forms** (plurals, -ed/-ing/-s, comparatives) — no affix engine.
+  Parsed once into an in-memory set.
+- **Sources**: SCOWL-derived word lists (BSD-style) for both en-US and en-GB.
+  The LGPL LibreOffice `en_GB.dic` is **deliberately not used** (GPL-3.0
+  embedding is compatible, but SCOWL's BSD keeps the data license uniform).
+  Pinned: the `scowl-2020.12.07` tarball (same vintage as scriba's bundled
+  en_US). Size estimate: ~60–65k base words per variant, expanding to ~150k
+  lines / ~1–1.2 MB once inflections are spelled out (exact numbers recorded
+  in `data/` after the first build).
+- **Build (reproducible; offline at test time)**: `scripts/fetch_dictionaries.py`
+  downloads the pinned tarball, selects the en-US/en-GB variant sets, expands
+  inflections (plurals, 3ps, -ed/-ing, comparatives — affix-expansion logic
+  if the tarball ships flagged `.dic` forms, or a pre-expanded source if one
+  exists; mechanism decided at implementation after inspecting the tarball),
+  lowercases, dedupes, sorts. The generated lists are **committed** — the
+  script reruns only when SCOWL is bumped; `data/CHECKSUMS.txt` records the
+  sha256 of the source tarball and of each generated list.
+- **Vendored in stoppard** (`data/en-US.txt`, `data/en-GB.txt`), loaded from a
+  path scriba supplies — scriba keeps its qrc-extract-to-config pattern
+  (`~/.config/scriba/dictionaries/`, M10), so the engine needs no file-bundle
+  logic beyond "load this path".
+- **Dialect default (settings unification, §14.1)**: each `DialectProfile`
+  carries `defaultDictionary`; an explicit `Engine::setLanguage` call
+  overrides it. Scriba's Preferences → Spelling dropdown becomes an override
+  whose default entry is **"Follow dialect"**; user-installed dictionaries
+  (plain word lists, M10) appear in the same dropdown.
+
+| Dialect | Default dictionary | Rationale |
+|---|---|---|
+| American | American | |
+| Canadian | American | follows American (agreement §14.3, spelling) |
+| British / Australian / Indian / New Zealand | British | en-GB orthography; NZ adds Māori exemptions (§19.7) |
+
+### 19.4 Suggestions (the hunspell-parity bar)
+Hunspell's candidate pipeline has two stages; both are reproduced:
+1. **Candidate generation** — per misspelling, enumerate: single
+   substitution / deletion / insertion / transposition (the
+   Damerau-Levenshtein ≤ 2 neighborhood), adjacent-key swaps from the
+   keyboard table, and REP replacements (common wrong letter pairs like
+   *ie*/*ei*); intersect with the dictionary.
+2. **Ranking** — hunspell-style: left-aligned 2/3-gram overlap similarity
+   between misspelling and candidate (hunspell's `ngram()` shape),
+   length-similarity factor, common-prefix preference; top-N (≤ 5) ranked
+   suggestions, `matchCase` applied.
+- **Keyboard tables**: harvested at M9 from scriba's still-bundled
+  `en_US.aff`/`en_GB.aff` (read-only — M9 makes no scriba changes): the `KEY`
+  string becomes the adjacent-key table, `REP` pairs the replacement table.
+  Committed as `data/keyboard-en-US.txt` / `data/keyboard-en-GB.txt`
+  (documented format), so M10's deletion of the `.aff` files loses nothing.
+
+**The bar (M9 acceptance)**: two committed artifacts —
+`tests/data/spelling_reference.txt` (~250 common errors: recieve, seperate,
+occured, definately, untill, accomodate, ...; format `misspelled |
+intended-correct`, one per line) and the **capture run** made at M9 start:
+hunspell (scriba's bundled dictionaries) suggests on every entry and its
+top-5 is recorded. `tests/test_spelling_reference.cpp` asserts, per dialect
+dictionary:
+- intended-correct in stoppard's **top-1** ≥ hunspell's own top-1 hit rate on
+  the same set, and ≥ 90% absolute;
+- intended-correct in stoppard's **top-5** ≥ 98%.
+The threshold numbers are provisional until the capture run replaces the
+hunspell constants with measured ones (the two engines coexist through M9
+precisely so this comparison is possible).
+
+### 19.5 Case policy and token rules (parity with hunspell)
+- Lookup folds the token to lowercase; a capitalized word (sentence-initial or
+  mid-sentence) passes if its lowercase form is in the dictionary.
+- **ALL-CAPS** words are not flagged.
+- Unknown capitalized words **are** flagged (hunspell behavior — proper nouns
+  are not in the dictionary either).
+- Suggestions are case-preserving via `matchCase` (§17.3, R9 pattern).
+- **Possessives**: the tokenizer's decomposition (§6.1) splits `dog's` →
+  `dog` + `'s`, so the pass sees the base and "John's" is never flagged
+  wholesale. A word that still contains an internal apostrophe after
+  decomposition (e.g. "O'Brien" — not in the contraction table) is **skipped**
+  (proper-noun pattern).
+- **Digits**: any word token containing a digit (dates, "5th", versions) is
+  skipped.
+- **Hyphenated compounds** ("well-known"): skipped in v1 (per-part checking is
+  a later refinement — splitting invites "un-" prefix false positives).
+- **Brands / mixed case** ("iPhone", "markdownParser"): folded lookup flags
+  them — same behavior as hunspell; the user dictionary (§19.6) is the escape
+  hatch.
+
+### 19.6 User dictionary
+`Engine::setUserWords` (19.2) carries scriba's user words. Scriba's existing
+file format is preserved in M10 (one word per line, optional count header —
+`SpellChecker::parseWordList` already skips it), so no user data migration is
+needed.
+
+### 19.7 New Zealand: Māori loanwords
+The NZ clean corpus's Māori words (kōrero, whānau, marae, Aotearoa, iwi) are
+not in en-GB; without policy they would become the first spelling false
+positives. **The NZ profile carries an exemption list** (curated, ~30–60
+entries at M9) that is unioned into the active dictionary when the profile is
+NZ. The clean NZ corpus stays zero-issue under spelling (§19.8).
+- **Macrons**: lookup is accent-insensitive — both the token and the
+  dictionary are normalized (NFD, strip combining marks) at compare time, and
+  the lists store de-accented forms — so "whānau" and "whanau" both pass no
+  matter how the writer typed them.
+- Seed list (de-accented; grows to ~30–60 entries at M9): whanau, hapu, iwi,
+  marae, kai, korero, mihi, karakia, haka, powhiri, whakapapa, whenua,
+  manuhiri, tangihanga, whanaunga, mahi, pakeha, kaumatua, wananga, tupuna,
+  taniwha, kohanga, reo, Aotearoa. Proper nouns are not otherwise exempt
+  (§19.5 flags capitalized unknowns), so the list must include them.
+
+### 19.8 Tests and the zero-FP gate
+- `tests/test_spellcheck.cpp` — per-rule suite: positives
+  (`rule_cases/R14_spelling.txt`, which fits the LCS harness: "recieve |
+  receive | R14" is a single-token swap; "alot | a lot | R14" exercises the
+  insert path; the harness asserts the top suggestion — ranked-quality
+  coverage lives in the reference suite below), negatives (every
+  clean-corpus word is dictionary-clean under its dialect's dictionary), case
+  policy, token rules (digits, possessives, hyphenated, apostrophed names),
+  closed-lexicon immunity, user-words override.
+- `tests/test_spelling_reference.cpp` — the §19.4 parity set.
+- **The clean corpora are now dictionary-coverage-dependent**: a word that is
+  legitimate but absent from the list becomes an FP. The zero-FP gate stays,
+  but its precondition is "dictionary covers the corpus" — corpus additions
+  may require dictionary additions (reviewed at merge time, not auto-accepted).
+- Mutation "exactly one issue" invariant extends to spelling mutations.
+- Performance: the §10 ten-thousand-words bar is re-measured with spelling
+  enabled (wordlist lookup is a hash-set hit; only misses pay for suggestion
+  generation).
+
+**M9 done =** all of: parity assertions green against the capture run (§19.4);
+clean corpora (en-US, en-GB, NZ) zero-issue under their dialect defaults with
+spelling on; R14 positives/negatives/token rules/mutations green; performance
+bar re-measured with spelling on; `data/en-US.txt`/`en-GB.txt` + keyboard
+tables committed with `CHECKSUMS.txt`; the scriba tree untouched (its `git
+status` shows nothing beyond the vendored SPEC.md sync); full stoppard suite
+green.
+
+### 19.9 Milestone split and scriba integration
+- **M9 (stoppard-only)**: §19.1–19.8 land inside stoppard with tests. Scriba
+  is untouched and keeps hunspell — this is what makes the parity bar
+  measurable (§19.4).
+- **M10 (scriba swap-out)**: delete `vendor/hunspell` and the hunspell link in
+  `scriba_spell`; rewrite `SpellChecker`'s core (`checkWord`/`suggestions`) to
+  delegate to the stoppard engine; keep the squiggle overlay, context-menu
+  suggestions, user-dictionary add/remove, and the Preferences → Spelling page
+  (dropdown becomes the "Follow dialect" override, §19.3); dictionary import
+  accepts plain word lists instead of `.aff/.dic` pairs; bundled dictionaries
+  become `en-US.txt`/`en-GB.txt` qrc resources; the old `.aff`/`.dic` files
+  are removed. M10 must re-run the full scriba test suite (spell-checker,
+  spell-highlighter, settings-migration, preferences) before the hunspell
+  subtree is deleted.

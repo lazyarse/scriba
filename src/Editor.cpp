@@ -128,15 +128,19 @@ void Editor::insertParagraphWithLineHeight(QKeyEvent *event)
     // in every block's format, so normalize the current block to the
     // default format, let the default handler insert the new paragraph,
     // then restore the app's line-height on both blocks.
+    // The key press must NOT run inside beginEditBlock()/endEditBlock():
+    // QTextEdit then re-ranges its scrollbars while the document layout is
+    // still transient, and a scrolled-down viewport collapses back to the
+    // top. Only the format restores below are grouped.
     QTextBlockFormat lineHeightFmt;
     lineHeightFmt.setLineHeight(QSettings().value(Preferences::EditorLineHeight,
                                                   Preferences::DefaultEditorLineHeight).toInt(),
                                 QTextBlockFormat::ProportionalHeight);
     QTextCursor edit = textCursor();
-    edit.beginEditBlock();
     edit.setBlockFormat(QTextBlockFormat());
     QTextEdit::keyPressEvent(event);
     edit = textCursor();
+    edit.beginEditBlock();
     edit.mergeBlockFormat(lineHeightFmt);
     edit.movePosition(QTextCursor::PreviousBlock);
     edit.mergeBlockFormat(lineHeightFmt);
