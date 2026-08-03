@@ -55,6 +55,7 @@ add_executable(scriba WIN32
     src/CsvColumnMapDialog.cpp
     src/SpellChecker.cpp
     src/SpellHighlighter.cpp
+    src/LinkValidator.cpp
     src/GrammarChecker.cpp
     src/StoppardEngine.cpp
     vendor/md4c/src/md4c.c
@@ -190,12 +191,13 @@ if(BUILD_TESTS)
     add_library(scriba_spell STATIC
         src/SpellChecker.cpp
         src/SpellHighlighter.cpp
+        src/LinkValidator.cpp
         src/GrammarChecker.cpp
         src/StoppardEngine.cpp
     )
     target_include_directories(scriba_spell PUBLIC ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(scriba_spell PRIVATE HUNSPELL_STATIC)
-    target_link_libraries(scriba_spell PUBLIC scriba_core hunspell stoppard)
+    target_link_libraries(scriba_spell PUBLIC scriba_core hunspell stoppard Qt6::Network)
 
     add_library(test_editor_helpers STATIC
         tests/EditorTestHarness.cpp
@@ -255,6 +257,16 @@ if(BUILD_TESTS)
     target_include_directories(test_grammar_checker PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_grammar_checker PRIVATE scriba_test_main scriba_spell)
     add_test(NAME test_grammar_checker COMMAND ${_TEST_PREFIX} ./test_grammar_checker)
+
+    add_executable(test_link_validator tests/test_link_validator.cpp)
+    target_include_directories(test_link_validator PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_link_validator PRIVATE scriba_test_main scriba_spell)
+    add_test(NAME test_link_validator COMMAND ${_TEST_PREFIX} ./test_link_validator)
+
+    add_executable(test_broken_links tests/test_broken_links.cpp)
+    target_include_directories(test_broken_links PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_broken_links PRIVATE GTest::gtest scriba_spell Qt6::Test)
+    add_test(NAME test_broken_links COMMAND ${_TEST_PREFIX} ./test_broken_links)
 
     add_executable(test_editor_list_continuation tests/test_editor_list_continuation.cpp)
     target_link_libraries(test_editor_list_continuation PRIVATE scriba_core GTest::gtest_main)

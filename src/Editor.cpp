@@ -114,6 +114,10 @@ Editor::~Editor() = default;
 void Editor::setCurrentFile(const QString &path)
 {
     m_currentFile = path;
+    // Relative link targets resolve against this directory — re-check so the
+    // broken-link underlines follow the new base.
+    if (m_spellHighlighter)
+        m_spellHighlighter->setCurrentFile(path);
 }
 
 void Editor::insertParagraphWithLineHeight(QKeyEvent *event)
@@ -648,6 +652,8 @@ bool Editor::eventFilter(QObject *obj, QEvent *event)
                 paintHitRange(painter, block, hit.start, hit.length, SpellHighlighter::spellUnderlineColor(), fm, underlineY);
             for (const SpellHighlighter::GrammarHit &hit : m_spellHighlighter->grammarIssuesInBlock(blockNumber))
                 paintHitRange(painter, block, hit.start, hit.length, SpellHighlighter::grammarUnderlineColor(), fm, underlineY);
+            for (const SpellHighlighter::GrammarHit &hit : m_spellHighlighter->linkIssuesInBlock(blockNumber))
+                paintHitRange(painter, block, hit.start, hit.length, SpellHighlighter::linkUnderlineColor(), fm, underlineY);
         }
         return false;
     }
@@ -1110,6 +1116,7 @@ void Editor::applySpellSettings()
     QSettings s;
     const bool spellEnabled = s.value(Preferences::SpellCheckEnabled, true).toBool();
     const bool grammarEnabled = s.value(Preferences::GrammarCheckEnabled, false).toBool();
+    const bool linkEnabled = s.value(Preferences::LinkCheckEnabled, true).toBool();
     const QString language = s.value(Preferences::DictionaryLanguage, QStringLiteral("en_US")).toString();
 
     bool loaded = false;
@@ -1126,6 +1133,7 @@ void Editor::applySpellSettings()
     }
     m_spellHighlighter->setSpellCheckingEnabled(spellEnabled && loaded);
     m_spellHighlighter->setGrammarCheckingEnabled(grammarEnabled);
+    m_spellHighlighter->setLinkCheckingEnabled(linkEnabled);
 
     if (auto *stoppard = dynamic_cast<StoppardEngine *>(m_grammarChecker.get()))
         stoppard->setDialect(s.value(Preferences::GrammarDialect, QStringLiteral("American")).toString());
@@ -1536,6 +1544,18 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
             }
         }
 
+        menu.addSeparator();
+    }
+
+    // Broken links under the cursor: an informational entry (there is no
+    // automatic fix for a missing file or a malformed URL).
+    for (const SpellHighlighter::GrammarHit &hit
+         : m_spellHighlighter->linkIssuesInBlock(cursor.block().blockNumber())) {
+        if (cursor.positionInBlock() < hit.start
+            || cursor.positionInBlock() > hit.start + hit.length)
+            continue;
+        QAction *brokenLink = menu.addAction("Broken link: " + hit.message);
+        brokenLink->setEnabled(false);
         menu.addSeparator();
     }
 

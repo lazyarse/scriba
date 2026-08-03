@@ -16,6 +16,7 @@
 #include <QApplication>
 #include <QAbstractTextDocumentLayout>
 #include <QColor>
+#include <QFile>
 #include <QFontMetrics>
 #include <QImage>
 #include <QScrollBar>
@@ -23,6 +24,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTemporaryDir>
 
 #include "Editor.h"
 #include "Preferences.h"
@@ -156,6 +158,64 @@ TEST_F(UnderlineOverlayTest, UnderlineStaysUnderMisspelledWordAfterScroll)
     }
     EXPECT_TRUE(found)
         << "red underline must be painted at the word's on-screen row after scrolling";
+}
+
+TEST_F(UnderlineOverlayTest, AmberUnderlinePaintedForBrokenLink)
+{
+    // Spell check off, broken-link check on (default): only amber underlines
+    // can be painted for the probe text.
+    QSettings().setValue(Preferences::SpellCheckEnabled, false);
+    m_editor->recheckSpelling();
+
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    QFile exists(dir.filePath(QStringLiteral("exists.md")));
+    ASSERT_TRUE(exists.open(QIODevice::WriteOnly));
+    m_editor->setCurrentFile(dir.filePath(QStringLiteral("doc.md")));
+    m_editor->setPlainText(QStringLiteral("see [text](missing-file.md) and [text](exists.md)"));
+    QTextDocument *doc = m_editor->document();
+    doc->markContentsDirty(0, doc->characterCount());
+    doc->documentLayout()->documentSize(); // force full layout so highlightBlock runs everywhere
+    QApplication::processEvents();
+
+    auto *hl = m_editor->findChild<SpellHighlighter *>();
+    ASSERT_NE(hl, nullptr);
+    const auto hits = hl->linkIssuesInBlock(0);
+    ASSERT_EQ(1, hits.size()) << "the missing file target must be flagged, the existing one must not";
+    ASSERT_EQ(11, hits[0].start);
+    ASSERT_EQ(15, hits[0].length);
+
+    QWidget *overlay = m_editor->findChild<QWidget *>(QLatin1String(kOverlayName));
+    ASSERT_NE(overlay, nullptr);
+
+    QTextBlock block = doc->findBlockByNumber(0);
+    QTextCursor left(doc);
+    left.setPosition(block.position() + hits[0].start);
+    QTextCursor right(doc);
+    right.setPosition(block.position() + hits[0].start + hits[0].length);
+    const QRect leftRect = m_editor->cursorRect(left);
+    const QRect rightRect = m_editor->cursorRect(right);
+    const QFontMetrics fm(m_editor->font());
+    const int underlineY = leftRect.top() + fm.ascent() + fm.underlinePos();
+
+    const QPoint expected(leftRect.left() - overlay->pos().x(),
+                          underlineY - overlay->pos().y());
+    const int width = rightRect.left() - leftRect.left();
+
+    const QImage img = overlay->grab().toImage();
+    ASSERT_FALSE(img.isNull());
+
+    bool found = false;
+    for (int x = expected.x(); x < expected.x() + width && !found; ++x) {
+        for (int y = expected.y() - 1; y <= expected.y() + 2 && !found; ++y) {
+            if (x < 0 || y < 0 || x >= img.width() || y >= img.height())
+                continue;
+            const QColor c = img.pixelColor(x, y);
+            if (c.red() > 200 && c.green() > 100 && c.green() < 190 && c.blue() < 60)
+                found = true;
+        }
+    }
+    EXPECT_TRUE(found) << "amber underline must be painted under the broken link target";
 }
 
 int main(int argc, char **argv)

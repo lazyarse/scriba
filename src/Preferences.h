@@ -71,6 +71,7 @@ namespace Preferences {
 
     constexpr const char *SpellCheckEnabled = "spellCheckEnabled";
     constexpr const char *GrammarCheckEnabled = "grammarCheckEnabled";
+    constexpr const char *LinkCheckEnabled = "linkCheckEnabled";
     constexpr const char *DictionaryLanguage = "dictionaryLanguage";
     constexpr const char *GrammarDialect = "grammarDialect";
 

@@ -733,6 +733,10 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_grammarCheckCheck->setChecked(settings.value(Preferences::GrammarCheckEnabled, false).toBool());
         checkLayout->addWidget(m_grammarCheckCheck);
 
+        m_linkCheckCheck = new QCheckBox("Underline broken links as you type");
+        m_linkCheckCheck->setChecked(settings.value(Preferences::LinkCheckEnabled, true).toBool());
+        checkLayout->addWidget(m_linkCheckCheck);
+
         layout->addWidget(checkGroup);
 
         QGroupBox *grammarGroup = new QGroupBox("Grammar");
@@ -1040,6 +1044,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());
         settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
+        settings.setValue(Preferences::LinkCheckEnabled, m_linkCheckCheck->isChecked());
         settings.setValue(Preferences::DictionaryLanguage, m_languageCombo->currentData().toString());
         settings.setValue(Preferences::GrammarDialect, m_grammarDialectCombo->currentText());
         QStringList customWords;

@@ -130,6 +130,7 @@ private:
     // Spelling
     QCheckBox *m_spellCheckCheck;
     QCheckBox *m_grammarCheckCheck;
+    QCheckBox *m_linkCheckCheck;
     QComboBox *m_languageCombo;
     QComboBox *m_grammarDialectCombo;
     QListWidget *m_customWordsList;

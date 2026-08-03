@@ -13,8 +13,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "SpellHighlighter.h"
+#include "LinkValidator.h"
 #include "SpellChecker.h"
 #include <QColor>
+#include <QFileInfo>
 #include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCharFormat>
@@ -88,6 +90,11 @@ QColor SpellHighlighter::spellUnderlineColor()
 QColor SpellHighlighter::grammarUnderlineColor()
 {
     return QColor(0x00, 0xcc, 0x66);
+}
+
+QColor SpellHighlighter::linkUnderlineColor()
+{
+    return QColor(0xf0, 0x90, 0x00);
 }
 
 SpellHighlighter::SpellHighlighter(QTextDocument *document, QObject *parent)
@@ -201,12 +208,31 @@ void SpellHighlighter::setGrammarCheckingEnabled(bool enabled)
         m_lintTimer->start();
 }
 
+void SpellHighlighter::setLinkCheckingEnabled(bool enabled)
+{
+    m_linkEnabled = enabled;
+    m_linkHits.clear();
+    if (enabled)
+        runSpellCheck(); // recompute so fresh underlines appear immediately
+    else
+        emit spellHitsChanged(); // clear any painted underlines
+}
+
+void SpellHighlighter::setCurrentFile(const QString &path)
+{
+    m_currentFile = path;
+    if (m_linkEnabled)
+        runSpellCheck(); // relative targets resolve against a new base dir now
+}
+
 void SpellHighlighter::refresh()
 {
     m_grammarIssues.clear();
     m_spellHits.clear();
+    m_linkHits.clear();
     m_staleBlocks.clear();
-    if (m_spellEnabled && m_checker && m_checker->isLoaded()) {
+    const bool spellActive = m_spellEnabled && m_checker && m_checker->isLoaded();
+    if (spellActive || m_linkEnabled) {
         for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next())
             m_staleBlocks.insert(block.blockNumber());
         runSpellCheck();
@@ -218,7 +244,8 @@ void SpellHighlighter::refresh()
 
 void SpellHighlighter::scheduleSpellCheck(int position, int charsRemoved, int charsAdded)
 {
-    if (!m_spellEnabled || !m_checker || !m_checker->isLoaded())
+    const bool spellActive = m_spellEnabled && m_checker && m_checker->isLoaded();
+    if ((!spellActive && !m_linkEnabled))
         return;
     // Format-only changes (highlighting, block-state updates) emit
     // contentsChange with (0,0) — the edits' own reformats. Skip those, or
@@ -283,18 +310,33 @@ void SpellHighlighter::scheduleSpellCheck(int position, int charsRemoved, int ch
 
 void SpellHighlighter::runSpellCheck()
 {
-    if (!m_spellEnabled || !m_checker || !m_checker->isLoaded())
+    const bool spellActive = m_spellEnabled && m_checker && m_checker->isLoaded();
+    if (!spellActive && !m_linkEnabled)
         return;
+
+    // Reference definitions are collected over the whole document first so
+    // usages on earlier lines can be validated against definitions that live
+    // on later lines.
+    QSet<QString> refDefs;
+    if (m_linkEnabled)
+        refDefs = collectReferenceDefinitions();
 
     // Walk the whole document so fence/front-matter state stays consistent
     // even when only some blocks are stale (the state machine must advance
     // across the blocks in between).
     int state = 0;
-    bool any = false;
+    bool any = m_linkEnabled; // link hits are recomputed wholesale each pass
     for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next()) {
         const int blockNumber = block.blockNumber();
         const BlockContext ctx = blockContext(blockNumber, block.text(), state);
         state = ctx.state;
+
+        if (m_linkEnabled) {
+            if (ctx.checkable)
+                m_linkHits[blockNumber] = scanLinkHits(block.text(), refDefs);
+            else
+                m_linkHits.remove(blockNumber);
+        }
 
         if (!m_staleBlocks.contains(blockNumber))
             continue;
@@ -304,12 +346,14 @@ void SpellHighlighter::runSpellCheck()
             m_spellHits.remove(blockNumber);
             continue;
         }
-        QVector<GrammarHit> hits;
-        for (const WordHit &word : scanWords(block.text())) {
-            if (!m_checker->checkWord(word.text))
-                hits.append({word.start, word.length});
+        if (spellActive) {
+            QVector<GrammarHit> hits;
+            for (const WordHit &word : scanWords(block.text())) {
+                if (!m_checker->checkWord(word.text))
+                    hits.append({word.start, word.length});
+            }
+            m_spellHits[blockNumber] = hits;
         }
-        m_spellHits[blockNumber] = hits;
     }
     // Entries left over refer to blocks deleted since they were marked stale.
     m_staleBlocks.clear();
@@ -373,6 +417,7 @@ void SpellHighlighter::highlightBlock(const QString &text)
     if (!ctx.checkable) {
         setFormat(0, text.length(), QTextCharFormat());
         m_spellHits.remove(blockNumber);
+        m_linkHits.remove(blockNumber);
         m_staleBlocks.remove(blockNumber);
         return;
     }
@@ -472,4 +517,147 @@ QVector<SpellHighlighter::GrammarHit> SpellHighlighter::grammarIssuesInBlock(int
 QVector<SpellHighlighter::GrammarHit> SpellHighlighter::spellHitsInBlock(int blockNumber) const
 {
     return m_spellHits.value(blockNumber);
+}
+
+QVector<SpellHighlighter::GrammarHit> SpellHighlighter::linkIssuesInBlock(int blockNumber) const
+{
+    return m_linkHits.value(blockNumber);
+}
+
+QSet<QString> SpellHighlighter::collectReferenceDefinitions() const
+{
+    // [name]: target  — definition lines for reference-style links.
+    static const QRegularExpression defRe(
+        R"(^\s*\[([^\]]+)\]:\s*(<[^>\s]+>|[^\s]+))");
+    QSet<QString> defs;
+    int state = 0;
+    for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next()) {
+        const BlockContext ctx = blockContext(block.blockNumber(), block.text(), state);
+        state = ctx.state;
+        if (!ctx.checkable)
+            continue;
+        const QRegularExpressionMatch m = defRe.match(block.text());
+        if (m.hasMatch())
+            defs.insert(m.captured(1));
+    }
+    return defs;
+}
+
+QVector<SpellHighlighter::GrammarHit>
+SpellHighlighter::scanLinkHits(const QString &line, const QSet<QString> &refDefs) const
+{
+    static const QRegularExpression targetRe(R"(\]\(([^()\s\n]+)\))"); // [t](target)
+    static const QRegularExpression refUsageRe(R"(\]\[([^\]\n]+)\])"); // [t][ref]
+    static const QRegularExpression urlRe(
+        R"((?:https?|ftp)://[^\s<>\\)\]]+|www\.[^\s<>\\)\]]+)"); // raw URLs
+    static const QRegularExpression defRe(
+        R"(^\s*\[([^\]]+)\]:\s*(<[^>\s]+>|[^\s]+))"); // [name]: target
+    // Markdown spans that must not be treated as links: inline code, math,
+    // emoji shortcodes, HTML tags, footnotes.
+    static const QRegularExpression skipRe(
+        "`[^`\\n]*`|\\$\\$[^\\n]*|\\$[^$\\n]*\\$|:[\\w+_-]+:|<[^>\\n]*>|\\[\\^[^\\]\\n]+\\]");
+
+    const QString baseDir = m_currentFile.isEmpty()
+        ? QString() : QFileInfo(m_currentFile).absolutePath();
+
+    QVector<GrammarHit> hits;
+    auto classify = [&](const QString &target) {
+        switch (LinkValidator::validateTarget(target, baseDir)) {
+        case LinkValidator::Status::FileNotFound:
+            return QStringLiteral("File not found: ") + target;
+        case LinkValidator::Status::MalformedUrl:
+            return QStringLiteral("Malformed URL: ") + target;
+        case LinkValidator::Status::Valid:
+            return QString();
+        }
+        return QString();
+    };
+    auto skipSpans = [&]() {
+        QVector<QPair<int, int>> spans;
+        QRegularExpressionMatchIterator it = skipRe.globalMatch(line);
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            spans.append({m.capturedStart(), m.capturedLength()});
+        }
+        return spans;
+    }();
+    auto inSpan = [&](int start, int length) {
+        for (const auto &span : skipSpans) {
+            if (start >= span.first && start < span.first + span.second)
+                return true;
+            if (length > 0 && start + length > span.first && start < span.first + span.second)
+                return true;
+        }
+        return false;
+    };
+
+    // Link/image target spans, to exclude the raw-URL scan from re-reporting
+    // targets that were already classified above (e.g. `[text](https://x)`).
+    QVector<QPair<int, int>> targetSpans;
+    QRegularExpressionMatchIterator targetIt = targetRe.globalMatch(line);
+    while (targetIt.hasNext()) {
+        const QRegularExpressionMatch m = targetIt.next();
+        targetSpans.append({m.capturedStart(0), m.capturedLength(0)});
+    }
+
+    // Reference definitions: the target itself may be a broken file/URL.
+    const QRegularExpressionMatch def = defRe.match(line);
+    if (def.hasMatch()) {
+        const int targetStart = def.capturedStart(2);
+        const QString message = classify(def.captured(2));
+        if (!message.isEmpty())
+            hits.append({targetStart, int(def.capturedLength(2)), message, {}});
+    }
+
+    // Inline and image link targets: [text](target), ![alt](target).
+    for (const auto &span : targetSpans) {
+        const int targetStart = span.first + 2; // past the `](`
+        const int targetLength = span.second - 3; // minus `](` and the closing `)`
+        if (inSpan(targetStart, targetLength))
+            continue;
+        const QString target = line.mid(targetStart, targetLength);
+        const QString message = classify(target);
+        if (!message.isEmpty())
+            hits.append({targetStart, targetLength, message, {}});
+    }
+
+    // Reference usages without a matching definition.
+    QRegularExpressionMatchIterator it = refUsageRe.globalMatch(line);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        if (inSpan(m.capturedStart(1), m.capturedLength(1)))
+            continue;
+        if (refDefs.contains(m.captured(1)))
+            continue;
+        hits.append({int(m.capturedStart(1)), int(m.capturedLength(1)),
+                     QStringLiteral("Missing reference definition: [") + m.captured(1)
+                         + QStringLiteral("]"),
+                     {}});
+    }
+
+    // Raw URLs in plain text (md4c autolinks them). Targets and definition
+    // targets are excluded — they were already classified above.
+    it = urlRe.globalMatch(line);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        if (inSpan(m.capturedStart(), m.capturedLength()))
+            continue;
+        bool insideTarget = false;
+        for (const auto &span : targetSpans) {
+            if (m.capturedStart() >= span.first && m.capturedStart() < span.first + span.second) {
+                insideTarget = true;
+                break;
+            }
+        }
+        if (insideTarget)
+            continue;
+        if (def.hasMatch() && m.capturedStart() >= def.capturedStart(2)
+            && m.capturedStart() < def.capturedEnd(2))
+            continue;
+        const QString message = classify(m.captured());
+        if (!message.isEmpty())
+            hits.append({int(m.capturedStart()), int(m.capturedLength()), message, {}});
+    }
+
+    return hits;
 }
