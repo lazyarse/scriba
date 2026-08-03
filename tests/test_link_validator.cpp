@@ -155,4 +155,40 @@ TEST(LinkValidator, FileTargetPathStripsFragmentsAndAngles)
     EXPECT_EQ(QStringLiteral("y.md"), LinkValidator::fileTargetPath(QStringLiteral(" y.md ")));
 }
 
+TEST(LinkValidator, HeadingSlugMirrorsJsGenerator)
+{
+    EXPECT_EQ(QStringLiteral("hello-world"), LinkValidator::headingSlug(QStringLiteral("Hello World")));
+    EXPECT_EQ(QStringLiteral("a-b-c"), LinkValidator::headingSlug(QStringLiteral("A  B   C")));
+    EXPECT_EQ(QStringLiteral("hello"), LinkValidator::headingSlug(QStringLiteral("  Hello  ")));
+    // Non-ASCII characters are dropped exactly like the preview's JS `\w`.
+    EXPECT_EQ(QStringLiteral("uro"), LinkValidator::headingSlug(QStringLiteral("€uro")));
+    // Punctuation is dropped without a separator, exactly like JS.
+    EXPECT_EQ(QStringLiteral("version-20"), LinkValidator::headingSlug(QStringLiteral("Version 2.0")));
+    EXPECT_EQ(QStringLiteral("ab"), LinkValidator::headingSlug(QStringLiteral("a(b)!")));
+    EXPECT_TRUE(LinkValidator::headingSlug(QStringLiteral("!!!")).isEmpty());
+}
+
+TEST(LinkValidator, HeadingSlugDuplicateSuffixes)
+{
+    QSet<QString> slugs;
+    LinkValidator::addHeadingSlugs(slugs, QStringLiteral("Title"));
+    LinkValidator::addHeadingSlugs(slugs, QStringLiteral("Title"));
+    LinkValidator::addHeadingSlugs(slugs, QStringLiteral("Title"));
+    EXPECT_TRUE(slugs.contains(QStringLiteral("title")));
+    EXPECT_TRUE(slugs.contains(QStringLiteral("title-1")));
+    EXPECT_TRUE(slugs.contains(QStringLiteral("title-2")));
+    // A heading literally named "title-1" follows the JS dedupe scheme: the
+    // base id is taken, so it becomes "title-1-1".
+    LinkValidator::addHeadingSlugs(slugs, QStringLiteral("Title-1"));
+    EXPECT_TRUE(slugs.contains(QStringLiteral("title-1-1")));
+}
+
+TEST(LinkValidator, EmptyHeadingSlugsAreSkipped)
+{
+    QSet<QString> slugs;
+    LinkValidator::addHeadingSlugs(slugs, QStringLiteral("####"));
+    LinkValidator::addHeadingSlugs(slugs, QStringLiteral("--"));
+    EXPECT_TRUE(slugs.isEmpty());
+}
+
 } // namespace

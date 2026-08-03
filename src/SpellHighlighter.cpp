@@ -16,12 +16,17 @@
 #include "LinkValidator.h"
 #include "SpellChecker.h"
 #include <QColor>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QStringList>
 #include <QTextBlock>
 #include <QTextCharFormat>
 #include <QTextDocument>
 #include <QTimer>
+#include <QUrl>
 
 namespace {
 
@@ -314,12 +319,12 @@ void SpellHighlighter::runSpellCheck()
     if (!spellActive && !m_linkEnabled)
         return;
 
-    // Reference definitions are collected over the whole document first so
-    // usages on earlier lines can be validated against definitions that live
-    // on later lines.
-    QSet<QString> refDefs;
+    // Reference definitions and heading slugs are collected over the whole
+    // document first so usages on earlier lines can be validated against
+    // definitions and headings that live on later lines.
+    DocumentContext context;
     if (m_linkEnabled)
-        refDefs = collectReferenceDefinitions();
+        context = collectDocumentContext();
 
     // Walk the whole document so fence/front-matter state stays consistent
     // even when only some blocks are stale (the state machine must advance
@@ -333,7 +338,8 @@ void SpellHighlighter::runSpellCheck()
 
         if (m_linkEnabled) {
             if (ctx.checkable)
-                m_linkHits[blockNumber] = scanLinkHits(block.text(), refDefs);
+                m_linkHits[blockNumber] = scanLinkHits(block.text(), context.refDefs,
+                                                       context.headingSlugs);
             else
                 m_linkHits.remove(blockNumber);
         }
@@ -524,27 +530,101 @@ QVector<SpellHighlighter::GrammarHit> SpellHighlighter::linkIssuesInBlock(int bl
     return m_linkHits.value(blockNumber);
 }
 
-QSet<QString> SpellHighlighter::collectReferenceDefinitions() const
+SpellHighlighter::DocumentContext SpellHighlighter::collectDocumentContext() const
 {
     // [name]: target  — definition lines for reference-style links.
     static const QRegularExpression defRe(
         R"(^\s*\[([^\]]+)\]:\s*(<[^>\s]+>|[^\s]+))");
-    QSet<QString> defs;
+    DocumentContext context;
+    QStringList lines;
+    for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next())
+        lines << block.text();
     int state = 0;
-    for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next()) {
-        const BlockContext ctx = blockContext(block.blockNumber(), block.text(), state);
+    for (int i = 0; i < lines.size(); ++i) {
+        const BlockContext ctx = blockContext(i, lines.at(i), state);
         state = ctx.state;
         if (!ctx.checkable)
             continue;
-        const QRegularExpressionMatch m = defRe.match(block.text());
+        const QRegularExpressionMatch m = defRe.match(lines.at(i));
         if (m.hasMatch())
-            defs.insert(m.captured(1));
+            context.refDefs.insert(m.captured(1));
     }
-    return defs;
+    context.headingSlugs = headingSlugsFromLines(lines);
+    return context;
+}
+
+QSet<QString> SpellHighlighter::headingSlugsFromLines(const QStringList &lines) const
+{
+    // ATX headings `# Title` and setext headings (`Title` + `===`/`---`
+    // underline), fenced-code and front-matter aware — mirroring what md4c
+    // renders and the preview's generateHeadingIds() then slugs.
+    static const QRegularExpression atxRe(R"(^#{1,6}\s+(.+))");
+    static const QRegularExpression setextRe(R"(^(?:={3,}|-{3,})\s*$)");
+    QSet<QString> slugs;
+    int state = 0;
+    bool prevCheckable = false;
+    bool prevWasHeading = false;
+    QString prevText;
+    int lineIndex = 0;
+    for (const QString &line : lines) {
+        const BlockContext ctx = blockContext(lineIndex++, line, state);
+        state = ctx.state;
+        if (!ctx.checkable) {
+            prevCheckable = false;
+            prevWasHeading = false;
+            prevText.clear();
+            continue;
+        }
+        const QRegularExpressionMatch atx = atxRe.match(line);
+        if (atx.hasMatch()) {
+            // Strip the closing hashes of `# Title ##` like md4c does.
+            QString title = atx.captured(1).trimmed();
+            while (title.endsWith(QLatin1Char('#')))
+                title.chop(1);
+            LinkValidator::addHeadingSlugs(slugs, title.trimmed());
+            prevCheckable = true;
+            prevWasHeading = true;
+            prevText = line;
+            continue;
+        }
+        if (setextRe.match(line).hasMatch()) {
+            if (prevCheckable && !prevWasHeading)
+                LinkValidator::addHeadingSlugs(slugs, prevText.trimmed());
+            prevCheckable = false;
+            prevWasHeading = false;
+            prevText.clear();
+            continue;
+        }
+        prevCheckable = true;
+        prevWasHeading = false;
+        prevText = line;
+    }
+    return slugs;
+}
+
+QSet<QString> SpellHighlighter::crossDocSlugs(const QString &absolutePath)
+{
+    const QFileInfo fi(absolutePath);
+    if (!fi.exists() || !fi.isFile())
+        return {};
+    const QDateTime mtime = fi.lastModified();
+    const qint64 size = fi.size();
+    const auto it = m_anchorCache.constFind(absolutePath);
+    if (it != m_anchorCache.constEnd() && it->mtime == mtime && it->size == size)
+        return it->slugs;
+    if (m_anchorCache.size() >= 32)
+        m_anchorCache.clear();
+    QSet<QString> slugs;
+    QFile file(absolutePath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        slugs = headingSlugsFromLines(QString::fromUtf8(file.readAll()).split(QLatin1Char('\n')));
+    m_anchorCache.insert(absolutePath, {mtime, size, slugs});
+    return slugs;
 }
 
 QVector<SpellHighlighter::GrammarHit>
-SpellHighlighter::scanLinkHits(const QString &line, const QSet<QString> &refDefs) const
+SpellHighlighter::scanLinkHits(const QString &line, const QSet<QString> &refDefs,
+                               const QSet<QString> &currentSlugs)
 {
     static const QRegularExpression targetRe(R"(\]\(([^()\s\n]+)\))"); // [t](target)
     static const QRegularExpression refUsageRe(R"(\]\[([^\]\n]+)\])"); // [t][ref]
@@ -610,15 +690,71 @@ SpellHighlighter::scanLinkHits(const QString &line, const QSet<QString> &refDefs
     }
 
     // Inline and image link targets: [text](target), ![alt](target).
+    static const QRegularExpression webTargetRe(
+        R"(^(?:https?|ftp)://|^www\.)", QRegularExpression::CaseInsensitiveOption);
+    auto slugReference = [](const QString &frag) {
+        return LinkValidator::headingSlug(QUrl::fromPercentEncoding(frag.toUtf8()));
+    };
+    // Missing-anchor message for target.file#frag. absFile is the resolved
+    // absolute path for cross-document anchors; empty for same-document ones
+    // (checked against the current document's headings).
+    auto headingMessage = [&](const QString &frag, const QString &absFile) {
+        const QString slug = slugReference(frag);
+        const QSet<QString> pool = absFile.isEmpty() ? currentSlugs : crossDocSlugs(absFile);
+        if (slug.isEmpty() || !pool.contains(slug))
+            return QStringLiteral("Heading not found: #") + frag;
+        return QString();
+    };
     for (const auto &span : targetSpans) {
         const int targetStart = span.first + 2; // past the `](`
         const int targetLength = span.second - 3; // minus `](` and the closing `)`
         if (inSpan(targetStart, targetLength))
             continue;
         const QString target = line.mid(targetStart, targetLength);
-        const QString message = classify(target);
-        if (!message.isEmpty())
-            hits.append({targetStart, targetLength, message, {}});
+        const int hash = target.indexOf(QLatin1Char('#'));
+        if (hash < 0) {
+            const QString message = classify(target);
+            if (!message.isEmpty())
+                hits.append({targetStart, targetLength, message, {}});
+            continue;
+        }
+        const QString filePart = target.left(hash);
+        const QString frag = target.mid(hash + 1);
+        if (frag.isEmpty())
+            continue; // `path#` — not an anchor navigation, nothing to check
+        if (filePart.isEmpty()) {
+            const QString message = headingMessage(frag, {});
+            if (!message.isEmpty()) {
+                const int fragStart = targetStart + hash;
+                hits.append({fragStart, targetLength - hash, message, {}});
+            }
+            continue;
+        }
+        if (webTargetRe.match(filePart).hasMatch()) {
+            const QString message = classify(filePart);
+            if (!message.isEmpty())
+                hits.append({targetStart, targetLength, message, {}});
+            continue;
+        }
+        // A file target with an anchor: the file part is what makes the link
+        // resolvable, and its headings decide whether the anchor exists.
+        const QString fileMessage = classify(filePart);
+        if (!fileMessage.isEmpty()) {
+            hits.append({targetStart, targetLength, fileMessage, {}});
+            continue;
+        }
+        QString resolved = filePart;
+        if (resolved.startsWith(QLatin1Char('~'))) {
+            resolved = QDir::homePath() + resolved.mid(1);
+        } else if (!QFileInfo(filePart).isAbsolute()) {
+            const QString dir = baseDir.isEmpty() ? QDir::currentPath() : baseDir;
+            resolved = QDir(dir).absoluteFilePath(resolved);
+        }
+        const QString message = headingMessage(frag, resolved);
+        if (!message.isEmpty()) {
+            const int fragStart = targetStart + hash;
+            hits.append({fragStart, targetLength - hash, message, {}});
+        }
     }
 
     // Reference usages without a matching definition.

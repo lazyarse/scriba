@@ -110,11 +110,17 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
         QString frag = url.fragment(QUrl::FullyDecoded);
         if (frag.startsWith("scriba-open:")) {
             QUrl target(frag.mid(12));
+            const QString anchor = target.fragment(QUrl::FullyDecoded);
             if (target.isLocalFile()) {
                 QString localPath = target.toLocalFile();
                 QFileInfo fi(localPath);
                 if (fi.suffix().compare("md", Qt::CaseInsensitive) == 0) {
                     loadFile(localPath);
+                    // `other.md#section`: jump to the heading once its ids
+                    // exist (a fresh page load replaces the document, so the
+                    // retry must live in C++, not in a JS closure).
+                    if (!anchor.isEmpty())
+                        scrollPreviewToAnchor(anchor);
                 } else {
                     QDesktopServices::openUrl(target);
                 }
@@ -131,6 +137,11 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
 
     m_updateTimer = new DebounceTimer(80, this);
     connect(m_updateTimer, &QTimer::timeout, this, &MainWindow::updatePreview);
+
+    m_anchorTimer = new QTimer(this);
+    m_anchorTimer->setSingleShot(true);
+    m_anchorTimer->setInterval(300);
+    connect(m_anchorTimer, &QTimer::timeout, this, &MainWindow::tryScrollPreviewToAnchor);
 
     m_autoSaveTimer = new QTimer(this);
     connect(m_autoSaveTimer, &QTimer::timeout, this, &MainWindow::autoSave);
@@ -1106,12 +1117,17 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>" + mermaidInitJs + headingIdJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode){if(!document.body)return false;window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss)document.getElementById('theme-css').textContent=themeCss;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},1500);return true;}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.vegaLiteReady=initVegaLite();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
+            "<script>" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode){if(!document.body)return false;window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss)document.getElementById('theme-css').textContent=themeCss;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},1500);return true;}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.vegaLiteReady=initVegaLite();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
             "</head><body id=\"preview\">"
             "<div id=\"scriba-rendering-overlay\">Rendering…</div>"
             "<div id=\"scriba-content\">%3</div>"
             "<script>document.addEventListener('click',function(e){"
             "var l=e.target.closest('a');if(!l)return;"
+            "if(l.hash&&l.hash.length>1&&l.pathname===location.pathname){"
+            "e.preventDefault();"
+            "scribaScrollToSlugRetry(l.hash);"
+            "return;"
+            "}"
             "e.preventDefault();"
             "window.location.hash='scriba-open:'+encodeURIComponent(l.href)"
             "})</script>"
@@ -1148,6 +1164,31 @@ void MainWindow::syncPreviewScroll()
     double range = sb->maximum() - sb->minimum();
     double pct = range > 0 ? static_cast<double>(sb->value() - sb->minimum()) / range : 0.0;
     m_preview->scrollToPercent(pct);
+}
+
+void MainWindow::scrollPreviewToAnchor(const QString &anchor)
+{
+    m_pendingAnchor = anchor;
+    m_anchorTries = 0;
+    m_anchorTimer->start();
+}
+
+void MainWindow::tryScrollPreviewToAnchor()
+{
+    if (m_pendingAnchor.isEmpty())
+        return;
+    const QString js = QStringLiteral("scribaScrollToSlug('%1')")
+        .arg(escapeJsString(m_pendingAnchor));
+    m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
+        // Give up after ~6s; the ids appear after the heavy render pass, so
+        // retries normally succeed on the second or third tick.
+        if (result.toBool() || ++m_anchorTries > 20) {
+            m_anchorTimer->stop();
+            m_pendingAnchor.clear();
+        } else {
+            m_anchorTimer->start();
+        }
+    });
 }
 
 void MainWindow::showPreferences()

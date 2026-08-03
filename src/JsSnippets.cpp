@@ -30,12 +30,36 @@ const QString mermaidInitJs = QStringLiteral(
 
 const QString headingIdJs = QStringLiteral(
     "function generateHeadingIds(){"
+    "var used={};"
     "document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h){"
     "if(!h.id){"
-    "h.id=h.textContent.toLowerCase().replace(/[^\\w\\s-]/g,'').replace(/\\s+/g,'-').replace(/^-+|-+$/g,'');"
+    "var base=h.textContent.toLowerCase().replace(/[^\\w\\s-]/g,'').replace(/\\s+/g,'-').replace(/^-+|-+$/g,'');"
+    "if(!base)return;"
+    "var id=base,n=1;while(used[id])id=base+'-'+(n++);used[id]=true;h.id=id;"
     "}"
     "});"
     "}"
+);
+
+// Anchor navigation for `#heading` links. scribaScrollToSlug() slugifies the
+// fragment the way generateHeadingIds() slugs headings and scrolls to the
+// match; it returns whether the element was found. scribaScrollToSlugRetry()
+// polls for up to ~6s (headings get their ids only after the heavy render
+// pass) — safe for same-document jumps, where no page reload kills the
+// closure. Cross-document jumps retry from C++ instead (a fresh page load
+// discards in-flight JS).
+const QString anchorNavJs = QStringLiteral(
+    "function scribaScrollToSlug(frag){"
+    "try{"
+    "var slug=decodeURIComponent(frag).toLowerCase().replace(/[^\\w\\s-]/g,'').replace(/\\s+/g,'-').replace(/^-+|-+$/g,'');"
+    "var el=slug?document.getElementById(slug):null;"
+    "if(el){el.scrollIntoView({block:'start',behavior:'auto'});return true;}"
+    "}catch(e){}"
+    "return false;"
+    "}"
+    "function scribaScrollToSlugRetry(frag){var tries=0;(function poll(){"
+    "if(scribaScrollToSlug(frag)||tries++>20)return;setTimeout(poll,300);"
+    "})();}"
 );
 
 const QString katexInitJs = QStringLiteral(

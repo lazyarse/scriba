@@ -15,6 +15,7 @@
 #pragma once
 
 #include "GrammarChecker.h"
+#include <QDateTime>
 #include <QHash>
 #include <QList>
 #include <QSet>
@@ -145,12 +146,24 @@ private:
                         const QList<GrammarChecker::Issue> &issues);
     void ensureLintWorker();
     static QVector<QPair<int, int>> protectedRanges(const QString &line);
-    // All `[name]:` reference definitions in the document (respecting fenced
-    // code / front matter state).
-    QSet<QString> collectReferenceDefinitions() const;
-    // Broken-link hits (file targets, URLs, reference usages) in one line.
+
+    // Everything one whole-document pass collects for the link scan: the
+    // `[name]:` reference definitions and the heading slugs the preview would
+    // assign (both respect fenced code / front matter state).
+    struct DocumentContext {
+        QSet<QString> refDefs;
+        QSet<QString> headingSlugs;
+    };
+    DocumentContext collectDocumentContext() const;
+    // Heading slugs for raw lines of another markdown file (used to validate
+    // cross-document `file#anchor` links, via a small mtime/size cache).
+    QSet<QString> headingSlugsFromLines(const QStringList &lines) const;
+    QSet<QString> crossDocSlugs(const QString &absolutePath);
+    // Broken-link hits (file targets, URLs, reference usages, anchors) in one
+    // line. `currentSlugs` are the headings of the document being edited.
     QVector<GrammarHit> scanLinkHits(const QString &line,
-                                     const QSet<QString> &refDefs) const;
+                                     const QSet<QString> &refDefs,
+                                     const QSet<QString> &currentSlugs);
 
     SpellChecker *m_checker = nullptr;
     GrammarChecker *m_grammar = nullptr;
@@ -164,6 +177,14 @@ private:
     bool m_linkEnabled = true;
     // The document's file path, for resolving relative link targets.
     QString m_currentFile;
+    // Cached heading indexes of other documents, keyed by absolute path and
+    // invalidated when the file's mtime/size changes.
+    struct AnchorCache {
+        QDateTime mtime;
+        qint64 size = 0;
+        QSet<QString> slugs;
+    };
+    QHash<QString, AnchorCache> m_anchorCache;
     // Blocks edited since their last spell check: underlines stay cleared
     // until runSpellCheck() re-checks them.
     QSet<int> m_staleBlocks;

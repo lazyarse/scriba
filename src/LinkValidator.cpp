@@ -131,3 +131,52 @@ LinkValidator::Status LinkValidator::validateTarget(const QString &target, const
     const QString dir = baseDir.isEmpty() ? QDir::currentPath() : baseDir;
     return QFileInfo(QDir(dir), path).exists() ? Status::Valid : Status::FileNotFound;
 }
+
+QString LinkValidator::headingSlug(const QString &headingText)
+{
+    // Mirrors the preview's JS (JsSnippets headingIdJs):
+    //   h.textContent.toLowerCase().replace(/[^\w\s-]/g,'')
+    //     .replace(/\s+/g,'-').replace(/^-+|-+$/g,'')
+    // where JS `\w` is ASCII-only [A-Za-z0-9_].
+    QString slug;
+    slug.reserve(headingText.size());
+    bool pendingSpace = false;
+    for (const QChar &c : headingText) {
+        const char16_t u = c.unicode();
+        if (u >= 'A' && u <= 'Z') {
+            if (pendingSpace) {
+                slug += QLatin1Char('-');
+                pendingSpace = false;
+            }
+            slug += QChar(u + ('a' - 'A'));
+        } else if ((u >= 'a' && u <= 'z') || (u >= '0' && u <= '9') || u == '_' || u == '-') {
+            if (pendingSpace) {
+                slug += QLatin1Char('-');
+                pendingSpace = false;
+            }
+            slug += c;
+        } else if (c.isSpace()) {
+            pendingSpace = true;
+        }
+    }
+    // Trim leading/trailing '-'.
+    int first = 0;
+    int last = slug.size();
+    while (first < last && slug.at(first) == QLatin1Char('-'))
+        ++first;
+    while (last > first && slug.at(last - 1) == QLatin1Char('-'))
+        --last;
+    return slug.mid(first, last - first);
+}
+
+void LinkValidator::addHeadingSlugs(QSet<QString> &out, const QString &headingText)
+{
+    const QString base = headingSlug(headingText);
+    if (base.isEmpty())
+        return;
+    QString id = base;
+    int n = 1;
+    while (out.contains(id))
+        id = base + QLatin1Char('-') + QString::number(n++);
+    out.insert(id);
+}

@@ -197,7 +197,7 @@ TEST_F(BrokenLinksTest, InlineCodeIsNotFlagged)
 
 TEST_F(BrokenLinksTest, OutOfScopeTargetsAreNotFlagged)
 {
-    m_editor->setPlainText(QStringLiteral("[text]() [text](#section) [text](mailto:a@b.c)"));
+    m_editor->setPlainText(QStringLiteral("[text]() [text](#) [text](mailto:a@b.c)"));
     EXPECT_TRUE(hitsInLine0().isEmpty());
 }
 
@@ -241,6 +241,99 @@ TEST_F(BrokenLinksTest, CheckEmitsSpellHitsChangedForOverlayRepaint)
     QSignalSpy spy(m_hl, &SpellHighlighter::spellHitsChanged);
     m_editor->setPlainText(QStringLiteral("[text](missing.md)"));
     EXPECT_GT(spy.count(), 0);
+}
+
+TEST_F(BrokenLinksTest, SameDocumentFragmentWithMatchingHeadingIsNotFlagged)
+{
+    m_editor->setPlainText(QStringLiteral("# Intro\n[text](#intro) and [text](#INtro)"));
+    EXPECT_TRUE(hitsInBlock(0).isEmpty());
+    EXPECT_TRUE(hitsInBlock(1).isEmpty());
+}
+
+TEST_F(BrokenLinksTest, SameDocumentFragmentWithMissingHeadingIsFlagged)
+{
+    m_editor->setPlainText(QStringLiteral("# Intro\n[text](#missing)"));
+    const auto hits = hitsInBlock(1);
+    ASSERT_EQ(1, hits.size());
+    EXPECT_EQ(7, hits[0].start); // the `#missing` inside ](#missing)
+    EXPECT_EQ(8, hits[0].length);
+    EXPECT_EQ(QStringLiteral("Heading not found: #missing"), hits[0].message);
+}
+
+TEST_F(BrokenLinksTest, HeadingSlugsIgnoreFencesAndCountDuplicates)
+{
+    m_editor->setPlainText(
+        QStringLiteral("```\n# Fenced\n```\n# Title\n# Title\n[text](#title) [text](#title-1)\n[text](#title-2) [text](#fenced)"));
+    EXPECT_TRUE(hitsInBlock(3).isEmpty());
+    EXPECT_TRUE(hitsInBlock(4).isEmpty());
+    EXPECT_TRUE(hitsInBlock(5).isEmpty());
+    const auto hits = hitsInBlock(6);
+    ASSERT_EQ(2, hits.size());
+    EXPECT_EQ(QStringLiteral("Heading not found: #title-2"), hits[0].message);
+    EXPECT_EQ(QStringLiteral("Heading not found: #fenced"), hits[1].message);
+}
+
+TEST_F(BrokenLinksTest, SetextHeadingProduceSlugs)
+{
+    m_editor->setPlainText(QStringLiteral("Chapter Seven\n=====\nFollow the [text](#chapter-seven)"));
+    EXPECT_TRUE(hitsInBlock(0).isEmpty());
+    EXPECT_TRUE(hitsInBlock(1).isEmpty());
+    EXPECT_TRUE(hitsInBlock(2).isEmpty());
+}
+
+TEST_F(BrokenLinksTest, CrossDocFragmentAgainstExistingFile)
+{
+    QFile f(m_dir.filePath(QStringLiteral("exists.md")));
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    f.write("## Sub\n\nSome content.\n");
+    f.close();
+
+    m_editor->setPlainText(QStringLiteral("[text](exists.md#sub) and [text](exists.md#nope)"));
+    const auto hits = hitsInLine0();
+    ASSERT_EQ(1, hits.size());
+    EXPECT_EQ(QStringLiteral("Heading not found: #nope"), hits[0].message);
+    // The hit covers only the fragment, not the file part.
+    EXPECT_EQ(42, hits[0].start);
+    EXPECT_EQ(5, hits[0].length);
+}
+
+TEST_F(BrokenLinksTest, CrossDocAnchorIsFileCheckedFirst)
+{
+    m_editor->setPlainText(QStringLiteral("[text](missing.md#frag)"));
+    const auto hits = hitsInLine0();
+    ASSERT_EQ(1, hits.size());
+    EXPECT_EQ(QStringLiteral("File not found: missing.md"), hits[0].message);
+    EXPECT_EQ(7, hits[0].start);
+    EXPECT_EQ(15, hits[0].length);
+}
+
+TEST_F(BrokenLinksTest, CrossDocAnchorCacheInvalidatesOnFileChange)
+{
+    QFile f(m_dir.filePath(QStringLiteral("exists.md")));
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    f.write("# Title\n");
+    f.close();
+
+    m_editor->setPlainText(QStringLiteral("[text](exists.md#title)"));
+    EXPECT_TRUE(hitsInLine0().isEmpty()) << "fresh doc with the heading";
+
+    // Overwrite the target without a heading: the cache must notice the
+    // change (size + mtime) and re-scan, flagging the now-dangling anchor.
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    f.write("No headings here.\n");
+    f.close();
+
+    m_editor->setPlainText(QStringLiteral("[text](exists.md#title)"));
+    const auto hits = hitsInLine0();
+    ASSERT_EQ(1, hits.size());
+    EXPECT_EQ(QStringLiteral("Heading not found: #title"), hits[0].message);
+}
+
+TEST_F(BrokenLinksTest, AnchorInReferenceDefinitionTarget)
+{
+    m_editor->setPlainText(QStringLiteral("[guide]: exists.md#sub\n[text][guide]"));
+    EXPECT_TRUE(hitsInLine0().isEmpty());
+    EXPECT_TRUE(hitsInBlock(1).isEmpty());
 }
 
 } // namespace

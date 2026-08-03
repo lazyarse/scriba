@@ -94,6 +94,8 @@ private:
     void exportDocx();
     void exportHtml();
     void syncPreviewScroll();
+    void scrollPreviewToAnchor(const QString &anchor);
+    void tryScrollPreviewToAnchor();
     void syncCssWatcher();
     void refreshPreviewCss();
     QString applyEditorSettings();
@@ -156,6 +158,9 @@ private:
     QList<QAction *> m_insertActions;
     QAction *m_mermaidAction;
     QTimer *m_updateTimer = nullptr;
+    QTimer *m_anchorTimer = nullptr;
+    QString m_pendingAnchor;
+    int m_anchorTries = 0;
 
 protected:
     void updateTabBarVisibility();

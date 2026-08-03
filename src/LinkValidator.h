@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+#include <QSet>
 #include <QString>
 
 // Classifies markdown link/image targets and raw URLs as valid, broken file
@@ -47,4 +48,17 @@ public:
     // The file-style path of a target: trims, unwraps `<...>` (the
     // reference-definition form) and strips a trailing `#fragment`/`?query`.
     static QString fileTargetPath(const QString &target);
+
+    // GitHub-style heading slug, mirroring the preview's JS generator exactly:
+    // lowercase, drop every character outside [A-Za-z0-9_\s-] (ASCII, like JS
+    // `\w`), collapse each whitespace run to a single '-', trim leading and
+    // trailing '-'. Used to validate `#anchor` link fragments against the
+    // heading ids the preview assigns.
+    static QString headingSlug(const QString &headingText);
+
+    // Slugs for one heading, after duplicate handling: the first occurrence of
+    // a slug is kept as-is, later ones become `slug-1`, `slug-2`, ... (the
+    // same scheme the preview's generateHeadingIds() uses). Appends every
+    // variant to `out` so a link to any of them is valid.
+    static void addHeadingSlugs(QSet<QString> &out, const QString &headingText);
 };
