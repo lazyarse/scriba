@@ -142,6 +142,35 @@ TEST_F(GutterWidthTest, ToggleGutterHidesAndShows)
     setGutterPreferences(true, true);
 }
 
+TEST_F(GutterWidthTest, GutterStaysHiddenWhenLineCountChanges)
+{
+    setGutterPreferences(true, true);
+    fillDocument(editor, 5);
+    editor->updateGutterSettings();
+    editor->toggleGutter();
+    QApplication::processEvents();
+    QTest::qWait(10);
+    QApplication::processEvents();
+    EXPECT_EQ(editor->gutter()->width(), 0);
+
+    QTextCursor cursor(editor->document());
+    cursor.movePosition(QTextCursor::End);
+    for (int i = 0; i < 50; ++i)
+        cursor.insertText("extra line\n");
+    QApplication::processEvents();
+    QTest::qWait(10);
+    QApplication::processEvents();
+    EXPECT_EQ(editor->gutter()->width(), 0);
+
+    editor->toggleGutter();
+    QApplication::processEvents();
+    QTest::qWait(10);
+    QApplication::processEvents();
+    EXPECT_GT(editor->gutter()->width(), 0);
+
+    setGutterPreferences(true, true);
+}
+
 TEST_F(GutterWidthTest, FoldingStillWorksWhenGutterHidden)
 {
     setGutterPreferences(true, true);

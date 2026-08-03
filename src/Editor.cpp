@@ -1738,8 +1738,13 @@ void Editor::setupGutter()
 
 void Editor::updateGutterWidth()
 {
-    if (m_gutter)
+    if (!m_gutter)
+        return;
+    QSettings s;
+    if (s.value(Preferences::ShowGutter, true).toBool())
         m_gutter->updateWidth();
+    else
+        m_gutter->setFixedWidth(0);
     updateViewportMargins();
     updateGutterDelayed();
 }

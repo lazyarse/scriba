@@ -709,6 +709,16 @@ void MainWindow::setupMenuBar()
             m_tabBar->setCurrentIndex((m_tabBar->currentIndex() - 1 + count) % count);
     });
 
+    viewMenu->addSeparator();
+
+    QAction *gutterAction = viewMenu->addAction("Show &Gutter");
+    gutterAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
+    connect(gutterAction, &QAction::triggered, this, [this]() {
+        Editor *ed = currentEditor();
+        if (ed)
+            ed->toggleGutter();
+    });
+
     for (int i = 1; i <= 10; ++i) {
         Qt::Key key = (i == 10) ? Qt::Key_0
                                 : static_cast<Qt::Key>(Qt::Key_0 + i);
@@ -766,14 +776,6 @@ void MainWindow::setupMenuBar()
     });
 
     toolsMenu->addSeparator();
-
-    QAction *gutterAction = toolsMenu->addAction("Show &Gutter");
-    gutterAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
-    connect(gutterAction, &QAction::triggered, this, [this]() {
-        Editor *ed = currentEditor();
-        if (ed)
-            ed->toggleGutter();
-    });
 
     QAction *logAction = toolsMenu->addAction("&Debug Log");
     logAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
