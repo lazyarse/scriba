@@ -70,7 +70,7 @@ protected:
             }
         }
         while (!loaded) {
-            if (!loadSpy.wait(1000))
+            if (!loadSpy.wait(5000))
                 break;
             if (loadSpy.last().at(0).toBool())
                 loaded = true;

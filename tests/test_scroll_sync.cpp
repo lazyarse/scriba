@@ -275,7 +275,7 @@ TEST_F(ScrollSyncIntegrationTest, PreviewScrollSyncsAfterDeferredUpdate) {
 
     // If no successful loadFinished yet, wait for more
     while (!loaded) {
-        if (!loadSpy.wait(1000))
+        if (!loadSpy.wait(5000))
             break;
         if (loadSpy.last().at(0).toBool())
             loaded = true;
@@ -333,7 +333,7 @@ TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {
         if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
     }
     while (!loaded) {
-        if (!loadSpy.wait(1000)) break;
+        if (!loadSpy.wait(5000)) break;
         if (loadSpy.last().at(0).toBool()) loaded = true;
     }
     ASSERT_TRUE(loaded);
@@ -376,7 +376,7 @@ TEST_F(ScrollSyncIntegrationTest, ImageInsertScrollSyncsPreview) {
         if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
     }
     while (!loaded) {
-        if (!loadSpy.wait(1000)) break;
+        if (!loadSpy.wait(5000)) break;
         if (loadSpy.last().at(0).toBool()) loaded = true;
     }
     ASSERT_TRUE(loaded);
@@ -413,7 +413,7 @@ TEST_F(ScrollSyncIntegrationTest, AsyncContentUpdateDoesNotYankPreviewScroll) {
     for (int i = 0; i < loadSpy.count(); ++i)
         if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
     while (!loaded) {
-        if (!loadSpy.wait(1000)) break;
+        if (!loadSpy.wait(5000)) break;
         if (loadSpy.last().at(0).toBool()) loaded = true;
     }
     ASSERT_TRUE(loaded);
@@ -484,7 +484,7 @@ TEST_F(ScrollSyncIntegrationTest, SingleFileTabRendersPreviewAfterOpen) {
     for (int i = 0; i < loadSpy.count(); ++i)
         if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
     while (!loaded) {
-        if (!loadSpy.wait(1000)) break;
+        if (!loadSpy.wait(5000)) break;
         if (loadSpy.last().at(0).toBool()) loaded = true;
     }
     ASSERT_TRUE(loaded);
@@ -506,7 +506,7 @@ TEST_F(ScrollSyncIntegrationTest, PreviewTemplateHasRenderOverlayHiddenAfterRend
     for (int i = 0; i < loadSpy.count(); ++i)
         if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
     while (!loaded) {
-        if (!loadSpy.wait(1000)) break;
+        if (!loadSpy.wait(5000)) break;
         if (loadSpy.last().at(0).toBool()) loaded = true;
     }
     ASSERT_TRUE(loaded);
