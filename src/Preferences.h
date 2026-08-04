@@ -62,6 +62,8 @@ namespace Preferences {
     constexpr const char *EditorBgColor = "editorBgColor";
     constexpr const char *EditorFontColor = "editorFontColor";
     constexpr const char *EditorColorOverride = "editorColorOverride";
+    constexpr const char *EditorCaretWidth = "editorCaretWidth";
+    constexpr int DefaultEditorCaretWidth = 1;
 
     constexpr const char *UiFontSize = "uiFontSize";
     constexpr int DefaultUiFontSize = 10;

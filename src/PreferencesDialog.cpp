@@ -394,10 +394,17 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_editorPaddingSpin->setValue(settings.value(Preferences::EditorPadding, 12).toInt());
         editorLayout->addRow("Padding:", m_editorPaddingSpin);
 
+        m_editorCaretWidthSpin = new QSpinBox();
+        m_editorCaretWidthSpin->setRange(1, 10);
+        m_editorCaretWidthSpin->setSuffix(" px");
+        m_editorCaretWidthSpin->setValue(settings.value(Preferences::EditorCaretWidth,
+            Preferences::DefaultEditorCaretWidth).toInt());
+        editorLayout->addRow("Caret width:", m_editorCaretWidthSpin);
+
         auto emitEditorSettings = [this]() {
             emit editorSettingsChanged(m_editorFontCombo->currentText(),
                 m_editorFontSizeSpin->value(), m_editorLineHeightSpin->value(),
-                m_editorPaddingSpin->value());
+                m_editorPaddingSpin->value(), m_editorCaretWidthSpin->value());
         };
 
         auto makeSwatchBtn = [](const QString &hex) {
@@ -466,6 +473,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         connect(m_editorFontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
         connect(m_editorLineHeightSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
         connect(m_editorPaddingSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
+        connect(m_editorCaretWidthSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
 
         layout->addWidget(editorGroup);
 
@@ -1121,6 +1129,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::UiFontSize, m_uiFontSizeSpin->value());
         settings.setValue(Preferences::EditorLineHeight, m_editorLineHeightSpin->value());
         settings.setValue(Preferences::EditorPadding, m_editorPaddingSpin->value());
+        settings.setValue(Preferences::EditorCaretWidth, m_editorCaretWidthSpin->value());
         settings.setValue(Preferences::EditorColorOverride, m_overrideGroup->isChecked());
         settings.setValue(Preferences::EditorBgColor, m_editorBgBtn->text());
         settings.setValue(Preferences::EditorFontColor, m_editorFontBtn->text());

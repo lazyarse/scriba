@@ -112,6 +112,7 @@ private:
     QString applyEditorSettings();
     QString applyEditorSettings(const QString &fontFamily, int fontSize, int padding);
     void applyEditorLineHeight(int lineHeight);
+    void applyEditorCaretWidth(int caretWidth);
     void applyStyleSheetToAllEditors();
     void applyStyleSheetToAllEditors(const QString &fontFamily, int fontSize, int padding);
     void applyStripeSetting();

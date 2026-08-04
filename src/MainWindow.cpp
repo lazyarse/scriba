@@ -386,6 +386,8 @@ int MainWindow::addTab(const QString &filePath)
         editor->setStyleSheet(m_cachedFullCss + applyEditorSettings());
         editor->update();
     }
+    editor->setCursorWidth(QSettings().value(Preferences::EditorCaretWidth,
+                                              Preferences::DefaultEditorCaretWidth).toInt());
     {
         QSettings s;
         QTextBlockFormat fmt;
@@ -1018,6 +1020,14 @@ void MainWindow::applyEditorLineHeight(int lineHeight)
     }
 }
 
+void MainWindow::applyEditorCaretWidth(int caretWidth)
+{
+    for (const auto &tab : m_tabs) {
+        if (tab.editor)
+            tab.editor->setCursorWidth(caretWidth);
+    }
+}
+
 void MainWindow::applyStyleSheetToAllEditors()
 {
     QString css = m_cachedFullCss + applyEditorSettings();
@@ -1301,9 +1311,10 @@ void MainWindow::showPreferences()
     };
     connect(&dlg, &PreferencesDialog::stylesheetChanged, this, updateAll);
     connect(&dlg, &PreferencesDialog::editorSettingsChanged, this,
-        [this](const QString &f, int s, int lh, int p) {
+        [this](const QString &f, int s, int lh, int p, int cw) {
             applyStyleSheetToAllEditors(f, s, p);
             applyEditorLineHeight(lh);
+            applyEditorCaretWidth(cw);
         });
     connect(&dlg, &PreferencesDialog::uiFontSizeChanged, this,
         [this](int) { refreshPreviewCss(); });
@@ -1311,6 +1322,7 @@ void MainWindow::showPreferences()
     if (dlg.exec() == QDialog::Accepted) {
         applyStyleSheetToAllEditors();
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
+        applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
         updateAll();
         updateStats();
         for (const auto &tab : m_tabs) {
@@ -1339,6 +1351,7 @@ void MainWindow::showPreferences()
         m_cssLoader->invalidateCache();
         applyStyleSheetToAllEditors();
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
+        applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
     }
 }
 

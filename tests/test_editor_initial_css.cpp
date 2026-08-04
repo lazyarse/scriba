@@ -62,6 +62,24 @@ TEST_F(EditorInitialCssTest, EditorStylesheetHasPaddingFontSizeFontFamily) {
         << "Expected font-family in stylesheet, got: " << ss.toStdString();
 }
 
+TEST_F(EditorInitialCssTest, EditorCaretWidthUsesDefaultWhenUnset) {
+    QSettings settings;
+    settings.remove(Preferences::EditorCaretWidth);
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    EXPECT_EQ(window->editor()->cursorWidth(), Preferences::DefaultEditorCaretWidth);
+}
+
+TEST_F(EditorInitialCssTest, EditorCaretWidthAppliedFromPreference) {
+    QSettings settings;
+    settings.setValue(Preferences::EditorCaretWidth, 3);
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    EXPECT_EQ(window->editor()->cursorWidth(), 3);
+}
+
 TEST_F(EditorInitialCssTest, EditorLineHeightIsApplied) {
     window = new MainWindow();
     QApplication::processEvents();
