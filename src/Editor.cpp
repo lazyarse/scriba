@@ -579,6 +579,12 @@ void Editor::keyPressEvent(QKeyEvent *event)
         return;
     }
 
+    if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_Y) {
+        deleteLine();
+        event->accept();
+        return;
+    }
+
     QTextEdit::keyPressEvent(event);
 
     if (event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete) {
@@ -1426,6 +1432,35 @@ void Editor::deleteTableRow()
         cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor);
     }
     cursor.removeSelectedText();
+    setTextCursor(cursor);
+}
+
+void Editor::deleteLine()
+{
+    QTextCursor cursor = textCursor();
+    QTextDocument *doc = document();
+    bool hasSel = cursor.hasSelection();
+
+    QTextBlock startBlock = hasSel
+        ? doc->findBlock(cursor.selectionStart())
+        : cursor.block();
+    QTextBlock endBlock = hasSel
+        ? doc->findBlock(cursor.selectionEnd())
+        : startBlock;
+
+    int startPos = startBlock.position();
+    QTextBlock next = endBlock.next();
+    int endPos = next.isValid()
+        ? next.position()                             // delete the line's trailing newline too
+        : endBlock.position() + endBlock.length() - 1; // last line: clear its content
+
+    cursor.beginEditBlock();
+    cursor.setPosition(startPos);
+    cursor.setPosition(endPos, QTextCursor::KeepAnchor);
+    cursor.removeSelectedText();
+    cursor.endEditBlock();
+
+    cursor.setPosition(startPos);
     setTextCursor(cursor);
 }
 

@@ -419,6 +419,55 @@ TEST_F(EditorTestHarness, EnterInHiddenRegionRedirectsBelowFold)
     assertCursor(4, 0);
 }
 
+TEST_F(EditorTestHarness, DeleteLineRemovesCurrentLineAndNewline)
+{
+    setContent("one\ntwo\nthree");
+    placeCursor(1, 0);
+    press(Qt::Key_Y, Qt::ControlModifier);
+
+    EXPECT_EQ(text(), "one\nthree");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, DeleteLineClearsLastLine)
+{
+    setContent("one\ntwo\nthree");
+    placeCursor(2, 3);
+    press(Qt::Key_Y, Qt::ControlModifier);
+
+    EXPECT_EQ(text(), "one\ntwo\n");
+    assertCursor(2, 0);
+}
+
+TEST_F(EditorTestHarness, DeleteLineFirstLineMovesCursorToSlidUpLine)
+{
+    setContent("one\ntwo\nthree");
+    placeCursor(0, 1);
+    press(Qt::Key_Y, Qt::ControlModifier);
+
+    EXPECT_EQ(text(), "two\nthree");
+    assertCursor(0, 0);
+}
+
+TEST_F(EditorTestHarness, DeleteLineSpansSelection)
+{
+    setContent("one\ntwo\nthree\nfour");
+    selectLines(1, 2);
+    press(Qt::Key_Y, Qt::ControlModifier);
+
+    EXPECT_EQ(text(), "one\nfour");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, DeleteLineEditorDoesNotBreakDuplicate)
+{
+    setContent("one\ntwo\nthree");
+    placeCursor(1, 1);
+    press(Qt::Key_D, Qt::ControlModifier);
+
+    EXPECT_EQ(text(), "one\ntwo\ntwo\nthree");
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

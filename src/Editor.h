@@ -101,6 +101,7 @@ private:
     void insertTableCol(bool left);
     void deleteTableRow();
     void deleteTableCol();
+    void deleteLine();
     void changeCodeLanguage();
     QString currentLineText() const;
 
