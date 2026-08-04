@@ -84,6 +84,14 @@ public:
         int length = 0;
     };
 
+    // One misspelled word in the document, as found by scanDocument().
+    struct SpellIssue {
+        int blockNumber = 0;
+        int start = 0; // offset within the block
+        int length = 0;
+        QString word;
+    };
+
     struct GrammarHit {
         int start = 0; // offset within the block
         int length = 0;
@@ -95,6 +103,9 @@ public:
     static QColor spellUnderlineColor();
     static QColor grammarUnderlineColor();
     static QColor linkUnderlineColor();
+    // Background highlight used by the Check Spelling dialog to point at the
+    // current error.
+    static QColor spellHighlightColor();
 
     explicit SpellHighlighter(QTextDocument *document, QObject *parent = nullptr);
     ~SpellHighlighter() override;
@@ -116,6 +127,13 @@ public:
     // Markdown-aware word scan: returns the words of `line` that are eligible
     // for spell checking (outside code, URLs, tags, emoji, etc.).
     static QList<WordHit> scanWords(const QString &line);
+
+    // Whole-document misspelled-word scan for the Check Spelling dialog: walks
+    // every block with the same fence/front-matter state machine and word
+    // scanner the underlines use, so the dialog reports exactly what the
+    // editor flags. Returns issues in document order.
+    static QVector<SpellIssue> scanDocument(QTextDocument *document,
+                                            SpellChecker *checker);
 
     // Grammar issues (start offset + length within the block) for a block.
     QVector<GrammarHit> grammarIssuesInBlock(int blockNumber) const;

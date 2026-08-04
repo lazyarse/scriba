@@ -61,6 +61,12 @@ private:
     std::vector<std::pair<std::u16string, std::u16string>> m_rep;
 };
 
+// Accent-insensitive, case-insensitive fold applied to dictionary entries
+// and to every token before lookup. Exposed so the engine can fold user-word
+// entries the same way (otherwise a capitalized add never matches the folded
+// lookup). Mirrors dictionary handling in SpellData::load().
+std::u16string foldWord(std::u16string_view s);
+
 // Shared single-word spelling check (SPEC §19.5 token policy), used by
 // runSpelling and the Engine's per-word API. Returns the folded form
 // suggestions should be computed against when the word is flagged

@@ -136,14 +136,10 @@ QString SpellChecker::configDictDir()
     return CssUtils::scribaConfigDir() + "/dictionaries";
 }
 
-QString SpellChecker::userDictPath() const
+// Reads a count-header word list (user.dic / ignored.dic format).
+QStringList readCountHeaderList(const QString &path)
 {
-    return configDictDir() + "/user.dic";
-}
-
-QStringList SpellChecker::readUserDictionaryWords()
-{
-    QFile file(configDictDir() + "/user.dic");
+    QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return {};
 
@@ -165,7 +161,8 @@ QStringList SpellChecker::readUserDictionaryWords()
     return words;
 }
 
-void SpellChecker::writeUserDictionaryWords(const QStringList &words)
+// Writes a count-header word list (user.dic / ignored.dic format).
+void writeCountHeaderList(const QString &path, const QStringList &words)
 {
     QStringList sorted = words;
     sorted.sort();
@@ -175,12 +172,32 @@ void SpellChecker::writeUserDictionaryWords(const QStringList &words)
     lines << QString::number(sorted.size());
     for (const QString &w : sorted)
         lines << w;
-    QDir().mkpath(configDictDir());
-    QFile file(configDictDir() + "/user.dic");
+    QDir().mkpath(SpellChecker::configDictDir());
+    QFile file(path);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
         file.write(lines.join('\n').toUtf8());
         file.write("\n");
     }
+}
+
+QStringList SpellChecker::readUserDictionaryWords()
+{
+    return readCountHeaderList(configDictDir() + "/user.dic");
+}
+
+void SpellChecker::writeUserDictionaryWords(const QStringList &words)
+{
+    writeCountHeaderList(configDictDir() + "/user.dic", words);
+}
+
+QStringList SpellChecker::readIgnoredWords()
+{
+    return readCountHeaderList(configDictDir() + "/ignored.dic");
+}
+
+void SpellChecker::writeIgnoredWords(const QStringList &words)
+{
+    writeCountHeaderList(configDictDir() + "/ignored.dic", words);
 }
 
 QStringList SpellChecker::parseWordList(const QString &text)
@@ -299,32 +316,23 @@ bool SpellChecker::loadLanguage(const QString &language)
     }
     m_language = language;
     m_userWords.clear();
+    m_ignoredWords.clear();
     loadUserDictionary();
+    loadIgnoredWords();
     applyEngineConfig();
     return true;
 }
 
 void SpellChecker::loadUserDictionary()
 {
-    QFile file(userDictPath());
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return;
-
-    QStringList lines = QString::fromUtf8(file.readAll()).split('\n', Qt::SkipEmptyParts);
-    if (lines.isEmpty())
-        return;
-
-    bool ok = false;
-    int count = lines.first().trimmed().toInt(&ok);
-    if (!ok || count <= 0)
-        return;
-
-    for (int i = 1; i < lines.size() && i <= count; ++i) {
-        QString word = lines.at(i).trimmed();
-        if (word.isEmpty())
-            continue;
+    for (const QString &word : readUserDictionaryWords())
         m_userWords.insert(word);
-    }
+}
+
+void SpellChecker::loadIgnoredWords()
+{
+    for (const QString &word : readIgnoredWords())
+        m_ignoredWords.insert(word);
 }
 
 void SpellChecker::applyEngineConfig()
@@ -354,6 +362,7 @@ void SpellChecker::applyEngineConfig()
                                 (bundledDictDir() + "/canadian-en.txt").toStdString());
 
     QStringList merged = m_userWords.values();
+    merged << m_ignoredWords.values();
     merged << importedWords();
     merged.removeDuplicates();
     std::vector<std::u16string> words;
@@ -394,6 +403,34 @@ void SpellChecker::removeFromUserDictionary(const QString &word)
 QStringList SpellChecker::userWords() const
 {
     QStringList words = m_userWords.values();
+    words.sort();
+    return words;
+}
+
+void SpellChecker::addToIgnored(const QString &word)
+{
+    QString trimmed = word.trimmed();
+    if (trimmed.isEmpty() || m_ignoredWords.contains(trimmed))
+        return;
+
+    m_ignoredWords.insert(trimmed);
+    writeIgnoredWords(m_ignoredWords.values());
+    applyEngineConfig();
+}
+
+void SpellChecker::removeFromIgnored(const QString &word)
+{
+    if (!m_ignoredWords.remove(word))
+        return;
+
+    writeIgnoredWords(m_ignoredWords.values());
+    // The engine's user-word set is swapped atomically — no reload needed.
+    applyEngineConfig();
+}
+
+QStringList SpellChecker::ignoredWords() const
+{
+    QStringList words = m_ignoredWords.values();
     words.sort();
     return words;
 }

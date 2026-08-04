@@ -12,6 +12,8 @@
         <file>arrow-up-dark.svg</file>
         <file>arrow-down-dark.svg</file>
         <file>mermaid.min.js</file>
+        <file>turndown.min.js</file>
+        <file>turndown-plugin-gfm.js</file>
         <file>highlight.min.js</file>
         <file>print-base.css</file>
         <file>icons/fullscreen.svg</file>

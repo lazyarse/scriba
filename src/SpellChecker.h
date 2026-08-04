@@ -48,6 +48,17 @@ public:
     void removeFromUserDictionary(const QString &word);
     QStringList userWords() const;
 
+    // "Ignore always" list: like the user dictionary (persisted, loaded every
+    // session) but managed separately so the two sets stay distinct. Also
+    // persisted with a count-header format in ignored.dic.
+    void addToIgnored(const QString &word);
+    void removeFromIgnored(const QString &word);
+    QStringList ignoredWords() const;
+    // File-level accessors (usable without a loaded language) so the
+    // Preferences dialog can manage the ignored list independently.
+    static QStringList readIgnoredWords();
+    static void writeIgnoredWords(const QStringList &words);
+
     // The base language a dialect selects under the "follow dialect" setting.
     static QString defaultLanguageForDialect(const QString &dialect);
 
@@ -73,11 +84,12 @@ public:
 private:
     void applyEngineConfig();
     void loadUserDictionary();
+    void loadIgnoredWords();
     QStringList importedWords() const;
-    QString userDictPath() const;
 
     stoppard::Engine m_engine;
     QString m_language;
     QString m_dialect = QStringLiteral("American");
     QSet<QString> m_userWords;
+    QSet<QString> m_ignoredWords;
 };

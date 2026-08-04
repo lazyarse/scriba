@@ -36,8 +36,11 @@
 #include "AboutDialog.h"
 #include "LogWindow.h"
 #include "MermaidDialog.h"
+#include "SpellCheckDialog.h"
+#include "SpellChecker.h"
 #include "KatexHelperDialog.h"
 #include "MchemHelperDialog.h"
+#include "HtmlToMarkdown.h"
 
 static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
 static constexpr const char *kOpenMdFilter = "Markdown Files (*.md *.markdown *.txt);;All Files (*)";
@@ -69,6 +72,8 @@ static constexpr int kMsPerMinute = 60000;
 #include <QRegularExpression>
 #include <QApplication>
 #include <QGuiApplication>
+#include <QClipboard>
+#include <QMimeData>
 #include <QScreen>
 #include <QHBoxLayout>
 #include <QToolButton>
@@ -652,6 +657,14 @@ void MainWindow::setupMenuBar()
 
     fileMenu->addSeparator();
 
+    QMenu *importMenu = fileMenu->addMenu("&Import");
+
+    QAction *importHtmlAction = importMenu->addAction("Import &HTML...");
+    importHtmlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
+    connect(importHtmlAction, &QAction::triggered, this, &MainWindow::importHtmlFromFile);
+
+    fileMenu->addSeparator();
+
     QMenu *exportMenu = fileMenu->addMenu("&Export");
 
     QAction *exportPdfAction = exportMenu->addAction("&Print / Export PDF...");
@@ -691,6 +704,12 @@ void MainWindow::setupMenuBar()
     QAction *findPrevAction = editMenu->addAction("Find &Previous");
     findPrevAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_F3));
     connect(findPrevAction, &QAction::triggered, this, &MainWindow::onFindPrev);
+
+    editMenu->addSeparator();
+
+    QAction *pasteMarkdownAction = editMenu->addAction("Paste as &Markdown");
+    pasteMarkdownAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_V));
+    connect(pasteMarkdownAction, &QAction::triggered, this, &MainWindow::pasteAsMarkdown);
 
     QAction *fullscreenAction = new QAction("Toggle &Fullscreen", this);
     fullscreenAction->setShortcut(QKeySequence(Qt::Key_F11));
@@ -785,6 +804,12 @@ void MainWindow::setupMenuBar()
                 ed->insertPlainText(block);
         }
     });
+
+    toolsMenu->addSeparator();
+
+    QAction *spellCheckAction = toolsMenu->addAction("&Check Spelling...");
+    spellCheckAction->setShortcut(QKeySequence(Qt::Key_F7));
+    connect(spellCheckAction, &QAction::triggered, this, &MainWindow::showSpellCheckDialog);
 
     toolsMenu->addSeparator();
 
@@ -1279,6 +1304,22 @@ void MainWindow::showMchemHelper()
         if (!notation.isEmpty() && ed)
             ed->insertPlainText(notation);
     }
+}
+
+void MainWindow::showSpellCheckDialog()
+{
+    Editor *ed = currentEditor();
+    if (!ed || !ed->spellChecker() || !ed->spellChecker()->isLoaded()) {
+        showCenteredWarning(
+            tr("Spell checking is disabled"),
+            tr("The spelling checker is not loaded, so a document-wide check "
+               "cannot run."),
+            tr("Enable \u201cCheck spelling as you type\u201d on the Spelling "
+               "page of Preferences."));
+        return;
+    }
+    SpellCheckDialog dlg(ed, this);
+    dlg.exec();
 }
 
 void MainWindow::showTableInsert()
@@ -1842,6 +1883,68 @@ void MainWindow::autoSave()
             updateTabLabel(i);
         }
     }
+}
+
+void MainWindow::importHtmlFromFile()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Import HTML File", QString(), "HTML Files (*.html *.htm);;All Files (*)");
+    if (path.isEmpty())
+        return;
+
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Import HTML", "Could not open file: " + path);
+        return;
+    }
+
+    const QString markdown = HtmlToMarkdown::convert(
+        QString::fromUtf8(file.readAll()), QUrl::fromLocalFile(path));
+    file.close();
+
+    if (markdown.isEmpty()) {
+        QMessageBox::warning(this, "Import HTML",
+            "No convertible content was found in the file.");
+        return;
+    }
+
+    int idx = addTab();
+    QSignalBlocker blocker(m_tabs[idx].editor);
+    m_tabs[idx].editor->setPlainText(markdown);
+    {
+        QSettings s;
+        QTextBlockFormat fmt;
+        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
+                          QTextBlockFormat::ProportionalHeight);
+        QTextCursor cursor(m_tabs[idx].editor->document());
+        cursor.select(QTextCursor::Document);
+        cursor.mergeBlockFormat(fmt);
+    }
+    m_tabs[idx].dirty = true;
+    updateTabLabel(idx);
+    m_previewInitialized = false;
+    updatePreview();
+    statusBar()->showMessage("Imported " + QFileInfo(path).fileName(), 3000);
+}
+
+void MainWindow::pasteAsMarkdown()
+{
+    Editor *ed = currentEditor();
+    if (!ed) return;
+
+    const QMimeData *mime = QGuiApplication::clipboard()->mimeData();
+    QString text;
+    if (mime && mime->hasHtml()) {
+        text = HtmlToMarkdown::convert(mime->html());
+        if (text.isEmpty())
+            return;
+    } else if (mime && mime->hasText()) {
+        text = mime->text();
+    } else {
+        return;
+    }
+
+    ed->textCursor().insertText(text);
 }
 
 void MainWindow::exportPdf()

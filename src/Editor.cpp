@@ -41,6 +41,7 @@
 #include <QSvgRenderer>
 #include <QTextBlock>
 #include <QTextBlockFormat>
+#include <QTextCharFormat>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextLayout>
@@ -1155,6 +1156,29 @@ void Editor::applySpellSettings()
 void Editor::recheckSpelling()
 {
     applySpellSettings();
+}
+
+void Editor::setSpellCheckHighlight(int blockNumber, int start, int length)
+{
+    const QTextBlock block = document()->findBlockByNumber(blockNumber);
+    if (!block.isValid())
+        return;
+    QTextCursor cursor(document());
+    cursor.setPosition(block.position() + start);
+    cursor.setPosition(block.position() + start + length, QTextCursor::KeepAnchor);
+    setTextCursor(cursor);
+
+    QTextEdit::ExtraSelection sel;
+    sel.cursor = cursor;
+    QTextCharFormat fmt;
+    fmt.setBackground(SpellHighlighter::spellHighlightColor());
+    sel.format = fmt;
+    setExtraSelections({sel});
+}
+
+void Editor::clearSpellCheckHighlight()
+{
+    setExtraSelections({});
 }
 
 SpellHighlighter::WordHit Editor::misspelledWordAt(const QTextCursor &cursor) const

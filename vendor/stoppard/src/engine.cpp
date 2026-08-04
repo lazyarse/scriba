@@ -45,6 +45,11 @@ void Engine::setLanguage(Language l)
 
 void Engine::setUserWords(std::vector<std::u16string> words)
 {
+    // Fold entries to the same normalized form the dictionary and the
+    // spelling lookup use, so user-added words match case-/accent-insensitively
+    // ("Scriba" in the dict must satisfy the folded "scriba" lookup).
+    for (auto &w : words)
+        w = foldWord(w);
     auto cfg = m_config.load();
     m_config.store(std::make_shared<const Config>(
         Config{cfg->dialect, cfg->language, std::move(words)}));

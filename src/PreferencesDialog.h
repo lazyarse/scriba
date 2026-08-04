@@ -138,5 +138,6 @@ private:
     QComboBox *m_grammarDialectCombo;
     QListWidget *m_customWordsList;
     QListWidget *m_importedList;
+    QListWidget *m_ignoredWordsList;
 };
 

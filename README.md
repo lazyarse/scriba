@@ -18,7 +18,7 @@
 
 ![Screenshot](docs/images/screenshot.png)
 
-![Autocomplete Demo](docs/images/autocomplete-demo.gif)
+![Auto complete Demo](docs/images/autocomplete-demo.gif)
 
 ### Preferences
 
@@ -40,6 +40,10 @@
 | --- | --- | --- |
 | [![Chemistry Notation](docs/images/mchem-dialog.png)](docs/images/mchem-dialog.png) | [![Chart Builder](docs/images/vega-lite-dialog.png)](docs/images/vega-lite-dialog.png) | [![Mermaid Chart](docs/images/mermaid-dialog.png)](docs/images/mermaid-dialog.png) |
 
+| Check Spelling |
+| --- |
+| [![Check Spelling](docs/images/check-spelling.png)](docs/images/check-spelling.png) |
+
 | Print / Export PDF |
 | --- |
 | [![Print / Export PDF](docs/images/print-pdf-dialog.png)](docs/images/print-pdf-dialog.png) |
@@ -55,10 +59,10 @@
 - Readability metrics to keep you audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
 - Find and Replace with optional regex search and replacement back-references
 - PDF, DOCX, and HTML export
-- Useful in-editor autocomplete to assist in creating tables, linking to local filenames, and yes, even emojis
+- Useful in-editor auto complete to assist in creating tables, linking to local filenames, and yes, even emojis
 - Numerous [chart helpers](docs/chart-helpers.md) for vega-lite and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV input because writing JSON and fenced blocks at 2am is difficult
 - [keyboard shortcuts](docs/shortcuts.md) for everything*
-- Accessibility support to help you use Scriba the way you need, with CSS-based GUI theming: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog titlebars different to the system theme. 
+- Accessibility support to help you use Scriba the way you need, with CSS-based GUI themes: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog title bars different to the system theme. 
 - Despite being listed at the end, app [security](docs/security.md) is not an afterthought and both the preview and exports are secured against XSS attacks and various injection vectors.
 
 \* Well, nearly everything!
@@ -68,21 +72,22 @@
 Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.
 
 ### Standing on the Shoulders of Giants:
-- The bundled stoppard engine (vendored in `vendor/stoppard/`) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
+- The bundled stoppard engine (in `vendor/stoppard/`) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [LaTeX mathematics rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
 - [Vega-Lite data visualisation](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
 - [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with GitHub Flavour Markdown support
+- [turndown.js](https://github.com/mixmark-io/turndown) — the counterpart to md4c: HTML-to-Markdown conversion (with the [GFM plugin](https://github.com/mixmark-io/turndown-plugin-gfm)) for importing HTML files and pasting content copied from the web
 
 ### And a few more things...
 
 - That annoying `<kbd>` css styling to look just like a key. If you're a monster, remove it in the `preview-base.css` and `print-base.css`
 - Optional alternating table row striping
-- Ordered and Unordered list item autocompletion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to outdent. <kbd>Enter</kbd> again to stop autocomplete
+- Ordered and Unordered list item auto completion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to out dent. <kbd>Enter</kbd> again to stop auto complete
 - A debug log window output to see your rendering errors
 - A [kitchensink.md](docs/kitchensink.md) file with feature examples
-- hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tooltip falling back to `alt` text for your safety
+- hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tool tip falling back to `alt` text for your safety
 
 ## Custom CSS / Themes
 
@@ -119,7 +124,7 @@ cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs af
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
-The post-build step automatically removes cached base stylesheets (`~/.config/scriba/*.css`), so no manual cleanup needed on rebuild.
+The post-build step automatically removes cached base style sheets (`~/.config/scriba/*.css`), so no manual cleanup needed on rebuild.
 
 ### Build on Windows
 
@@ -210,4 +215,4 @@ JS console messages are captured via the Debug Log window (Tools → Debug Log).
 
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [PDF Export](docs/pdf-export.md)
-- [Table Handlng](docs/table_handling.md)
+- [Table Handling](docs/table_handling.md)

@@ -103,6 +103,12 @@ QColor SpellHighlighter::linkUnderlineColor()
     return QColor(0xf0, 0x90, 0x00);
 }
 
+QColor SpellHighlighter::spellHighlightColor()
+{
+    // Translucent amber: reads on both light and dark editor themes.
+    return QColor(0xff, 0xd7, 0x00, 0x99);
+}
+
 SpellHighlighter::SpellHighlighter(QTextDocument *document, QObject *parent)
     : QSyntaxHighlighter(document)
     , m_lintTimer(new QTimer(this))
@@ -412,6 +418,27 @@ QList<SpellHighlighter::WordHit> SpellHighlighter::scanWords(const QString &line
         hits.append({m.captured(), start, len});
     }
     return hits;
+}
+
+QVector<SpellHighlighter::SpellIssue>
+SpellHighlighter::scanDocument(QTextDocument *document, SpellChecker *checker)
+{
+    QVector<SpellIssue> issues;
+    if (!document || !checker || !checker->isLoaded())
+        return issues;
+
+    int state = 0;
+    for (QTextBlock block = document->firstBlock(); block.isValid(); block = block.next()) {
+        const BlockContext ctx = blockContext(block.blockNumber(), block.text(), state);
+        state = ctx.state;
+        if (!ctx.checkable)
+            continue;
+        for (const WordHit &word : scanWords(block.text())) {
+            if (!checker->checkWord(word.text))
+                issues.append({block.blockNumber(), word.start, word.length, word.text});
+        }
+    }
+    return issues;
 }
 
 void SpellHighlighter::highlightBlock(const QString &text)

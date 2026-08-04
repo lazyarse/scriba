@@ -111,6 +111,18 @@ xvfb-run -a sh -c '
     open ctrl+m
     capture "Mermaid Chart" '"$OUT_DIR"'/mermaid-dialog.png
 
+    # --- Check Spelling (type a misspelled word so the dialog has an error) ---
+    # NB: `xdotool key F7` latches a phantom Alt before the key, so Qt sees
+    # Alt+F7. Send the raw keycode (73 = F7 on the standard X keymap) instead.
+    xdotool key End
+    xdotool type -- "helo "
+    sleep 1
+    xdotool windowfocus "$WID"
+    sleep 0.2
+    xdotool keydown 73
+    xdotool keyup 73
+    capture "Check Spelling" '"$OUT_DIR"'/check-spelling.png
+
     # --- Print / Export PDF (long wait: WebEngine load, vega/mermaid
     # promises, chromium --print-to-pdf, then preview reload) ---
     open ctrl+p

@@ -38,6 +38,7 @@ class FindDialog;
 class MermaidDialog;
 class KatexHelperDialog;
 class MchemHelperDialog;
+class SpellCheckDialog;
 
 struct TabInfo {
     Editor *editor = nullptr;
@@ -72,6 +73,7 @@ private slots:
     void showLogWindow();
     void showKatexHelper();
     void showMchemHelper();
+    void showSpellCheckDialog();
 
     void onFindNext();
     void onFindPrev();
@@ -90,6 +92,8 @@ private:
     void setupUi();
     void setupMenuBar();
     void saveFile(const QString &filePath);
+    void importHtmlFromFile();
+    void pasteAsMarkdown();
     void exportPdf();
     void exportDocx();
     void exportHtml();

@@ -34,6 +34,7 @@ add_executable(scriba WIN32
     src/ExportDocxDialog.cpp
     src/DocxExporter.cpp
     src/HtmlToOoxml.cpp
+    src/HtmlToMarkdown.cpp
     src/FindDialog.cpp
     src/TableDialog.cpp
     src/VegaLiteDialog.cpp
@@ -53,6 +54,7 @@ add_executable(scriba WIN32
     src/CsvReader.cpp
     src/CsvColumnMapDialog.cpp
     src/SpellChecker.cpp
+    src/SpellCheckDialog.cpp
     src/SpellHighlighter.cpp
     src/LinkValidator.cpp
     src/GrammarChecker.cpp
@@ -348,8 +350,15 @@ if(BUILD_TESTS)
     target_link_libraries(test_underline_overlay PRIVATE GTest::gtest scriba_spell)
     add_test(NAME test_underline_overlay COMMAND ${_TEST_PREFIX} ./test_underline_overlay)
 
+    add_executable(test_spell_check_dialog tests/test_spell_check_dialog.cpp
+        src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
+    target_include_directories(test_spell_check_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_spell_check_dialog PRIVATE
+        GTest::gtest scriba_spell Qt6::Test Qt6::Widgets)
+    add_test(NAME test_spell_check_dialog COMMAND ${_TEST_PREFIX} ./test_spell_check_dialog)
+
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -361,6 +370,7 @@ if(BUILD_TESTS)
     src/MchemHelperDialog.cpp
         src/CsvColumnMapDialog.cpp
         src/TableDialog.cpp
+        src/HtmlToMarkdown.cpp
         resources/scriba.qrc)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(test_scroll_sync PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
@@ -368,8 +378,17 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Svg Qt6::Test mathml2omml scriba_spell)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
+    add_executable(test_html_to_markdown
+        tests/test_html_to_markdown.cpp
+        src/HtmlToMarkdown.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_html_to_markdown PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_html_to_markdown
+        PRIVATE GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets)
+    add_test(NAME test_html_to_markdown COMMAND ${_TEST_PREFIX} ./test_html_to_markdown)
+
     add_executable(test_anchor_navigation tests/test_anchor_navigation.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -389,7 +408,7 @@ if(BUILD_TESTS)
     add_test(NAME test_anchor_navigation COMMAND ${_TEST_PREFIX} ./test_anchor_navigation)
 
     add_executable(test_emoji_preview tests/test_emoji_preview.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -410,7 +429,7 @@ if(BUILD_TESTS)
     add_test(NAME test_emoji_preview COMMAND ${_TEST_PREFIX} ./test_emoji_preview)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -428,7 +447,7 @@ if(BUILD_TESTS)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
     add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -446,7 +465,7 @@ if(BUILD_TESTS)
     add_test(NAME test_multi_tab_typing COMMAND ${_TEST_PREFIX} ./test_multi_tab_typing)
 
     add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -464,7 +483,7 @@ if(BUILD_TESTS)
     add_test(NAME test_dirty_on_load COMMAND ${_TEST_PREFIX} ./test_dirty_on_load)
 
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
-    src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+    src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
     src/CssConfig.cpp src/CssLoader.cpp
     src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -483,7 +502,7 @@ target_link_libraries(test_editor_initial_css PRIVATE
 add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp
-        src/MainWindow.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
+        src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/VegaLiteDialog.cpp
@@ -540,7 +559,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
     add_test(NAME test_export_html COMMAND ${_TEST_PREFIX} ./test_export_html)
 
     add_executable(test_docx_export tests/test_docx_export.cpp
-        src/HtmlToOoxml.cpp
+    src/HtmlToOoxml.cpp
         src/UnitConverter.cpp
         src/CssValueParser.cpp)
     target_include_directories(test_docx_export PRIVATE ${CMAKE_SOURCE_DIR}/src)

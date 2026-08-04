@@ -111,6 +111,11 @@ bool isAllCaps(std::u16string_view w)
 
 } // namespace
 
+// Exported alias of the anonymous-namespace fold(), so Engine::setUserWords
+// can normalize user-added words to the same folded form the dictionary and
+// spelling lookup use.
+std::u16string foldWord(std::u16string_view s) { return fold(s); }
+
 // --- hunspell ngram machinery (SPEC §19.4) ----------------------------------
 // Faithful ports of suggestmgr.cxx: ngram() (multi-size substring-anywhere
 // matching with early break), leftcommonsubstring(), commoncharacterpositions()

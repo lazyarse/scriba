@@ -917,6 +917,44 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(customGroup);
 
+        QGroupBox *ignoredGroup = new QGroupBox("Ignored Words");
+        QVBoxLayout *ignoredLayout = new QVBoxLayout(ignoredGroup);
+        ignoredLayout->addSpacing(8);
+
+        m_ignoredWordsList = new QListWidget;
+        m_ignoredWordsList->setMinimumHeight(60);
+        m_ignoredWordsList->addItems(SpellChecker::readIgnoredWords());
+        ignoredLayout->addWidget(m_ignoredWordsList);
+
+        QHBoxLayout *ignoredButtons = new QHBoxLayout();
+        auto *removeIgnoredBtn = new QPushButton(tr("&Remove Word"));
+        auto *removeAllIgnoredBtn = new QPushButton(tr("Remove &All"));
+        ignoredButtons->addWidget(removeIgnoredBtn);
+        ignoredButtons->addWidget(removeAllIgnoredBtn);
+        ignoredButtons->addStretch();
+        stripButtonIcons({removeIgnoredBtn, removeAllIgnoredBtn});
+        ignoredLayout->addLayout(ignoredButtons);
+
+        auto *ignoredNote = new QLabel(tr(
+            "Words \u201cignored always\u201d by Check Spelling. They are not "
+            "flagged, but stay separate from your custom dictionary."));
+        ignoredNote->setWordWrap(true);
+        ignoredNote->setStyleSheet("color: gray; padding: 8px;");
+        ignoredLayout->addWidget(ignoredNote);
+
+        layout->addWidget(ignoredGroup);
+
+        connect(m_ignoredWordsList, &QListWidget::itemSelectionChanged, this,
+                [this, removeIgnoredBtn]() {
+                    removeIgnoredBtn->setEnabled(m_ignoredWordsList->currentItem() != nullptr);
+                });
+        connect(removeIgnoredBtn, &QPushButton::clicked, this, [this]() {
+            delete m_ignoredWordsList->currentItem();
+        });
+        connect(removeAllIgnoredBtn, &QPushButton::clicked, this, [this]() {
+            m_ignoredWordsList->clear();
+        });
+
         layout->addStretch();
 
         auto mergeParsedWords = [this](const QStringList &words) {
@@ -1117,6 +1155,10 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         for (int i = 0; i < m_customWordsList->count(); ++i)
             customWords << m_customWordsList->item(i)->text();
         SpellChecker::writeUserDictionaryWords(customWords);
+        QStringList ignoredWords;
+        for (int i = 0; i < m_ignoredWordsList->count(); ++i)
+            ignoredWords << m_ignoredWordsList->item(i)->text();
+        SpellChecker::writeIgnoredWords(ignoredWords);
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

@@ -48,6 +48,15 @@ public:
     void setMermaidAction(QAction *action);
     void recheckSpelling();
 
+    SpellChecker *spellChecker() const { return m_spellChecker.get(); }
+    SpellHighlighter *spellHighlighter() const { return m_spellHighlighter; }
+
+    // Highlights the given range with a background highlight (not an
+    // underline) and moves the cursor there — used by the Check Spelling
+    // dialog to point at the current error. Cleared on document edits.
+    void setSpellCheckHighlight(int blockNumber, int start, int length);
+    void clearSpellCheckHighlight();
+
     static constexpr int kUnderlineDropPx = 2;     // extra px below fm.underlinePos()
     static constexpr int kUnderlinePenWidthPx = 3; // thickness of painted underlines
 
