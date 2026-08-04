@@ -107,11 +107,11 @@ TEST_F(PrintExportTest, BuildHtmlIncludesScripts)
     EXPECT_TRUE(html.contains("qrc:///mermaid.min.js"));
     EXPECT_TRUE(html.contains("qrc:///katex.min.css"));
     EXPECT_TRUE(html.contains("qrc:///katex.min.js"));
-    EXPECT_TRUE(html.contains("qrc:///vega-lite.min.js"));
+    EXPECT_TRUE(html.contains("qrc:///echarts.min.js"));
     EXPECT_TRUE(html.contains("initMermaid()"));
     EXPECT_TRUE(html.contains("hljs.highlightAll()"));
     EXPECT_TRUE(html.contains("initKaTeX()"));
-    EXPECT_TRUE(html.contains("initVegaLite()"));
+    EXPECT_TRUE(html.contains("initECharts()"));
     EXPECT_TRUE(html.contains("replaceEmoji(document.body)"));
 }
 

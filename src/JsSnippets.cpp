@@ -74,16 +74,16 @@ const QString katexInitJs = QStringLiteral(
     "}"
 );
 
-const QString vegaLiteInitJs = QStringLiteral(
-    "function initVegaLite(){"
-    "var els=document.querySelectorAll('code.language-vl');"
+const QString echartsInitJs = QStringLiteral(
+    "function initECharts(){"
+    "var els=document.querySelectorAll('code.language-ec');"
     "if(!els.length)return Promise.resolve();"
     "return Promise.all(Array.from(els).map(function(el){"
     "try{"
     "var spec=JSON.parse(el.textContent);"
     "var container=el.parentElement;"
     "var div=document.createElement('div');"
-    "div.className='vega-lite-chart';"
+    "div.className='echarts-chart';"
     "div.style.width='100%';"
     "div.style.minHeight='300px';"
     "div.style.overflow='visible';"
@@ -92,7 +92,10 @@ const QString vegaLiteInitJs = QStringLiteral(
     "var tries=0;"
     "(function go(){"
     "if(div.clientWidth>0||++tries>40){"
-    "resolve(vegaEmbed(div,spec,{actions:false,renderer:'svg'}).catch(function(){}));"
+    "var chart=echarts.init(div,null,{renderer:'svg'});"
+    "try{chart.setOption(spec);}catch(e){}"
+    "chart.on('finished',function(){resolve(chart);});"
+    "setTimeout(function(){resolve(chart);},2000);"
     "}else{setTimeout(go,50);}"
     "})();"
     "});"

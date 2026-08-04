@@ -1060,7 +1060,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         auto *cspNote = new QLabel(
             "Content Security Policy restricts what resources can execute in the preview or exported HTML. "
             "The app requires 'unsafe-inline' for both script and style because bundled JS libraries "
-            "(KaTeX, Mermaid, highlight.js, Vega-Lite) and the app's own initialization code use inline "
+            "(KaTeX, Mermaid, highlight.js, ECharts) and the app's own initialization code use inline "
             "scripts and styles. A stricter CSP would break rendering. "
             "The current policy blocks inline event handlers (onclick, onerror), javascript: URLs, "
             "and external network requests.");

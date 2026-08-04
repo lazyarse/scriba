@@ -1,6 +1,6 @@
 # Chart Helpers
 
-Scriba includes form-based helpers for building **Mermaid** diagrams and **Vega-Lite** charts without writing code by hand. Each helper provides a split-pane UI: form controls on the left, a live preview on the right, and Insert/Copy buttons at the bottom.
+Scriba includes form-based helpers for building **Mermaid** diagrams and **ECharts** charts without writing code by hand. Each helper provides a split-pane UI: form controls on the left, a live preview on the right, and Insert/Copy buttons at the bottom.
 
 ## Mermaid Helpers (12 diagram types)
 
@@ -112,51 +112,57 @@ Additionally, the existing helpers do not cover some advanced features within su
 
 ---
 
-## Vega-Lite Helper
+## Chart Builder (ECharts)
 
-Accessed from **Tools > Vega-Lite Chart**. Generates a Vega-Lite JSON spec wrapped in a fenced ` ```vega-lite ` code block.
+Accessed from **Tools > Chart Builder**. Generates an ECharts option object wrapped in a fenced ` ```ec ` code block. Charts render in the preview via the bundled Apache ECharts library (SVG renderer).
 
-### Supported Mark Types (15)
+### Supported Chart Types (5)
 
-| Mark | Description | Encodings |
-|---|---|---|
-| bar | Bar chart | X, Y, Color, Tooltip |
-| line | Line chart | X, Y, Color, Tooltip |
-| point | Scatter plot | X, Y, Color, Size, Shape, Tooltip |
-| area | Area chart | X, Y, Color, Tooltip |
-| rect | Rectangular (heatmap-like) | X, Y, Color, Tooltip |
-| tick | Tick marks | X, Y, Color, Size, Tooltip |
-| rule | Reference lines | X, Y, Color, Tooltip |
-| circle | Circle marks | X, Y, Color, Size, Shape, Tooltip |
-| square | Square marks | X, Y, Color, Size, Shape, Tooltip |
-| text | Text marks | X, Y, Color, Text, Tooltip |
-| trail | Variable-width lines | X, Y, Color, Size, Tooltip |
-| boxplot | Box plot | X, Y, Color, Size, Tooltip |
-| errorband | Error band | X, Y, Color, Tooltip |
-| errorbar | Error bar | X, Y, Color, Tooltip |
-| geoshape | Geographic shape | X, Y, Color, Tooltip |
+| Type | Description |
+|---|---|
+| Bar | Categorical or numeric X axis |
+| Line | Connected data points |
+| Area | Line with filled area |
+| Scatter | Numeric X/Y point pairs |
+| Pie | Categorical name/value slices (no axes) |
 
 ### Features
 
 - **Data input**: Editable table with CSV and JSON paste support. Rows/columns can be added or removed.
-- **Encodings**: Each channel (X, Y, Color, Size, Shape, Text) has a field dropdown (populated from table columns) and a type selector (nominal, ordinal, quantitative, temporal). Which channels are visible depends on the selected mark type.
-- **Tooltip**: Checkbox to add a tooltip encoding using all columns.
-- **Options**: Chart title, fill-available-width toggle.
-- **Preview**: Live rendering via vega-embed in QWebEngineView.
-- **Output**: Insert or copy the JSON spec.
+- **Fields**: X and Y field dropdowns populated from the table columns. A numeric X field produces a value axis; otherwise a category axis is used.
+- **Tooltip**: Checkbox to add an axis-triggered tooltip.
+- **Animation**: Toggle chart animation on/off (off by default, emitting `"animation": false` in the options).
+- **Options**: Chart title.
+- **Preview**: Live rendering via ECharts (SVG renderer) in QWebEngineView.
+- **Output**: Insert or copy a fenced ` ```ec ` JSON block.
 
-### Vega-Lite Features NOT Covered
+### Chart Builder Features NOT Covered
 
-**Encoding gaps**: No opacity, angle, stroke, X2/Y2 (for ranged marks), or href channels.
+**Encodings**: No color/size/shape channels, multi-series grouping, or stacked values.
 
-**Mark properties**: No constant color, opacity, stroke, corner radius, filled/unfilled toggle, line interpolation, point-on-line toggle, bar width, or text styling (font, size, alignment).
+**Mark properties**: No constant styling (color, opacity, stroke, bar width, symbol type), axis/legend customization, or number/date formatting.
 
-**Data**: No URL-based data, named data sources, or transforms (filter, calculate, fold, window, bin, aggregate, regression, loess, impute, lookup, etc.). Data is always inline values.
+**Data**: No URL-based data or transforms (filter, aggregate, sort, bin, etc.). Data is always inline values.
 
-**Aggregation**: No aggregation functions (count, sum, mean, median, min, max, etc.). Raw data only.
+**Composition**: No multiple series, grids, or chart composition. Single-series, single-view only.
 
-**Composition**: No layer, facet, repeat, concat, hconcat, or vconcat. Single-view only.
+---
 
-**Interactivity**: No selections (point, interval, legend), parameters, or conditional encodings.
+## Stock Chart Builder (ECharts)
 
-**Configuration**: No axis/legend/scale customization, sort order, stack control, bin settings, color schemes, number/date formatting, explicit pixel sizing, padding, background, or title subtitles.
+Accessed from **Tools > Stock Chart**. Builds candlestick charts from OHLC data and wraps the result in a fenced ` ```ec ` code block.
+
+### Features
+
+- **Data input**: Paste or open CSV with columns `date, open, high, low, close[, volume]`. Column names are matched case-insensitively (aliases: `time`/`day` for date, `o`/`h`/`l`/`c`/`vol`); if the names don't match, columns are used positionally. Invalid rows are skipped.
+- **Volume pane**: Optional bar series on its own grid below the candles, sharing the time axis.
+- **Moving averages**: Optional MA5 / MA10 / MA20 / MA50 line overlays, computed from closing prices.
+- **Zoom / pan**: Optional inside-scroll zoom plus a slider (dataZoom).
+- **Animation**: Toggle chart animation on/off (off by default, emitting `"animation": false` in the options).
+- **Options**: Chart title.
+- **Preview**: Live rendering via ECharts (SVG renderer) in QWebEngineView.
+- **Output**: Insert or copy a fenced ` ```ec ` JSON block with candlestick, volume, and MA series.
+
+### Stock Chart Builder Features NOT Covered
+
+No chart-type indicators beyond moving averages (no RSI, MACD, Bollinger bands), no intraday scale handling, and no data transformations — prices are used as pasted.

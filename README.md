@@ -14,11 +14,9 @@
 
 ---
 
-## Screenshots
-
 ![Screenshot](docs/images/screenshot.png)
 
-See the [Gallery](docs/gallery.md) for screenshots of the preferences pages, dialogs, and more.
+See the [Gallery](docs/gallery.md) for more screenshots.
 
 ---
 
@@ -32,7 +30,7 @@ See the [Gallery](docs/gallery.md) for screenshots of the preferences pages, dia
 - Find and Replace with optional regex search and replacement back-references
 - Export: PDF, DOCX, and HTML; Import: HTML
 - Useful in-editor auto complete to assist in creating tables, lists, links to local filenames, and yes, even emojis
-- Numerous [helpers](docs/chart-helpers.md) for vega-lite charts and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV import, and helpers for LaTeX, MChem, and tables 
+- Numerous [helpers](docs/chart-helpers.md) for ECharts charts (including stock/candlestick) and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV import, and helpers for LaTeX, MChem, and tables 
 - [keyboard shortcuts](docs/shortcuts.md) for everything (or maybe, nearly everything) and a [kitchensink.md](docs/kitchensink.md) with full feature examples
 - Accessibility support to help you use Scriba the way you need, with CSS-based GUI themes: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
 - [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and various injection vectors for you and your audience
@@ -43,7 +41,7 @@ See the [Gallery](docs/gallery.md) for screenshots of the preferences pages, dia
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [LaTeX mathematics rendering](https://katex.org/) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
-- [Vega-Lite data visualisation](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
+- [Apache ECharts](https://echarts.apache.org/) data visualisation (bar, scatter, line, pie, candlestick/stock with volume, zoom and moving averages) and helper
 - [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with GitHub Flavour Markdown support
 - [turndown.js](https://github.com/mixmark-io/turndown) — the counterpart to md4c: HTML-to-Markdown conversion (with the [GFM plugin](https://github.com/mixmark-io/turndown-plugin-gfm)) for importing HTML files and pasting content copied from the web
 

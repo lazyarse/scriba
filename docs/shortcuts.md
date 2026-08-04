@@ -68,5 +68,6 @@
 | Ctrl+E | Emoji Search |
 | Ctrl+T | Table Insert |
 | Ctrl+K | KaTeX Math |
-| Ctrl+G | Vega-Lite Charts |
+| Ctrl+G | Chart Builder |
+| Ctrl+Alt+S | Stock Chart |
 | Ctrl+M | Mermaid Diagrams |

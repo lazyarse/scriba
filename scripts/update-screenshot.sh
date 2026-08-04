@@ -103,9 +103,13 @@ xvfb-run -a sh -c '
     sleep 1
     xdotool windowfocus "$WID"
 
-    # --- Vega-Lite chart builder (renders sample chart on open) ---
+    # --- Chart builder (ECharts, renders sample chart on open) ---
     open ctrl+g
-    capture "Chart Builder" '"$OUT_DIR"'/vega-lite-dialog.png
+    capture "Chart Builder" '"$OUT_DIR"'/chart-dialog.png
+
+    # --- Stock chart builder (candlestick with volume + MAs) ---
+    open ctrl+alt+s
+    capture "Stock Chart Builder" '"$OUT_DIR"'/stock-chart-dialog.png
 
     # --- Mermaid chart helper (default pie chart) ---
     open ctrl+m
@@ -123,7 +127,7 @@ xvfb-run -a sh -c '
     xdotool keyup 73
     capture "Check Spelling" '"$OUT_DIR"'/check-spelling.png
 
-    # --- Print / Export PDF (long wait: WebEngine load, vega/mermaid
+    # --- Print / Export PDF (long wait: WebEngine load, mermaid/echarts
     # promises, chromium --print-to-pdf, then preview reload) ---
     open ctrl+p
     capture "Print / Export PDF" '"$OUT_DIR"'/print-pdf-dialog.png 12

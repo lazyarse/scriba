@@ -67,8 +67,6 @@
         <file>themes/solarized-light.css</file>
         <file>themes/tokyo-night-dark.css</file>
         <file>themes/tokyo-night-light.css</file>
-        <file>vega.min.js</file>
-        <file>vega-lite.min.js</file>
-        <file>vega-embed.min.js</file>
+        <file>echarts.min.js</file>
     </qresource>
 </RCC>

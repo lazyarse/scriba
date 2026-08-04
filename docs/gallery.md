@@ -2,9 +2,10 @@
 
 ![Screenshot](images/screenshot.png)
 
+## Auto Complete
 ![Auto complete Demo](images/autocomplete-demo.gif)
 
-### Preferences
+## Preferences
 
 | General | Themes | Editor |
 | --- | --- | --- |
@@ -14,15 +15,19 @@
 | --- | --- | --- | --- |
 | [![Writing](images/preferences-writing.png)](images/preferences-writing.png) | [![Spelling](images/preferences-spelling.png)](images/preferences-spelling.png) | [![Security](images/preferences-security.png)](images/preferences-security.png) | [![Preview](images/preferences-preview.png)](images/preferences-preview.png) |
 
-### Dialogues
+## Dialogues
 
 | Insert Table | Emoji Picker | KaTeX Equation |
 | --- | --- | --- |
 | [![Insert Table](images/table-dialog.png)](images/table-dialog.png) | [![Emoji Picker](images/emoji-picker.png)](images/emoji-picker.png) | [![KaTeX Equation](images/katex-dialog.png)](images/katex-dialog.png) |
 
-| Chemistry Notation | Chart Builder | Mermaid Chart |
+| Chemistry Notation | Chart Builder | Stock Chart Builder |
 | --- | --- | --- |
-| [![Chemistry Notation](images/mchem-dialog.png)](images/mchem-dialog.png) | [![Chart Builder](images/vega-lite-dialog.png)](images/vega-lite-dialog.png) | [![Mermaid Chart](images/mermaid-dialog.png)](images/mermaid-dialog.png) |
+| [![Chemistry Notation](images/mchem-dialog.png)](images/mchem-dialog.png) | [![Chart Builder](images/chart-dialog.png)](images/chart-dialog.png) | [![Stock Chart Builder](images/stock-chart-dialog.png)](images/stock-chart-dialog.png) |
+
+| Mermaid Chart |
+| --- |
+| [![Mermaid Chart](images/mermaid-dialog.png)](images/mermaid-dialog.png) |
 
 | Check Spelling |
 | --- |

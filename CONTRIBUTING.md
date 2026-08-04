@@ -34,9 +34,7 @@ scriba/
 │   ├── mermaid.min.js          — Mermaid diagrams
 │   ├── katex.min.js            — LaTeX math
 │   ├── katex.min.css           — KaTeX styles
-│   ├── vega.min.js             — Vega (visualization)
-│   ├── vega-lite.min.js        — Vega-Lite (charts)
-│   ├── vega-embed.min.js       — Vega-Embed (renderer)
+│   ├── echarts.min.js          — Apache ECharts (charts)
 │   ├── themes/                 — Built-in CSS themes (15 themes)
 │   ├── fonts/                  — KaTeX web fonts
 │   ├── icons/                  — Editor icons

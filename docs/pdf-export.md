@@ -3,7 +3,7 @@
 ## How it works
 
 The export dialog (`ExportPdfDialog`) renders the markdown as HTML inside a hidden
-`QWebEngineView`, waits for async JS (KaTeX, Mermaid, Vega-Lite) to finish, then
+`QWebEngineView`, waits for async JS (KaTeX, Mermaid, ECharts) to finish, then
 generates a PDF using one of two paths:
 
 1. **Headless Chromium** (preferred) — serializes the rendered DOM and pipes it
@@ -16,7 +16,7 @@ generates a PDF using one of two paths:
 ## Page size parsing
 
 The `@page { size: ... }` CSS rule is parsed to determine the viewport width for
-JS rendering (so Vega-Lite charts render at the correct dimensions).
+JS rendering (so ECharts charts render at the correct dimensions).
 
 ### Supported named sizes
 

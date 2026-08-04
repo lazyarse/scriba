@@ -543,12 +543,12 @@ void ExportPdfDialog::onPageLoaded(bool ok)
 
     int genId = m_generationId;
 
-    // Wait for async Vega rendering (vegaEmbed returns a Promise stored on
-    // window.vegaLiteReady).  If there are no vega charts the promise resolves
-    // immediately so this is a no-op for documents without vega.
+    // Wait for async ECharts rendering (echarts.init + setOption stores a
+    // Promise on window.echartsReady).  If there are no ec charts the promise
+    // resolves immediately so this is a no-op for documents without charts.
     QString css = m_currentPrintCss;
     m_hiddenEngine->page()->runJavaScript(
-        QStringLiteral("Promise.all([window.vegaLiteReady||Promise.resolve(),window.mermaidReady||Promise.resolve()]).then(function(){return true;})"),
+        QStringLiteral("Promise.all([window.echartsReady||Promise.resolve(),window.mermaidReady||Promise.resolve()]).then(function(){return true;})"),
         [this, genId, css](const QVariant &) {
             if (genId != m_generationId) return;
 
@@ -577,15 +577,13 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
 {
     int genId = m_generationId;
 
-    // Fix Vega SVGs: vega-embed uses width="100%" (CSS-relative).
-    // Chromium headless --print-to-pdf renders such SVGs at zero width
-    // (bug #40712208). Bake explicit pixel dimensions from viewBox before
+    // Fix ECharts SVGs: bake explicit pixel dimensions from viewBox before
     // extraction.  The viewBox always carries intrinsic dimensions and
     // doesn't depend on widget layout (which may be stale for hidden views).
     // Mermaid SVGs already have explicit attributes and are unaffected.
     QString js = QStringLiteral(
         "(function() {"
-        "  document.querySelectorAll('.vega-lite-chart svg').forEach(function(svg) {"
+        "  document.querySelectorAll('.echarts-chart svg').forEach(function(svg) {"
         "    var vb = svg.getAttribute('viewBox');"
         "    if (vb) {"
         "      var parts = vb.split(/\\s+/);"

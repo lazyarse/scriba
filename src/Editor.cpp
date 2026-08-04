@@ -1016,7 +1016,7 @@ const QHash<QString, QStringList> &codeLanguages()
         { "swift",       {} },
         { "typescript",  {"ts", "tsx"} },
         { "vbnet",       {"vb", "vbs"} },
-        { "vl",          {} },
+        { "ec",          {} },
         { "wasm",        {} },
         { "xml",         {"html", "xhtml", "svg", "rss", "atom", "xsl", "plist"} },
         { "yaml",        {"yml"} },

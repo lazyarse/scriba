@@ -147,10 +147,10 @@ TEST_F(HtmlExportTest, BuildFullHtmlContainsScripts)
     EXPECT_TRUE(html.contains("qrc:///highlight.min.js"));
     EXPECT_TRUE(html.contains("qrc:///mermaid.min.js"));
     EXPECT_TRUE(html.contains("qrc:///katex.min.js"));
-    EXPECT_TRUE(html.contains("qrc:///vega.min.js"));
+    EXPECT_TRUE(html.contains("qrc:///echarts.min.js"));
     EXPECT_TRUE(html.contains("initMermaid()"));
     EXPECT_TRUE(html.contains("initKaTeX()"));
-    EXPECT_TRUE(html.contains("initVegaLite()"));
+    EXPECT_TRUE(html.contains("initECharts()"));
 }
 
 TEST_F(HtmlExportTest, BuildFullHtmlMermaidThemeDark)
@@ -379,46 +379,38 @@ TEST_F(HtmlExportTest, RenderSyncKaTeXNoSvgOutput)
     EXPECT_FALSE(rendered.contains("<svg"));
 }
 
-TEST_F(HtmlExportTest, RenderSyncVegaLiteSvgOutput)
+TEST_F(HtmlExportTest, RenderSyncEChartsSvgOutput)
 {
-    // Vega-Lite charts should render as SVG, not canvas, with non-zero width
-    QString spec = "{\"$schema\":\"https://vega.github.io/schema/vega-lite/v5.json\","
-                   "\"width\":\"container\","
-                   "\"data\":{\"values\":[{\"a\":\"A\",\"b\":28}]},"
-                   "\"mark\":\"bar\","
-                   "\"encoding\":{"
-                   "\"x\":{\"field\":\"a\",\"type\":\"nominal\"},"
-                   "\"y\":{\"field\":\"b\",\"type\":\"quantitative\"}"
-                   "}}";
-    QString bodyHtml = "<pre><code class=\"language-vl\">" + spec.toHtmlEscaped() + "</code></pre>";
+    // ECharts charts should render as SVG, not canvas, with non-zero width
+    QString spec = "{\"xAxis\":{\"type\":\"category\",\"data\":[\"A\"]},"
+                   "\"yAxis\":{\"type\":\"value\"},"
+                   "\"series\":[{\"type\":\"bar\",\"data\":[28]}]}";
+    QString bodyHtml = "<pre><code class=\"language-ec\">" + spec.toHtmlEscaped() + "</code></pre>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
     QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString(), 15000);
     ASSERT_FALSE(rendered.isEmpty());
 
-    // Vega-Lite with renderer:'svg' should produce <svg> elements
-    EXPECT_TRUE(rendered.contains("<svg")) << "Vega-Lite should render as SVG";
-    EXPECT_TRUE(rendered.contains("vega-lite-chart")) << "Chart container should have vega-lite-chart class";
+    // ECharts with renderer:'svg' should produce <svg> elements
+    EXPECT_TRUE(rendered.contains("<svg")) << "ECharts should render as SVG";
+    EXPECT_TRUE(rendered.contains("echarts-chart")) << "Chart container should have echarts-chart class";
     // Should NOT contain canvas elements
     EXPECT_FALSE(rendered.contains("<canvas")) << "Should use SVG renderer, not canvas";
     // SVG must have non-zero width (regression: zero-width SVGs are invisible in browsers)
-    QRegularExpression svgRe(QStringLiteral("<svg[^>]*width=\"(\\d+)\""));
+    QRegularExpression svgRe(QStringLiteral("<svg[^>]*(?:width=\"(\\d+)\"|viewBox=\"0 0 (\\d+))"));
     QRegularExpressionMatch match = svgRe.match(rendered);
-    ASSERT_TRUE(match.hasMatch()) << "SVG should have a numeric width attribute";
-    EXPECT_GT(match.captured(1).toInt(), 0) << "SVG width must be > 0 to be visible";
+    ASSERT_TRUE(match.hasMatch()) << "SVG should have a numeric width attribute or viewBox";
+    int w = match.captured(1).isEmpty() ? match.captured(2).toInt() : match.captured(1).toInt();
+    EXPECT_GT(w, 0) << "SVG width must be > 0 to be visible";
 }
 
-TEST_F(HtmlExportTest, VegaLiteSurvivesReplaceQrcUrls)
+TEST_F(HtmlExportTest, EChartsSurvivesReplaceQrcUrls)
 {
     // SVGs must survive the replaceQrcUrls step used in the export pipeline
-    QString spec = "{\"$schema\":\"https://vega.github.io/schema/vega-lite/v5.json\","
-                   "\"data\":{\"values\":[{\"a\":\"A\",\"b\":28}]},"
-                   "\"mark\":\"bar\","
-                   "\"encoding\":{"
-                   "\"x\":{\"field\":\"a\",\"type\":\"nominal\"},"
-                   "\"y\":{\"field\":\"b\",\"type\":\"quantitative\"}"
-                   "}}";
-    QString bodyHtml = "<pre><code class=\"language-vl\">" + spec.toHtmlEscaped() + "</code></pre>";
+    QString spec = "{\"xAxis\":{\"type\":\"category\",\"data\":[\"A\"]},"
+                   "\"yAxis\":{\"type\":\"value\"},"
+                   "\"series\":[{\"type\":\"bar\",\"data\":[28]}]}";
+    QString bodyHtml = "<pre><code class=\"language-ec\">" + spec.toHtmlEscaped() + "</code></pre>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
     QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString(), 15000);
@@ -429,21 +421,17 @@ TEST_F(HtmlExportTest, VegaLiteSurvivesReplaceQrcUrls)
 
     // SVG must still be present after qrc URL replacement
     EXPECT_TRUE(afterReplace.contains("<svg")) << "SVG should survive replaceQrcUrls";
-    EXPECT_TRUE(afterReplace.contains("vega-lite-chart")) << "Chart container should survive replaceQrcUrls";
+    EXPECT_TRUE(afterReplace.contains("echarts-chart")) << "Chart container should survive replaceQrcUrls";
     EXPECT_FALSE(afterReplace.contains("<canvas")) << "Should still be SVG, not canvas";
 }
 
-TEST_F(HtmlExportTest, VegaLiteFullExportPipeline)
+TEST_F(HtmlExportTest, EChartsFullExportPipeline)
 {
     // Test the complete export pipeline: buildFullHtml -> renderSync -> replaceQrcUrls -> wrap
-    QString spec = "{\"$schema\":\"https://vega.github.io/schema/vega-lite/v5.json\","
-                   "\"data\":{\"values\":[{\"a\":\"A\",\"b\":28}]},"
-                   "\"mark\":\"bar\","
-                   "\"encoding\":{"
-                   "\"x\":{\"field\":\"a\",\"type\":\"nominal\"},"
-                   "\"y\":{\"field\":\"b\",\"type\":\"quantitative\"}"
-                   "}}";
-    QString bodyHtml = "<pre><code class=\"language-vl\">" + spec.toHtmlEscaped() + "</code></pre>";
+    QString spec = "{\"xAxis\":{\"type\":\"category\",\"data\":[\"A\"]},"
+                   "\"yAxis\":{\"type\":\"value\"},"
+                   "\"series\":[{\"type\":\"bar\",\"data\":[28]}]}";
+    QString bodyHtml = "<pre><code class=\"language-ec\">" + spec.toHtmlEscaped() + "</code></pre>";
     QString css = "body { font-family: serif; }";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, css, "bw", "default");
 
@@ -468,7 +456,7 @@ TEST_F(HtmlExportTest, VegaLiteFullExportPipeline)
 
     EXPECT_TRUE(output.startsWith("<!DOCTYPE html>"));
     EXPECT_TRUE(output.contains("<svg")) << "Exported HTML should contain SVG chart";
-    EXPECT_TRUE(output.contains("vega-lite-chart")) << "Exported HTML should contain chart container";
+    EXPECT_TRUE(output.contains("echarts-chart")) << "Exported HTML should contain chart container";
     EXPECT_FALSE(output.contains("<script")) << "Exported HTML should have no script tags";
     EXPECT_FALSE(output.contains("<canvas")) << "Exported HTML should use SVG, not canvas";
 }

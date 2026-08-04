@@ -20,6 +20,6 @@ extern const QString mermaidInitJs;
 extern const QString headingIdJs;
 extern const QString anchorNavJs;
 extern const QString katexInitJs;
-extern const QString vegaLiteInitJs;
+extern const QString echartsInitJs;
 extern const QString setImgTitlesJs;
 extern const QString katexToImageJs;

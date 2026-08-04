@@ -31,7 +31,8 @@ class Preview;
 class MarkdownParser;
 class CssConfig;
 class CssLoader;
-class VegaLiteDialog;
+class ChartDialog;
+class StockChartDialog;
 class TableDialog;
 class LogWindow;
 class FindDialog;
@@ -74,6 +75,7 @@ private slots:
     void togglePreview();
     void updateStats();
     void showChartBuilder();
+    void showStockChartBuilder();
     void showLogWindow();
     void showKatexHelper();
     void showMchemHelper();

@@ -39,20 +39,18 @@ QString JsRenderEngine::buildFullHtml(const QString &bodyHtml, const QString &cs
         "<script src=\"qrc:///katex.min.js\"></script>"
         "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
         "<script src=\"qrc:///contrib/auto-render.min.js\"></script>"
-        "<script src=\"qrc:///vega.min.js\"></script>"
-        "<script src=\"qrc:///vega-lite.min.js\"></script>"
-        "<script src=\"qrc:///vega-embed.min.js\"></script>"
+        "<script src=\"qrc:///echarts.min.js\"></script>"
         "<script src=\"qrc:///twemoji.min.js\"></script>"
         "<script src=\"qrc:///emoji.js\"></script>"
         "<script>%2%3%4%5"
         "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
         "document.addEventListener('DOMContentLoaded',function(){"
         "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();if(typeof renderMathInElement==='function')renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.vegaLiteReady=initVegaLite();"
+        "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();if(typeof renderMathInElement==='function')renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.echartsReady=initECharts();"
         "replaceEmoji(document.body);twemojiParse('%6');"
         "});</script>"
         "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, vegaLiteInitJs, emojiMode, bodyHtml);
+    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml);
 }
 
 QString JsRenderEngine::buildFullHtmlForDocx(const QString &bodyHtml, const QString &css,
@@ -69,20 +67,18 @@ QString JsRenderEngine::buildFullHtmlForDocx(const QString &bodyHtml, const QStr
         "<script src=\"qrc:///katex.min.js\"></script>"
         "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
         "<script src=\"qrc:///contrib/auto-render.min.js\"></script>"
-        "<script src=\"qrc:///vega.min.js\"></script>"
-        "<script src=\"qrc:///vega-lite.min.js\"></script>"
-        "<script src=\"qrc:///vega-embed.min.js\"></script>"
+        "<script src=\"qrc:///echarts.min.js\"></script>"
         "<script src=\"qrc:///twemoji.min.js\"></script>"
         "<script src=\"qrc:///emoji.js\"></script>"
         "<script>%2%3%4%5%8"
         "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
         "document.addEventListener('DOMContentLoaded',function(){"
         "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();if(typeof renderMathInElement==='function')renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.katexReady=convertKatexToImages();window.vegaLiteReady=initVegaLite();"
+        "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();if(typeof renderMathInElement==='function')renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.katexReady=convertKatexToImages();window.echartsReady=initECharts();"
         "replaceEmoji(document.body);twemojiParse('%6');"
         "});</script>"
         "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, vegaLiteInitJs, emojiMode, bodyHtml, katexToImageJs);
+    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml, katexToImageJs);
 }
 
 QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const QString &css,
@@ -99,16 +95,14 @@ QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const 
         "<script src=\"qrc:///katex.min.js\"></script>"
         "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
         "<script src=\"qrc:///contrib/auto-render.min.js\"></script>"
-        "<script src=\"qrc:///vega.min.js\"></script>"
-        "<script src=\"qrc:///vega-lite.min.js\"></script>"
-        "<script src=\"qrc:///vega-embed.min.js\"></script>"
+        "<script src=\"qrc:///echarts.min.js\"></script>"
         "<script src=\"qrc:///twemoji.min.js\"></script>"
         "<script src=\"qrc:///emoji.js\"></script>"
         "<script>%2%3%4%5"
         "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
         "document.addEventListener('DOMContentLoaded',function(){try{"
         "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "window.mermaidReady=initMermaid();hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();if(typeof renderMathInElement==='function')renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"
+        "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();if(typeof renderMathInElement==='function')renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"
         "var MN='http://www.w3.org/1998/Math/MathML';"
         "document.querySelectorAll('.katex').forEach(function(el){"
         "var a=null;try{"
@@ -121,11 +115,11 @@ QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const 
         "});"
         "document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});"
         "document.querySelectorAll('.katex-html').forEach(function(el){el.remove()});"
-        "window.vegaLiteReady=initVegaLite();window.katexReady=Promise.resolve();"
+        "window.echartsReady=initECharts();window.katexReady=Promise.resolve();"
 "replaceEmoji(document.body);twemojiParse('%6');"
 "}catch(e){}});</script>"
         "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, vegaLiteInitJs, emojiMode, bodyHtml);
+    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml);
 }
 
 QString JsRenderEngine::replaceQrcUrls(const QString &html)
@@ -173,7 +167,7 @@ QString JsRenderEngine::renderSync(const QString &fullHtml, const QString &baseU
             return;
         }
         page->runJavaScript(
-            QStringLiteral("Promise.all([window.vegaLiteReady||Promise.resolve(),window.mermaidReady||Promise.resolve(),window.katexReady||Promise.resolve()]).then(function(){return true;})"),
+            QStringLiteral("Promise.all([window.echartsReady||Promise.resolve(),window.mermaidReady||Promise.resolve(),window.katexReady||Promise.resolve()]).then(function(){return true;})"),
             [ctx, page](const QVariant &) {
                 page->runJavaScript(
                     QStringLiteral(

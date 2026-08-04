@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#include "VegaLiteDialog.h"
+#include "ChartDialog.h"
 #include "StaticHelpers.h"
 #include "CsvReader.h"
 #include "Preview.h"
@@ -35,62 +35,32 @@
 #include <QTimer>
 #include <QClipboard>
 #include <QGuiApplication>
-#include <QMessageBox>
-#include <QDialog>
 #include <QPlainTextEdit>
 #include <QFileDialog>
 #include <QIcon>
 
-enum class VegaMark { Bar, Line, Point, Area, Rect, Tick, Rule, Circle, Square, Text, Trail, Boxplot, Errorband, Errorbar, Geoshape };
+enum class ChartSeries { Bar, Line, Area, Scatter, Pie };
 
-enum class VegaFieldType { Nominal, Ordinal, Quantitative, Temporal };
-
-static VegaFieldType vegaFieldTypeFromCombo(const QComboBox *combo)
+static QString chartSeriesToString(ChartSeries series)
 {
-    return static_cast<VegaFieldType>(combo->currentData().toInt());
-}
-
-static QString vegaFieldTypeToString(VegaFieldType type)
-{
-    switch (type) {
-        case VegaFieldType::Nominal: return QStringLiteral("nominal");
-        case VegaFieldType::Ordinal: return QStringLiteral("ordinal");
-        case VegaFieldType::Quantitative: return QStringLiteral("quantitative");
-        case VegaFieldType::Temporal: return QStringLiteral("temporal");
+    switch (series) {
+        case ChartSeries::Bar: return QStringLiteral("bar");
+        case ChartSeries::Line: return QStringLiteral("line");
+        case ChartSeries::Area: return QStringLiteral("line");
+        case ChartSeries::Scatter: return QStringLiteral("scatter");
+        case ChartSeries::Pie: return QStringLiteral("pie");
     }
     return {};
 }
 
-static QString vegaMarkToString(VegaMark mark)
-{
-    switch (mark) {
-        case VegaMark::Bar: return QStringLiteral("bar");
-        case VegaMark::Line: return QStringLiteral("line");
-        case VegaMark::Point: return QStringLiteral("point");
-        case VegaMark::Area: return QStringLiteral("area");
-        case VegaMark::Rect: return QStringLiteral("rect");
-        case VegaMark::Tick: return QStringLiteral("tick");
-        case VegaMark::Rule: return QStringLiteral("rule");
-        case VegaMark::Circle: return QStringLiteral("circle");
-        case VegaMark::Square: return QStringLiteral("square");
-        case VegaMark::Text: return QStringLiteral("text");
-        case VegaMark::Trail: return QStringLiteral("trail");
-        case VegaMark::Boxplot: return QStringLiteral("boxplot");
-        case VegaMark::Errorband: return QStringLiteral("errorband");
-        case VegaMark::Errorbar: return QStringLiteral("errorbar");
-        case VegaMark::Geoshape: return QStringLiteral("geoshape");
-    }
-    return {};
-}
-
-VegaLiteDialog::VegaLiteDialog(QWidget *parent)
+ChartDialog::ChartDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle("Chart Builder");
     resize(1100, 700);
 
     m_previewTimer = new DebounceTimer(Debounce::DialogPreview, this);
-    connect(m_previewTimer, &QTimer::timeout, this, &VegaLiteDialog::updatePreview);
+    connect(m_previewTimer, &QTimer::timeout, this, &ChartDialog::updatePreview);
 
     setupUi();
     updateFieldComboBoxes();
@@ -101,7 +71,7 @@ VegaLiteDialog::VegaLiteDialog(QWidget *parent)
     updatePreview();
 }
 
-void VegaLiteDialog::setupUi()
+void ChartDialog::setupUi()
 {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
@@ -125,45 +95,32 @@ void VegaLiteDialog::setupUi()
         QDialogButtonBox::Cancel, this);
     buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Ca&ncel"));
     QPushButton *copyBtn = buttonBox->addButton(tr("Cop&y JSON"), QDialogButtonBox::ActionRole);
-    QPushButton *insertBtn = buttonBox->addButton(tr("&Insert"), QDialogButtonBox::AcceptRole);
-    Q_UNUSED(insertBtn);
+    buttonBox->addButton(tr("&Insert"), QDialogButtonBox::AcceptRole);
     stripButtonIcons(buttonBox);
     mainLayout->addWidget(buttonBox);
 
     connect(copyBtn, &QPushButton::clicked, this, [this]() {
-        QJsonDocument doc = QJsonDocument::fromJson(buildSpec().toUtf8());
-        QString formatted = doc.toJson(QJsonDocument::Indented);
-        QGuiApplication::clipboard()->setText(formatted);
+        QGuiApplication::clipboard()->setText(generatedSpec());
     });
     connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
-void VegaLiteDialog::setupLeftPanel(QWidget *panel)
+void ChartDialog::setupLeftPanel(QWidget *panel)
 {
     QVBoxLayout *layout = new QVBoxLayout(panel);
     layout->setContentsMargins(12, 12, 12, 12);
 
     layout->addWidget(new QLabel("Chart Type:"));
     m_chartTypeCombo = new QComboBox(panel);
-    auto addMark = [&](const char *name, VegaMark mark) {
-        m_chartTypeCombo->addItem(QLatin1String(name), static_cast<int>(mark));
+    auto addSeries = [&](const char *name, ChartSeries series) {
+        m_chartTypeCombo->addItem(QLatin1String(name), static_cast<int>(series));
     };
-    addMark("Bar", VegaMark::Bar);
-    addMark("Line", VegaMark::Line);
-    addMark("Point", VegaMark::Point);
-    addMark("Area", VegaMark::Area);
-    addMark("Rect", VegaMark::Rect);
-    addMark("Tick", VegaMark::Tick);
-    addMark("Rule", VegaMark::Rule);
-    addMark("Circle", VegaMark::Circle);
-    addMark("Square", VegaMark::Square);
-    addMark("Text", VegaMark::Text);
-    addMark("Trail", VegaMark::Trail);
-    addMark("Boxplot", VegaMark::Boxplot);
-    addMark("Errorband", VegaMark::Errorband);
-    addMark("Errorbar", VegaMark::Errorbar);
-    addMark("Geoshape", VegaMark::Geoshape);
+    addSeries("Bar", ChartSeries::Bar);
+    addSeries("Line", ChartSeries::Line);
+    addSeries("Area", ChartSeries::Area);
+    addSeries("Scatter", ChartSeries::Scatter);
+    addSeries("Pie", ChartSeries::Pie);
     layout->addWidget(m_chartTypeCombo);
 
     layout->addWidget(new QLabel("Data:"));
@@ -197,74 +154,25 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     m_table->verticalHeader()->setDefaultSectionSize(28);
     layout->addWidget(m_table);
 
-    QGroupBox *encGroup = new QGroupBox("Encodings", panel);
+    QGroupBox *encGroup = new QGroupBox("Fields", panel);
     QGridLayout *encLayout = new QGridLayout(encGroup);
 
-    auto makeRow = [&](int row, const QString &label, QComboBox *&field, QComboBox *&type, QWidget *parent) {
+    auto makeRow = [&](int row, const QString &label, QComboBox *&field, QWidget *parent) {
         encLayout->addWidget(new QLabel(label, parent), row, 0);
         field = new QComboBox(parent);
         field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         encLayout->addWidget(field, row, 1);
-        type = new QComboBox(parent);
-        auto addType = [&](const char *name, VegaFieldType t) {
-            type->addItem(QLatin1String(name), static_cast<int>(t));
-        };
-        addType("Nominal", VegaFieldType::Nominal);
-        addType("Ordinal", VegaFieldType::Ordinal);
-        addType("Quantitative", VegaFieldType::Quantitative);
-        addType("Temporal", VegaFieldType::Temporal);
-        encLayout->addWidget(type, row, 2);
     };
 
-    makeRow(0, "X:", m_fieldX, m_typeX, encGroup);
-    makeRow(1, "Y:", m_fieldY, m_typeY, encGroup);
-
-    m_colorGroup = new QGroupBox("Color", encGroup);
-    QGridLayout *colorLayout = new QGridLayout(m_colorGroup);
-    colorLayout->addWidget(new QLabel("Color:", m_colorGroup), 0, 0);
-    m_fieldColor = new QComboBox(m_colorGroup);
-    m_fieldColor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    colorLayout->addWidget(m_fieldColor, 0, 1);
-    m_typeColor = new QComboBox(m_colorGroup);
-    m_typeColor->addItem("Nominal", static_cast<int>(VegaFieldType::Nominal));
-    m_typeColor->addItem("Ordinal", static_cast<int>(VegaFieldType::Ordinal));
-    m_typeColor->addItem("Quantitative", static_cast<int>(VegaFieldType::Quantitative));
-    m_typeColor->addItem("Temporal", static_cast<int>(VegaFieldType::Temporal));
-    colorLayout->addWidget(m_typeColor, 0, 2);
-    encLayout->addWidget(m_colorGroup, 2, 0, 1, 3);
-
-    m_sizeGroup = new QGroupBox("Size", encGroup);
-    QGridLayout *sizeLayout = new QGridLayout(m_sizeGroup);
-    sizeLayout->addWidget(new QLabel("Size:", m_sizeGroup), 0, 0);
-    m_fieldSize = new QComboBox(m_sizeGroup);
-    m_fieldSize->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    sizeLayout->addWidget(m_fieldSize, 0, 1);
-    m_typeSize = new QComboBox(m_sizeGroup);
-    m_typeSize->addItem("Nominal", static_cast<int>(VegaFieldType::Nominal));
-    m_typeSize->addItem("Ordinal", static_cast<int>(VegaFieldType::Ordinal));
-    m_typeSize->addItem("Quantitative", static_cast<int>(VegaFieldType::Quantitative));
-    m_typeSize->addItem("Temporal", static_cast<int>(VegaFieldType::Temporal));
-    sizeLayout->addWidget(m_typeSize, 0, 2);
-    encLayout->addWidget(m_sizeGroup, 3, 0, 1, 3);
-
-    m_shapeGroup = new QGroupBox("Shape", encGroup);
-    QGridLayout *shapeLayout = new QGridLayout(m_shapeGroup);
-    shapeLayout->addWidget(new QLabel("Shape:", m_shapeGroup), 0, 0);
-    m_fieldShape = new QComboBox(m_shapeGroup);
-    m_fieldShape->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    shapeLayout->addWidget(m_fieldShape, 0, 1);
-    encLayout->addWidget(m_shapeGroup, 4, 0, 1, 3);
-
-    m_textGroup = new QGroupBox("Text", encGroup);
-    QGridLayout *textLayout = new QGridLayout(m_textGroup);
-    textLayout->addWidget(new QLabel("Text:", m_textGroup), 0, 0);
-    m_fieldText = new QComboBox(m_textGroup);
-    m_fieldText->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    textLayout->addWidget(m_fieldText, 0, 1);
-    encLayout->addWidget(m_textGroup, 5, 0, 1, 3);
+    makeRow(0, "X:", m_fieldX, encGroup);
+    makeRow(1, "Y:", m_fieldY, encGroup);
 
     m_tooltipCheck = new QCheckBox("Tooltip", encGroup);
-    encLayout->addWidget(m_tooltipCheck, 6, 0, 1, 3);
+    encLayout->addWidget(m_tooltipCheck, 2, 0, 1, 2);
+
+    m_animateCheck = new QCheckBox("Animate", encGroup);
+    m_animateCheck->setObjectName(QStringLiteral("animateCheck"));
+    encLayout->addWidget(m_animateCheck, 3, 0, 1, 2);
 
     encLayout->setColumnStretch(1, 1);
     layout->addWidget(encGroup);
@@ -274,20 +182,17 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     optLayout->addWidget(new QLabel("Title:", optGroup), 0, 0);
     m_titleEdit = new QLineEdit(optGroup);
     optLayout->addWidget(m_titleEdit, 0, 1);
-    m_fillWidthCheck = new QCheckBox("Fill available width", optGroup);
-    m_fillWidthCheck->setObjectName(QStringLiteral("fillWidthCheck"));
-    optLayout->addWidget(m_fillWidthCheck, 1, 0, 1, 2);
     optLayout->setColumnStretch(1, 1);
     layout->addWidget(optGroup);
 
     layout->addStretch();
 
     connect(m_chartTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &VegaLiteDialog::onChartTypeChanged);
-    connect(m_table, &QTableWidget::itemChanged, this, &VegaLiteDialog::onDataChanged);
-    connect(pasteCsvBtn, &QPushButton::clicked, this, &VegaLiteDialog::pasteCsv);
-    connect(openCsvBtn, &QPushButton::clicked, this, &VegaLiteDialog::openCsv);
-    connect(pasteJsonBtn, &QPushButton::clicked, this, &VegaLiteDialog::pasteJson);
+            this, &ChartDialog::onChartTypeChanged);
+    connect(m_table, &QTableWidget::itemChanged, this, &ChartDialog::onDataChanged);
+    connect(pasteCsvBtn, &QPushButton::clicked, this, &ChartDialog::pasteCsv);
+    connect(openCsvBtn, &QPushButton::clicked, this, &ChartDialog::openCsv);
+    connect(pasteJsonBtn, &QPushButton::clicked, this, &ChartDialog::pasteJson);
     connect(addRowBtn, &QPushButton::clicked, this, [this]() {
         m_table->insertRow(m_table->rowCount());
     });
@@ -307,36 +212,33 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
             updateFieldComboBoxes();
         }
     });
-    connect(m_titleEdit, &QLineEdit::textChanged, this, &VegaLiteDialog::schedulePreviewUpdate);
-    connect(m_fillWidthCheck, &QCheckBox::toggled, this, &VegaLiteDialog::schedulePreviewUpdate);
-    connect(m_tooltipCheck, &QCheckBox::toggled, this, &VegaLiteDialog::schedulePreviewUpdate);
+    connect(m_titleEdit, &QLineEdit::textChanged, this, &ChartDialog::schedulePreviewUpdate);
+    connect(m_tooltipCheck, &QCheckBox::toggled, this, &ChartDialog::schedulePreviewUpdate);
+    connect(m_animateCheck, &QCheckBox::toggled, this, &ChartDialog::schedulePreviewUpdate);
 
-    QComboBox *encodingBoxes[] = {m_fieldX, m_typeX, m_fieldY, m_typeY,
-                                   m_fieldColor, m_typeColor, m_fieldSize, m_typeSize,
-                                   m_fieldShape, m_fieldText};
-    for (QComboBox *combo : encodingBoxes)
+    QComboBox *fieldBoxes[] = {m_fieldX, m_fieldY};
+    for (QComboBox *combo : fieldBoxes)
         connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &VegaLiteDialog::schedulePreviewUpdate);
+                this, &ChartDialog::schedulePreviewUpdate);
 }
 
-void VegaLiteDialog::onChartTypeChanged()
+void ChartDialog::onChartTypeChanged()
 {
-    updateEncodingVisibility();
     schedulePreviewUpdate();
 }
 
-void VegaLiteDialog::onDataChanged()
+void ChartDialog::onDataChanged()
 {
     updateFieldComboBoxes();
     schedulePreviewUpdate();
 }
 
-void VegaLiteDialog::schedulePreviewUpdate()
+void ChartDialog::schedulePreviewUpdate()
 {
     m_previewTimer->start();
 }
 
-void VegaLiteDialog::updatePreview()
+void ChartDialog::updatePreview()
 {
     QString spec = buildSpec();
     QJsonDocument doc = QJsonDocument::fromJson(spec.toUtf8());
@@ -346,20 +248,19 @@ void VegaLiteDialog::updatePreview()
     m_preview->setHtml(previewPageHtml(formatted), QUrl(baseUrl));
 }
 
-QString VegaLiteDialog::previewPageHtml(const QString &spec)
+QString ChartDialog::previewPageHtml(const QString &spec)
 {
     return QString(
         "<!DOCTYPE html>"
         "<html><head>"
         "<meta charset=\"utf-8\">"
         "<style>"
-        "body{margin:0;display:flex;justify-content:center;align-items:flex-start;padding:16px;font-family:sans-serif;}"
-        "#vis{width:100%;}"
+        "html,body{margin:0;height:100%;font-family:sans-serif;}"
+        "body{display:flex;align-items:flex-start;}"
+        "#vis{width:100%;height:90vh;}"
         ".error{color:#d32f2f;padding:16px;font-size:14px;}"
         "</style>"
-        "<script src=\"qrc:///vega.min.js\"></script>"
-        "<script src=\"qrc:///vega-lite.min.js\"></script>"
-        "<script src=\"qrc:///vega-embed.min.js\"></script>"
+        "<script src=\"qrc:///echarts.min.js\"></script>"
         "</head><body>"
         "<div id=\"vis\"></div>"
         "<script>"
@@ -369,9 +270,9 @@ QString VegaLiteDialog::previewPageHtml(const QString &spec)
         "var tries=0;"
         "(function go(){"
         "if(vis.clientWidth>0||++tries>40){"
-        "vegaEmbed(vis,spec,{actions:false,renderer:'svg'}).catch(function(e){"
-        "vis.innerHTML='<div class=\"error\">'+e+'</div>';"
-        "});"
+        "var chart=echarts.init(vis,null,{renderer:'svg'});"
+        "try{chart.setOption(spec);}"
+        "catch(e){vis.innerHTML='<div class=\"error\">'+e+'</div>';}"
         "}else{setTimeout(go,50);}"
         "})();"
         "}catch(e){"
@@ -382,13 +283,14 @@ QString VegaLiteDialog::previewPageHtml(const QString &spec)
     ).arg(spec);
 }
 
-QString VegaLiteDialog::generatedSpec() const
+QString ChartDialog::generatedSpec() const
 {
     QJsonDocument doc = QJsonDocument::fromJson(buildSpec().toUtf8());
-    return doc.toJson(QJsonDocument::Indented);
+    return QStringLiteral("\n```ec\n%1\n```\n")
+        .arg(QString::fromUtf8(doc.toJson(QJsonDocument::Indented)));
 }
 
-void VegaLiteDialog::populateTableFromCsvData(const CsvData &data)
+void ChartDialog::populateTableFromCsvData(const CsvData &data)
 {
     if (data.rows.isEmpty())
         return;
@@ -408,7 +310,7 @@ void VegaLiteDialog::populateTableFromCsvData(const CsvData &data)
     schedulePreviewUpdate();
 }
 
-void VegaLiteDialog::pasteCsv()
+void ChartDialog::pasteCsv()
 {
     QDialog dlg(this);
     dlg.setWindowTitle("Paste CSV Data");
@@ -421,8 +323,7 @@ void VegaLiteDialog::pasteCsv()
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     box->button(QDialogButtonBox::Ok)->setText(tr("&OK"));
     box->button(QDialogButtonBox::Cancel)->setText(tr("&Cancel"));
-    for (auto *btn : box->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(box);
     layout->addWidget(box);
     connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -439,7 +340,7 @@ void VegaLiteDialog::pasteCsv()
     populateTableFromCsvData(data);
 }
 
-void VegaLiteDialog::openCsv()
+void ChartDialog::openCsv()
 {
     QString path = QFileDialog::getOpenFileName(
         this, "Open CSV File", QString(), "CSV Files (*.csv *.tsv *.txt);;All Files (*)");
@@ -452,7 +353,7 @@ void VegaLiteDialog::openCsv()
     populateTableFromCsvData(data);
 }
 
-void VegaLiteDialog::pasteJson()
+void ChartDialog::pasteJson()
 {
     QDialog dlg(this);
     dlg.setWindowTitle("Paste JSON Data");
@@ -465,8 +366,7 @@ void VegaLiteDialog::pasteJson()
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     box->button(QDialogButtonBox::Ok)->setText(tr("&OK"));
     box->button(QDialogButtonBox::Cancel)->setText(tr("&Cancel"));
-    for (auto *btn : box->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(box);
     layout->addWidget(box);
     connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -499,7 +399,7 @@ void VegaLiteDialog::pasteJson()
     schedulePreviewUpdate();
 }
 
-QList<QMap<QString, QString>> VegaLiteDialog::parseCsvData(const QString &text) const
+QList<QMap<QString, QString>> ChartDialog::parseCsvData(const QString &text) const
 {
     QList<QMap<QString, QString>> result;
     QStringList lines = text.split('\n', Qt::SkipEmptyParts);
@@ -520,7 +420,7 @@ QList<QMap<QString, QString>> VegaLiteDialog::parseCsvData(const QString &text) 
     return result;
 }
 
-QList<QMap<QString, QString>> VegaLiteDialog::parseJsonData(const QString &text) const
+QList<QMap<QString, QString>> ChartDialog::parseJsonData(const QString &text) const
 {
     QList<QMap<QString, QString>> result;
     QJsonParseError err;
@@ -541,37 +441,7 @@ QList<QMap<QString, QString>> VegaLiteDialog::parseJsonData(const QString &text)
     return result;
 }
 
-void VegaLiteDialog::updateEncodingVisibility()
-{
-    VegaMark mark = static_cast<VegaMark>(m_chartTypeCombo->currentData().toInt());
-
-    bool showSize = false, showShape = false, showText = false;
-
-    switch (mark) {
-        case VegaMark::Point:
-        case VegaMark::Circle:
-        case VegaMark::Square:
-            showSize = true;
-            showShape = true;
-            break;
-        case VegaMark::Text:
-            showText = true;
-            break;
-        case VegaMark::Tick:
-        case VegaMark::Trail:
-        case VegaMark::Boxplot:
-            showSize = true;
-            break;
-        default:
-            break;
-    }
-
-    m_sizeGroup->setVisible(showSize);
-    m_shapeGroup->setVisible(showShape);
-    m_textGroup->setVisible(showText);
-}
-
-void VegaLiteDialog::updateFieldComboBoxes()
+void ChartDialog::updateFieldComboBoxes()
 {
     QStringList headers;
     for (int c = 0; c < m_table->columnCount(); ++c) {
@@ -580,7 +450,7 @@ void VegaLiteDialog::updateFieldComboBoxes()
             headers.append(item->text());
     }
 
-    QComboBox *boxes[] = {m_fieldX, m_fieldY, m_fieldColor, m_fieldSize, m_fieldShape, m_fieldText};
+    QComboBox *boxes[] = {m_fieldX, m_fieldY};
     for (QComboBox *combo : boxes) {
         QString current = combo->currentText();
         combo->blockSignals(true);
@@ -593,95 +463,130 @@ void VegaLiteDialog::updateFieldComboBoxes()
     }
 }
 
-QString VegaLiteDialog::buildSpec() const
+bool ChartDialog::allNumeric(const QStringList &values)
+{
+    bool any = false;
+    for (const QString &v : values) {
+        if (v.isEmpty()) continue;
+        any = true;
+        bool ok = false;
+        v.toDouble(&ok);
+        if (!ok) return false;
+    }
+    return any;
+}
+
+QString ChartDialog::buildSpec() const
 {
     QJsonObject spec;
+    if (!m_animateCheck->isChecked())
+        spec["animation"] = false;
 
-    QJsonArray values;
-    for (int r = 0; r < m_table->rowCount(); ++r) {
-        QJsonObject row;
-        bool hasData = false;
+    QString xField = m_fieldX->currentText();
+    QString yField = m_fieldY->currentText();
+    if (xField.isEmpty() || yField.isEmpty())
+        return QStringLiteral("{}");
+
+    QStringList xValues, yValues;
+    auto columnIndex = [this](const QString &field) {
         for (int c = 0; c < m_table->columnCount(); ++c) {
-            QTableWidgetItem *headerItem = m_table->horizontalHeaderItem(c);
-            if (!headerItem) continue;
-            QString key = headerItem->text();
-            QTableWidgetItem *cell = m_table->item(r, c);
-            QString val = cell ? cell->text() : QString();
-            row[key] = val;
-            if (!val.isEmpty()) hasData = true;
+            QTableWidgetItem *h = m_table->horizontalHeaderItem(c);
+            if (h && h->text() == field)
+                return c;
         }
-        if (hasData)
-            values.append(row);
-    }
-
-    QJsonObject data;
-    data["values"] = values;
-    spec["data"] = data;
-
-    spec["mark"] = vegaMarkToString(static_cast<VegaMark>(m_chartTypeCombo->currentData().toInt()));
-
-    QJsonObject encoding;
-
-    auto addEncoding = [&](const QString &name, QComboBox *field, QComboBox *type) {
-        QString f = field->currentText();
-        if (f.isEmpty()) return;
-        QJsonObject enc;
-        enc["field"] = f;
-        enc["type"] = vegaFieldTypeToString(vegaFieldTypeFromCombo(type));
-        encoding[name] = enc;
+        return -1;
     };
+    int xCol = columnIndex(xField);
+    int yCol = columnIndex(yField);
+    for (int r = 0; r < m_table->rowCount(); ++r) {
+        QTableWidgetItem *xItem = xCol >= 0 ? m_table->item(r, xCol) : nullptr;
+        QTableWidgetItem *yItem = yCol >= 0 ? m_table->item(r, yCol) : nullptr;
+        QString xv = xItem ? xItem->text().trimmed() : QString();
+        QString yv = yItem ? yItem->text().trimmed() : QString();
+        if (xv.isEmpty() && yv.isEmpty()) continue;
+        xValues.append(xv);
+        yValues.append(yv);
+    }
+    if (xValues.isEmpty())
+        return QStringLiteral("{}");
 
-    addEncoding("x", m_fieldX, m_typeX);
-    addEncoding("y", m_fieldY, m_typeY);
-    if (m_colorGroup->isVisible()) {
-        addEncoding("color", m_fieldColor, m_typeColor);
-    }
-    if (m_sizeGroup->isVisible()) {
-        addEncoding("size", m_fieldSize, m_typeSize);
-    }
-    if (m_shapeGroup->isVisible()) {
-        QString f = m_fieldShape->currentText();
-        if (!f.isEmpty()) {
-            QJsonObject enc;
-            enc["field"] = f;
-            enc["type"] = vegaFieldTypeToString(VegaFieldType::Nominal);
-            encoding["shape"] = enc;
-        }
-    }
-    if (m_textGroup->isVisible()) {
-        QString f = m_fieldText->currentText();
-        if (!f.isEmpty()) {
-            QJsonObject enc;
-            enc["field"] = f;
-            enc["type"] = vegaFieldTypeToString(VegaFieldType::Nominal);
-            encoding["text"] = enc;
-        }
-    }
-    if (m_tooltipCheck->isChecked()) {
-        QJsonArray tooltipArr;
-        for (int c = 0; c < m_table->columnCount(); ++c) {
-            QTableWidgetItem *header = m_table->horizontalHeaderItem(c);
-            if (header && !header->text().isEmpty()) {
-                QJsonObject t;
-                t["field"] = header->text();
-                t["type"] = vegaFieldTypeToString(VegaFieldType::Nominal);
-                tooltipArr.append(t);
-            }
-        }
-        if (!tooltipArr.isEmpty())
-            encoding["tooltip"] = tooltipArr;
-    }
-
-    if (!encoding.isEmpty())
-        spec["encoding"] = encoding;
-
-    if (m_fillWidthCheck->isChecked()) {
-        spec["width"] = "container";
-    }
+    ChartSeries series = static_cast<ChartSeries>(m_chartTypeCombo->currentData().toInt());
+    QJsonObject tooltip;
+    if (m_tooltipCheck->isChecked())
+        tooltip["trigger"] = "axis";
 
     QString title = m_titleEdit->text().trimmed();
-    if (!title.isEmpty())
-        spec["title"] = title;
+    if (!title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = title;
+        spec["title"] = t;
+    }
+    if (!tooltip.isEmpty())
+        spec["tooltip"] = tooltip;
+
+    if (series == ChartSeries::Pie) {
+        QJsonArray pieData;
+        for (int i = 0; i < xValues.size(); ++i) {
+            if (xValues[i].isEmpty()) continue;
+            QJsonObject item;
+            item["name"] = xValues[i];
+            bool ok = false;
+            double v = yValues[i].toDouble(&ok);
+            item["value"] = ok ? v : 0;
+            pieData.append(item);
+        }
+        QJsonArray seriesArr;
+        QJsonObject s;
+        s["type"] = chartSeriesToString(series);
+        s["data"] = pieData;
+        seriesArr.append(s);
+        spec["series"] = seriesArr;
+        return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+    }
+
+    bool numericX = allNumeric(xValues);
+    QJsonObject xAxis;
+    xAxis["type"] = numericX ? "value" : "category";
+    QJsonObject yAxis;
+    yAxis["type"] = "value";
+
+    QJsonArray seriesArr;
+    QJsonObject s;
+    s["type"] = chartSeriesToString(series);
+    if (series == ChartSeries::Area) {
+        QJsonObject areaStyle;
+        s["areaStyle"] = areaStyle;
+    }
+    if (numericX) {
+        QJsonArray pairs;
+        for (int i = 0; i < xValues.size(); ++i) {
+            QJsonArray pair;
+            bool xok = false, yok = false;
+            double xv = xValues[i].toDouble(&xok);
+            double yv = yValues[i].toDouble(&yok);
+            if (xok && yok) {
+                pair.append(xv);
+                pair.append(yv);
+                pairs.append(pair);
+            }
+        }
+        s["data"] = pairs;
+    } else {
+        QJsonArray cats, vals;
+        for (int i = 0; i < xValues.size(); ++i) {
+            cats.append(xValues[i]);
+            bool ok = false;
+            double v = yValues[i].toDouble(&ok);
+            vals.append(ok ? v : QJsonValue(QJsonValue::Null));
+        }
+        xAxis["data"] = cats;
+        s["data"] = vals;
+    }
+    seriesArr.append(s);
+
+    spec["xAxis"] = xAxis;
+    spec["yAxis"] = yAxis;
+    spec["series"] = seriesArr;
 
     return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
 }

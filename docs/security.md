@@ -8,7 +8,7 @@ These are configured in **Preferences → Security → Preview**.
 ### 1. Strip `<script>` Tags
 
 Removes any `<script>` tags from the rendered markdown HTML before injection.
-Scriba's own scripts (highlight.js, Mermaid, KaTeX, Vega, twemoji) are injected
+Scriba's own scripts (highlight.js, Mermaid, KaTeX, ECharts, twemoji) are injected
 in the `<head>` of the preview template and are unaffected.
 
 ### 2. Block Raw HTML at Parser Level
@@ -56,13 +56,11 @@ use inline scripts and styles:
 | **KaTeX** | Renders LaTeX into DOM elements with inline `style` attributes for precise math spacing |
 | **Mermaid** | Uses inline `<style>` in SVG output; initialization is done via inline `mermaid.initialize()` call |
 | **highlight.js** | `hljs.highlightAll()` is called from an inline script after DOM population |
-| **Vega-Lite** | Charts are embedded via inline `<script>` with JSON specs |
+| **ECharts** | Charts are embedded via inline `<script>` with JSON option specs |
 
-The `script-src` also includes `'unsafe-eval'` because **Vega**'s expression
-language (used for calculated fields, filters, signal expressions, and axis
-formatting) is compiled into JavaScript via `new Function()` at runtime. Even
-simple inline-data charts rely on this. Without `'unsafe-eval'` all Vega-Lite
-charts silently fail to render.
+The `script-src` retains `'unsafe-eval'` for compatibility: ECharts compiles
+optional geo-JSON map data via `new Function()` at runtime, and it is kept in
+place rather than risk breaking chart rendering on future library updates.
 
 A strict CSP (without `'unsafe-inline'` and `'unsafe-eval'`) would break all
 rendering. There is no way to use nonces or hashes here because the HTML is

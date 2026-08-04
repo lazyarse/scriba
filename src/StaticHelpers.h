@@ -74,7 +74,7 @@ namespace Debounce {
     constexpr int AnchorScroll  = 300;  // MainWindow scroll-sync anchor timer
     constexpr int FoldScan      = 300;  // Editor fold rescan after editing
     constexpr int SpellCheck    = 400;  // SpellHighlighter spell/grammar timers
-    constexpr int DialogPreview = 300;  // Mermaid/KaTeX/Mchem/Vega dialog previews
+    constexpr int DialogPreview = 300;  // Mermaid/KaTeX/Mchem/ECharts dialog previews
     constexpr int HeavyRender   = 1500; // JS heavy-render setTimeout in preview
     constexpr int TabSwitchRender = 100; // JS heavy-render delay after a tab switch
 }

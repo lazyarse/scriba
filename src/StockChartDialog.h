@@ -16,58 +16,57 @@
 
 #include <QDialog>
 
-class QComboBox;
 class QTableWidget;
 class QWebEngineView;
-class QGroupBox;
 class QLineEdit;
 class QCheckBox;
+class QGroupBox;
 class QTimer;
 
-class VegaLiteDialog : public QDialog
+class StockChartDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit VegaLiteDialog(QWidget *parent = nullptr);
+    explicit StockChartDialog(QWidget *parent = nullptr);
     QString generatedSpec() const;
     static QString previewPageHtml(const QString &spec);
-    QList<QMap<QString, QString>> parseCsvData(const QString &text) const;
-    QList<QMap<QString, QString>> parseJsonData(const QString &text) const;
+    static QList<double> movingAverage(const QList<double> &values, int period);
 
 private slots:
-    void onChartTypeChanged();
-    void onDataChanged();
     void schedulePreviewUpdate();
     void updatePreview();
     void pasteCsv();
     void openCsv();
-    void pasteJson();
 
 private:
     void setupUi();
     void setupLeftPanel(QWidget *panel);
-    void updateEncodingVisibility();
-    void updateFieldComboBoxes();
-    void populateTableFromCsvData(const struct CsvData &data);
+    void populateFromRows(const QStringList &headers, const QList<QStringList> &rows);
+    void updateVolumeEnabled();
     QString buildSpec() const;
 
-    QComboBox *m_chartTypeCombo;
+    struct Ohlc {
+        QString date;
+        double open = 0;
+        double high = 0;
+        double low = 0;
+        double close = 0;
+        double volume = 0;
+        bool hasVolume = false;
+        bool valid = false;
+    };
+
     QTableWidget *m_table;
-    QComboBox *m_fieldX, *m_typeX;
-    QComboBox *m_fieldY, *m_typeY;
-    QComboBox *m_fieldColor, *m_typeColor;
-    QComboBox *m_fieldSize, *m_typeSize;
-    QComboBox *m_fieldShape;
-    QComboBox *m_fieldText;
-    QCheckBox *m_tooltipCheck;
+    QList<Ohlc> m_ohlc;
+    QCheckBox *m_volumeCheck;
+    QCheckBox *m_zoomCheck;
+    QCheckBox *m_animateCheck;
+    QCheckBox *m_ma5Check;
+    QCheckBox *m_ma10Check;
+    QCheckBox *m_ma20Check;
+    QCheckBox *m_ma50Check;
     QLineEdit *m_titleEdit;
-    QCheckBox *m_fillWidthCheck;
     QWebEngineView *m_preview;
-    QGroupBox *m_colorGroup;
-    QGroupBox *m_sizeGroup;
-    QGroupBox *m_shapeGroup;
-    QGroupBox *m_textGroup;
     QTimer *m_previewTimer;
 };
-

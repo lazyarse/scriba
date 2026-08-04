@@ -2,13 +2,15 @@
 
 A quick tour of what Scriba can do.
 
-## Typography
+## Basics
+
+### Typography
 
 **Bold**, *italic*, ~~strike through~~, `inline code`, and a [link](#). Emojis: :rocket: :heart: :sparkles: :smile: :tada:
 
 > Block quote with **inline** styling.
 
-## Header Links
+### Header Links
 
 Jump to any heading in this document by linking to its slug:
 
@@ -18,7 +20,7 @@ Jump to any heading in this document by linking to its slug:
 
 Write `[text](#heading)` for same-document jumps and `[text](other.md#heading)` to jump to a heading in another markdown file. Links to headings that don't exist get an amber squiggle in the editor.
 
-## Images
+### Images
 
 Resize with `#WIDTHxHEIGHT` suffix appended to the image URL:
 
@@ -34,7 +36,7 @@ Tool tips for title, alt text in that priority. Hover over the below images
 - <img src="../resources/icons/fullscreen.svg" alt="Alt C" /> Alt C
 - <img src="../resources/icons/fullscreen.svg" alt="Alt C" title="Title D" /> Title D
 
-## Lists
+### Lists
 
 1. First
 2. Second
@@ -47,7 +49,7 @@ Tool tips for title, alt text in that priority. Hover over the below images
 - [x] Task done
 - [ ] Task pending
 
-## Tables
+### Tables
 
 | Feature | Status |
 |---------|--------|
@@ -55,7 +57,7 @@ Tool tips for title, alt text in that priority. Hover over the below images
 | Strikethrough | ✓ |
 | Task lists | ✓ |
 
-## Code
+### Code
 
 ```python
 def hello():
@@ -78,7 +80,7 @@ $$
 \mathcal{L}(\theta) = \prod_{i=1}^{n} f(x_i \mid \theta)
 $$
 
-## Chemistry Notation
+### Chemistry Notation
 
 Powered by [mhchem](https://mhchem.github.io/) for KaTeX. Use `\ce{...}` inside math delimiters.
 
@@ -161,93 +163,209 @@ pie title Time spent
   "Preview" : 5
 ```
 
-## Vega-Lite Charts
+## ECharts Charts
 
-See the [Vega-Lite docs](https://vega.github.io/vega-lite/) for the full spec reference and examples.
+Charts are written as ECharts option objects in ` ```ec ` code blocks (see the [ECharts docs](https://echarts.apache.org/) for the full option reference).
 
 ### Bar chart
 
-```vl
+```ec
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
-  "width": "container",
-  "data": {
-    "values": [
-      {"category": "A", "value": 28},
-      {"category": "B", "value": 55},
-      {"category": "C", "value": 43},
-      {"category": "D", "value": 91},
-      {"category": "E", "value": 64}
-    ]
+  "tooltip": {"trigger": "axis"},
+  "xAxis": {
+    "type": "category",
+    "data": ["A", "B", "C", "D", "E"]
   },
-  "mark": "bar",
-  "encoding": {
-    "x": {"field": "category", "type": "nominal", "axis": {"labelAngle": 0}},
-    "y": {"field": "value", "type": "quantitative"},
-    "color": {"field": "category", "type": "nominal"}
-  }
+  "yAxis": {"type": "value"},
+  "series": [
+    {
+      "type": "bar",
+      "data": [28, 55, 43, 91, 64]
+    }
+  ]
 }
 ```
 
 ### Scatter plot
 
-```vl
+```ec
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
-  "width": "container",
-  "data": {
-    "values": [
-      {"x": 10, "y": 8, "category": "Alpha"},
-      {"x": 14, "y": 12, "category": "Alpha"},
-      {"x": 22, "y": 18, "category": "Alpha"},
-      {"x": 8, "y": 22, "category": "Beta"},
-      {"x": 16, "y": 28, "category": "Beta"},
-      {"x": 30, "y": 20, "category": "Beta"},
-      {"x": 12, "y": 35, "category": "Gamma"},
-      {"x": 20, "y": 30, "category": "Gamma"},
-      {"x": 26, "y": 38, "category": "Gamma"}
-    ]
-  },
-  "mark": "point",
-  "encoding": {
-    "x": {"field": "x", "type": "quantitative", "title": "X Axis"},
-    "y": {"field": "y", "type": "quantitative", "title": "Y Axis"},
-    "color": {"field": "category", "type": "nominal"},
-    "size": {"field": "y", "type": "quantitative"}
-  }
+  "tooltip": {"trigger": "axis"},
+  "xAxis": {"type": "value", "name": "X Axis"},
+  "yAxis": {"type": "value", "name": "Y Axis"},
+  "series": [
+    {
+      "type": "scatter",
+      "data": [
+        [10, 8],
+        [14, 12],
+        [22, 18],
+        [8, 22],
+        [16, 28],
+        [30, 20],
+        [12, 35],
+        [20, 30],
+        [26, 38]
+      ]
+    }
+  ]
 }
 ```
 
-### Layered chart
+### Candlestick stock chart
 
-```vl
+```ec
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
-  "width": "container",
-  "data": {
-    "values": [
-      {"day": "Mon", "actual": 28, "forecast": 25},
-      {"day": "Tue", "actual": 32, "forecast": 30},
-      {"day": "Wed", "actual": 25, "forecast": 28},
-      {"day": "Thu", "actual": 38, "forecast": 33},
-      {"day": "Fri", "actual": 30, "forecast": 31}
-    ]
+  "title": {"text": "Sample OHLC"},
+  "tooltip": {"trigger": "axis", "axisPointer": {"type": "cross"}},
+  "legend": {"data": ["OHLC", "MA5", "MA20"]},
+  "grid": {
+    "left": "5%",
+    "right": "5%",
+    "top": "8%",
+    "bottom": "12%"
   },
-  "encoding": {
-    "x": {"field": "day", "type": "ordinal", "title": "Day of Week"}
+  "xAxis": {
+    "type": "category",
+    "data": ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-08"],
+    "boundaryGap": false
   },
-  "layer": [
+  "yAxis": {"type": "value", "scale": true},
+  "dataZoom": [
+    {"type": "inside"},
+    {"type": "slider", "bottom": 20, "height": 20}
+  ],
+  "series": [
     {
-      "mark": {"type": "line", "color": "#4c78a8"},
-      "encoding": {
-        "y": {"field": "forecast", "type": "quantitative", "title": "Temperature"}
-      }
+      "name": "OHLC",
+      "type": "candlestick",
+      "data": [
+        [152.4, 153.9, 151.2, 154.8],
+        [153.9, 154.6, 152.0, 155.1],
+        [154.6, 156.2, 153.8, 156.7],
+        [156.2, 154.7, 154.1, 156.9],
+        [154.7, 153.4, 152.9, 155.3],
+        [153.4, 152.1, 151.5, 154.2]
+      ]
     },
     {
-      "mark": {"type": "point", "color": "#e45756", "size": 80, "filled": true},
-      "encoding": {
-        "y": {"field": "actual", "type": "quantitative"}
-      }
+      "name": "MA5",
+      "type": "line",
+      "data": [null, null, null, null, 154.56, 154.2],
+      "smooth": true,
+      "showSymbol": false
+    },
+    {
+      "name": "MA20",
+      "type": "line",
+      "data": [null, null, null, null, null, null],
+      "smooth": true,
+      "showSymbol": false
+    }
+  ]
+}
+```
+
+### Radar chart
+
+```ec
+{
+  "tooltip": {},
+  "legend": {"data": ["Allocated Budget", "Actual Spending"]},
+  "radar": {
+    "indicator": [
+      {"name": "Sales", "max": 6500},
+      {"name": "Administration", "max": 16000},
+      {"name": "Information Technology", "max": 30000},
+      {"name": "Customer Support", "max": 38000},
+      {"name": "Development", "max": 52000},
+      {"name": "Marketing", "max": 25000}
+    ]
+  },
+  "series": [
+    {
+      "name": "Budget vs Spending",
+      "type": "radar",
+      "data": [
+        {"value": [4200, 3000, 20000, 35000, 50000, 18000], "name": "Allocated Budget"},
+        {"value": [5000, 14000, 28000, 26000, 42000, 21000], "name": "Actual Spending"}
+      ]
+    }
+  ]
+}
+```
+
+### Gauge
+
+```ec
+{
+  "series": [
+    {
+      "type": "gauge",
+      "min": 0,
+      "max": 220,
+      "progress": {"show": true},
+      "axisLine": {"lineStyle": {"width": 18}},
+      "pointer": {"length": "60%"},
+      "data": [{"value": 168, "name": "Speed"}]
+    }
+  ]
+}
+```
+
+### Sankey flow
+
+```ec
+{
+  "series": [
+    {
+      "type": "sankey",
+      "data": [
+        {"name": "a"},
+        {"name": "b"},
+        {"name": "a1"},
+        {"name": "b1"},
+        {"name": "c"},
+        {"name": "e"}
+      ],
+      "links": [
+        {"source": "a", "target": "a1", "value": 5},
+        {"source": "e", "target": "b", "value": 3},
+        {"source": "a", "target": "b1", "value": 3},
+        {"source": "b1", "target": "a1", "value": 1},
+        {"source": "b1", "target": "c", "value": 2},
+        {"source": "b", "target": "c", "value": 1}
+      ]
+    }
+  ]
+}
+```
+
+### Treemap
+
+```ec
+{
+  "series": [
+    {
+      "type": "treemap",
+      "data": [
+        {
+          "name": "nodeA",
+          "value": 10,
+          "children": [
+            {"name": "nodeAa", "value": 4},
+            {"name": "nodeAb", "value": 6}
+          ]
+        },
+        {
+          "name": "nodeB",
+          "value": 20,
+          "children": [
+            {"name": "nodeBa", "value": 12},
+            {"name": "nodeBb", "value": 8}
+          ]
+        }
+      ]
     }
   ]
 }
