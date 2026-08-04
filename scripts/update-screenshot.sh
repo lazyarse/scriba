@@ -118,7 +118,7 @@ xvfb-run -a sh -c '
     # --- Check Spelling (type a misspelled word so the dialog has an error) ---
     # NB: `xdotool key F7` latches a phantom Alt before the key, so Qt sees
     # Alt+F7. Send the raw keycode (73 = F7 on the standard X keymap) instead.
-    xdotool key End
+    xdotool key ctrl+End
     xdotool type -- "helo "
     sleep 1
     xdotool windowfocus "$WID"
@@ -130,7 +130,7 @@ xvfb-run -a sh -c '
     # --- Print / Export PDF (long wait: WebEngine load, mermaid/echarts
     # promises, chromium --print-to-pdf, then preview reload) ---
     open ctrl+p
-    capture "Print / Export PDF" '"$OUT_DIR"'/print-pdf-dialog.png 12
+    capture "Print / Export PDF" '"$OUT_DIR"'/print-pdf-dialog.png 20
 
     kill $PID 2>/dev/null
     wait $PID 2>/dev/null

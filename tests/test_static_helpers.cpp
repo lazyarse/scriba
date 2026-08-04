@@ -138,4 +138,63 @@ TEST(DuplicateCssFileTest, MissingSourceReturnsEmpty) {
     EXPECT_TRUE(duplicateCssFile(dir.path() + "/does-not-exist.css", dir.path()).isEmpty());
 }
 
+TEST(IsSafePreviewImageTest, AcceptsKnownRasterFormats) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    for (const QString &suffix : {"png", "jpg", "jpeg", "gif", "webp",
+                                  "bmp", "svg", "avif", "ico", "tif", "tiff"}) {
+        const QString path = dir.path() + "/image." + suffix;
+        QFile f(path);
+        ASSERT_TRUE(f.open(QIODevice::WriteOnly));
+        f.write("x");
+        f.close();
+        EXPECT_TRUE(isSafePreviewImage(path)) << suffix.toStdString();
+    }
+}
+
+TEST(IsSafePreviewImageTest, AcceptsUppercaseSuffix) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    const QString path = dir.path() + "/image.PNG";
+    QFile f(path);
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly));
+    f.write("x");
+    f.close();
+
+    EXPECT_TRUE(isSafePreviewImage(path));
+}
+
+TEST(IsSafePreviewImageTest, RejectsMissingFile) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    EXPECT_FALSE(isSafePreviewImage(dir.path() + "/nope.png"));
+}
+
+TEST(IsSafePreviewImageTest, RejectsDirectory) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    QDir().mkpath(dir.path() + "/folder.png");
+    EXPECT_FALSE(isSafePreviewImage(dir.path() + "/folder.png"));
+}
+
+TEST(IsSafePreviewImageTest, RejectsNonImageExtension) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    for (const QString &suffix : {"txt", "md", "html", "pdf", "exe", ""}) {
+        QString path = dir.path() + "/file" + (suffix.isEmpty() ? "" : "." + suffix);
+        if (!suffix.isEmpty()) {
+            QFile f(path);
+            ASSERT_TRUE(f.open(QIODevice::WriteOnly));
+            f.write("x");
+            f.close();
+        }
+        EXPECT_FALSE(isSafePreviewImage(path)) << suffix.toStdString();
+    }
+}
+
 

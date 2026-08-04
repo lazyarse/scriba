@@ -38,6 +38,10 @@ QString indentListLine(const QString &line);
 QString outdentListLine(const QString &line);
 QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column);
 
+// Returns whether `filePath` is a local image file safe to embed in the
+// preview: it must exist, be a regular file, and have an image extension.
+bool isSafePreviewImage(const QString &filePath);
+
 // Path/emoji completion (link, HTML attribute, and emoji shortcode contexts)
 bool extractLinkPath(const QString &line, int cursorPos, QString &partialPath);
 int linkPathReplaceStart(const QString &line, int cursorPos);

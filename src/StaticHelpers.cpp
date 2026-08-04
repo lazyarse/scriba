@@ -34,6 +34,20 @@ QString escapeJsString(const QString &s)
     return r;
 }
 
+bool isSafePreviewImage(const QString &filePath)
+{
+    const QFileInfo fi(filePath);
+    if (!fi.exists() || !fi.isFile())
+        return false;
+    static const QStringList imageSuffixes{
+        QStringLiteral("png"), QStringLiteral("jpg"), QStringLiteral("jpeg"),
+        QStringLiteral("gif"), QStringLiteral("webp"), QStringLiteral("bmp"),
+        QStringLiteral("svg"), QStringLiteral("avif"), QStringLiteral("ico"),
+        QStringLiteral("tif"), QStringLiteral("tiff"),
+    };
+    return imageSuffixes.contains(fi.suffix().toLower());
+}
+
 static const QRegularExpression &unorderedListRe()
 {
     static QRegularExpression re(R"(^(\s*)([-*+])\s?)");

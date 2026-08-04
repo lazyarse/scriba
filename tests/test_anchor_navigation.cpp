@@ -25,6 +25,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUrl>
 #include <QWebEnginePage>
 
 #include "LinkValidator.h"
@@ -225,6 +226,78 @@ TEST_F(AnchorNavigationTest, MissingHeadingStaysPutWithoutCrashing)
         [](const QVariant &) {});
     QTest::qWait(3000);
     EXPECT_NEAR(0.0, pollScrollY(1.0, 5), 2.0);
+}
+
+// Returns the overlay's JSON state ({display, src}) or "no-overlay".
+QString overlayState(MainWindow *window)
+{
+    QString result;
+    window->preview()->page()->runJavaScript(
+        "(function(){var ov=document.getElementById('scriba-image-overlay');"
+        "if(!ov)return JSON.stringify({display:'',src:''});"
+        "var img=ov.querySelector('img');"
+        "return JSON.stringify({display:ov.style.display,"
+        "src:img?img.src:''});})()",
+        [&](const QVariant &r) { result = r.toString(); });
+    QTest::qWait(150);
+    return result;
+}
+
+TEST_F(AnchorNavigationTest, ImageLinkShowsOverlayInPreview)
+{
+    const QString pngPath = m_dir.filePath(QStringLiteral("pic.png"));
+    QFile png(pngPath);
+    ASSERT_TRUE(png.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    png.write(QByteArray::fromBase64(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="));
+    png.close();
+
+    loadDoc(QStringLiteral("doc.md"), "# Img\n\n[see image](pic.png)\n");
+
+    window->preview()->page()->runJavaScript(
+        "(function(){var a=document.querySelector('a');if(!a)return 'no-link';"
+        "a.click();return 'clicked';})()",
+        [](const QVariant &) {});
+
+    // The click goes through scriba-open to C++, which shows the overlay
+    // instead of opening the file externally — poll until it appears.
+    QJsonObject state;
+    bool shown = false;
+    for (int i = 0; i < 40 && !shown; ++i) {
+        state = QJsonDocument::fromJson(overlayState(window).toUtf8()).object();
+        shown = state.value("display").toString() == "flex";
+        if (!shown) QTest::qWait(200);
+    }
+    ASSERT_TRUE(shown);
+
+    const QString expectedSrc = QUrl::fromLocalFile(pngPath).toString();
+    EXPECT_EQ(expectedSrc, state.value("src").toString());
+
+    // Backdrop click (e.target === overlay) hides it again.
+    window->preview()->page()->runJavaScript(
+        "(function(){var ov=document.getElementById('scriba-image-overlay');"
+        "if(ov)ov.click();return true;})()",
+        [](const QVariant &) {});
+    QTest::qWait(300);
+    QJsonObject after =
+        QJsonDocument::fromJson(overlayState(window).toUtf8()).object();
+    EXPECT_EQ("none", after.value("display").toString());
+}
+
+TEST_F(AnchorNavigationTest, MissingImageLinkShowsNoOverlay)
+{
+    loadDoc(QStringLiteral("doc.md"),
+        "# Img\n\n[missing](does-not-exist.png)\n");
+
+    window->preview()->page()->runJavaScript(
+        "(function(){var a=document.querySelector('a');if(!a)return 'no-link';"
+        "a.click();return 'clicked';})()",
+        [](const QVariant &) {});
+    QTest::qWait(1500);
+
+    QJsonObject state =
+        QJsonDocument::fromJson(overlayState(window).toUtf8()).object();
+    EXPECT_NE("flex", state.value("display").toString());
 }
 
 } // namespace

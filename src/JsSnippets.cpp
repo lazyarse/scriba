@@ -191,3 +191,48 @@ const QString katexToImageJs = QStringLiteral(
     "return Promise.all(promises);"
     "}"
 );
+
+// Lightbox for preview image links. scribaShowImage() renders `href` in a
+// full-window overlay; a backdrop click, the × button, or Escape closes it.
+// The overlay lives outside #scriba-content, so live re-renders leave it
+// open. Displaying the file as an <img> is safe even for SVG: scripts do not
+// run in an image context.
+const QString imageOverlayJs = QStringLiteral(
+    "function scribaShowImage(href){"
+    "var ov=document.getElementById('scriba-image-overlay');"
+    "if(!ov){"
+    "ov=document.createElement('div');"
+    "ov.id='scriba-image-overlay';"
+    "var box=document.createElement('div');"
+    "box.className='scriba-image-box';"
+    "var img=document.createElement('img');"
+    "img.className='scriba-image-view';"
+    "img.alt='';"
+    "var cap=document.createElement('div');"
+    "cap.className='scriba-image-caption';"
+    "var close=document.createElement('button');"
+    "close.type='button';"
+    "close.className='scriba-image-close';"
+    "close.title='Close (Esc)';"
+    "close.textContent='\\u00d7';"
+    "box.appendChild(img);"
+    "box.appendChild(cap);"
+    "box.appendChild(close);"
+    "ov.appendChild(box);"
+    "document.body.appendChild(ov);"
+    "ov.addEventListener('click',function(e){if(e.target===ov)scribaHideImage();});"
+    "close.addEventListener('click',function(e){e.stopPropagation();scribaHideImage();});"
+    "document.addEventListener('keydown',function(e){if(e.key==='Escape')scribaHideImage();});"
+    "}"
+    "var img=ov.querySelector('img');"
+    "img.src=href;"
+    "var name=href;"
+    "try{name=decodeURIComponent(href.split('/').pop()||href);}catch(e){}"
+    "ov.querySelector('.scriba-image-caption').textContent=name;"
+    "ov.style.display='flex';"
+    "}"
+    "function scribaHideImage(){"
+    "var ov=document.getElementById('scriba-image-overlay');"
+    "if(ov)ov.style.display='none';"
+    "}"
+);
