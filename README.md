@@ -18,35 +18,7 @@
 
 ![Screenshot](docs/images/screenshot.png)
 
-![Auto complete Demo](docs/images/autocomplete-demo.gif)
-
-### Preferences
-
-| General | Themes | Editor |
-| --- | --- | --- |
-| [![General](docs/images/preferences-general.png)](docs/images/preferences-general.png) | [![Themes](docs/images/preferences-themes.png)](docs/images/preferences-themes.png) | [![Editor](docs/images/preferences-editor.png)](docs/images/preferences-editor.png) |
-
-| Writing | Spelling | Security | Preview |
-| --- | --- | --- | --- |
-| [![Writing](docs/images/preferences-writing.png)](docs/images/preferences-writing.png) | [![Spelling](docs/images/preferences-spelling.png)](docs/images/preferences-spelling.png) | [![Security](docs/images/preferences-security.png)](docs/images/preferences-security.png) | [![Preview](docs/images/preferences-preview.png)](docs/images/preferences-preview.png) |
-
-### Dialogues
-
-| Insert Table | Emoji Picker | KaTeX Equation |
-| --- | --- | --- |
-| [![Insert Table](docs/images/table-dialog.png)](docs/images/table-dialog.png) | [![Emoji Picker](docs/images/emoji-picker.png)](docs/images/emoji-picker.png) | [![KaTeX Equation](docs/images/katex-dialog.png)](docs/images/katex-dialog.png) |
-
-| Chemistry Notation | Chart Builder | Mermaid Chart |
-| --- | --- | --- |
-| [![Chemistry Notation](docs/images/mchem-dialog.png)](docs/images/mchem-dialog.png) | [![Chart Builder](docs/images/vega-lite-dialog.png)](docs/images/vega-lite-dialog.png) | [![Mermaid Chart](docs/images/mermaid-dialog.png)](docs/images/mermaid-dialog.png) |
-
-| Check Spelling |
-| --- |
-| [![Check Spelling](docs/images/check-spelling.png)](docs/images/check-spelling.png) |
-
-| Print / Export PDF |
-| --- |
-| [![Print / Export PDF](docs/images/print-pdf-dialog.png)](docs/images/print-pdf-dialog.png) |
+See the [Gallery](docs/gallery.md) for screenshots of the preferences pages, dialogs, and more.
 
 ---
 
@@ -66,10 +38,6 @@
 - Despite being listed at the end, app [security](docs/security.md) is not an afterthought and both the preview and exports are secured against XSS attacks and various injection vectors.
 
 \* Well, nearly everything!
-
-## License
-
-Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.
 
 ### Standing on the Shoulders of Giants:
 - The bundled stoppard engine (in `vendor/stoppard/`) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
@@ -216,3 +184,7 @@ JS console messages are captured via the Debug Log window (Tools → Debug Log).
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [PDF Export](docs/pdf-export.md)
 - [Table Handling](docs/table_handling.md)
+
+## License
+
+Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.

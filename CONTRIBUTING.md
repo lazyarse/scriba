@@ -74,6 +74,8 @@ bash scripts/update-screenshot.sh
 
 This launches `build/scriba` under `xvfb-run`, loads `docs/kitchensink.md`, waits 3s, then captures the window with `import` (ImageMagick).
 
+New dialog or preferences-page captures must also be added to `docs/gallery.md`, which lists every screenshot except the main `screenshot.png` (that one stays embedded in the README).
+
 ### Autocomplete Demo GIF
 
 After changing autocomplete behavior, update `docs/images/autocomplete-demo.gif`:

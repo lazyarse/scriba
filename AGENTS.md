@@ -97,7 +97,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Only rebuild the .deb package when explicitly asked to — do not rebuild it automatically after changes
 - After adding a new keyboard shortcut, update `resources/shortcuts.html` to document it
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
-- When adding a new dialog — or a new page to an existing dialog (e.g. a new Preferences page) — add a capture of it to `scripts/update-screenshot.sh` and re-run the script to regenerate the gallery in `docs/images/`
+- When adding a new dialog — or a new page to an existing dialog (e.g. a new Preferences page) — add a capture of it to `scripts/update-screenshot.sh`, re-run the script to regenerate the gallery in `docs/images/`, and link the new image in `docs/gallery.md` (the README embeds only the main `screenshot.png`; all other captures live in the gallery)
 - `scripts/update-screenshot.sh` and `scripts/create-autocomplete-demo.py` must send keys with XTEST (`xdotool windowfocus $WID` then `xdotool key ...` without `--window`); `xdotool key --window` (XSendEvent) does not trigger shortcuts in this Qt app
 - The main window doesn't set its own size (opens at Qt's default 640×480), so xvfb/xdotool scripts must size it manually via `xdotool windowsize $WID WxH` — see `scripts/update-screenshot.sh:22` (1280×800) and `scripts/create-autocomplete-demo.py:77` (800×400, also `windowmove`d to 0,0)
 - After changing autocomplete behavior, update `docs/images/autocomplete-demo.gif` by running `scripts/create-autocomplete-demo.py`. Requires: xvfb-run, xdotool, and Python packages from `scripts/requirements.txt` (`pip install -r scripts/requirements.txt`).
