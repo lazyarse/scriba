@@ -6,13 +6,28 @@ C++23 desktop Markdown editor using Qt6 (Widgets + WebEngine). Vendored markdown
 
 ## Build
 
-Full build is heavy (WebEngine resources, JS bundles, many test targets). Use `timeout 480000` with bash or pass a large timeout value — the default 120s may not be enough.
+Two build dirs, each serving a different job:
+
+- `build-dbg/` — **Debug** build for the dev/test loop (`-DBUILD_TESTS=ON`). Fastest to compile; assertions on. Use this while developing and running the test suite.
+- `build/` — **Release** build for the final binary only (tests OFF). Build it after the test suite passes; this is the binary you ship and package.
+
+Full builds are heavy (WebEngine resources, JS bundles, many test targets). Use `timeout 480000` with bash or pass a large timeout value — the default 120s may not be enough.
+
+### Dev loop (tests) — `build-dbg`
 
 ```bash
-mkdir -p build
+cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j4
+cd build-dbg && ctest --output-on-failure -j1
+```
+
+Use true `Debug`, NOT `RelWithDebInfo`: RelWithDebInfo still compiles at `-O2`/`-O3`, so it builds at Release speed with none of the dev-loop benefit. Debug compiles far faster — the ~10 test targets each recompile `MainWindow.cpp` plus ~35 other sources — at the cost of slower test runtimes, which barely matters since most tests are bound by WebEngine startup, not CPU.
+
+### Release binary — `build`
+
+```bash
+# build only after tests pass; tests are OFF here (they live in build-dbg)
 # clean only needed after branch switches (stale _autogen dirs);
 # normal incremental rebuilds: skip clean, just configure + build
-cmake --build build --target clean 2>/dev/null
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4
 ```
 
@@ -82,7 +97,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 ## Conventions
 
 - Do not git commit, revert, add, delete, or otherwise mutate repo history without explicit permission
-- Always build with `-DCMAKE_BUILD_TYPE=Release` unless debugging
+- Two build dirs: `build-dbg/` for the Debug dev/test loop, `build/` for the Release binary (see Build above)
 - C++23, Qt coding style, `CMAKE_AUTOMOC`/`CMAKE_AUTORCC` enabled
 - No header-only files — every `.h` has a `.cpp`
 - CSS theming: editor uses `#editor` selector, preview uses standard HTML selectors
@@ -114,7 +129,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 - `vendor/md4c/` contains the vendored markdown parser with local patches in `vendor/md4c/patches/`. To upgrade md4c: copy new upstream `src/*` into `vendor/md4c/src/`, then `git apply vendor/md4c/patches/*.patch` from the repo root. If patches fail, rework and update the .patch files.
 - `vendor/mathml2omml/` is the vendored MathML↔OMML library (v3.0.0, working copy — local changes go straight into it, no patch workflow). To upgrade: copy new upstream `mathml2omml.{cpp,h}` over the vendored ones. The v3.0.0 API uses `std::string_view` throughout (`XmlSink` methods, `convert()` params) and the string-returning `convert()` returns `std::expected<std::string, std::string>`; `src/HtmlToOoxml.cpp` (`QtOmmlSink`) has been adapted accordingly.
-- Tests exist in `tests/` — run with `cd build && ctest --output-on-failure -j1` after building with `-DBUILD_TESTS=ON`. Always run ctest from `build/` — running it from the repo root finds no tests and leaves a `Testing/Temporary/` bookkeeping dir in the source tree (gitignored via `/Testing/`, but still clutter). Tests auto-wrap in `xvfb-run` when available. Run with `-j1` (not parallel) to avoid WebEngine fork contention causing flaky failures.
+- Tests exist in `tests/` — run with `cd build-dbg && ctest --output-on-failure -j1` after building `build-dbg` with `-DBUILD_TESTS=ON`. Always run ctest from `build-dbg/` — running it from the repo root finds no tests and leaves a `Testing/Temporary/` bookkeeping dir in the source tree (gitignored via `/Testing/`, but still clutter). Tests auto-wrap in `xvfb-run` when available. Run with `-j1` (not parallel) to avoid WebEngine fork contention causing flaky failures.
 - Editor typing integration tests (`test_editor_typing`) drive the real `Editor` widget with `QTest` key events — no WebEngine, deterministic input. Tests asserting exact sentinel semantics (empty list marker clears to a bare newline, blank table row exits the table) verify real `keyPressEvent` behaviour: if they fail it is a genuine behaviour regression, NOT flakiness. Do not rerun to "confirm" — investigate.
 - `QTextDocument::contentsChange` vs `contentsChanged` (verified empirically against Qt 6.10): on a bare `QTextDocument`, `QTextCursor::insertText()` emits ONLY `contentsChanged` — no `contentsChange`. Typing into a real `QTextEdit` (or `QTextCursor` on its document) does emit `contentsChange` with real removed/added counts. Format-only work (`QSyntaxHighlighter::rehighlight()`, spell/syntax highlighting) emits `contentsChange` with `(0, 0)` in-app. So: tests asserting `contentsChange`-driven behavior (e.g. grammar-lint scheduling) must drive a real `QTextEdit` via `QTest::keyClicks`/`keyClicks`, and code that must react only to real edits should connect `contentsChange` and skip `removed == 0 && added == 0` (see `SpellHighlighter::scheduleGrammarLint` and `MainWindow.cpp:342`).
 - Tests must be cross-platform (Linux + Windows). Never hardcode `/tmp`, `file:///tmp/`, or any platform-specific paths. Use `QDir::tempPath()`, `QTemporaryDir`, `QTemporaryFile`, and `QUrl::fromLocalFile()` instead.

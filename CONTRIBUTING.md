@@ -215,6 +215,30 @@ Every keystroke in the editor triggers `updatePreview()` in `MainWindow.cpp`, wh
 
 This split avoids re-running expensive JS libraries on every character while keeping text updates instant. Scroll position is restored using a percentage (`pct = scrollY / scrollHeight`) saved before innerHTML, so diagram height changes don't drift the viewport.
 
+## Development workflow
+
+Two build directories, each serving a different job:
+
+- `build-dbg/` — **Debug** build for the dev/test loop (`-DBUILD_TESTS=ON`). Fastest to compile; assertions on.
+- `build/` — **Release** build for the final binary only (tests OFF). Build it after the test suite passes.
+
+### Dev loop (tests) — `build-dbg`
+
+```bash
+cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j4
+cd build-dbg && ctest --output-on-failure -j1
+```
+
+Use true `Debug`, not `RelWithDebInfo` — RelWithDebInfo still compiles at `-O2`/`-O3`, so it builds at Release speed with none of the dev-loop benefit. Debug compiles far faster (the ~10 test targets each recompile `MainWindow.cpp` plus ~35 other sources), at the cost of slower test runtimes — which barely matters since most tests are bound by WebEngine startup, not CPU.
+
+### Release binary — `build`
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4
+```
+
+Build only after the test suite passes; tests are OFF here (they live in `build-dbg`).
+
 ## Testing
 
 Every test binary starts from `tests/TestConfig.h` (`setupTestConfig()`), which redirects **all** config access to `~/.config/scribaTest/` and wipes that directory so each run starts clean:

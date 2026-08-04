@@ -129,14 +129,16 @@ Output: `scriba-1.0.0-Linux.deb` (may include a `-dirty` suffix if the working t
 
 ### Build with tests
 
+During development, build the test suite in a separate Debug build dir (`build-dbg/`) — it compiles faster than a Release test build and keeps `build/` for the Release binary:
+
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON && cmake --build build -j$(nproc)
+cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j$(nproc)
 ```
 
 ### Run tests
 
 ```bash
-cd build && ctest --output-on-failure -j1
+cd build-dbg && ctest --output-on-failure -j1
 ```
 
 Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't crash on your headless CI.
