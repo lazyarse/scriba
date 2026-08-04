@@ -284,6 +284,58 @@ TEST_F(AnchorNavigationTest, ImageLinkShowsOverlayInPreview)
     EXPECT_EQ("none", after.value("display").toString());
 }
 
+TEST_F(AnchorNavigationTest, ImageLinkDoesNotResetPreviewScroll)
+{
+    // A real image the overlay can show.
+    const QString pngPath = m_dir.filePath(QStringLiteral("pic.png"));
+    QFile png(pngPath);
+    ASSERT_TRUE(png.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    png.write(QByteArray::fromBase64(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="));
+    png.close();
+
+    // Long enough to scroll deep down; image link at the end.
+    QString content;
+    for (int i = 0; i < 150; ++i)
+        content += QStringLiteral("Fill %1.\n\n").arg(i);
+    content += QStringLiteral("[see image](pic.png)\n");
+    loadDoc(QStringLiteral("long.md"), content.toUtf8());
+
+    // Scroll the preview far down and record the position.
+    window->preview()->page()->runJavaScript(
+        "window.scrollTo(0, document.body.scrollHeight)");
+    QTest::qWait(200);
+    double before = 0.0;
+    window->preview()->page()->runJavaScript(
+        "document.body ? Math.round(window.scrollY) : 0",
+        [&](const QVariant &r) { before = r.toDouble(); });
+    QTest::qWait(100);
+    ASSERT_GT(before, 500.0);
+
+    window->preview()->page()->runJavaScript(
+        "(function(){var a=document.querySelector('a');if(!a)return 'no-link';"
+        "a.click();return 'clicked';})()",
+        [](const QVariant &) {});
+
+    // Wait for the lightbox to open.
+    bool shown = false;
+    for (int i = 0; i < 40 && !shown; ++i) {
+        QJsonObject state =
+            QJsonDocument::fromJson(overlayState(window).toUtf8()).object();
+        shown = state.value("display").toString() == "flex";
+        if (!shown) QTest::qWait(200);
+    }
+    ASSERT_TRUE(shown);
+
+    // The fragment routing must not scroll the preview back to the top.
+    double after = 0.0;
+    window->preview()->page()->runJavaScript(
+        "document.body ? Math.round(window.scrollY) : 0",
+        [&](const QVariant &r) { after = r.toDouble(); });
+    QTest::qWait(100);
+    EXPECT_GT(after, 500.0);
+}
+
 TEST_F(AnchorNavigationTest, MissingImageLinkShowsNoOverlay)
 {
     loadDoc(QStringLiteral("doc.md"),

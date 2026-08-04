@@ -139,7 +139,12 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
             } else {
                 QDesktopServices::openUrl(target);
             }
-            m_preview->page()->runJavaScript("window.location.hash=''");
+            // replaceState (not location.hash=) so clearing the scriba-open
+            // fragment does not scroll the preview back to the top: the empty
+            // fragment and a fragment matching no element both scroll to the
+            // top of the document per the HTML spec.
+            m_preview->page()->runJavaScript(
+                "history.replaceState(null,'',location.href.split('#')[0])");
         }
     });
 
@@ -1209,7 +1214,7 @@ void MainWindow::updatePreview(bool tabSwitch)
             "return;"
             "}"
             "e.preventDefault();"
-            "window.location.hash='scriba-open:'+encodeURIComponent(l.href)"
+            "history.replaceState(null,'','#scriba-open:'+encodeURIComponent(l.href))"
             "})</script>"
             "</body></html>"
         ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss, codeLangInit, renderCss);
