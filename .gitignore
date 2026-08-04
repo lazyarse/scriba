@@ -1,4 +1,5 @@
 build
+build-dbg
 /Testing/
 vendor/*
 !vendor/md4c/
