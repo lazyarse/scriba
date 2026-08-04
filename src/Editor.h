@@ -123,7 +123,8 @@ private:
     // Gutter + folding
     Gutter *m_gutter = nullptr;
     QMap<int, int> m_headerLevel; // blockNumber → heading level 1-6
-    QSet<int> m_foldedHeaders;
+    QSet<int> m_codeFences;        // blockNumber of each opening ``` fence (foldable)
+    QSet<int> m_foldedBlocks;
     QMap<int, qsizetype> m_foldEndPins; // folded header blockNumber → pinned fold-bottom character position
     bool m_updatingFolds = false;
 
@@ -131,8 +132,10 @@ private:
     void updateGutterWidth();
     void applyGutterColors();
     void scanHeadersAndFolds();
-    void applyFoldForHeader(int blockNumber, int level, bool hide);
-    int effectiveSectionEnd(int headerBlock) const;
+    void applyFold(int startBlock, bool hide);
+    bool isFoldableBlock(int blockNumber) const;
+    int foldEnd(int startBlock) const;
+    bool foldRegionContains(int startBlock, int blockNumber) const;
     void toggleFold(int blockNumber);
     int findPrevHeader(int fromBlock) const;
     int findNextHeader(int fromBlock) const;

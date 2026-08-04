@@ -237,26 +237,29 @@ void Editor::keyPressEvent(QKeyEvent *event)
             return;
         }
 
-        // Folded section: Enter at the end of a folded header line (or while the
+        // Folded region: Enter at the end of a folded foldable line (or while the
         // cursor sits in the hidden body) inserts the new paragraph just below the
         // fold so typed text stays visible instead of vanishing into hidden blocks.
         int bn = cursor.blockNumber();
-        int foldedHeader = -1;
-        for (auto it = m_foldedHeaders.constBegin(); it != m_foldedHeaders.constEnd(); ++it) {
-            if (*it <= bn && (foldedHeader < 0 || *it > foldedHeader))
-                foldedHeader = *it;
+        int folded = -1;
+        for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
+            if (*it <= bn && foldRegionContains(*it, bn) && (folded < 0 || *it > folded))
+                folded = *it;
         }
-        if (foldedHeader >= 0) {
-            int end = effectiveSectionEnd(foldedHeader);
-            bool onHeader = bn == foldedHeader;
-            bool atHeaderEnd = onHeader && cursor.positionInBlock() == cursor.block().text().length();
-            if ((atHeaderEnd || (!onHeader && bn < end)) && bn < end) {
+        if (folded >= 0) {
+            int end = foldEnd(folded);
+            bool onStart = bn == folded;
+            bool atStartEnd = onStart && cursor.positionInBlock() == cursor.block().text().length();
+            if ((atStartEnd || (!onStart && bn < end)) && bn < end) {
                 QTextCursor target = textCursor();
-                if (end == document()->blockCount() && !m_foldEndPins.contains(foldedHeader)) {
+                if (end == document()->blockCount() && m_headerLevel.contains(folded)
+                    && !m_foldEndPins.contains(folded)) {
                     // Fold runs to EOF: pin the bottom here so the new paragraph
                     // (and anything typed below it) stays visible past the re-scan.
                     target.movePosition(QTextCursor::End);
-                    m_foldEndPins.insert(foldedHeader, target.position());
+                    m_foldEndPins.insert(folded, target.position());
+                } else if (end == document()->blockCount()) {
+                    target.movePosition(QTextCursor::End);
                 } else {
                     QTextBlock eb = document()->findBlockByNumber(end);
                     target.setPosition(eb.position() + eb.length() - 1);
@@ -519,21 +522,21 @@ void Editor::keyPressEvent(QKeyEvent *event)
     // Ctrl+= expand, Ctrl+- fold
     if (ctrl && !alt && event->key() == Qt::Key_Equal) {
         int bn = textCursor().blockNumber();
-        int foldedHeader = -1;
-        for (auto it = m_headerLevel.constBegin(); it != m_headerLevel.constEnd(); ++it) {
-            if (it.key() <= bn && m_foldedHeaders.contains(it.key())) {
-                if (foldedHeader < 0 || it.key() > foldedHeader)
-                    foldedHeader = it.key();
+        int folded = -1;
+        for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
+            if (foldRegionContains(*it, bn)) {
+                if (folded < 0 || *it > folded)
+                    folded = *it;
             }
         }
-        if (foldedHeader >= 0)
-            toggleFold(foldedHeader);
+        if (folded >= 0)
+            toggleFold(folded);
         event->accept();
         return;
     }
     if (ctrl && !alt && event->key() == Qt::Key_Minus) {
         int bn = textCursor().blockNumber();
-        if (m_headerLevel.contains(bn) && !m_foldedHeaders.contains(bn)) {
+        if (isFoldableBlock(bn) && !m_foldedBlocks.contains(bn)) {
             toggleFold(bn);
         }
         event->accept();
@@ -1860,19 +1863,22 @@ void Editor::applyGutterColors()
 void Editor::scanHeadersAndFolds()
 {
     m_headerLevel.clear();
+    m_codeFences.clear();
 
     QTextBlock block = document()->firstBlock();
     int codeDepth = 0;
     QRegularExpression atxRe("^(#{1,6})\\s");
     QRegularExpression setextUnderlineRe("^(={3,}|-{3,})\\s*$");
 
-    // First pass: detect headers
+    // First pass: detect headers and fenced-code openings
     QTextBlock prevBlock;
     while (block.isValid()) {
         QString text = block.text();
         int bn = block.blockNumber();
 
         if (text.trimmed().startsWith("```")) {
+            if (codeDepth == 0)
+                m_codeFences.insert(bn);
             codeDepth ^= 1;
             prevBlock = block;
             block = block.next();
@@ -1904,24 +1910,25 @@ void Editor::scanHeadersAndFolds()
         block = block.next();
     }
 
-    // Update gutter with header info
-    QSet<int> headerSet;
+    // Update gutter with foldable info
+    QSet<int> foldableSet;
     for (auto it = m_headerLevel.constBegin(); it != m_headerLevel.constEnd(); ++it)
-        headerSet.insert(it.key());
+        foldableSet.insert(it.key());
+    foldableSet.unite(m_codeFences);
     if (m_gutter) {
-        m_gutter->setFoldableBlocks(headerSet);
+        m_gutter->setFoldableBlocks(foldableSet);
     }
 
     // Re-apply folds
     m_updatingFolds = true;
     QSet<int> stillValid;
-    for (int bn : m_foldedHeaders) {
-        if (m_headerLevel.contains(bn)) {
-            applyFoldForHeader(bn, m_headerLevel[bn], true);
+    for (int bn : m_foldedBlocks) {
+        if (isFoldableBlock(bn)) {
+            applyFold(bn, true);
             stillValid.insert(bn);
         }
     }
-    m_foldedHeaders = stillValid;
+    m_foldedBlocks = stillValid;
     for (auto it = m_foldEndPins.begin(); it != m_foldEndPins.end();) {
         if (!m_headerLevel.contains(it.key()) || !document()->findBlock(it.value()).isValid())
             it = m_foldEndPins.erase(it);
@@ -1929,18 +1936,50 @@ void Editor::scanHeadersAndFolds()
             ++it;
     }
     if (m_gutter)
-        m_gutter->setFoldedBlocks(m_foldedHeaders);
+        m_gutter->setFoldedBlocks(m_foldedBlocks);
     m_updatingFolds = false;
 }
 
-void Editor::applyFoldForHeader(int blockNumber, int level, bool hide)
+bool Editor::isFoldableBlock(int blockNumber) const
 {
-    int end = effectiveSectionEnd(blockNumber);
-    QTextBlock block = document()->findBlockByNumber(blockNumber + 1);
+    return m_headerLevel.contains(blockNumber) || m_codeFences.contains(blockNumber);
+}
+
+bool Editor::foldRegionContains(int startBlock, int blockNumber) const
+{
+    return startBlock <= blockNumber && blockNumber < foldEnd(startBlock);
+}
+
+void Editor::applyFold(int startBlock, bool hide)
+{
+    int end = foldEnd(startBlock);
+    QTextBlock block = document()->findBlockByNumber(startBlock + 1);
     while (block.isValid() && block.blockNumber() < end) {
         block.setVisible(!hide);
         block = block.next();
     }
+}
+
+int Editor::foldEnd(int startBlock) const
+{
+    if (m_codeFences.contains(startBlock)) {
+        QTextBlock block = document()->findBlockByNumber(startBlock + 1);
+        while (block.isValid()) {
+            if (block.text().trimmed().startsWith("```"))
+                return block.blockNumber() + 1;
+            block = block.next();
+        }
+        return document()->blockCount();
+    }
+
+    int end = sectionEndBlock(startBlock, m_headerLevel.value(startBlock));
+    auto pinIt = m_foldEndPins.find(startBlock);
+    if (pinIt != m_foldEndPins.end()) {
+        QTextBlock pinned = document()->findBlock(pinIt.value());
+        if (pinned.isValid() && pinned.blockNumber() > startBlock && pinned.blockNumber() <= end)
+            end = pinned.blockNumber();
+    }
+    return end;
 }
 
 int Editor::sectionEndBlock(int fromBlock, int level) const
@@ -1958,42 +1997,28 @@ int Editor::sectionEndBlock(int fromBlock, int level) const
     return document()->blockCount();
 }
 
-int Editor::effectiveSectionEnd(int headerBlock) const
-{
-    int end = sectionEndBlock(headerBlock, m_headerLevel.value(headerBlock));
-    auto it = m_foldEndPins.find(headerBlock);
-    if (it != m_foldEndPins.end()) {
-        QTextBlock pinned = document()->findBlock(it.value());
-        if (pinned.isValid() && pinned.blockNumber() > headerBlock && pinned.blockNumber() <= end)
-            end = pinned.blockNumber();
-    }
-    return end;
-}
-
 void Editor::toggleFold(int blockNumber)
 {
-    if (!m_headerLevel.contains(blockNumber))
+    if (!isFoldableBlock(blockNumber))
         return;
-
-    int level = m_headerLevel[blockNumber];
 
     m_updatingFolds = true;
 
-    if (m_foldedHeaders.contains(blockNumber)) {
+    if (m_foldedBlocks.contains(blockNumber)) {
         // Unfold
-        applyFoldForHeader(blockNumber, level, false);
-        m_foldedHeaders.remove(blockNumber);
+        applyFold(blockNumber, false);
+        m_foldedBlocks.remove(blockNumber);
         m_foldEndPins.remove(blockNumber);
     } else {
         // Fold
-        applyFoldForHeader(blockNumber, level, true);
-        m_foldedHeaders.insert(blockNumber);
+        applyFold(blockNumber, true);
+        m_foldedBlocks.insert(blockNumber);
     }
 
     m_updatingFolds = false;
 
     if (m_gutter)
-        m_gutter->setFoldedBlocks(m_foldedHeaders);
+        m_gutter->setFoldedBlocks(m_foldedBlocks);
 
     document()->markContentsDirty(0, document()->characterCount());
     update();
@@ -2046,22 +2071,22 @@ void Editor::restoreFolds(const QList<int> &foldedBlocks)
 {
     QSet<int> newFolds;
     for (int bn : foldedBlocks) {
-        if (m_headerLevel.contains(bn))
+        if (isFoldableBlock(bn))
             newFolds.insert(bn);
     }
 
     m_updatingFolds = true;
     // Unhide previously-folded blocks no longer in the set
-    for (int bn : m_foldedHeaders) {
+    for (int bn : m_foldedBlocks) {
         if (!newFolds.contains(bn))
-            applyFoldForHeader(bn, m_headerLevel[bn], false);
+            applyFold(bn, false);
     }
     // Hide newly-folded blocks
     for (int bn : newFolds) {
-        if (!m_foldedHeaders.contains(bn))
-            applyFoldForHeader(bn, m_headerLevel[bn], true);
+        if (!m_foldedBlocks.contains(bn))
+            applyFold(bn, true);
     }
-    m_foldedHeaders = newFolds;
+    m_foldedBlocks = newFolds;
     for (auto it = m_foldEndPins.begin(); it != m_foldEndPins.end();) {
         if (!newFolds.contains(it.key()))
             it = m_foldEndPins.erase(it);
@@ -2071,7 +2096,7 @@ void Editor::restoreFolds(const QList<int> &foldedBlocks)
     m_updatingFolds = false;
 
     if (m_gutter)
-        m_gutter->setFoldedBlocks(m_foldedHeaders);
+        m_gutter->setFoldedBlocks(m_foldedBlocks);
 
     document()->markContentsDirty(0, document()->characterCount());
 }
@@ -2079,7 +2104,7 @@ void Editor::restoreFolds(const QList<int> &foldedBlocks)
 QList<int> Editor::foldedBlockNumbers() const
 {
     QList<int> result;
-    for (int bn : m_foldedHeaders)
+    for (int bn : m_foldedBlocks)
         result.append(bn);
     std::sort(result.begin(), result.end());
     return result;

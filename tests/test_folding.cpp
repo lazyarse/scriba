@@ -284,6 +284,138 @@ TEST_F(FoldingTest, KeyboardUnfoldNearestAncestor)
     EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
 }
 
+TEST_F(FoldingTest, FoldsFencedCodeBlock)
+{
+    setText(
+        "text\n"
+        "```java\n"
+        "int x = 1;\n"
+        "int y = 2;\n"
+        "```\n"
+        "tail\n"
+    );
+
+    // Opening fence is block 1; body 2-3; closing fence is block 4.
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_TRUE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(3).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(4).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(5).isVisible());
+    EXPECT_EQ(editor->foldedBlockNumbers(), QList<int>({1}));
+}
+
+TEST_F(FoldingTest, UnfoldFencedCodeBlockRestoresVisibility)
+{
+    setText(
+        "```python\n"
+        "a\n"
+        "b\n"
+        "```\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+
+    editor->restoreFolds({});
+    QApplication::processEvents();
+    EXPECT_TRUE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+}
+
+TEST_F(FoldingTest, FencedCodeFoldRoundtrip)
+{
+    setText(
+        "# Intro\n"
+        "text\n"
+        "```\n"
+        "body\n"
+        "```\n"
+        "# End\n"
+        "text\n"
+    );
+
+    editor->restoreFolds({0, 2});
+    QApplication::processEvents();
+    QList<int> folded = editor->foldedBlockNumbers();
+    EXPECT_TRUE(folded.contains(0));
+    EXPECT_TRUE(folded.contains(2));
+    EXPECT_EQ(folded.size(), 2);
+
+    // Unfold all, then re-apply from the read-back set.
+    editor->restoreFolds({});
+    editor->restoreFolds(folded);
+    QApplication::processEvents();
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible()); // header body under H1
+    EXPECT_FALSE(doc->findBlockByNumber(3).isVisible()); // code body
+    EXPECT_FALSE(doc->findBlockByNumber(4).isVisible()); // closing fence
+    EXPECT_TRUE(doc->findBlockByNumber(5).isVisible());  // next heading
+}
+
+TEST_F(FoldingTest, KeyboardFoldUnfoldFencedCode)
+{
+    setText(
+        "```cpp\n"
+        "int main() { return 0; }\n"
+        "```\n"
+    );
+
+    QTextCursor cursor(editor->document()->findBlockByNumber(0));
+    editor->setTextCursor(cursor);
+    QApplication::processEvents();
+
+    QTest::keyClick(editor, Qt::Key_Minus, Qt::ControlModifier);
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(editor->foldedBlockNumbers().contains(0));
+
+    QTest::keyClick(editor, Qt::Key_Equal, Qt::ControlModifier);
+    QApplication::processEvents();
+
+    EXPECT_TRUE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+}
+
+TEST_F(FoldingTest, KeyboardUnfoldNearestContainedFence)
+{
+    setText(
+        "```\n"
+        "alpha\n"
+        "beta\n"
+        "```\n"
+        "tail\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+
+    // Cursor deep inside the hidden code body; Ctrl+= expands the fence.
+    QTextCursor cursor(editor->document()->findBlockByNumber(2));
+    editor->setTextCursor(cursor);
+    QApplication::processEvents();
+
+    QTest::keyClick(editor, Qt::Key_Equal, Qt::ControlModifier);
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_TRUE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible());
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+}
+
 TEST_F(FoldingTest, HeaderNavigationUpDown)
 {
     setText(
