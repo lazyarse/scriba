@@ -2451,22 +2451,45 @@ void MainWindow::closeEvent(QCloseEvent *event)
     QSettings s;
 
     bool autoSave = s.value(Preferences::AutoSaveOnExit, false).toBool();
+    bool anyDirty = false;
     bool hasUntitledDirty = false;
 
     for (const TabInfo &info : m_tabs) {
         if (info.dirty) {
+            anyDirty = true;
             if (info.filePath.isEmpty()) {
                 hasUntitledDirty = true;
             }
         }
     }
 
-    if (hasUntitledDirty) {
+    auto saveAllDirtyTabs = [this]() {
+        for (TabInfo &info : m_tabs) {
+            if (!info.dirty) continue;
+            if (info.filePath.isEmpty()) {
+                QString file = QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter);
+                if (file.isEmpty()) continue;
+                info.filePath = file;
+            }
+            QFile file(info.filePath);
+            if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                file.write(info.editor->toPlainText().toUtf8());
+                info.dirty = false;
+            }
+        }
+    };
+
+    if (anyDirty && (!autoSave || hasUntitledDirty)) {
         QMessageBox msgBox(this);
         msgBox.setIcon(QMessageBox::Question);
         msgBox.setWindowTitle("Unsaved Changes");
-        msgBox.setText("There are unsaved changes in untitled tabs.\n"
-            "Save all before closing?");
+        if (hasUntitledDirty) {
+            msgBox.setText("There are unsaved changes in untitled tabs.\n"
+                "Save all before closing?");
+        } else {
+            msgBox.setText("There are unsaved changes.\n"
+                "Save all before closing?");
+        }
         msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
         auto *discardBtn = msgBox.addButton(tr("&Discard"), QMessageBox::DestructiveRole);
         msgBox.setDefaultButton(QMessageBox::Save);
@@ -2479,20 +2502,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
         }
 
         if (ret == QMessageBox::Save) {
-            for (TabInfo &info : m_tabs) {
-                if (info.dirty) {
-                    if (info.filePath.isEmpty()) {
-            QString file = QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter);
-                        if (file.isEmpty()) continue;
-                        info.filePath = file;
-                    }
-                    QFile file(info.filePath);
-                    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                        file.write(info.editor->toPlainText().toUtf8());
-                        info.dirty = false;
-                    }
-                }
-            }
+            saveAllDirtyTabs();
         }
     } else if (autoSave) {
         for (TabInfo &info : m_tabs) {
