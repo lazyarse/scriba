@@ -73,6 +73,7 @@ private:
     bool isInsideHtmlPathContext(const QTextCursor &cursor, QString &partialPath) const;
     bool showFileCompletion(const QString &partialPath);
     void acceptCompletion(const QString &completion);
+    void positionCompletionPopup(const QRect &cursorRect);
 
     void loadEmojiShortcodes();
     bool isInsideEmojiContext(const QTextCursor &cursor, QString &partialCode) const;

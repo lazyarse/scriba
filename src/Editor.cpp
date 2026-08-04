@@ -702,6 +702,36 @@ bool Editor::isInsideHtmlPathContext(const QTextCursor &cursor, QString &partial
     return extractHtmlPath(cursor.block().text(), cursor.positionInBlock(), partialPath);
 }
 
+void Editor::positionCompletionPopup(const QRect &cursorRect)
+{
+    if (!m_completer || !m_completer->popup())
+        return;
+    QAbstractItemView *popup = m_completer->popup();
+    QRect screen = viewport()->screen()->availableGeometry();
+
+    QPoint caretBottom = viewport()->mapToGlobal(
+        QPoint(cursorRect.x(), cursorRect.y() + cursorRect.height()));
+    QPoint caretTop = viewport()->mapToGlobal(QPoint(cursorRect.x(), cursorRect.y()));
+    int ph = popup->height();
+    if (ph <= 0)
+        ph = popup->sizeHint().height();
+
+    // Prefer below the caret; flip above when the popup would fall off-screen.
+    QPoint pos = caretBottom + QPoint(0, kCompletionPopupGap);
+    if (pos.y() + ph > screen.bottom()) {
+        int top = caretTop.y() - kCompletionPopupGap - ph;
+        if (top < screen.top()) {
+            top = screen.top();
+            int h = caretTop.y() - kCompletionPopupGap - top;
+            if (h > 0)
+                popup->resize(popup->width(), h);
+        }
+        pos.setY(top);
+    }
+    pos.setX(qBound(screen.left(), pos.x(), screen.right() - qMin(popup->width(), screen.width())));
+    popup->move(pos);
+}
+
 bool Editor::showFileCompletion(const QString &partialPath)
 {
     if (m_currentFile.isEmpty() ||
@@ -742,8 +772,7 @@ bool Editor::showFileCompletion(const QString &partialPath)
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + kCompletionPopupGap));
-    m_completer->popup()->move(popupPos);
+    positionCompletionPopup(cr);
     return true;
 }
 
@@ -889,8 +918,7 @@ bool Editor::showEmojiCompletion(const QString &partialCode)
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + kCompletionPopupGap));
-    m_completer->popup()->move(popupPos);
+    positionCompletionPopup(cr);
     return true;
 }
 
@@ -1113,8 +1141,7 @@ bool Editor::showLanguageCompletion(const QString &partialLang)
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + kCompletionPopupGap));
-    m_completer->popup()->move(popupPos);
+    positionCompletionPopup(cr);
     return true;
 }
 

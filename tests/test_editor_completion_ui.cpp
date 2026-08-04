@@ -20,6 +20,7 @@
 #include <QFile>
 #include <QMessageLogContext>
 #include <QRegularExpression>
+#include <QScreen>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
@@ -332,6 +333,43 @@ TEST_F(EditorCompletionHarness, CompletionPopupHugsCursorLine)
     int emojiGap = gapFor();
     EXPECT_GE(emojiGap, 0) << "emoji popup must not appear above the caret line";
     EXPECT_LE(emojiGap, 10) << "emoji popup gap below caret is too large: " << emojiGap;
+}
+
+TEST_F(EditorCompletionHarness, CompletionPopupFlipsAboveWhenNearBottom)
+{
+    // When the caret is at the bottom of the screen there is no room for the
+    // popup below, so it must flip and appear above the active line.
+    QScreen *screen = QGuiApplication::primaryScreen();
+    ASSERT_NE(screen, nullptr);
+    QRect avail = screen->availableGeometry();
+    editor->move(avail.left(), avail.bottom() - editor->height() + 1);
+
+    QStringList lines;
+    for (int i = 0; i < 200; ++i)
+        lines << ("line " + QString::number(i));
+    setContent(lines.join("\n"));
+
+    placeCursor(199, 0);
+    editor->ensureCursorVisible();
+    QApplication::processEvents();
+
+    typeText(":smil");
+    QApplication::processEvents();
+
+    ASSERT_NE(editor->completer(), nullptr);
+    QAbstractItemView *popup = editor->completer()->popup();
+    ASSERT_NE(popup, nullptr);
+    ASSERT_TRUE(popup->isVisible()) << "emoji popup should be visible";
+
+    QRect cursor = editor->cursorRect();
+    QPoint caretBottom = editor->viewport()->mapToGlobal(
+        QPoint(cursor.x(), cursor.y() + cursor.height()));
+    QPoint caretTop = editor->viewport()->mapToGlobal(QPoint(cursor.x(), cursor.y()));
+
+    EXPECT_LT(popup->geometry().y(), caretBottom.y())
+        << "popup should be placed above the caret line when near the bottom";
+    EXPECT_LE(popup->geometry().y() + popup->height(), caretTop.y() + 4)
+        << "popup bottom should not extend below the top of the caret line";
 }
 
 TEST_F(EditorCompletionHarness, CodeFenceLanguageCompletes)
