@@ -2480,28 +2480,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
     };
 
     if (anyDirty && (!autoSave || hasUntitledDirty)) {
-        QMessageBox msgBox(this);
-        msgBox.setIcon(QMessageBox::Question);
-        msgBox.setWindowTitle("Unsaved Changes");
-        if (hasUntitledDirty) {
-            msgBox.setText("There are unsaved changes in untitled tabs.\n"
-                "Save all before closing?");
-        } else {
-            msgBox.setText("There are unsaved changes.\n"
-                "Save all before closing?");
-        }
-        msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
-        auto *discardBtn = msgBox.addButton(tr("&Discard"), QMessageBox::DestructiveRole);
-        msgBox.setDefaultButton(QMessageBox::Save);
-        msgBox.setEscapeButton(QMessageBox::Cancel);
-        auto ret = msgBox.exec();
-
-        if (ret == QMessageBox::Cancel) {
+        ClosePromptResult ret = promptUnsavedChanges(hasUntitledDirty);
+        if (ret == ClosePromptResult::Cancel) {
             event->ignore();
             return;
         }
-
-        if (ret == QMessageBox::Save) {
+        if (ret == ClosePromptResult::Save) {
             saveAllDirtyTabs();
         }
     } else if (autoSave) {
@@ -2525,4 +2509,29 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
 
     QMainWindow::closeEvent(event);
+}
+
+MainWindow::ClosePromptResult MainWindow::promptUnsavedChanges(bool hasUntitledDirty)
+{
+    QMessageBox msgBox(this);
+    msgBox.setIcon(QMessageBox::Question);
+    msgBox.setWindowTitle("Unsaved Changes");
+    if (hasUntitledDirty) {
+        msgBox.setText("There are unsaved changes in untitled tabs.\n"
+            "Save all before closing?");
+    } else {
+        msgBox.setText("There are unsaved changes.\n"
+            "Save all before closing?");
+    }
+    msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
+    auto *discardBtn = msgBox.addButton(tr("&Discard"), QMessageBox::DestructiveRole);
+    msgBox.setDefaultButton(QMessageBox::Save);
+    msgBox.setEscapeButton(QMessageBox::Cancel);
+    auto ret = msgBox.exec();
+
+    if (ret == QMessageBox::Cancel)
+        return ClosePromptResult::Cancel;
+    if (ret == QMessageBox::Save)
+        return ClosePromptResult::Save;
+    return ClosePromptResult::Discard;
 }

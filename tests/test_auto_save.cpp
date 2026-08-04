@@ -23,6 +23,23 @@
 #include "Preferences.h"
 #include "TestConfig.h"
 
+// Observes the unsaved-changes prompt at its call site instead of driving
+// the real modal QMessageBox, which would block waiting for user input.
+class TestMainWindow : public MainWindow
+{
+public:
+    bool unsavedPromptShown = false;
+    bool lastPromptHadUntitled = false;
+
+protected:
+    MainWindow::ClosePromptResult promptUnsavedChanges(bool hasUntitledDirty) override
+    {
+        unsavedPromptShown = true;
+        lastPromptHadUntitled = hasUntitledDirty;
+        return MainWindow::ClosePromptResult::Discard;
+    }
+};
+
 class AutoSaveTest : public testing::Test {
 protected:
     static void SetUpTestSuite() {
@@ -82,13 +99,16 @@ TEST_F(AutoSaveTest, SaveOnExitWritesFile) {
     QSettings s;
     s.setValue(Preferences::AutoSaveOnExit, true);
 
-    window = new MainWindow();
+    auto *testWindow = new TestMainWindow();
+    window = testWindow;
     QApplication::processEvents();
 
     window->loadFile(tmpFile->fileName());
     window->editor()->setPlainText("exit content");
     window->close();
     QApplication::processEvents();
+
+    EXPECT_FALSE(testWindow->unsavedPromptShown) << "autosave-on-exit must save without prompting";
 
     QFile f(tmpFile->fileName());
     ASSERT_TRUE(f.open(QIODevice::ReadOnly | QIODevice::Text));
@@ -100,13 +120,17 @@ TEST_F(AutoSaveTest, SaveOnExitDoesNotWriteWhenDisabled) {
     QSettings s;
     s.setValue(Preferences::AutoSaveOnExit, false);
 
-    window = new MainWindow();
+    auto *testWindow = new TestMainWindow();
+    window = testWindow;
     QApplication::processEvents();
 
     window->loadFile(tmpFile->fileName());
     window->editor()->setPlainText("should not be saved");
     window->close();
     QApplication::processEvents();
+
+    EXPECT_TRUE(testWindow->unsavedPromptShown) << "close on a dirty tab must prompt";
+    EXPECT_FALSE(testWindow->lastPromptHadUntitled) << "loaded tabs are not untitled";
 
     QFile f(tmpFile->fileName());
     ASSERT_TRUE(f.open(QIODevice::ReadOnly | QIODevice::Text));

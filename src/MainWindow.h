@@ -66,6 +66,8 @@ public:
     // Set from main(); off in unit tests so no modal dialog blocks them.
     static void setNotifyStaleCss(bool enabled) { s_notifyStaleCss = enabled; }
 
+    enum class ClosePromptResult { Save, Cancel, Discard };
+
 private slots:
     void updatePreview();
     void showPreferences();
@@ -177,5 +179,10 @@ private:
 protected:
     void updateTabBarVisibility();
     void closeEvent(QCloseEvent *event) override;
+
+    // Seam for tests: shows the "Unsaved Changes" prompt and returns the
+    // chosen action. Overridable so tests can observe that the prompt call
+    // was made without driving the real modal dialog.
+    virtual ClosePromptResult promptUnsavedChanges(bool hasUntitledDirty);
 };
 
