@@ -35,7 +35,6 @@
 #include <QSplitter>
 #include <QFile>
 #include <QUrl>
-#include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QIcon>
 #include <QSettings>
@@ -473,7 +472,9 @@ void ExportPdfDialog::onCssModeChanged()
         m_pathLabel->setText("No file selected");
 
     m_currentFullHtml = buildFullHtml(m_currentPrintCss);
-    m_baseUrl = QUrl::fromLocalFile(QCoreApplication::applicationDirPath() + "/../").toString();
+    m_baseUrl = m_defaultFilePath.isEmpty()
+        ? QString()
+        : QUrl::fromLocalFile(QFileInfo(m_defaultFilePath).absolutePath() + "/").toString();
     m_preview->setHtml(QStringLiteral(
         "<!DOCTYPE html><html><body style=\"display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;color:#999;font-size:14pt;\">"
         "<p>Generating PDF\u2026</p></body></html>"

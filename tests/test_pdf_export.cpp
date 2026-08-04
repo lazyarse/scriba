@@ -16,6 +16,7 @@
 #include <QApplication>
 #include <QTest>
 #include <QTemporaryFile>
+#include <QTemporaryDir>
 #include <QFile>
 #include <QDir>
 #include <QRadioButton>
@@ -23,17 +24,22 @@
 #include <QPlainTextEdit>
 #include <QSettings>
 #include <QMarginsF>
+#include <QUrl>
+#include <QImage>
 
 #include "ExportPdfDialog.h"
 #include "CssLoader.h"
 #include "CssConfig.h"
 #include "Preferences.h"
 #include "TestConfig.h"
+#include <QWebEngineView>
 
 class PrintExportAccess
 {
 public:
     static QString buildFullHtml(ExportPdfDialog *d, const QString &c) { return d->buildFullHtml(c); }
+    static const QString &baseUrl(const ExportPdfDialog *d) { return d->m_baseUrl; }
+    static QWebEngineView *hiddenEngine(ExportPdfDialog *d) { return d->m_hiddenEngine; }
     static const QByteArray &pdfData(const ExportPdfDialog *d) { return d->m_pdfData; }
     static int generationId(const ExportPdfDialog *d) { return d->m_generationId; }
     static void clearPdfData(ExportPdfDialog *d) { d->m_pdfData.clear(); }
@@ -514,6 +520,74 @@ TEST_F(PrintExportTest, NoDefaultHeadersInPdf)
     ASSERT_FALSE(pdf.isEmpty());
     EXPECT_FALSE(pdf.contains("1/1")) << "page number should not appear in PDF";
     EXPECT_FALSE(pdf.contains("file://")) << "file URL should not appear in PDF";
+}
+
+// ---------- base URL / image resolution ----------
+
+TEST(PrintPdfImageEmbedding, BaseUrlPointsAtDocumentDirectory)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    CssConfig config;
+    CssLoader loader(&config);
+    QString defaultPath = dir.filePath("test.md");
+    ExportPdfDialog dlg("<p>hello</p>", defaultPath, &loader);
+
+    EXPECT_EQ(PrintExportAccess::baseUrl(&dlg),
+              QUrl::fromLocalFile(dir.path() + "/").toString());
+}
+
+TEST(PrintPdfImageEmbedding, BaseUrlEmptyForUntitledDocument)
+{
+    CssConfig config;
+    CssLoader loader(&config);
+    ExportPdfDialog dlg("<p>hello</p>", QString(), &loader);
+
+    EXPECT_TRUE(PrintExportAccess::baseUrl(&dlg).isEmpty());
+}
+
+TEST(PrintPdfImageEmbedding, ImagesResolveInHiddenEngine)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    QString imgPath = dir.filePath("test.png");
+    QImage img(1, 1, QImage::Format_RGB32);
+    img.fill(qRgb(200, 30, 30));
+    ASSERT_TRUE(img.save(imgPath, "PNG"));
+
+    CssConfig config;
+    CssLoader loader(&config);
+    ExportPdfDialog dlg("<p><img src=\"test.png\" alt=\"test\"></p>",
+                        dir.filePath("test.md"), &loader);
+    dlg.show();
+    QApplication::processEvents();
+
+    ASSERT_TRUE(waitForPdf(&dlg));
+
+    // The hidden render engine must have loaded the image (naturalWidth > 0);
+    // no data URIs involved — resolution happens via the document base URL.
+    // The hidden engine can briefly ignore runJavaScript right after the
+    // chromium subprocess finishes, so retry until it answers.
+    QWebEngineView *engine = PrintExportAccess::hiddenEngine(&dlg);
+    bool imagesResolved = false;
+    for (int attempt = 0; attempt < 20 && !imagesResolved; ++attempt) {
+        engine->page()->runJavaScript(
+            QStringLiteral(
+                "var imgs = Array.from(document.images);"
+                "if (imgs.length === 0) { 'noimgs'; }"
+                "else if (imgs.every(function(i){ return i.complete && i.naturalWidth > 0; }))"
+                "  { 'yes'; }"
+                "else { 'no'; }"),
+            [&imagesResolved](const QVariant &result) {
+                if (result.toString() == QLatin1String("yes"))
+                    imagesResolved = true;
+            });
+        if (!imagesResolved)
+            QTest::qWait(500);
+    }
+    EXPECT_TRUE(imagesResolved) << "image in print preview should load via the document base URL";
 }
 
 int main(int argc, char **argv)
