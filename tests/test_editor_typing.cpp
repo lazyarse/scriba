@@ -106,6 +106,42 @@ TEST_F(EditorTestHarness, EmptyDashListItemClearsToNewline)
     assertCursor(1, 0);
 }
 
+TEST_F(EditorTestHarness, EnterAtStartOfListItemSplitsWithoutContinuation)
+{
+    setContent("- item1");
+    placeCursor(0, 0);
+    enter();
+    EXPECT_EQ(text(), "\n- item1");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, EnterMidListItemSplitsWithoutContinuation)
+{
+    setContent("- abcd");
+    placeCursor(0, 2);
+    enter();
+    EXPECT_EQ(text(), "- \nabcd");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, EnterAtStartOfOrderedListItemSplitsWithoutContinuation)
+{
+    setContent("1. item1");
+    placeCursor(0, 0);
+    enter();
+    EXPECT_EQ(text(), "\n1. item1");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, EnterAtStartOfTaskListItemSplitsWithoutContinuation)
+{
+    setContent("- [ ] todo");
+    placeCursor(0, 0);
+    enter();
+    EXPECT_EQ(text(), "\n- [ ] todo");
+    assertCursor(1, 0);
+}
+
 TEST_F(EditorTestHarness, DoubleEnterAfterListItemsStopsListAutocomplete)
 {
     typeLine("- item 1");
@@ -202,6 +238,24 @@ TEST_F(EditorTestHarness, BlankTableRowExitsTable)
     enter();
     EXPECT_EQ(text(), "| a | b |\n|---|---|\n\n");
     assertCursor(3, 0);
+}
+
+TEST_F(EditorTestHarness, EnterAtStartOfTableRowSplitsWithoutContinuation)
+{
+    setContent("| a | b |\n|---|---|\n| x | y |");
+    placeCursor(2, 0);
+    enter();
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n\n| x | y |");
+    assertCursor(3, 0);
+}
+
+TEST_F(EditorTestHarness, EnterMidTableRowSplitsWithoutContinuation)
+{
+    setContent("| a | b |");
+    placeCursor(0, 4);
+    enter();
+    EXPECT_EQ(text(), "| a \n| b |");
+    assertCursor(1, 0);
 }
 
 TEST_F(EditorTestHarness, HtmlTableRowContinuesOnEnter)

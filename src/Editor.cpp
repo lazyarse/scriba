@@ -175,66 +175,74 @@ void Editor::keyPressEvent(QKeyEvent *event)
 
         QTextCursor cursor = textCursor();
         QString line = cursor.block().text();
-        QString result = handleListReturn(line);
-        if (!result.isEmpty()) {
-            if (result == QString(clearSentinel)) {
-                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                cursor.removeSelectedText();
-                insertParagraphWithLineHeight(event);
+        // Only auto-continue list markers when the caret is at the end of the
+        // block; pressing Enter mid-line (or at the start) should split normally.
+        if (cursor.positionInBlock() == line.length()) {
+            QString result = handleListReturn(line);
+            if (!result.isEmpty()) {
+                if (result == QString(clearSentinel)) {
+                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                    cursor.removeSelectedText();
+                    insertParagraphWithLineHeight(event);
+                    return;
+                }
+                QTextEdit::keyPressEvent(event);
+                insertPlainText(result);
                 return;
             }
-            QTextEdit::keyPressEvent(event);
-            insertPlainText(result);
-            return;
         }
 
         QTextBlock prevBlock = cursor.block().previous();
-        result = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
-        if (!result.isEmpty()) {
-            if (result == QString(clearSentinel)) {
-                if (line.contains("<tr>") && line.contains("<td>")) {
+        // Only auto-continue table rows when the caret is at the end of the
+        // block; pressing Enter mid-row (or at the start) should split normally.
+        if (cursor.positionInBlock() == line.length()) {
+            QString result = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
+            if (!result.isEmpty()) {
+                if (result == QString(clearSentinel)) {
+                    if (line.contains("<tr>") && line.contains("<td>")) {
+                        cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                        cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
+                        cursor.removeSelectedText();
+                        QTextCursor search = document()->find("</table>", cursor);
+                        if (!search.isNull()) {
+                            search.movePosition(QTextCursor::EndOfLine);
+                            setTextCursor(search);
+                            insertPlainText("\n\n");
+                            return;
+                        }
+                    }
                     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
+                    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                     cursor.removeSelectedText();
-                    QTextCursor search = document()->find("</table>", cursor);
-                    if (!search.isNull()) {
-                        search.movePosition(QTextCursor::EndOfLine);
-                        setTextCursor(search);
-                        insertPlainText("\n\n");
-                        return;
+                    insertParagraphWithLineHeight(event);
+                    return;
+                }
+
+                // Header row: skip to first data row below separator
+                QTextBlock nextBlock = cursor.block().next();
+                if (nextBlock.isValid() && nextBlock.text().contains("---")) {
+                    QTextBlock block = nextBlock.next();
+                    while (block.isValid()) {
+                        QString t = block.text();
+                        if (t.startsWith('|') && !t.contains("---")) {
+                            QTextCursor tc = textCursor();
+                            tc.setPosition(block.position() + 2, QTextCursor::MoveAnchor);
+                            setTextCursor(tc);
+                            return;
+                        }
+                        block = block.next();
                     }
                 }
+
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+                cursor.insertText("\n" + result);
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                cursor.removeSelectedText();
-                insertParagraphWithLineHeight(event);
+                int cellPos = result.startsWith("<tr>") ? result.indexOf("<td>") + 4 : 2;
+                cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
+                setTextCursor(cursor);
                 return;
             }
-
-            // Header row: skip to first data row below separator
-            QTextBlock nextBlock = cursor.block().next();
-            if (nextBlock.isValid() && nextBlock.text().contains("---")) {
-                QTextBlock block = nextBlock.next();
-                while (block.isValid()) {
-                    QString t = block.text();
-                    if (t.startsWith('|') && !t.contains("---")) {
-                        QTextCursor tc = textCursor();
-                        tc.setPosition(block.position() + 2, QTextCursor::MoveAnchor);
-                        setTextCursor(tc);
-                        return;
-                    }
-                    block = block.next();
-                }
-            }
-
-            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
-            cursor.insertText("\n" + result);
-            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-            int cellPos = result.startsWith("<tr>") ? result.indexOf("<td>") + 4 : 2;
-            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
-            setTextCursor(cursor);
-            return;
         }
 
         // Folded region: Enter at the end of a folded foldable line (or while the
