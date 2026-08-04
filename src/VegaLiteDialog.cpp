@@ -275,6 +275,7 @@ void VegaLiteDialog::setupLeftPanel(QWidget *panel)
     m_titleEdit = new QLineEdit(optGroup);
     optLayout->addWidget(m_titleEdit, 0, 1);
     m_fillWidthCheck = new QCheckBox("Fill available width", optGroup);
+    m_fillWidthCheck->setObjectName(QStringLiteral("fillWidthCheck"));
     optLayout->addWidget(m_fillWidthCheck, 1, 0, 1, 2);
     optLayout->setColumnStretch(1, 1);
     layout->addWidget(optGroup);
@@ -342,13 +343,18 @@ void VegaLiteDialog::updatePreview()
     QString formatted = doc.toJson(QJsonDocument::Indented);
 
     QString baseUrl = QUrl::fromLocalFile(QCoreApplication::applicationDirPath() + "/../").toString();
-    QString html = QString(
+    m_preview->setHtml(previewPageHtml(formatted), QUrl(baseUrl));
+}
+
+QString VegaLiteDialog::previewPageHtml(const QString &spec)
+{
+    return QString(
         "<!DOCTYPE html>"
         "<html><head>"
         "<meta charset=\"utf-8\">"
         "<style>"
         "body{margin:0;display:flex;justify-content:center;align-items:flex-start;padding:16px;font-family:sans-serif;}"
-        "#vis{width:100%%;}"
+        "#vis{width:100%;}"
         ".error{color:#d32f2f;padding:16px;font-size:14px;}"
         "</style>"
         "<script src=\"qrc:///vega.min.js\"></script>"
@@ -359,17 +365,21 @@ void VegaLiteDialog::updatePreview()
         "<script>"
         "try{"
         "var spec=%1;"
-        "vegaEmbed('#vis',spec,{actions:false,renderer:'svg'}).catch(function(e){"
-        "document.getElementById('vis').innerHTML='<div class=\"error\">'+e+'</div>';"
+        "var vis=document.getElementById('vis');"
+        "var tries=0;"
+        "(function go(){"
+        "if(vis.clientWidth>0||++tries>40){"
+        "vegaEmbed(vis,spec,{actions:false,renderer:'svg'}).catch(function(e){"
+        "vis.innerHTML='<div class=\"error\">'+e+'</div>';"
         "});"
+        "}else{setTimeout(go,50);}"
+        "})();"
         "}catch(e){"
         "document.getElementById('vis').innerHTML='<div class=\"error\">'+e+'</div>';"
         "}"
         "</script>"
         "</body></html>"
-    ).arg(formatted);
-
-    m_preview->setHtml(html, QUrl(baseUrl));
+    ).arg(spec);
 }
 
 QString VegaLiteDialog::generatedSpec() const
@@ -667,7 +677,6 @@ QString VegaLiteDialog::buildSpec() const
 
     if (m_fillWidthCheck->isChecked()) {
         spec["width"] = "container";
-        spec["height"] = "container";
     }
 
     QString title = m_titleEdit->text().trimmed();

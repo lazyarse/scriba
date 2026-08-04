@@ -17,6 +17,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QCheckBox>
 #include "VegaLiteDialog.h"
 
 static int g_argc = 1;
@@ -89,4 +90,41 @@ TEST_F(VegaLiteDialogTest, ParseJsonDataNotArrayReturnsEmpty) {
 TEST_F(VegaLiteDialogTest, ParseCsvDataEmptyReturnsEmpty) {
     QList<QMap<QString, QString>> rows = dlg.parseCsvData("");
     EXPECT_TRUE(rows.isEmpty());
+}
+
+TEST_F(VegaLiteDialogTest, FillWidthUncheckedHasNoContainerSize) {
+    auto *fill = dlg.findChild<QCheckBox *>("fillWidthCheck");
+    ASSERT_NE(fill, nullptr);
+    fill->setChecked(false);
+    QJsonObject obj = QJsonDocument::fromJson(dlg.generatedSpec().toUtf8()).object();
+    EXPECT_FALSE(obj.contains("width"));
+    EXPECT_FALSE(obj.contains("height"));
+}
+
+TEST_F(VegaLiteDialogTest, FillWidthCheckedSetsWidthContainerOnly) {
+    auto *fill = dlg.findChild<QCheckBox *>("fillWidthCheck");
+    ASSERT_NE(fill, nullptr);
+    fill->setChecked(true);
+    QJsonObject obj = QJsonDocument::fromJson(dlg.generatedSpec().toUtf8()).object();
+    EXPECT_EQ(obj["width"].toString(), "container");
+    EXPECT_FALSE(obj.contains("height"));
+}
+
+TEST_F(VegaLiteDialogTest, PreviewHtmlDefersEmbedUntilContainerHasWidth) {
+    QString html = VegaLiteDialog::previewPageHtml("{}");
+    int guardPos = html.indexOf(QStringLiteral("vis.clientWidth>0"));
+    int embedPos = html.indexOf(QStringLiteral("vegaEmbed(vis,"));
+    EXPECT_GT(guardPos, 0);
+    EXPECT_GT(embedPos, guardPos)
+        << "vegaEmbed must only run after the container reports a real width, "
+           "otherwise container-sized charts collapse to zero width";
+}
+
+TEST_F(VegaLiteDialogTest, PreviewHtmlHasValidContainerWidthCss) {
+    QString html = VegaLiteDialog::previewPageHtml("{}");
+    EXPECT_TRUE(html.contains(QStringLiteral("#vis{width:100%;}")))
+        << "QString::arg() does not unescape %%, so the rule must be written "
+           "with a single % or the CSS is invalid and the container collapses "
+           "to its content width";
+    EXPECT_FALSE(html.contains(QStringLiteral("width:100%%")));
 }

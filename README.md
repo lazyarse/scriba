@@ -2,7 +2,7 @@
 
 # Scriba Markdown Editor
 
-**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what it should without plugin hell. No node, react, angular, or bloat; just a binary that sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
+**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what it should without plugin hell. No node, react, angular, or bloat; just a binary which sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
 
 :cucumber:
 ![Opencode Badge + Big Pickles!](docs/images/badge-opencode.svg)
@@ -26,36 +26,26 @@ See the [Gallery](docs/gallery.md) for screenshots of the preferences pages, dia
 
 - Load / Save multiple documents in a `session` with a tabbed interface
 - Pick up exactly where you left off with cursor and view-port restore in documents
-- Privacy-first, in-editor spell and grammar check. Import audience-specific word sets with ease: legal, medical, technical or "My Little Pony" — all options naturally configurable
-- Print and PDF export using print-specific CSS style sheets
-- Readability metrics to keep you audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. All configurable in Preferences → Writing.
+- Privacy-first, in-editor spell and grammar check with various dialects. Import audience-specific word sets with ease: legal, medical, technical, etc. — all options naturally configurable
+- Print and PDF export using print-specific CSS style sheets and many type-setting and orphan prevention features 
+- Readability metrics to keep your writing audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. Only view what metrics are important to you
 - Find and Replace with optional regex search and replacement back-references
-- PDF, DOCX, and HTML export
-- Useful in-editor auto complete to assist in creating tables, linking to local filenames, and yes, even emojis
-- Numerous [chart helpers](docs/chart-helpers.md) for vega-lite and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV input because writing JSON and fenced blocks at 2am is difficult
-- [keyboard shortcuts](docs/shortcuts.md) for everything*
-- Accessibility support to help you use Scriba the way you need, with CSS-based GUI themes: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog title bars different to the system theme. 
-- Despite being listed at the end, app [security](docs/security.md) is not an afterthought and both the preview and exports are secured against XSS attacks and various injection vectors.
-
-\* Well, nearly everything!
+- Export: PDF, DOCX, and HTML; Import: HTML
+- Useful in-editor auto complete to assist in creating tables, lists, links to local filenames, and yes, even emojis
+- Numerous [helpers](docs/chart-helpers.md) for vega-lite charts and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV import, and helpers for LaTeX, MChem, and tables 
+- [keyboard shortcuts](docs/shortcuts.md) for everything (or maybe, nearly everything) and a [kitchensink.md](docs/kitchensink.md) with full feature examples
+- Accessibility support to help you use Scriba the way you need, with CSS-based GUI themes: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
+- [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and various injection vectors for you and your audience
 
 ### Standing on the Shoulders of Giants:
-- The bundled stoppard engine (in `vendor/stoppard/`) for privacy-first spell and grammar checking. No more outside calls to Grammarly just to know you've fluffed your typing
+
+- Our [Stoppard](https://www.github.com/lazyarse/stoppard) engine for fast, privacy-first spell and grammar checking, 2x faster than Hunspell, and 7x faster than Harper
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
-- [LaTeX mathematics rendering](https://katex.org/) (KaTeX, inline `$...$` and display `$$...$$`) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
+- [LaTeX mathematics rendering](https://katex.org/) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
 - [Vega-Lite data visualisation](https://vega.github.io/vega-lite/) (bar, scatter, line, layered, interactive) and helper
 - [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with GitHub Flavour Markdown support
 - [turndown.js](https://github.com/mixmark-io/turndown) — the counterpart to md4c: HTML-to-Markdown conversion (with the [GFM plugin](https://github.com/mixmark-io/turndown-plugin-gfm)) for importing HTML files and pasting content copied from the web
-
-### And a few more things...
-
-- That annoying `<kbd>` css styling to look just like a key. If you're a monster, remove it in the `preview-base.css` and `print-base.css`
-- Optional alternating table row striping
-- Ordered and Unordered list item auto completion after a previous list item with <kbd>Enter</kbd>. <kbd>Tab</kbd> to indent, <kbd>Shift</kbd>+<kbd>Tab</kbd> to out dent. <kbd>Enter</kbd> again to stop auto complete
-- A debug log window output to see your rendering errors
-- A [kitchensink.md](docs/kitchensink.md) file with feature examples
-- hyperlink destination shown when hovered in preview, markdown-syntax and html `img` title shown as tool tip falling back to `alt` text for your safety
 
 ## Custom CSS / Themes
 
@@ -81,6 +71,8 @@ Due to Chromium sandbox issues, it's inherently unsafe to run this as `root` in 
   If Chromium is not found, PDF export falls back to Qt's built-in renderer
   (cannot suppress default page headers/footers).
 - Approximately 10 minutes of your time that you will never get back.
+
+---
 
 ## Building
 
@@ -184,6 +176,8 @@ JS console messages are captured via the Debug Log window (Tools → Debug Log).
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [PDF Export](docs/pdf-export.md)
 - [Table Handling](docs/table_handling.md)
+
+---
 
 ## License
 

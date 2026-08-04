@@ -31,6 +31,7 @@ class VegaLiteDialog : public QDialog
 public:
     explicit VegaLiteDialog(QWidget *parent = nullptr);
     QString generatedSpec() const;
+    static QString previewPageHtml(const QString &spec);
     QList<QMap<QString, QString>> parseCsvData(const QString &text) const;
     QList<QMap<QString, QString>> parseJsonData(const QString &text) const;
 
