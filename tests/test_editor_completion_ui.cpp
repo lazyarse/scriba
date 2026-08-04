@@ -301,6 +301,39 @@ TEST_F(EditorCompletionHarness, EmojiPopupSitsBelowCursorLine)
         << "popup top should be at or below the bottom of the cursor line";
 }
 
+TEST_F(EditorCompletionHarness, CompletionPopupHugsCursorLine)
+{
+    // The popup must sit just below the active line — a small, bounded gap.
+    // Regression guard: a large offset (e.g. an accidental big padding below the
+    // caret) used to leave a large blank space between the text and the popup.
+    auto gapFor = [&]() -> int {
+        if (!editor->completer() || !editor->completer()->popup()->isVisible())
+            return -1;
+        QAbstractItemView *popup = editor->completer()->popup();
+        QRect cursor = editor->cursorRect();
+        QPoint bottomG = editor->viewport()->mapToGlobal(
+            QPoint(cursor.x(), cursor.y() + cursor.height()));
+        return popup->geometry().y() - bottomG.y();
+    };
+
+    typeText("![](res");
+    QApplication::processEvents();
+    ASSERT_NE(editor->completer(), nullptr);
+    ASSERT_TRUE(editor->completer()->popup()->isVisible()) << "file popup should be visible";
+    int fileGap = gapFor();
+    EXPECT_GE(fileGap, 0) << "file popup must not appear above the caret line";
+    EXPECT_LE(fileGap, 10) << "file popup gap below caret is too large: " << fileGap;
+
+    editor->clear();
+    typeText(":smil");
+    QApplication::processEvents();
+    ASSERT_NE(editor->completer(), nullptr);
+    ASSERT_TRUE(editor->completer()->popup()->isVisible()) << "emoji popup should be visible";
+    int emojiGap = gapFor();
+    EXPECT_GE(emojiGap, 0) << "emoji popup must not appear above the caret line";
+    EXPECT_LE(emojiGap, 10) << "emoji popup gap below caret is too large: " << emojiGap;
+}
+
 TEST_F(EditorCompletionHarness, CodeFenceLanguageCompletes)
 {
     editor->clear();

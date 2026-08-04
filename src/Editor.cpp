@@ -50,6 +50,10 @@
 
 namespace {
 
+// Vertical gap (px) between the bottom of the caret/active line and the top of
+// the autocompletion popup. Kept small so the suggestions hug the text.
+constexpr int kCompletionPopupGap = 4;
+
 // StoppardEngine is stateless and cheap to construct (no dictionary load), so
 // each Editor tab gets its own instance.
 GrammarChecker *sharedGrammarChecker()
@@ -738,7 +742,7 @@ bool Editor::showFileCompletion(const QString &partialPath)
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + kCompletionPopupGap));
     m_completer->popup()->move(popupPos);
     return true;
 }
@@ -885,7 +889,7 @@ bool Editor::showEmojiCompletion(const QString &partialCode)
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + kCompletionPopupGap));
     m_completer->popup()->move(popupPos);
     return true;
 }
@@ -1109,7 +1113,7 @@ bool Editor::showLanguageCompletion(const QString &partialLang)
 
     m_completer->complete(cr);
     m_completer->popup()->setCurrentIndex(model->index(0, 0));
-    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + 18));
+    QPoint popupPos = viewport()->mapToGlobal(QPoint(cr.x(), cr.y() + cr.height() + kCompletionPopupGap));
     m_completer->popup()->move(popupPos);
     return true;
 }
