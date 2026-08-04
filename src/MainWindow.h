@@ -44,6 +44,10 @@ struct TabInfo {
     Editor *editor = nullptr;
     QString filePath;
     bool dirty = false;
+    QString previewHtml;            // cached md->html render (see previewBlockRaw/StripScripts)
+    bool previewHtmlValid = false;
+    bool previewBlockRaw = false;
+    bool previewStripScripts = false;
 };
 
 class MainWindow : public QMainWindow
@@ -91,6 +95,7 @@ public:
 private:
     void setupUi();
     void setupMenuBar();
+    void updatePreview(bool tabSwitch);
     void saveFile(const QString &filePath);
     void importHtmlFromFile();
     void pasteAsMarkdown();

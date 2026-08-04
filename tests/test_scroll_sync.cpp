@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 #include <QScrollBar>
+#include <QTemporaryDir>
 #include <QTemporaryFile>
 #include <QTest>
 #include <QSignalSpy>
@@ -573,6 +574,116 @@ TEST_F(ScrollSyncIntegrationTest, TabSwitchPreviewShowsOnlyCurrentDocument) {
     // And forward to tab B again
     tabBar->setCurrentIndex(1);
     EXPECT_TRUE(previewSettlesOn("BBB-MARKER", "AAA-MARKER"));
+}
+
+TEST_F(ScrollSyncIntegrationTest, TabSwitchDoesNotReloadPreviewPage) {
+    ASSERT_TRUE(tmpFile->open());
+    tmpFile->resize(0);
+    tmpFile->write("AAA-MARKER\n\nLine two.\n\nLine three.\n");
+    tmpFile->close();
+    window->loadFile(tmpFile->fileName());
+
+    QTemporaryFile second;
+    ASSERT_TRUE(second.open());
+    second.write("BBB-MARKER\n\nOther line.\n\nMore lines.\n");
+    second.close();
+    window->loadFile(second.fileName());
+
+    auto *tabBar = window->findChild<QTabBar *>();
+    ASSERT_NE(tabBar, nullptr);
+    ASSERT_EQ(tabBar->count(), 2);
+
+    auto previewHtml = [this]() {
+        QString html;
+        window->preview()->page()->toHtml([&](const QString &h) { html = h; });
+        QTest::qWait(500);
+        return html;
+    };
+    auto previewSettlesOn = [&](const QString &present, const QString &absent) {
+        for (int attempt = 0; attempt < 12; ++attempt) {
+            QString html = previewHtml();
+            if (html.contains(present) && !html.contains(absent))
+                return true;
+            QTest::qWait(1000);
+        }
+        return false;
+    };
+
+    // Let the preview fully load tab B before counting page loads
+    EXPECT_TRUE(previewSettlesOn("BBB-MARKER", "AAA-MARKER"));
+
+    // A fast tab switch must reuse the live page: content swaps in place and
+    // no full page load (loadFinished) is triggered.
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    loadSpy.clear();
+    tabBar->setCurrentIndex(0);
+    EXPECT_TRUE(previewSettlesOn("AAA-MARKER", "BBB-MARKER"));
+    EXPECT_EQ(loadSpy.count(), 0);
+
+    // And back again
+    tabBar->setCurrentIndex(1);
+    EXPECT_TRUE(previewSettlesOn("BBB-MARKER", "AAA-MARKER"));
+    EXPECT_EQ(loadSpy.count(), 0);
+}
+
+TEST_F(ScrollSyncIntegrationTest, TabSwitchUpdatesDocumentBaseUrl) {
+    QTemporaryDir dirA;
+    QTemporaryDir dirB;
+    ASSERT_TRUE(dirA.isValid());
+    ASSERT_TRUE(dirB.isValid());
+    QString fileA = dirA.filePath("doc-a.md");
+    QString fileB = dirB.filePath("doc-b.md");
+    QFile fa(fileA);
+    ASSERT_TRUE(fa.open(QIODevice::WriteOnly));
+    fa.write("AAA-MARKER\n\n![img](pic.png)\n");
+    fa.close();
+    QFile fb(fileB);
+    ASSERT_TRUE(fb.open(QIODevice::WriteOnly));
+    fb.write("BBB-MARKER\n\n![img](pic.png)\n");
+    fb.close();
+
+    window->loadFile(fileA);
+    window->loadFile(fileB);
+
+    auto *tabBar = window->findChild<QTabBar *>();
+    ASSERT_NE(tabBar, nullptr);
+    ASSERT_EQ(tabBar->count(), 2);
+
+    auto previewSettlesOn = [this](const QString &present, const QString &absent) {
+        for (int attempt = 0; attempt < 12; ++attempt) {
+            QString html;
+            window->preview()->page()->toHtml([&](const QString &h) { html = h; });
+            QTest::qWait(500);
+            if (html.contains(present) && !html.contains(absent))
+                return true;
+            QTest::qWait(1000);
+        }
+        return false;
+    };
+    auto evalStr = [this](const QString &js) {
+        QString v;
+        window->preview()->page()->runJavaScript(js, [&](const QVariant &r) { v = r.toString(); });
+        QTest::qWait(300);
+        return v;
+    };
+
+    // Let the preview fully load tab B first
+    EXPECT_TRUE(previewSettlesOn("BBB-MARKER", "AAA-MARKER"));
+
+    // Relative assets on tab A must resolve against dir A, not the page's
+    // original load location.
+    tabBar->setCurrentIndex(0);
+    EXPECT_TRUE(previewSettlesOn("AAA-MARKER", "BBB-MARKER"));
+    const QString expA = QUrl::fromLocalFile(dirA.path() + "/").toString();
+    EXPECT_TRUE(evalStr("document.baseURI").startsWith(expA));
+    EXPECT_TRUE(evalStr("var i=document.querySelector('img');i?i.src:''").startsWith(expA));
+
+    // Switching to tab B redirects relative assets to dir B.
+    tabBar->setCurrentIndex(1);
+    EXPECT_TRUE(previewSettlesOn("BBB-MARKER", "AAA-MARKER"));
+    const QString expB = QUrl::fromLocalFile(dirB.path() + "/").toString();
+    EXPECT_TRUE(evalStr("document.baseURI").startsWith(expB));
+    EXPECT_TRUE(evalStr("var i=document.querySelector('img');i?i.src:''").startsWith(expB));
 }
 
 /* ========== Test G: togglePreview without initialized preview ========== */

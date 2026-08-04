@@ -76,6 +76,7 @@ namespace Debounce {
     constexpr int SpellCheck    = 400;  // SpellHighlighter spell/grammar timers
     constexpr int DialogPreview = 300;  // Mermaid/KaTeX/Mchem/Vega dialog previews
     constexpr int HeavyRender   = 1500; // JS heavy-render setTimeout in preview
+    constexpr int TabSwitchRender = 100; // JS heavy-render delay after a tab switch
 }
 
 class QWebEngineView;

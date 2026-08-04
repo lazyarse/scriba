@@ -49,6 +49,7 @@ static constexpr int kMsPerMinute = 60000;
 
 
 #include <QVBoxLayout>
+#include <algorithm>
 #include <QTextBrowser>
 #include <QDialogButtonBox>
 #include <QMenuBar>
@@ -141,7 +142,8 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
     setWindowTitle("Scriba");
 
     m_updateTimer = new DebounceTimer(Debounce::PreviewUpdate, this);
-    connect(m_updateTimer, &QTimer::timeout, this, &MainWindow::updatePreview);
+    connect(m_updateTimer, &QTimer::timeout, this,
+        static_cast<void (MainWindow::*)()>(&MainWindow::updatePreview));
 
     m_anchorTimer = new QTimer(this);
     m_anchorTimer->setSingleShot(true);
@@ -434,8 +436,14 @@ void MainWindow::connectTabEditor(int index)
     if (!editor)
         return;
 
-    if (m_updateTimer)
+    if (m_updateTimer) {
         connect(editor, &QTextEdit::textChanged, m_updateTimer, qOverload<>(&QTimer::start));
+        connect(editor, &QTextEdit::textChanged, this, [this, index]() {
+            // The cached md->html render is stale as soon as the editor changes
+            if (index >= 0 && index < m_tabs.size())
+                m_tabs[index].previewHtmlValid = false;
+        });
+    }
 
     connect(editor->verticalScrollBar(), &QScrollBar::valueChanged,
             this, &MainWindow::onEditorScroll);
@@ -521,8 +529,26 @@ void MainWindow::onTabChanged(int index)
             ? QStringLiteral("Scriba - Untitled")
             : QStringLiteral("Scriba - ") + info->filePath);
         m_preview->setDocumentPath(info->filePath);
-        m_previewInitialized = false;
-        updatePreview();
+        if (m_previewInitialized) {
+            // The preview page stays alive across tab switches: push the new
+            // tab's cached render through the incremental scribaUpdate() path
+            // instead of reloading the whole page. Pre-scroll to the new
+            // editor's position so scribaUpdate captures the right percentage
+            // (it restores that after the heavy render pass).
+            QSettings settings;
+            if (settings.value(Preferences::SyncScroll, true).toBool()) {
+                if (auto *ed = currentEditor()) {
+                    auto *sb = ed->verticalScrollBar();
+                    double range = sb->maximum() - sb->minimum();
+                    double pct = range > 0
+                        ? static_cast<double>(sb->value() - sb->minimum()) / range : 0.0;
+                    m_preview->scrollToPercent(pct);
+                }
+            }
+            updatePreview(true);
+        } else {
+            updatePreview();
+        }
 
         applyEditorContentWidth(info->editor);
     }
@@ -535,6 +561,7 @@ void MainWindow::onTabCloseRequested(int index)
         if (m_tabs.size() == 1 && !m_tabs[0].dirty) {
             m_tabs[0].filePath.clear();
             m_tabs[0].editor->clear();
+            m_tabs[0].previewHtmlValid = false;
             m_tabs[0].dirty = false;
             updateTabLabel(0);
             setWindowTitle("Scriba - Untitled");
@@ -1064,17 +1091,35 @@ void MainWindow::applyPreviewSplitWidth()
 
 void MainWindow::updatePreview()
 {
+    updatePreview(false);
+}
+
+void MainWindow::updatePreview(bool tabSwitch)
+{
     Editor *ed = currentEditor();
     if (!ed) return;
 
     QSettings prefs;
-    QString markdown = ed->toPlainText();
     updateStats();
     bool blockRawHtml = prefs.value(Preferences::BlockRawHtmlPreview, true).toBool();
-    QString html = m_parser->toHtml(markdown, blockRawHtml);
-
-    if (prefs.value(Preferences::StripPreviewScripts, true).toBool())
-        html = JsRenderEngine::stripScriptTags(html);
+    bool stripScripts = prefs.value(Preferences::StripPreviewScripts, true).toBool();
+    TabInfo *info = activeTabInfo();
+    QString html;
+    if (info && info->previewHtmlValid
+        && info->previewBlockRaw == blockRawHtml
+        && info->previewStripScripts == stripScripts) {
+        html = info->previewHtml;
+    } else {
+        html = m_parser->toHtml(ed->toPlainText(), blockRawHtml);
+        if (stripScripts)
+            html = JsRenderEngine::stripScriptTags(html);
+        if (info) {
+            info->previewHtml = html;
+            info->previewBlockRaw = blockRawHtml;
+            info->previewStripScripts = stripScripts;
+            info->previewHtmlValid = true;
+        }
+    }
 
     QString rawThemeCss = m_cssLoader->themeCss();
     QString baseCss = m_cssLoader->previewBaseCss();
@@ -1090,7 +1135,6 @@ void MainWindow::updatePreview()
     }
 
     QUrl baseUrl;
-    TabInfo *info = activeTabInfo();
     QString docPath = info ? info->filePath : QString();
     if (!docPath.isEmpty()) {
         baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
@@ -1144,13 +1188,13 @@ void MainWindow::updatePreview()
             "<script src=\"qrc:///vega-embed.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>window._scribaHeavyDelay=" + QString::number(heavyRenderDelay) + ";" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode){if(!document.body)return false;window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss)document.getElementById('theme-css').textContent=themeCss;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},window._scribaHeavyDelay);return true;}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}document.addEventListener('DOMContentLoaded',function(){mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.vegaLiteReady=initVegaLite();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
+            "<script>window._scribaHeavyDelay=" + QString::number(heavyRenderDelay) + ";" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + vegaLiteInitJs + setImgTitlesJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode,delay,baseUrl){if(!document.body)return false;window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss)document.getElementById('theme-css').textContent=themeCss;if(baseUrl){var b=document.getElementById('scriba-base');if(!b){b=document.createElement('base');b.id='scriba-base';var hd=document.head;hd.insertBefore(b,hd.firstChild);}b.href=baseUrl;}else{var b2=document.getElementById('scriba-base');if(b2)b2.remove();}window._scribaBasePath=baseUrl?new URL(baseUrl).pathname:location.pathname;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initVegaLite();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},(typeof delay==='number'&&delay>=0)?delay:window._scribaHeavyDelay);return true;}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}document.addEventListener('DOMContentLoaded',function(){window._scribaBasePath=location.pathname;mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('vl',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.vegaLiteReady=initVegaLite();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
             "</head><body id=\"preview\">"
             "<div id=\"scriba-rendering-overlay\">Rendering…</div>"
             "<div id=\"scriba-content\">%3</div>"
             "<script>document.addEventListener('click',function(e){"
             "var l=e.target.closest('a');if(!l)return;"
-            "if(l.hash&&l.hash.length>1&&l.pathname===location.pathname){"
+            "if(l.hash&&l.hash.length>1&&l.pathname===window._scribaBasePath){"
             "e.preventDefault();"
             "scribaScrollToSlugRetry(l.hash);"
             "return;"
@@ -1169,8 +1213,19 @@ void MainWindow::updatePreview()
     } else {
         QString escapedHtml = escapeJsString(html);
         QString escapedCss = cssChanged ? escapeJsString(previewCss) : QString();
-        QString js = QString("scribaUpdate('%1','%2','%3','%4')")
-            .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode);
+        int delay = -1;
+        QString escapedBaseUrl;
+        if (tabSwitch) {
+            int heavyDelay = prefs.value(Preferences::HeavyRenderDelay,
+                Preferences::DefaultHeavyRenderDelay).toInt();
+            delay = std::min(heavyDelay, Debounce::TabSwitchRender);
+            if (!baseUrl.isEmpty())
+                escapedBaseUrl = escapeJsString(baseUrl.toString());
+        }
+        QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6')")
+            .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode)
+            .arg(delay)
+            .arg(escapedBaseUrl);
         m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
             if (result.toBool())
                 syncPreviewScroll();
@@ -1771,6 +1826,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
     if (forceReload && existing >= 0) {
         idx = existing;
         m_tabBar->setCurrentIndex(idx);
+        m_tabs[idx].previewHtmlValid = false;
         QSignalBlocker blocker(m_tabs[idx].editor);
         m_tabs[idx].editor->setPlainText(content);
         {
@@ -1791,6 +1847,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
             m_tabs[idx].filePath = filePath;
             QSignalBlocker blocker(m_tabs[idx].editor);
             m_tabs[idx].editor->setPlainText(content);
+            m_tabs[idx].previewHtmlValid = false;
             {
                 QSettings s;
                 QTextBlockFormat fmt;
@@ -1810,6 +1867,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
             idx = addTab(filePath);
             QSignalBlocker blocker(m_tabs[idx].editor);
             m_tabs[idx].editor->setPlainText(content);
+            m_tabs[idx].previewHtmlValid = false;
             {
                 QSettings s;
                 QTextBlockFormat fmt;
@@ -1911,6 +1969,7 @@ void MainWindow::importHtmlFromFile()
     int idx = addTab();
     QSignalBlocker blocker(m_tabs[idx].editor);
     m_tabs[idx].editor->setPlainText(markdown);
+    m_tabs[idx].previewHtmlValid = false;
     {
         QSettings s;
         QTextBlockFormat fmt;
@@ -2235,6 +2294,7 @@ void MainWindow::restoreSession(const QJsonObject &session)
         int idx = addTab(path);
         QSignalBlocker blocker(m_tabs[idx].editor);
         m_tabs[idx].editor->setPlainText(content);
+        m_tabs[idx].previewHtmlValid = false;
         {
             QSettings s;
             QTextBlockFormat fmt;
@@ -2334,6 +2394,7 @@ void MainWindow::loadSessionAction()
         int idx = 0;
         disconnectTabEditor(idx);
         m_tabs[0].editor->clear();
+        m_tabs[0].previewHtmlValid = false;
         m_tabs[0].filePath.clear();
         m_tabs[0].dirty = false;
     }
