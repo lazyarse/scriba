@@ -32,6 +32,7 @@
 // docs/mutations.md.
 #include <algorithm>
 #include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -252,7 +253,112 @@ TEST(Mutation, OneIssuePerOperator) {
         ASSERT_FALSE(issues[0].suggestions.empty());
         EXPECT_EQ(issues[0].suggestions[0].text, m.fix);
     }
-EXPECT_GT(applied, 30u);
+    EXPECT_GT(applied, 30u);
     for (int i = 0; i < 5; ++i)
         EXPECT_GT(byOp[i], 0u) << opName[i] << " never anchored; corpus coverage gap";
+}
+
+// Spelling mutations (SPEC §19.8): the exactly-one-issue invariant extends
+// to the dictionary pass. A clean open-class word inside a clean corpus line
+// is mangled (adjacent swap, duplicated character); the mutated line must
+// draw exactly one issue at the mutated token whose top suggestion restores
+// the original word. Guards: the mangle must itself be flagged (some swaps
+// hit other dictionary words, e.g. "form" -> "from"), the mutated line must
+// stay grammar-clean, and the per-word API must promise the restore as the
+// top suggestion before the line-level assertion is attempted.
+TEST(Mutation, SpellingExactlyOneIssue) {
+    const std::vector<std::string> seeds =
+        readLines(std::string(TESTS_DATA_DIR) + "/clean_corpus.txt");
+    ASSERT_GT(seeds.size(), 100u);
+
+    Engine grammar;   // spelling off: the mutated line must stay grammar-clean
+    Engine full(Dialect::American);
+    full.setLanguage(Language::American);
+    full.setDictionaryPaths(std::string(TESTS_DICT_DIR) + "/en-US.txt",
+                            std::string(TESTS_DICT_DIR) + "/en-GB.txt",
+                            std::string(TESTS_DICT_DIR) + "/maori-nz.txt",
+                            std::string(TESTS_DICT_DIR) + "/canadian-en.txt");
+
+    size_t applied = 0;
+    size_t byOp[2] = {0, 0};
+
+    // Anchor: an open-class (taggable) lowercase word of moderate length,
+    // no apostrophes or hyphens — a token the spelling pass actually checks.
+    const auto isGoodAnchor = [](const TaggedToken &t, const std::u16string &w) {
+        if (t.pos != PosTag::Noun && t.pos != PosTag::Verb)
+            return false;
+        if (w.size() < 5 || w.size() > 10)
+            return false;
+        if (w.find(u'\'') != std::u16string::npos || w.find(u'-') != std::u16string::npos)
+            return false;
+        for (char16_t c : w)
+            if (c >= u'A' && c <= u'Z') return false;
+        return true;
+    };
+    const auto tryMutation = [&](Mutation &m, const std::u16string &s, const TaggedToken &t,
+                                 const std::u16string &w2) {
+        m.start = t.token.start;
+        m.length = static_cast<int>(w2.size());
+        m.fix = wordOf(s, t);
+        m.line = replaceLine(s, t, w2);
+        // The mangle must be flagged, restore must be the top suggestion
+        // (per-word promise), and the line must stay grammar-clean.
+        const auto suggs = full.spellSuggestions(w2);
+        if (suggs.empty() || suggs.front() != m.fix)
+            return false;
+        return grammar.check(m.line).empty();
+    };
+
+    for (const auto &seed : seeds) {
+        const std::u16string s = utf8ToUtf16(seed);
+        if (!isMutatable(s)) continue;
+        const auto toks = tag(s);
+
+        // One mutation per operator per seed (independent of the others).
+        const auto attempt = [&](int op) -> std::optional<Mutation> {
+            for (size_t i = 0; i < toks.size(); ++i) {
+                const std::u16string w = wordOf(s, toks[i]);
+                if (!isGoodAnchor(toks[i], w)) continue;
+                if (op == 0) {
+                    // swap adjacent characters (transposition)
+                    for (size_t p = 1; p + 1 < w.size(); ++p) {
+                        if (w[p] == w[p - 1]) continue;
+                        std::u16string w2(w);
+                        std::swap(w2[p - 1], w2[p]);
+                        if (!full.isMisspelled(w2)) continue;
+                        Mutation m;
+                        if (tryMutation(m, s, toks[i], w2)) return m;
+                    }
+                } else {
+                    // duplicate a character (extra char)
+                    for (size_t p = 0; p < w.size(); ++p) {
+                        std::u16string w2(w);
+                        w2.insert(p, 1, w[p]);
+                        if (!full.isMisspelled(w2)) continue;
+                        Mutation m;
+                        if (tryMutation(m, s, toks[i], w2)) return m;
+                    }
+                }
+            }
+            return std::nullopt;
+        };
+
+        for (int op = 0; op < 2; ++op) {
+            const auto m = attempt(op);
+            if (!m) continue;
+            ++applied;
+            ++byOp[op];
+
+            SCOPED_TRACE(seed + "  (mutated: " + std::string(m->line.begin(), m->line.end()) + ")");
+            const auto issues = full.check(m->line);
+            ASSERT_EQ(issues.size(), 1u) << "exactly one issue expected";
+            EXPECT_EQ(issues[0].start, m->start);
+            EXPECT_EQ(issues[0].length, m->length);
+            ASSERT_FALSE(issues[0].suggestions.empty());
+            EXPECT_EQ(issues[0].suggestions[0].text, m->fix);
+        }
+    }
+    EXPECT_GT(applied, 20u);
+    EXPECT_GT(byOp[0], 0u) << "swap operator never anchored; corpus coverage gap";
+    EXPECT_GT(byOp[1], 0u) << "extra-char operator never anchored; corpus coverage gap";
 }

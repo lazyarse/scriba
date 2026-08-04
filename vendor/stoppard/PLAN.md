@@ -1474,6 +1474,42 @@ All steps run in `/home/tpa/code/scriba` (Release build, `timeout 480000` per AG
 
 ---
 
+## Post-M9: held-out Birkbeck eval + confusable spec
+
+Landing record (2026-08-03), matching SPEC §19.10 and §17.7:
+
+- [x] `scripts/fetch_birkbeck.py` — downloads/filters Mitton's `missp.dat`
+      (CC BY-NC-SA 3.0) to the wiki shape (typo ∉ dict, intended ∈ en-US,
+      ASCII, lev ≤ 4, dedupe); writes gitignored `bench/birkbeck/` (26,474
+      pairs; 3,866 real-word errors excluded, 524 off-dict, 1,212 non-ASCII,
+      3,932 too-far, 50 dup); raw corpus never committed.
+- [x] `scripts/analyze_dump.py` — per-Levenshtein-bucket (d1…d5+) top-1/top-5
+      table from any DumpMissed/BirkbeckReport DUMP output.
+- [x] `SpellingParity.BirkbeckReport` — env-gated (`STOPPARD_BIRKBECK_FILE`),
+      report-only, can never fail CI. Full run (2026-08-03, n=26,474, ~12 min):
+      totals 47.9/60.8 top-1/top-5; d1 78.6/96.1, d2 48.4/61.5, d3 23.5/34.2,
+      d4 11.5/16.5. Pool-gap diagnosis: intended word never generated for
+      d2 38.5% / d3 65.8% / d4 83.5% of pairs (only 102 of 10,277 misses had
+      it in the pool but ranked ≥5) — candidate generation, not ranking, is
+      the d2+ lever (see SPEC §19.10).
+- [x] Hunspell baseline on Birkbeck (hunspell 1.7.2 + bundled en_US, capture
+      `bench/birkbeck/hunspell_suggestions.txt`): on the identical 26,191
+      flagged pairs stoppard leads every bucket — total 48.2/61.0 vs
+      41.9/56.2 (+6.3pp top-1); d1 +11.6, d2 +5.6, d3 +2.6, d4 +1.2.
+      Hunspell also deems 232 typos correct (archaic SCOWL words) — recall
+      gap, excluded per the wiki method.
+- [x] Confusable-feature spec (SPEC §17.7) — real-word homophones are a
+      separate feature, still gated on content-word noun/verb detection (M9's
+      word list is plain, no POS); Birkbeck's 3.9k real-word bucket measures
+      demand. Implementation is future work, kept OUT of the spelling pass.
+- [ ] Confusable-feature implementation (R12 extension): POS pass over the
+      dictionary (or curated per-row noun/verb tables), then the three §17.2
+      deferred rows + candidate rows of §17.7. Blocked on content-word
+      noun/verb detection; revisit after M10.
+
+-- self-check on data flow: the two held-outs are disjoint in intent; wiki
+   keeps the committed floors, Birkbeck the report-only eval.
+
 ## Self-review notes
 
 - Spec coverage: §4 header → T1; §6.1/6.2/6.3 → T2/T3/T4; §6.4/6.5 → M2; §6.6+§7+§9(rule suites)+§14 → M3; §5+§8+§9(corpus)+§10+§15 → M4; §11+§12(M5) → M5.

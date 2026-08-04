@@ -208,6 +208,51 @@ int lcslen(std::u16string_view a, std::u16string_view b)
     return prev[n];
 }
 
+// Restricted Damerau-Levenshtein distance (adjacent transposition counts as
+// one edit). The final suggestion ranking axis (M11, SPEC §19.4): SymSpell's
+// documented rule — edit distance primary, frequency secondary. Unlike the
+// hunspell ngram score it is length-independent and cannot be dodged by
+// split candidates (a space or hyphen costs an extra edit).
+int damerauLevenshtein(std::u16string_view a, std::u16string_view b)
+{
+    const int m = int(a.size()), n = int(b.size());
+    std::vector<std::vector<int>> d(m + 1, std::vector<int>(n + 1));
+    for (int i = 0; i <= m; ++i)
+        d[i][0] = i;
+    for (int j = 0; j <= n; ++j)
+        d[0][j] = j;
+    for (int i = 1; i <= m; ++i) {
+        for (int j = 1; j <= n; ++j) {
+            const int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+            d[i][j] = std::min({d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost});
+            if (i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1])
+                d[i][j] = std::min(d[i][j], d[i - 2][j - 2] + 1);
+        }
+    }
+    return d[m][n];
+}
+
+// hunspell "weight suggestions with a similarity index": LCS, position
+// matches, weighted 2-grams, side penalties, plus hunspell's -1000
+// "too many mismatches" marker when the 2-gram overlap is too thin.
+// Used only for ngramSuggest's internal gscore — the final suggestion
+// ranking is edit-distance based (see damerauLevenshtein).
+int similarityScore(std::u16string_view typo, std::u16string_view w, int n)
+{
+    const int len = int(w.size());
+    const int lcs = lcslen(typo, w);
+    const int leftcommon = leftCommonSubstring(typo, w);
+    bool isSwap = false;
+    const int ccp = commonCharacterPositions(typo, w, isSwap);
+    const int ngram4 = ngram(4, typo, w, kNgramAnyMismatch);
+    int re = ngram(2, typo, w, kNgramAnyMismatch | kNgramWeighted);
+    re += ngram(2, w, typo, kNgramAnyMismatch | kNgramWeighted);
+    return 2 * lcs - std::abs(n - len) + leftcommon
+         + (ccp ? 1 : 0) + (isSwap ? 10 : 0)
+         + ngram4 + re
+         + (re < (n + len) && !std::getenv("STOPPARD_NO_SIM_PENALTY") ? -1000 : 0);
+}
+
 } // namespace
 
 // --- SpellData --------------------------------------------------------------
@@ -268,6 +313,28 @@ std::shared_ptr<const SpellData> SpellData::load(std::string_view enUSPath,
         const auto prefix = slash == std::string::npos ? std::string() : keyboardPath.substr(0, slash + 1);
         return prefix + "keyboard-en-GB.txt";
     }();
+
+    // Frequency ranks (SPEC §19.4 word-frequency ranking backlog, landed at
+    // M11): one word per line from freq-en.txt next to the dictionaries;
+    // the line number (1-based) is the rank. Absent file = no prior.
+    const std::string freqPath = [&] {
+        const auto slash = keyboardPath.find_last_of("/\\");
+        const auto prefix = slash == std::string::npos ? std::string() : keyboardPath.substr(0, slash + 1);
+        return prefix + "freq-en.txt";
+    }();
+    std::ifstream fIn(freqPath);
+    if (fIn.is_open()) {
+        std::string line;
+        uint32_t rank = 0;
+        while (std::getline(fIn, line)) {
+            if (line.empty() || line[0] == '#')
+                continue;
+            ++rank;
+            const auto f = fold(std::u16string(line.begin(), line.end()));
+            if (!f.empty())
+                data->m_freq.emplace(std::move(f), rank);
+        }
+    }
     std::ifstream in(kbPath);
     if (in.is_open()) {
         std::string line;
@@ -338,10 +405,12 @@ struct SugContext {
         return data->isWord(dialect, language, w, *userWords);
     }
 
-    // hunspell testsug(): dedup + dictionary check + capacity guard.
+    // hunspell testsug(): dedup + dictionary check + generous collection
+    // cap. The final re-rank (not the generator order) picks the top 5, so
+    // the simple pass must collect broadly; 50 bounds the re-rank work.
     void addSug(std::u16string_view cand)
     {
-        if (wlst.size() >= 5)
+        if (wlst.size() >= 50)
             return;
         if (std::find(wlst.begin(), wlst.end(), cand) != wlst.end())
             return;
@@ -571,11 +640,39 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
     const SpellData &d = *c.data;
     const auto &buckets = d.lengthBuckets(c.language);
 
-    // Top-100 roots by ngram(3, typo, w, LONGER_WORSE) + leftcommon.
+    // Top-k roots by ngram(3, typo, w, LONGER_WORSE) + leftcommon. The cap
+    // is a stop-scan bound (M11 Phase 2: the plain 100 cutoff dropped words
+    // scoring just below the boundary, e.g. guaranteed/raucous; overridable
+    // via STOPPARD_SCAN_CAP for A/B measurement).
     struct Scored {
         std::u16string_view word;
         int sc;
     };
+    const bool dbg = std::getenv("STOPPARD_DEBUG_NGRAM") != nullptr;
+    // hunspell admits candidates scoring exactly at the threshold (its
+    // formula already subtracts 1); we use strict > for the rescore gate,
+    // so a candidate scoring exactly thresh is dropped.
+    // STOPPARD_NGRAM_THRESH_GE=1 switches the boundary to >= for measurement.
+    const bool threshGE = std::getenv("STOPPARD_NGRAM_THRESH_GE") != nullptr;
+    const int scanCap = [] {
+        const char *v = std::getenv("STOPPARD_SCAN_CAP");
+        return v ? std::max(10, std::atoi(v)) : 100;
+    }();
+
+    if (dbg)
+        std::fprintf(stderr, "NGRAM typo=%s\n", std::string(typo.begin(), typo.end()).c_str());
+    // Threshold: score the typo against three mangled versions of itself.
+    // Computed before the scan (hunspell ngsuggest order) so it can gate
+    // the scan itself.
+    int thresh = 0;
+    for (int sp = 1; sp < 4; ++sp) {
+        std::u16string mw(typo);
+        for (int k = sp; k < n; k += 4)
+            mw[k] = u'*';
+        thresh += ngram(n, typo, mw, kNgramAnyMismatch);
+    }
+    thresh = thresh / 3 - 1;
+
     auto scCmp = [](const Scored &a, const Scored &b) { return a.sc > b.sc; };  // min-heap
     std::priority_queue<Scored, std::vector<Scored>, decltype(scCmp)> heap(scCmp);
     const auto scanWord = [&](std::u16string_view w) {
@@ -583,9 +680,16 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
         if (std::abs(n - clen) > 4)
             return;
         const int sc = ngram(3, typo, w, kNgramLongerWorse) + leftCommonSubstring(typo, w);
-        if (heap.size() < 100 || sc > heap.top().sc) {
+        // hunspell's scan gate: words scoring below the threshold never
+        // occupy heap slots, so the top-k only fills with plausible roots.
+        // Without it the boundary floats well above thresh and words like
+        // guaranteed (scan=18 on gaurenteed, tied with thousands of words)
+        // get pushed out of the cap-100 heap entirely.
+        if (sc < thresh)
+            return;
+        if (heap.size() < scanCap || sc > heap.top().sc) {
             heap.push({w, sc});
-            if (heap.size() > 100)
+            if (heap.size() > scanCap)
                 heap.pop();
         }
     };
@@ -600,16 +704,16 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
     for (const auto &w : *c.userWords)
         scanWord(w);
 
-    // Threshold: score the typo against three mangled versions of itself.
-    int thresh = 0;
-    for (int sp = 1; sp < 4; ++sp) {
-        std::u16string mw(typo);
-        for (int k = sp; k < n; k += 4)
-            mw[k] = u'*';
-        thresh += ngram(n, typo, mw, kNgramAnyMismatch);
+    if (dbg) {
+        auto heapCopy = heap;
+        int lowest = 0;
+        while (!heapCopy.empty()) {
+            lowest = heapCopy.top().sc;
+            heapCopy.pop();
+        }
+        std::fprintf(stderr, "NGRAM   typo=%s thresh=%d top100lowest=%d\n",
+                     std::string(typo.begin(), typo.end()).c_str(), thresh, lowest);
     }
-    thresh = thresh / 3 - 1;
-
     // Guesses: roots re-scored with the full-size ngram, thresholded.
     std::vector<Scored> guesses;
     guesses.reserve(heap.size());
@@ -621,8 +725,11 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
     }
     for (const auto &r : roots) {
         const int sc = ngram(n, typo, r.word, kNgramAnyMismatch) + leftCommonSubstring(typo, r.word);
-        if (sc > thresh)
+        if (sc > thresh || (threshGE && sc == thresh))
             guesses.push_back({r.word, sc});
+        else if (dbg)
+            std::fprintf(stderr, "NGRAM   drop %-16s scan=%d rescore=%d (thresh=%d)\n",
+                         std::string(r.word.begin(), r.word.end()).c_str(), r.sc, sc, thresh);
     }
     std::stable_sort(guesses.begin(), guesses.end(),
                      [](const Scored &a, const Scored &b) { return a.sc > b.sc; });
@@ -638,16 +745,7 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
             gscores[i] = guesses[i].sc + 2000;   // identical word: stop re-ranking
             break;
         }
-        const int leftcommon = leftCommonSubstring(typo, w);
-        bool isSwap = false;
-        const int ccp = commonCharacterPositions(typo, w, isSwap);
-        const int ngram4 = ngram(4, typo, w, kNgramAnyMismatch);
-        int re = ngram(2, typo, w, kNgramAnyMismatch | kNgramWeighted);
-        re += ngram(2, w, typo, kNgramAnyMismatch | kNgramWeighted);
-        gscores[i] = 2 * lcs - std::abs(n - len) + leftcommon
-                   + (ccp ? 1 : 0) + (isSwap ? 10 : 0)
-                   + ngram4 + re
-                   + (re < (n + len) ? -1000 : 0);
+        gscores[i] = similarityScore(typo, w, n);
     }
 
     // Zip-sort by gscore descending, then append with hunspell's
@@ -661,7 +759,11 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
     const size_t oldns = c.wlst.size();
     int same = 0;
     for (size_t idx : order) {
-        if (c.wlst.size() >= oldns + 4 || c.wlst.size() >= 5)
+        // Collect into the shared pool (M11): the final ranking decides the
+        // top 5, so the ngram pass must not be gated off by a full pool —
+        // the old ">= 5" cutoff starved it whenever the simple pass found
+        // five candidates (e.g. yatch's "-atch" family, losing yacht).
+        if (c.wlst.size() >= 50)
             break;
         const int gscore = gscores[idx];
         if (same && gscore <= 1000)
@@ -670,8 +772,14 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
             same = 1;
         else if (gscore < -100) {
             same = 1;
-            if (c.wlst.size() > oldns)
-                continue;
+            // Keep the first below--100 guess even when the pool is not
+            // empty (hunspell admits its first "bad" ngram guess when
+            // nothing else passed; with a larger dictionary that guard
+            // rarely triggers, e.g. gaurenteed -> guaranteed loses to
+            // reentered, which hunspell's dict lacks). 2026-08-03
+            // measurement: +1 top-1, +5 top-5 on the Wikipedia set with
+            // zero reference-set movement, at the cost of 3 top-1 flips
+            // in DL-tie cases (fanatics, autocracy, advisable).
         }
         const std::u16string_view w = guesses[idx].word;
         bool unique = true;
@@ -709,6 +817,142 @@ std::vector<std::u16string> SpellData::suggestions(Dialect dialect, Language lan
     twoWords(c, folded);   // may set good on a dictionary word pair
     if (!c.good)
         ngramSuggest(c, folded);
+
+    // Final ranking (M11, SPEC §19.4 word-frequency ranking backlog):
+    // Damerau-Levenshtein distance primary, word frequency secondary —
+    // SymSpell's documented rule ("sort by edit distance ascending, then by
+    // frequency"). This replaces the similarity-based merge: the ngram score
+    // is too noisy to rank with (transposition penalties, split candidates
+    // dodging the mismatch marker), while edit distance is length-independent
+    // and splits pay an extra edit. Generator order only breaks full ties.
+    // REP-pinned "good" results keep the generator order — those are
+    // hand-curated (cheif -> chief) and must not be re-ranked.
+    if (std::getenv("STOPPARD_DEBUG_RERANK")) {
+        std::fprintf(stderr, "RERANK typo=%s good=%d pool=%zu\n",
+                     std::string(folded.begin(), folded.end()).c_str(), c.good, c.wlst.size());
+        for (size_t i = 0; i < c.wlst.size(); ++i)
+            std::fprintf(stderr, "RERANK   %s dl=%d sub=%d rank=%u\n",
+                         std::string(c.wlst[i].begin(), c.wlst[i].end()).c_str(),
+                         damerauLevenshtein(folded, c.wlst[i]),
+                         int(c.wlst[i].size() < folded.size()
+                             && folded.find(c.wlst[i]) != std::u16string_view::npos),
+                         c.data->freqRank(c.wlst[i]));
+    }
+    if (std::getenv("STOPPARD_DEBUG_POOL")) {
+        const int n = int(folded.size());
+        std::fprintf(stderr, "POOL typo=%s good=%d pool=%zu\n",
+                     std::string(folded.begin(), folded.end()).c_str(), c.good, c.wlst.size());
+        for (size_t i = 0; i < c.wlst.size(); ++i)
+            std::fprintf(stderr, "POOLC   %s dl=%d split=%d sub=%d freq=%u sim=%d\n",
+                         std::string(c.wlst[i].begin(), c.wlst[i].end()).c_str(),
+                         damerauLevenshtein(folded, c.wlst[i]),
+                         int(c.wlst[i].find(u' ') != std::u16string_view::npos
+                             || c.wlst[i].find(u'-') != std::u16string_view::npos),
+                         int(c.wlst[i].size() < folded.size()
+                             && folded.find(c.wlst[i]) != std::u16string_view::npos),
+                         c.data->freqRank(c.wlst[i]),
+                         similarityScore(folded, c.wlst[i], n));
+    }
+    if (!c.good && !c.wlst.empty()) {
+        // A/B/C/E/F/M/M2 variants (STOPPARD_RANK_VARIANT, M11 Phase 2 A/B):
+        //   A: DL -> split -> sub -> freq -> order                 (M11 base)
+        //   B: DL -> split -> sub -> order
+        //   C: DL -> split -> sub -> sim  -> freq -> order
+        //   E: split -> sub -> freq -> order
+        //   F: split -> sub -> order
+        //   M: A + "-ly append" rule: when the typo ends in "ly" and one
+        //      candidate is another candidate plus exactly "ly"
+        //      (practically == practical + "ly"), prefer the longer form.
+        //      Fixes the -ally family (practicly -> practically) with zero
+        //      regression on the reference set (Phase 2 measurement).
+        //   M2 (default): M + pool-wide "-ly append": the +ly form is
+        //      computed against the whole pool, so it also beats non-+ly
+        //      rivals of the same base (officialy: officially vs officials,
+        //      where officials is not official + "ly" and wins on freq).
+        //      Phase 2 measurement: wiki top-1 2996 -> 3010 (+14 vs M11,
+        //      +6 over M), reference set unchanged at 415/419.
+        //      Why not ML here (decided 2026-08-03): the remaining gaps
+        //      (-ally leftovers, ngram threshold drops, d2/d3) are closed
+        //      faster deterministically; a tree/forest would need external
+        //      training data (Birkbeck) with held-out evaluation risk, and
+        //      merging aspell back is a quality lateral (JDIQ 2017: hunspell
+        //      415 vs aspell 414/469) with a ~6.7x speed regression.
+        const char *rankVar = std::getenv("STOPPARD_RANK_VARIANT");
+        // Default is M2; "M" (or any other letter) opts back into the
+        // narrower pairwise rule for A/B/C/E/F/M measurement.
+        const bool isM2 = !rankVar || (rankVar[0] == 'M' && rankVar[1] == '2' && rankVar[2] == '\0');
+        const char variant = rankVar ? rankVar[0] : 'M';
+        const int n = int(folded.size());
+        // M2: one flag per candidate — "is another pool word plus exactly ly".
+        std::vector<uint8_t> lyForm;
+        if (isM2 && folded.ends_with(u"ly") && !folded.ends_with(u"lly")) {
+            const size_t m = c.wlst.size();
+            lyForm.assign(m, 0);
+            for (size_t i = 0; i < m; ++i) {
+                for (size_t j = 0; j < m; ++j)
+                    if (c.wlst[j].size() >= 3 && c.wlst[j] + u"ly" == c.wlst[i]) {
+                        lyForm[i] = 1;
+                        break;
+                    }
+            }
+        }
+        std::vector<size_t> order(c.wlst.size());
+        for (size_t i = 0; i < order.size(); ++i)
+            order[i] = i;
+        std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+            const auto &wa = c.wlst[a], &wb = c.wlst[b];
+            const int da = damerauLevenshtein(folded, wa);
+            const int db = damerauLevenshtein(folded, wb);
+            if (variant != 'E' && variant != 'F' && da != db)
+                return da < db;
+            // Two-word splits ("un till", "use full") are d1 by
+            // space-insertion but must never outrank a solid word.
+            const bool splitA = wa.find(u' ') != std::u16string_view::npos
+                             || wa.find(u'-') != std::u16string_view::npos;
+            const bool splitB = wb.find(u' ') != std::u16string_view::npos
+                             || wb.find(u'-') != std::u16string_view::npos;
+            if (splitA != splitB)
+                return !splitA;
+            // A proper substring of the typo is a "tail of the typo" reading,
+            // not a real correction (basic for basicly, fire for firey).
+            const bool subA = wa.size() < folded.size() && folded.find(wa) != std::u16string_view::npos;
+            const bool subB = wb.size() < folded.size() && folded.find(wb) != std::u16string_view::npos;
+            if (subA != subB)
+                return !subA;
+            if (variant == 'M' && folded.ends_with(u"ly") && !folded.ends_with(u"lly")
+                && wa.size() >= 3 && wb.size() >= 3) {
+                const bool lyA = wa.ends_with(u"ly") && wb + u"ly" == wa;
+                const bool lyB = wb.ends_with(u"ly") && wa + u"ly" == wb;
+                if (lyA != lyB)
+                    return lyA;
+            }
+            if (isM2 && !lyForm.empty() && lyForm[a] != lyForm[b])
+                return lyForm[a] != 0;
+            if (variant == 'C') {
+                const int sa = similarityScore(folded, wa, n);
+                const int sb = similarityScore(folded, wb, n);
+                if (sa != sb)
+                    return sa > sb;
+            }
+            if (variant == 'A' || variant == 'C' || variant == 'E' || variant == 'M') {
+                const uint32_t ra = c.data->freqRank(wa);
+                const uint32_t rb = c.data->freqRank(wb);
+                if (ra != rb) {
+                    if (ra == 0)
+                        return false;
+                    if (rb == 0)
+                        return true;
+                    return ra < rb;
+                }
+            }
+            return false;   // full tie: generator order (stable)
+        });
+        std::vector<std::u16string> out;
+        out.reserve(std::min<size_t>(5, c.wlst.size()));
+        for (size_t i = 0; i < order.size() && out.size() < 5; ++i)
+            out.push_back(c.wlst[order[i]]);
+        return out;
+    }
     return std::move(c.wlst);
 }
 

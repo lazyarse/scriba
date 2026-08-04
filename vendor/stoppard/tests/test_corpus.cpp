@@ -70,3 +70,43 @@ TEST(Corpus, DialectFiles) {
                       Dialect::Indian, Dialect::Canadian, Dialect::NewZealand})
         expectCleanUnder(d, "clean_corpus_" + name(d) + ".txt");
 }
+
+// Zero false positives under spelling (SPEC §15 + §19): the clean corpora
+// must stay clean when the dialect's default dictionary is enabled.
+namespace {
+
+Language defaultLanguage(Dialect d)
+{
+    switch (d) {
+    case Dialect::American:
+    case Dialect::Canadian:
+        return Language::American;
+    default:
+        return Language::British;
+    }
+}
+
+void expectCleanWithSpelling(Dialect d, const std::string &file)
+{
+    const std::vector<std::string> lines =
+        readLines(std::string(TESTS_DATA_DIR) + "/" + file);
+    ASSERT_GT(lines.size(), 10u);
+    Engine e(d);
+    e.setLanguage(defaultLanguage(d));
+    e.setDictionaryPaths(std::string(TESTS_DICT_DIR) + "/en-US.txt",
+                         std::string(TESTS_DICT_DIR) + "/en-GB.txt",
+                         std::string(TESTS_DICT_DIR) + "/maori-nz.txt",
+                         std::string(TESTS_DICT_DIR) + "/canadian-en.txt");
+    for (const auto &line : lines) {
+        const auto issues = e.check(utf8ToUtf16(line));
+        EXPECT_TRUE(issues.empty()) << file << ": " << line;
+    }
+}
+
+} // namespace
+
+TEST(Corpus, SpellingCleanCorpora) {
+    for (Dialect d : {Dialect::American, Dialect::British, Dialect::Australian,
+                      Dialect::Indian, Dialect::Canadian, Dialect::NewZealand})
+        expectCleanWithSpelling(d, "clean_corpus_" + name(d) + ".txt");
+}

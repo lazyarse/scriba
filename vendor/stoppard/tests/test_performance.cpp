@@ -14,9 +14,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 // Perf smoke (PLAN Task 4.3 / SPEC §10): ~10k words checked under 1 s.
-// CI-safe generous bound; local Release baseline is ~x ms (measured, see
-// below). The engine has no joinable worker: a slow regression shows up
-// here directly.
+// CI-safe generous bound; local Release baselines are measured, see below.
+// The engine has no joinable worker: a slow regression shows up here
+// directly. The spelling variant (§19.8) exercises the same bar with the
+// dictionary pass enabled.
 #include <chrono>
 
 #include <gtest/gtest.h>
@@ -43,5 +44,35 @@ TEST(Performance, TenThousandWordsUnderOneSecond) {
 
     EXPECT_TRUE(issues.empty());
     EXPECT_LT(ms, 1000.0) << "10k-word grammar check took " << ms << " ms";
-    // Local Release baseline: ~" ms (recorded for CI comparison).
+    // Local Release baseline: ~30 ms (recorded for CI comparison).
+}
+
+// Spelling-enabled variant (SPEC §19.8): the same ~10k-word bar holds with
+// the dictionary pass active (dictionaries loaded, Language::American).
+TEST(Performance, TenThousandWordsUnderOneSecondWithSpelling) {
+    Engine e(Dialect::American);
+    e.setLanguage(Language::American);
+    e.setDictionaryPaths(std::string(TESTS_DICT_DIR) + "/en-US.txt",
+                         std::string(TESTS_DICT_DIR) + "/en-GB.txt",
+                         std::string(TESTS_DICT_DIR) + "/maori-nz.txt",
+                         std::string(TESTS_DICT_DIR) + "/canadian-en.txt");
+
+    const int kSentences = 1800;   // ~10k words
+    std::u16string text;
+    text.reserve(kSentences * 25);
+    for (int i = 0; i < kSentences; ++i) text += u"The cat sat on the mat. ";
+    size_t kWords = 0;
+    for (char16_t c : text)
+        if (c == u' ') ++kWords;
+    ASSERT_GT(kWords, 9000u);   // sanity: ~10k words really
+
+    const auto t0 = std::chrono::steady_clock::now();
+    const auto issues = e.check(text);
+    const auto t1 = std::chrono::steady_clock::now();
+    const double ms =
+        std::chrono::duration<double, std::milli>(t1 - t0).count();
+
+    EXPECT_TRUE(issues.empty());
+    EXPECT_LT(ms, 1000.0) << "10k-word spelling check took " << ms << " ms";
+    // Local Release baseline: ~240 ms (recorded for CI comparison).
 }

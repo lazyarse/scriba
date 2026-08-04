@@ -492,6 +492,50 @@ and LanguageTool examples are *inspiration* only, never copied — §15 layer 4)
 `clean_corpus*` remains the zero-false-positive gate; the recall corpus is the
 zero-false-negative counterpart.
 
+### 17.7 Confusable-word feature (spec'd 2026-08, implementation future)
+
+**Status: spec only — no code.** Decision (2026-08): real-word confusables are
+a **separate feature** from R14 spelling, driven by a future dictionary/NLU
+pass; the spelling pass never fires on them. This subsection pins the spec so
+implementation doesn't re-derive it.
+
+**The data signal.** The held-out Birkbeck eval (bench/, §19.10) excludes
+3,866 real-word errors — typos that ARE dictionary words (the homophone
+class). That count is the size of the demand: real-word confusables are not
+rare in real text, they're invisible to a non-word checker.
+
+**Scope stays provability-partitioned (17.1).** Nothing here reopens
+§17.5: content-word homophones (lose/loose, affect/effect, advice/advise,
+cite/site, brake/break) remain OUT until a POS signal exists. The feature
+extends R12's closed-lexicon table only.
+
+**Capability dependency (the actual blocker).** The three deferred rows of
+17.2 (too→to, it's→its, who's→whose) are gated on **content-word noun/verb
+detection** — the M9 word-list dictionary is a plain set (no POS), so M9 does
+NOT deliver that signal. What M9 *did* deliver: a large curated word list +
+the suggestion pipeline, i.e. the substrate. The unlock is a **POS pass over
+dictionary words** (or a curated closed table of "known nouns/verbs per row")
+— either turns the deferred rows provable:
+- `it's`→`its`: fires when `it's` is followed by a known Noun ("it's tail"),
+  suppressed when followed by Adjective+Verb patterns (copula "it's fun").
+- `who's`→`whose`: same noun-following slot ("who's book").
+- `too`→`to`: fires when `too` is followed by a known Base Verb (infinitive
+  slot "too go"), i.e. the closed-clue check of §17.4.
+
+**Candidate provable rows for the first cut (all closed-lexicon members, all
+need exactly one provable signal):**
+- `a`/`an`-adjacent rows (article confusion "a apple" — note: distinct from
+  R10 phonetics, which is sound-based; R12 rows here are shape-based) —
+  deferred, needs the same noun signal.
+- `than`/`then` is already v1 (§17.2); `their`/`there` is v1.
+- New: `two`/`to`/`too` disambiguation between the v1 `to`/`too` pair is
+  already covered by the sentence-final guard; `two` rows need Number
+  detection (a `two` + singular-noun slot) — same noun signal.
+
+**Non-goals (locked):** no neural/frequency ranking for confusables; the
+table stays closed, curated, and precision-barred (§17.3, §17.4). Birkbeck
+is eval-only — its real-word bucket measures demand, it never tunes rows.
+
 ## 18. Pronoun + numeral ("us one" → "one of us", R13)
 
 ### 18.1 The error and its provability
@@ -787,3 +831,61 @@ green.
   are removed. M10 must re-run the full scriba test suite (spell-checker,
   spell-highlighter, settings-migration, preferences) before the hunspell
   subtree is deleted.
+
+### 19.10 Held-out Birkbeck benchmark (eval-only, 2026-08)
+
+Roger Mitton's Birkbeck spelling-error corpus (`missp.dat`,
+https://titan.dcs.bbk.ac.uk/~roger/corpora.html — 36,133 misspellings of 6,133
+targets, **CC BY-NC-SA 3.0**) is the **second held-out set**. License and the
+AGENTS data rule mean the raw corpus is NOT committed: `scripts/fetch_birkbeck.py`
+filters it to the same shape as `spelling_wikipedia.txt` (typo ∉ dictionary,
+intended ∈ en-US dictionary, ASCII, Levenshtein ≤ 4, deduped) and writes the
+pair file under gitignored `bench/`.
+
+- **Eval-only discipline.** Birkbeck never tunes floors, weights, or tables —
+  it only reports. R14's committed gates remain the reference set (§19.4) and
+  the Wikipedia holdout (test floors); Birkbeck cannot fail CI
+  (`SpellingParity.BirkbeckReport` skips unless `STOPPARD_BIRKBECK_FILE` is set).
+- **Real-word bucket.** 3,866 raw errors (~11% of the whole corpus) are
+  real-word typos — the homophone class, §17 — excluded from scoring,
+  counted as R12's demand signal (§17.7). The filter as a whole keeps
+  26,474 of 36,133 (73%).
+- 2026-08-03 measurement (full run, n=26,474; ~12 min; top-1/top-5):
+  totals **47.9/60.8**; d1 n=9041 78.6/96.1, d2 n=7810 48.4/61.5,
+  d3 n=5728 23.5/34.2, d4 n=3895 11.5/16.5 (no d5+ pairs survive the
+  lev ≤ 4 filter). The wiki set runs ~14pp higher per bucket (d1 93.0,
+  d2 82.0, d3 40.0) — Birkbeck is learner/school data, deliberately not
+  tuned against.
+- **Pool-generation gap is the dominant miss mode** (rank=-1 = intended word
+  never generated, 10,277 of 26,474): d1 2.8%, d2 38.5%, d3 65.8%, d4 83.5%.
+  Only 102 misses had the intended word present but ranked ≥ 5. Ranking
+  work cannot fix pool misses — the lever is candidate generation
+  (scan/heap coverage) at d2+. Recorded for the research backlog.
+- **Hunspell comparison on the same pairs** (hunspell 1.7.2, bundled
+  `en_US.aff`/`en_US.dic`, capture in `bench/birkbeck/hunspell_suggestions.txt`;
+  identical 26,191 pairs after the wiki-method exclusion — hunspell
+  `spell()` deems 232 typos correct, so both engines are measured only on
+  pairs hunspell flags):
+
+  ```
+  dist     n   stoppard top-1  top-5    hunspell top-1  top-5    delta top-1
+  ----  ----   --------------  -----    --------------  -----    ----------
+  d1    8909   79.2%   96.5%            67.6%   93.5%             +11.6
+  d2    7733   48.8%   61.9%            43.3%   55.2%              +5.6
+  d3    5681   23.7%   34.4%            21.1%   28.3%              +2.6
+  d4    3868   11.6%   16.6%            10.4%   13.5%              +1.2
+  total26191   48.2%   61.0%            41.9%   56.2%              +6.3
+  ```
+  Stoppard beats hunspell at **every** distance bucket on Birkbeck (the
+  reverse of the reference-set relationship in §19.4 — there the parity bar
+  made top-1/415 ≥ hunspell's 357, and the wiki set sits at +5.6pp; Birkbeck
+  widens the edge to +6.3pp, largest at d1). The 232 unmeasured typos are
+  mostly archaic SCOWL words hunspell accepts as correct (actable, agon,
+  ane, aroid, arsis) — a recall gap, not a ranking one.
+- **Throughput (2026-08-04)**: both engines on the same 2,000-typo input,
+  repeated runs, no competing load: hunspell ≈111 s vs stoppard ≈58 s —
+  stoppard ~1.9–2.0× faster (~34 vs ~18 suggestions/s). Suggestion
+  generation dominates; the grammar rules are negligible. Captures and
+  tool binaries live in gitignored `bench/` (see `bench/README.md`).
+- **Per-distance table** policy matches the wiki capture: counts by
+  Levenshtein bucket (d1…d5+) so hunspell-parity deltas are attributable.

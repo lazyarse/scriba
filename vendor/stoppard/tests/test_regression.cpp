@@ -22,7 +22,7 @@
 
 using namespace stoppard;
 
-TEST(Regression, Utf16Anchors) {
+TEST(Regression, HarperAnchors) {
     auto issues = Engine().check(u"I has a cat.");
     ASSERT_EQ(issues.size(), 1u);
     EXPECT_EQ(issues[0].start, 2);

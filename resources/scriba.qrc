@@ -51,6 +51,7 @@
         <file>dictionaries/maori-nz.txt</file>
         <file>dictionaries/canadian-en.txt</file>
         <file>dictionaries/keyboard-en-GB.txt</file>
+        <file>dictionaries/freq-en.txt</file>
         <file>themes/catppuccin-latte.css</file>
         <file>themes/catppuccin-mocha.css</file>
         <file>themes/dracula.css</file>

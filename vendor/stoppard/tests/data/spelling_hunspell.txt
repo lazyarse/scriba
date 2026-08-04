@@ -1,0 +1,853 @@
+# Hunspell suggestion capture (SPEC §19.4), generated once with a throwaway
+# CLI compiled from scriba's vendored hunspell 1.7.2 (source + binary kept in
+# bench/tools/hunspell_cli/).
+# Input: tests/data/spelling_reference.txt (misspelled side, 422 words).
+# Format: word | sugg1 sugg2 ... in hunspell's ranking order.
+#
+# Section: en-US (resources/dictionaries/en_US.aff + en_US.dic)
+abscence | absence abstinence nascence abscess
+accomodate | accommodate accommodation
+acess | aces access ace's aces s abscess
+acheive | achieve
+acheivement | achievement impeachment
+achive | chive achieve archive active a chive ac hive ac-hive
+adress | dress address a dress cadres
+agressive | aggressive regressive digressive progressive repressive
+amature | mature armature amateur a mature maturate
+annouce | announce annoyance
+anual | anal annual manual
+anwser | answer
+aparent | parent apparent a parent apartment entrap
+aplied | plied applied allied a plied applier
+apparant | apparent rampant
+appearence | appearance apprentice
+aquire | squire quire acquire a quire aquifer
+arangement | arrangement estrangement derangement enlargement engagement
+arguement | argument enlargement arrangement
+assasination | assassination assignation assassinate assimilation fascination
+assesment | assessment harassment encasement abasement easement
+asume | amuse assume subsume
+atmoshpere | atmosphere atmospherics
+attaind | attains attain attained attain d
+attemp | attempt at temp at-temp template temperate temp
+availible | available livable
+balence | valence balance baleen
+bannana | banana bandanna banal cabana
+basicly | basically basic BASIC
+basment | basement batsmen abashment basemen
+beatiful | beautiful beatific
+becomming | becoming commingle commingling homecoming
+becuase | because barbecue
+begining | beginning begging begrudging begin belonging
+beleive | believe bevel
+benifit | benefit befit
+betwen | between bet wen bet-wen betoken
+bizzare | bizarre
+boaring | bewaring boating boring baring oaring boarding bearing soaring roaring blaring
+bordeom | boredom border
+braek | break brake brae braes brae k
+buety | busty suety butty
+buisness | business bushiness
+burried | burred buried berried curried hurried burrowed
+calender | calendar ca lender ca-lender lender candler caldera caller
+canidate | candidate candidature
+carreer | career carrier carefree carrel carer careen
+catagory | category
+cauhgt | caught
+cemetary | cemetery commentary
+challange | challenge changeling changeable archangel change
+cheif | chief chef
+choosen | choose chosen chooses chooser choose n chose
+cieling | ceiling
+clousure | closure
+collague | collage colleague coll ague coll-ague
+combintation | combination contamination cohabitation commutation confrontation
+comming | coming cumming comping combing commingle commingling committing communing
+commited | commuted committed commit ed commit-ed committee committer commented commit
+commitee | committee committed committer commitment commit
+committment | commitment committeemen committeewomen commencement committee
+compair | compare compere
+comparision | comparison compassion compression companion
+compleat | com pleat com-pleat complete complicate compatible
+compromize | compromise computerize
+concensus | consensus con census con-census ensconces concerns ensconce consequence
+concious | conscious concision concussion conclusion concuss
+consciencious | conscientious consciousness conscienceless unconscious semiconscious
+conservitive | conservative conservation consecutive constitutive constructive
+consistant | consistent consist ant consist-ant constant contestant consist consultant
+controled | controlled control ed control-ed controller control
+convinient | convenient convenience convention continent contingent
+coorperate | cooperate cooperator corporate copperplate perpetrator
+copmany | company cop many cop-many
+cosultant | consultant consultancy
+councel | counsel council ounce
+couragous | courageous courage raucous
+curiousity | curiosity curious obscurity
+dammage | damage dam mage dam-mage
+decieve | deceive decisive decide
+definate | definite definable
+definately | definitely effeminately definitively indefinably
+definitly | definitely definitively definite defiantly finitely
+deparment | department debarment endearment determent
+descibe | describe decibel
+descision | decision rescission condescension derision
+desease | disease decease seaside
+desireable | desirable desire able desire-able desirably irredeemable
+desparate | desperate disparate desecrate separate
+detatch | detach deathwatch
+developement | development envelopment elopement
+dictionairy | dictionary diction airy diction-airy dictation
+differant | different differ ant differ-ant
+dilema | dilemma middleman
+directer | directer director directed direct er direct-er
+discription | description inscription conscription proscription discrimination
+disipline | discipline disciplinary
+dissapear | dispensary
+dissapoint | disappoint
+distrubute | distribute distributive
+doutb | doubt outdo
+dramaticly | dramatically dramatic
+durring | furring during purring burring demurring incurring
+ecomony | economy economic
+effecient | efficient deficient
+efficent | efficient beneficent maleficent deficient
+eigth | eight eighth
+elefant | elephant elegant
+elliminate | eliminate elimination eliminator illuminate laminate
+embarass | embarrass embassy
+emminent | eminent imminent tenement
+emplyee | employee employer
+encylopedia | encyclopedia encyclopedic cyclopedia
+enviroment | environment environs
+equippment | equipment equipping
+esential | essential sequential pestilential sentimental
+espcially | especially specially especial
+evalution | evaluation evolution valuation elevation alleviation
+exagerate | exaggerate exaggerator exasperate generate
+exampel | example
+excede | exceed ex cede ex-cede cede
+excercise | exercise exorcise excise
+exellent | excellent repellent
+exibition | exhibition
+existance | existence assistance resistance distance instance
+experiance | experience experiencing
+explanination | explanation exploitation explication exploration
+facinating | fascinating facilitating vaccinating facing
+familar | familiar familial
+famoust | famous famous t fatuous
+feasable | feasible feasibly
+feild | field flied filed
+firey | fiery fire fires firer fired fire y
+flourescent | fluorescent florescent florescence fluorescence
+forcast | forecast for cast for-cast castor
+foriegn | foreign
+forseeable | foreseeable enforceable
+fourty | forty fourth
+foward | forward toward coward Coward Howard
+freind | friend
+frequencey | frequency infrequence
+garantee | grantee guarantee
+genious | genius ingenious ingenuous
+glamourous | glamorous glamours glamour clamorous
+goverment | government
+graet | great grate greet grant graft
+grammer | grimmer grammar crammer programmer megagram aerogram
+grevience | grievance reverence
+guage | gauge gunge language
+guarentee | guarantee guardsmen
+hapened | happened cheapened sharpened happen
+happend | happens happen append happened h append hap pend hap-pend happen d
+heigth | height eighth
+hierachy | hierarchy hierarchic achiever
+hipopotamus | hippopotamus hippocampus
+hospitol | hospital hospitable
+humerous | humerus numerous humorous
+hundered | hindered hundred thundered chundered sundered hungered hunkered thunderer hereunder underwired underhanded
+hygeine | hygiene hygienic
+imediately | immediately intermediately immediate meditatively mediated
+imigration | migration immigration emigration i migration ingratiation denigration mitigation imitation
+impossable | impossible impassable impassible
+inconsistant | inconsistent inconstant inconsistency inconstancy consistent
+independant | independent independence interdependent dependent defendant
+indipendent | independent interdependent independence dependent inexpedient
+indpendent | independent ind pendent ind-pendent interdependent independence dependent pendent
+infinate | infinite infatuate inflate innate
+initally | initially genitally inimitably
+inseperable | inseparable insuperable inseparably interoperable inoperable insuperably
+inteligence | intelligence intelligent negligence indigence
+inteligent | intelligent intelligence intelligible intelligibly negligent
+intergrate | integrate inter grate inter-grate interoperate interrogate integrator integration
+intresting | interesting int resting int-resting ingesting restringing entreating restring
+irrelevent | irrelevant irreverent
+jepardy | jeopardy jeopardize
+knoledge | knowledge
+knowldge | knowledge
+knowlege | knowledge
+labratory | laboratory lavatory oratory
+langauge | language melange
+leutenant | lieutenant antenatal antenna
+liason | liaison diapason
+libary | library millibar
+lieing | lining liming pieing hieing living liking lingerie ceiling ling
+lisence | silence license salience
+literaly | literal literally literals literary literacy literal y literately literate literati liberality
+lonly | only lonely lolly lowly l only loony
+loosing | loosing losing looting lousing goosing looming looping looking loo sing loo-sing
+luky | lucky fluky
+magasine | magazine magnesia imagine
+magnificient | magnificent magnificence
+maintaince | maintenance maintained maintainable maintain
+maintence | maintenance
+managment | management engagement magenta
+mantain | maintain manta in manta-in manta trainman taint
+marraige | marriage arraignment
+marshmellow | marshmallow marsh mellow marsh-mellow mellowness
+mathmatics | mathematics asthmatics asthmatic schismatics schematics
+medcine | medicine med cine med-cine medicinal
+medeval | medieval medal
+meterology | meteorology numerology terminology etymology
+milage | mileage millage silage mirage mil age mil-age mucilage
+millenium | millennium millennial millennia selenium illumine
+millitary | military militarily militarism militarist
+minature | miniature mi nature mi-nature minaret nature
+miniscule | minuscule reminisce
+minumum | minimum aluminum cumin
+miricle | miracle cleric
+miror | mirror minor
+mischevious | mischievous
+mispell | misspell mi spell mi-spell spell
+missle | missile misled
+mmorow | morrow
+modle | model mode mole module
+moent | moment mount
+monestary | monastery monetary monetarist
+musle | muse mule muscle mules mussel
+myraid | myriad my raid my-raid
+natuarl | natural
+neccessary | necessary necessarily
+necesary | necessary necessarily
+negotation | negotiation negation negotiator negotiate vegetation
+nerver | nerve never nervier nerves server nerved nerve r nervy verve veneer
+ninty | tinny minty ninety ninny linty ninth nifty inanity
+noticable | noticeable noticeably notifiable notable
+nucular | annular
+nuisanse | nuisance sanserif
+obediant | obedient obeisant
+obssessed | obsessed possessed obsess
+ocasion | occasion scansion
+ocassion | occasion passion scansion
+occassionally | occasionally occasional
+occurance | occurrence nonoccurence
+occured | occurred occur ed occur-ed occur recurred cured
+occurence | occurrence nonoccurence concurrence recurrence renounce
+ocurred | occurred recurred concurred cured
+omited | omitted vomited omit ed omit-ed dolomite committed emitted
+oposite | opposite apposite posit
+oppertunity | opportunity importunity
+oppinion | opinion op pinion op-pinion pinion
+opponant | opponent poignant
+opression | oppression repression impression expression depression
+organisim | organism organist
+originaly | original originally originals original y originator
+outragous | outrageous outrages outrage ragouts ragout
+overwelming | overwhelming overweening overwintering
+paralell | parallel paralegal parallax parable
+pasionate | passionate passion
+pasttime | pastime past time past-time pastie
+peform | perform preform reform deform
+peice | pace piece price peace pence deice
+percieve | perceive perceptive
+perhpas | perhaps
+permanant | permanent pennant
+permenant | permanent temperament pentameter pennant
+persistance | persistence resistance assistance
+persistant | persistent persist ant persist-ant resistant persist peristalsis
+persue | peruse pursue per sue per-sue super
+pharoah | pharaoh
+phillosophy | philosophy philosophic philosophize philosopher
+plagerism | plagiarism
+plebian | plebeian lesbian
+polical | political polemical calico
+posess | posses poses possess posers pose's poses s posse papooses pose poss
+posession | possession obsession session possessive secession
+posistion | position positions postilion postulation positivist
+practicle | practice practical
+preceeding | preceding proceeding precluding prerecording predeceasing predicting
+prefered | preferred prefer ed prefer-ed prefer refereed referred referenced
+preferrence | preference reference preferred deference precedence
+preist | priest preexist
+premeir | premier
+prescious | precious precocious prestigious precarious precipitous
+presidental | presidential president residential
+presumptous | presumptuous presumptions presumption presumptive sumptuousness
+previlege | privilege reviler
+primative | primitive primate imperative
+priveledge | privileged privilege
+probablly | probably probable provably
+proceedure | procedure procedural proceeds proceed
+profesional | professional profession processional professorial provisional
+profittable | profitable profit table profit-table profitably profitability profiterole
+prominant | prominent predominant
+pronounciation | pronunciation renunciation annunciation propitiation appropriation
+propoganda | propaganda propagandist
+propt | prop prompt props pr opt pr-opt pro pt pro-pt prop t
+protien | protein
+psychoanalist | psychoanalyst psychoanalysis psychoanalytic psychoanalyses psychoanalyze
+punctation | punctuation compunction computation punctilio amputation
+pursuade | persuade pursuance
+pyschology | psychology psephology
+quarentine | quarantine turpentine
+questionaire | questionnaire questionable questioner sequestration question
+reccomend | recommend recommenced recommence commend
+reccommend | recommend rec commend rec-commend recommenced recommence commend
+recieve | receive relieve reverie
+recomend | recommend recommenced recommence commend comprehend
+reconize | recognize recolonize colonizer economizer colonize
+refered | refereed referred referee revered refer ed refer-ed referenced referrer deferred refer
+refridgerator | refrigerator refrigeration refrigerate
+reknowned | renowned foreknown
+releive | relieve relive receive reveille reveler revel
+relevent | relevant rel event rel-event eleventh relent reverent revilement
+religous | religious rebellious
+remeber | remember member ember
+remembrence | remembrance reemergence
+rennovate | renovate renovator renovation innovate
+repitition | repetition reposition premonition trepidation propitiation
+requirment | requirement acquirement retirement
+resistence | resistance persistence insistence preexistence consistence
+responsability | responsibility respectability impressionability
+restraunt | restraint restaurant
+reveiw | review reveille
+rythm | rhythm
+saftey | safety
+sattelite | satellite salivate satiate
+scarey | scare scary scares scared scare y scarred
+screeming | screening screaming screeching reminiscing screwing seeming
+seige | sage siege seine serge sedge beige seize
+sensetive | sensitive secretive seventieth
+seperate | separate desperate temperate exasperate serrate
+seperatly | separately
+sergant | sergeant servant merganser
+severly | severely Beverly severally reversely sever
+shaddow | shadow shakedown
+shephard | shepherd sheepherder
+shhet | sheet sherbet
+sholder | solder holder shoulder smolder s holder sh older sh-older
+shoping | shooing hoping shopping shoeing shaping shoring sloping scoping shoving showing s hoping sh oping sh-oping hopping shipping
+shrick | shtick shriek shrink sh rick sh-rick
+significent | significant significance magnificent
+signiture | signature furniture
+silouette | silhouette pirouette
+similiar | similar
+similiarity | similarity familiarity militarily
+sincerly | sincerely sincerer sincere
+soccor | soccer succor soc cor soc-cor
+sophmore | sophomore soph more soph-more sophomoric
+sorceror | sorcerer sorceress sorcery censor
+spagetti | spaghetti spatting
+speach | speak peach speech
+sponser | sponsor sponger response
+spontanious | spontaneous spontaneity
+spreding | speeding spreading spreeing predisposing predicting spending springing
+stomache | stomach stomacher stomached stomachs stomach e mustache
+strenth | strength strewth stretch
+struggel | struggle strudel
+substract | subtract subs tract subs-tract substrata substrate substratum subcontract
+sucess | success
+suddently | suddenly prudently
+sufficent | sufficient suffice
+suficient | sufficient sufficiency efficient scientific
+summery | summery summer summers summary mummery summer y
+supercede | supersede super cede super-cede persuaded
+superintendant | superintendent superintend ant superintend-ant superintendence superintendency superintend superabundant
+suposedly | supposedly supposed
+suprise | surprise sunrise sup rise sup-rise supervise upraise reprise
+suround | surround round
+surprize | surprise pressurize
+surrondings | surroundings surrounding
+surveilance | surveillance reinsurance
+symetric | symmetric metric
+tatoo | tattoo taboo ta too ta-too
+techinque | technique techie
+teh | the eh tech tee tea ten tel ted meh t eh
+temparature | temperature temperate premature
+tempature | temperature premature tempura
+temperment | temperament empowerment embitterment temperate experimenter
+temprature | temperature premature temperate tempura maturate
+tendancy | tenancy tendency attendance ascendancy
+terrotory | territory terror rotatory
+testemony | testimony testimonial
+thier | their tier shier trier thief thither hither
+thourough | thorough thou rough thou-rough throughout through thought though
+threshhold | threshold thresh hold thresh-hold threefold
+tobbaco | tobacco
+togeher | together
+tolerence | tolerance redolence
+tommorow | tomorrow morrow
+tomorow | tomorrow morrow
+tounge | tongue lounge
+tradgedy | tragedy gadgetry
+trafic | tragic traffic
+transfered | transferred transfer ed transfer-ed transference transferal transfer transfigured
+truelly | cruelly truly
+truely | truly truelove
+trun | turn tun run trunk runt true tron trug t run
+tunell | tun ell tun-ell tune ll tune-ll tunnel
+tution | tuition tut ion tut-ion caution
+twelth | twelfth
+unanymous | unanimous anonymous antonymous
+unconcious | unconscious conscious concussions concussion conclusions
+untill | until until l untimely
+upholstry | upholstery upholster
+usefull | useful usefully use full use-full useful l
+useing | using unseeing seining segueing seeing
+usuall | usual usually usu all usu-all usual l squall
+ususaly | usually causally usual
+vaccuum | vacuum vacuous
+vacum | vacuum vac um vac-um vacuous
+varous | various vaporous valorous
+vegatables | vegetables vegetable eatables
+veggtable | vegetable veritable
+vehical | vehicle
+vincinity | vicinity invincibility virginity divinity
+violance | violence vigilance
+visable | viable visible disable vi sable vi-sable advisable sable
+waht | what wast wait want wart watt baht waft
+warrent | warren warrens warrant war rent war-rent warren t
+wedensday | weekday
+weild | wield weld wild wiled weird
+wholhearted | wholehearted warmhearted
+wiegh | weigh
+wierd | weird wired wider wield
+withdrawl | withdraw withdrawal withdraws withdrawn with drawl with-drawl withdraw l withdrew
+wolrd | world wold word
+writting | writing witting gritting writhing writ ting writ-ting wringing
+yatch | yacht natch latch catch match patch hatch batch watch
+yeild | yield
+zeebra | zebra brazer braze
+zelous | zealous libelous
+zuchinni | zucchini
+#
+# Section: en-GB (en_GB.aff + en_GB.dic)
+abscence | absence acescence abstinence nascences abscess absentness absentee
+accomodate | accommodate accommodative acoelomate commemorate bromoacetate accumulate commoditise
+acess | aces cess access acers ace’s a cess aces s actress Cessna faceless aches assess asses
+acheive | achieve archive cacheing active achene achievable Ashover
+acheivement | achievement accouchement acharnement acquirement Achaemenid aggrievement encipherment
+achive | chive achieve archive active a chive Chivers hibachi Hitachi hive Ashover archfiend
+adress | dress address a dress adpressed adrenals headrest Hardres Audries Adrastea
+agressive | aggressive egressive ingressive digressive aggressivity progressive aggressee agrestic
+amature | mature armature amateur a mature maturate dramaturge dramaturg stature Amadora Amtrak
+annouce | announce annoyance Annonaceae enounce uranocene Anniston ancient
+anual | anal annual manual annal annul anuran ungual quantal anneal Annalee
+anwser | answer analyser Anheuser Andersen Andrews Ansley Anstey
+aparent | parent apparent a parent parament apprentice apparel Paparore aproned operant
+aplied | plied applied allied a plied ap lied ap-lied applies applier amplified aliened applet Appledram
+apparant | apparat apparent apparition Paparangi appearance paranatal apprentice aproned
+appearence | appearance appearer apprentice happenchance inappetence experience apparent
+aquire | squire quire acquire a quire aquifer faquir acquihire Arequipa aquarelle aquaria
+arangement | arrangement estrangement Orangemen avengement engagement Orangeman ingeminate
+arguement | argument measurement tegumentary engagement acharnement acumentin augmentive
+assasination | assassination assassinator assassinate assibilations association Ascensiontide Ascension
+assesment | assessment amassment easement assesses assent incasement appraisement
+asume | amuse assume subsume measure Sumer resume Assam Asimov
+atmoshpere | atmosphere atmospheric thermosphere Ashperton Atmore admiralship atemporal
+attaind | attains attain attained attaint attain d tailwind Stainland attend detain attenuate attentive
+attemp | attempt at temp at-temp template temperate tempera matte atemporal atompunk
+availible | available availability believable fallible relievable evaluable inviolable
+balence | valence balance Valence Ballance baleen lenience salience Balinese balancing
+bannana | banana bandana bandanna Bannatyne Annan Bannerman Banning Bannon
+basicly | basicity polybasic basic Basic bicycle subscale
+basment | basement bashment batsmen amassment battement bailment easement Barzman mobsmen
+beatiful | beautiful beatify beatitude beautify Beattie doubtful Bedfield
+becomming | becoming homecoming committing committeeing recommanding Beckmann subcommand
+becuase | because subcase Bewcastle backseat
+begining | beginning begirding begin belonging Benington Borgnine rubiconing
+beleive | believe Believer Belleville beehive Bellevue beloved Belview
+benifit | benefit benignity Benito bentonite Benioff Benford bunfight
+betwen | between betoken betaken Betws bennet batwing birdwing
+bizzare | bizarre Izzard Rizza bursary biserial
+boaring | boating boring baring oaring boarding bearing soaring roaring blaring b oaring boa ring boa-ring bowstring naringin labouring
+bordeom | boredom border Border Borden Bomford biodome Boardman
+braek | break brake brae braes brank brae k Brae bra Braque Bracon
+buety | busty suety butty Betty Butley buttony
+buisness | business busyness puisnes Burness Bunessan biosensor bioscience
+burried | burred buried berried burrier curried hurried Burridge burrowed burier durrie burrito Bourret
+calender | calender calenders calendar ca lender ca-lender cal ender cal-ender calendric calendula
+canidate | candidate candidature Canaanite encapsidate canister candider candida
+carreer | career carrier Carrera carefree carrel Carrey careworn carry
+catagory | category castigatory natatory revocatory precatory categorise cartography
+cauhgt | caught Cauchy cactus cacti
+cemetary | cemetery cometary commentary elementary cementa secretary oximetry sociometry
+challange | challenge Llangennech changeling changelog phalange Michelangelo cholinergic
+cheif | chief chef Cherie Chief Chevy
+choosen | choose chosen chooses chooser choose n chose choosy Choseley loosen chasing Chesson
+cieling | ceiling changeling Eling clinging feeling Riesling Selling
+clousure | closure credulous coloured recolour cocksure close-ratio classroom
+collague | collage colleague collogue coll ague coll-ague Collace collate collapse coagulase colloquy bricolage
+combintation | combination contamination biocomputation commination cohabitation combinatoric combinator
+comming | coming cumming comping combing committing commoving communing commencing comminuted command
+commited | commuted committed comminuted committee committent commitment commoditise commutate
+commitee | committee committed committent commitment commit commute commutate
+committment | committent commitment committee committing committed committable Commandment compartment
+compair | comp air comp-air comparer compare compactor comparator complain companion
+comparision | comparison compassionate compression companionship companion comprehension compromising
+compleat | comp leat comp-leat complete completable Complera complicate completist completive
+compromize | compromise compromising compressor compress prominence compresent compresence
+concensus | consensus
+concious | conscious concision concussion conclusion contumacious concise consist
+consciencious | conscientious consciousness conscience semi-conscious superconscious consanguineous consanguinity
+conservitive | conservative Conservative conservativity conservativism conservation conservatoire conservatism
+consistant | consistent consist ant consist-ant constantan Constantia Constantin Constantijn consistence consistency
+controled | controlled
+convinient | convenient convenience convention Convinth convince conventual convincing
+coorperate | cooperate cooperator co-operate corporate cooperative corporatise corporatism
+copmany | company cop many cop-many topman cacophony conman Corman Copmanford copayment
+cosultant | consultant consultancy resultant constantan sultanate exultant exultancy
+councel | counsel council
+couragous | courageous courages courage coprophagous courteous Craighouse cragsman
+curiousity | curiosity curious biosecurity obscurity scurrility Crostwight microstudy
+dammage | damage dam mage dam-mage Dagenham Gamage Damme rummage Damjan Damocles
+decieve | deceive decisive decide deceptive decile decipher deceivable
+definate | definite definable deaminate delaminate denominate definitive defiant
+definately | definitely determinately effeminately definably inordinately definitive definite
+definitly | definitely definite definitive definition defiantly defiant defendant
+deparment | department debarment undergarment parament Parmenides depigment development escarpment
+descibe | describe decibel Delibes demiscible scribe Desbiens desorb
+descision | decision descension rescission description derision desertion Deschanel
+desease | decease disease
+desireable | desirable desire able desire-able desirabilia describable desirability respirable decipherable disreputable
+desparate | desperate disparate desiderate desecrate separate aspartate desperado dispirited
+detatch | detach despatch Datchet death-watch hatchet Heptateuch Pentateuch
+developement | development dev elopement dev-elopement developed developer devotement developable divulgement protofilament
+dictionairy | dictionary diction airy diction-airy directionality discretionary directional traditionary predicational functionary
+differant | different differ ant differ-ant difference differer diffident differ deferent whitefront
+dilema | dilemma dimmable aedile diadem mandible dolman Adleman
+directer | director directer directed
+discription | description inscription conscription proscription discrimination transcription prescription
+disipline | discipline lipline dianisidine disciple sideline disciplinary displease
+dissapear | dispensary dissipater dispersal dissimilar dissipate displease
+dissapoint | disappoint disjointness dissonant standpoint despondent dispensate
+distrubute | distribute distributive distributor distributable distribution distributary misattribute
+doutb | doubt outbid outbred outbound outdo dot-bomb double
+dramaticly | dramatics melodramatic undramatic dramaturgic dramaturgy dramaturge
+durring | furring during purring burring Durrington blurring durrie Durris Dearing durance
+ecomony | economy Comecon economic ceremony monoecy ecumenic egomania
+effecient | efficient Effient deficient efferent effective effervescent off-centre
+efficent | efficient beneficent Effient maleficent efficiency off-centre deficient
+eigth | eight eighth Eight Teigh heigh thigh Agathe Agatha
+elefant | elephant elegant
+elliminate | eliminate
+embarass | embarrass embarks embassy embargoes embrasures embrasure embrace
+emminent | eminent imminent eminence Emmington prominent imminence immanent Emmental
+emplyee | employee employed employ Kempley Plymtree emplace emplane
+encylopedia | encyclopedia encyclopaedia encyclopedism encyclopedist unencyclopedic encyclopaedist encephalopathy
+enviroment | environment envisionment envisagement environ intromittent investment instrument
+equippment | equipment equipotent equipollent equipped equivalent escarpment recoupment
+esential | essential sentential sequential residential pestilential existential evidential
+espcially | especially specially spacially especial eusocially ecclesially speciality spaciality
+evalution | evaluation evolution valuation elevational elution involution evulsion agflation
+exagerate | exaggerate exaggerator exasperate exonerate exacerbate execrate excoriate
+exampel | example expel exempla Lempel exam exempli exemplum
+excede | exceed ex cede ex-cede exclude excited Excel excel excite Exocet
+excercise | exercise exorcise dancercise excisemen excise excessive exorcism
+exellent | excellent repellent excellence excellency Lexell Exelon exhalant
+exibition | exhibition imbibition inhibition expedition prohibition exorbitant exuviation
+existance | existence assistance resistance distance instance existent excitingness
+experiance | experience experiential Spencerian expedience Cancerian experiment expression
+explanination | explanation examinational explanantia exponentiation explanandum explananda
+facinating | fascinating facilitating vaccinating vaticinating ratiocinating fascinator fascinate
+familar | familiar familial famille family asimilar farmland famulus
+famoust | famous famous t fatuous Faustus agamous fatuitous farmstead farmstock
+feasable | feasible leasable fellable passable abusable realisable feasibility forceable
+feild | field filed Feilding Heidfeld wildlife Felder Field
+firey | fiery firry fire fires firer fired fire y FireWire Filey Frey fir freckly Favre
+flourescent | fluorescent florescent florescence fluorescence Florencecourt concrescent Florissant fluorescein
+forcast | forecast for cast for-cast foremast aftercast foretaste overcast focused foxtrot
+foriegn | foreign Foreign foregone Foreglen forego Foveran friendly
+forseeable | foreseeable forgeable forceable forfeitable forgettable forcible defeasible
+fourty | forty fourth fortuity Four four Fort fortis footway
+foward | forward froward toward coward Toward Howard Warford Broward Warnford downward avowed safeword
+freind | friend reindeer Freire reinduce Felindre frontend frenetic
+frequencey | frequency infrequence frequently resequence frequent Africanews ferruginous
+garantee | grantee guarantee warrantee tarantelle tarantella gargantuan guaranty grantable
+genious | genius ingenious selenious biogenous generous Genesis Genesee
+glamourous | glamorous glamourpuss glamours glamourises glamourise glamorise clamorous
+goverment | government overgarment averment governorate overtreatment aggrievement movement
+graet | great grate greet grant graft gratae Graeme grata Grade groat
+grammer | gramme rammer grammes grimmer grammar crammer g rammer gramme r Grammar Grasmere Grammy Grahame grampus Graeme
+grevience | reviviscence grievance gradience reverence Graveney Ravenscroft
+guage | gauge gage gunge language Gussage assuage quayage gudgeon gadget
+guarentee | guarantee aguardiente unparented guardee parentage guaranty figurante
+hapened | happened cheapened hardened happen chaperoned Harpenden hypnotise
+happend | happens happen happed append happened h append hap pend hap-pend happen d Harpenden apprehend Wappenham Aspenden hypnotic hypnotise
+heigth | height heigh eighth Heights theist Eight eight Hogarth Heigham
+hierachy | hierarchy hierarch hierocracy hieratic Brachycera heresiarch Hiroshi
+hipopotamus | hippopotamus hippopotami hippocampus hypothalamus Mesopotamia heptamerous hypodermes
+hospitol | hospital Hospital hospitable hospitably photolitho spittle Spittal
+humerous | humerus numerous humorous hexamerous heteromerous temerous heptamerous humourise humorist
+hundered | hindered hundred thundered sundered hungered hunkered hereunder underbred foundered maundered Hendred handwrite
+hygeine | hygiene hyaline hypogene Heine Huygens hygienics
+imediately | mediately immediately i mediately immediate radiately intermediate unmediated imitative limitedly
+imigration | migration immigration emigration i migration integration invigoration immoderation figuration ingression impropriation
+impossable | imposable impossible impassable importable indecomposable disposable compossible impassible impassability
+inconsistant | inconsistent inconstant inconsistency inconstancy inconsonant inconsiderate inconsequent
+independant | independent in dependant in-dependant Independent Independence independence interdependent independency underpainting
+indipendent | independent Independent interdependent Independence independency codependent interdepend
+indpendent | independent Independent interdependent Independence independence independency codependent
+infinate | infinite infiltrate raffinate infibulate infatuate infinitive infinitude
+initally | initially genitally intravitally Nainital inimitably interlay inutility
+inseperable | inseparable insuperable inoperable insertable insufferable insurable inseparability insuperability
+inteligence | intelligence
+inteligent | intelligent
+intergrate | integrate intergrade inter grate inter-grate intergradation intercrater interoperate intergrew integrative integrator
+intresting | interesting ingesting unresisting prestressing cresting untrusting interested
+irrelevent | irrelevant irreverential irrelevance irrelevancy irrelative relevant Rolvenden
+jepardy | jeopardy Peppard Pypard parody joypad keypad
+knoledge | knowledge knowledgable Rockledge knothole ledge xenologer monologue
+knowldge | knowledge knowledgable Knowle xenologer monologue
+knowlege | knowledge Knowle knowledgable Puncknowle Knowsley xenologer monologue
+labratory | laboratory elaborator lavatory laudatory oblatory labradorite Labrador
+langauge | language Lanfeugan Llanganten LaGrange Lagrange Langcliffe Langlade
+leutenant | lieutenant lieutenancy subtenant antennule untenable alternant agglutinant
+liason | liaison Alison Allison Lias diapason Larson Lawson
+libary | library millibar biliary Barbary ribaldry Libera libero
+lieing | lying lining liming pieing hieing living liking
+lisence | licence silence license
+literaly | literally literal literals literary literacy
+lonly | only lonely lolly lowly l only loony Conlon looney Looney Linley Leonel
+loosing | loosing sooling losing looning noosing looting lousing goosing looming looping looking loo sing loo-sing loosen leasing
+luky | lucky fluky Luke Luik Luňák
+magasine | magazine marcasine magnesian magnesia magnesite marcassin moccasin
+magnificient | magnificent magnificence Magnificat magnificoes magnifico munificent omnificent
+maintaince | maintenance maintain acquaintance mainbrace Mandingoes mountainside
+maintence | maintenance intermittence maintain inappetence Mandingoes Montanist
+managment | management engagement fragment Mantegna macrosegment avengement unaugmented
+mantain | maintain manta in manta-in manta mantling plantain Mountain Manteno Manton
+marraige | marriage arraign marrier Maraetai married Marrakesh Marygate
+marshmellow | marshmallow marsh mellow marsh-mellow Marshalltown Marshchapel Marshall marvellous Marshfield parenchymella
+mathmatics | mathematics asthmatics asthmatic mathematicism Mathematica mathematical mathematise
+medcine | medicine Medicine medicinal Medician Medici Medicean medusan
+medeval | medieval mediaeval Medvedev Merevale medal Medfield Midvale
+meterology | metrology meteorology heterology meter ology meter-ology Homerology numerology mereology computerology martyrology matrilocal
+milage | mileage silage mirage mucilage railage permillage pillage milkshake Milcote
+millenium | millennium millennial millennia Millenniata millenarian millionaire millionth
+millitary | military
+minature | miniature mi nature mi-nature seminatural misfeature signature minaret minatory minidress
+miniscule | miniscule minuscule minicircle minuscular
+minumum | minimum minium Ariminum Minginui numinous minimax minimal
+miricle | miracle minicircle semicircle curricle mid-circle miraculous marigold
+miror | mirror minor mirador Minor micro Mir Myron Māori
+mischevious | mischievous Cheviots Schervish miscreative misgiving
+mispell | ispell misspell m ispell mi spell mi-spell misspelt mispickel MySpell mis-sell misplace misapply
+missle | missile missee mistle miss le miss-le Missler missable misled Millisle missal Missoula
+mmorow | morrow Morrow monobrow Moro Murrow memoria
+modle | model mode mole module mod le mod-le Moodle doodle Doodle doddle modal modulo
+moent | moment mount Moen mordent movement monument Monet Monte
+monestary | monastery monetary monumentary monetarism momentary testamentary monstrosity monstrous
+musle | muse mule muscle mules mus le mus-le Muscle Muslim Munsley Mursley muslin mussel
+myraid | myriad my raid my-raid Myra pyramid raid maid Myrdal Myrtle
+natuarl | natural naturel nature Nahuatl Tuamarina Natland neonatal
+neccessary | necessary accessary necessarian recessionary necessitarian accessory incarcerator
+necesary | necessary necessarian accessary nectary Cesarsky incisure ancestry
+negotation | negotiation negotiate negotiator negationist notation punctation vegetational
+nerver | nerve never nervier nerves server nerved nerve r Verner Nervet nervine nervure nervon nerving
+ninty | tinny minty ninety ninny linty nifty ninth inanity pointy dainty shinty Nintendo niente
+noticable | noticeable notable negotiable domesticable practicable vindicable ineducable
+nucular | nucleolar navicular minuscular avuncular nuclease nucleate
+nuisanse | nuisance
+obediant | obedient obeisant submediant obedience mediant Ebdentown obtention
+obssessed | obsessed possessed obsessive assessed obsession obsess obstetric
+ocasion | occasion scansion Cassation suasion nasion auction actioner
+ocassion | occasion Cassation Cassington passion actioner auction
+occassionally | occasionally occasionality occasionalism occasionalist occupationally occupational actionability
+occurance | procurance occurrence uranocene endurance occurrent ignorance
+occured | occurred procured occurrent occurrence obscured accurate accredit
+occurence | occurrence occurrent concurrence recurrence flocculence Eurocurrency procurance
+ocurred | occurred procured occurrent occurrence obscured accurate accredit
+omited | omitted vomited dolomite committed sodomite fomite imitate ommatidia
+oposite | opposite apposite posited composite oppositive apostle Apostle
+oppertunity | opportunity importunity opportunist opportunism hypertonicity opportuneness opportune
+oppinion | opinion op pinion op-pinion pinion Galoppini Loppington opposition opponent opponency
+opponant | opponent oppugnant Pontcanna proppant poignant opinionated opponency
+opression | oppression repression expression impression depression operation compression
+organisim | organism organistrum organicism organiser organist organise organisation
+originaly | originally original originals
+outragous | outrageous outranges ragouts autophagous outranks ataraxia ataraxy
+overwelming | overwhelming overweening overswelling overwinding overwatering overworld overemployment
+paralell | parallel paralegal paralexia parallax paralyse paralogy paralic
+pasionate | passionate passionable Passiontide passional propionate unpassioned passionary
+pasttime | pastime past time past-time timepass part-time pastiche pastille peacetime spacetime
+peform | perform preform reform deform pediform perciform peltiform lifeform perfume perfumist
+peice | piece price peace pence Peirce Penrice pedicel pectic Peace Pease
+percieve | perceive perceptive percipience Percival percipient perceivable perciform
+perhpas | perhaps paperchase permease perganas personas herpes Hippasus
+permanant | permanent permanganate performant permanence peterman permanency prominent
+permenant | permanent permeance permanganate petermen performant prominent permanency
+persistance | persistence persistency resistance persistent assistance preexistence pre-existence
+persistant | persistent persist ant persist-ant persistence persistency resistant persist pre-existant assistantship
+persue | peruse pursue per sue per-sue persuade Perseus Perse Perspex personate personage
+pharoah | pharaoh Pharaoh pharos Taharoa Waharoa Pharaonic Pharisaic
+phillosophy | philosophy
+plagerism | plagiarism plagiarise plagiarist managerialism pellagrous vulgarism
+plebian | plebeian Pleiadian Lesbian lesbian Keplerian spellbind haplobiont
+polical | political polemical Apostolical apostolical policlinic polyclonal
+posess | posses poses possess posers poses s POSes posse papooses pose passes Pisces
+posession | possession po session po-session obsession session possessive secession positions persuasion
+posistion | position positions postilion postillion postillation positivist possession cessation
+practicle | practice practicable practical practicably protractile pericortical practician
+preceeding | preceding proceeding precoding precenting precluding precessing precedence precedent
+prefered | preferred preference prefer refereed referred proofread proof-read
+preferrence | preference referencer dereference reference preferential prefrontal unreferencing
+preist | priest Prezista precisest pre-exist prelatist preset presto
+premeir | premier première premed premsie premium premune premaster
+prescious | precious preconscious precocious prestigious precarious preciosity precisest
+presidental | presidential president al president-al Presidential president President residential presidency presentimental
+presumptous | presumptuous presumptions presumption resumption sumptuous presymptomatic precipitous
+previlege | privilege Princeville grevillea prevail previse profligate prevalent
+primative | primitive privative primatial primate primavera estimative primitivism primetime
+priveledge | privileged privilege piledriver Liversedge profligate profligacy
+probablly | probably
+proceedure | procedure procedural proceed processed procure prostrate prestressed
+profesional | professional profession processional progressional provisional profusion provision
+profittable | profitable profit table profit-table profiterole precipitable prosecutable remittable providable preventable
+prominant | prominent pronominal dominant predominate contaminant prominency prominence
+pronounciation | pronunciation abrenunciation renunciation pronunciamento inappreciation pronouncement pronounceable
+propoganda | propaganda propaganded propagandist propagandism propagandise repaginate propagator
+propt | prop prompt props pro pt pro-pt prop t Prout pronto pro periapt parapet
+protien | protein protistan protist protection promotion protean proton
+psychoanalist | psychoanalyst psychoanalysis psychoanalytical psychoanalyse psychopannychist psycholinguist positionality
+punctation | punctation punctations punctuation punctatissima punctate
+pursuade | persuade pursuable pursuance pursuant pursue pursuit pustular
+pyschology | psychology psychobiology conchology psychologic psephology musicology postcyclic
+quarentine | quarantine Argentine turpentine quartering interquartile Quarrington Grenadines
+questionaire | questionnaire questionary questionableness requestion unquestionable questioning questioned
+reccomend | recommend recommencer recommand recompensed regimental regiment
+reccommend | recommend recommenced recommence Commendatore commender recommand regimental
+recieve | receive relieve reprieve retrieve reverie recitative Recife reserve
+recomend | recommend recommand recommencer recompensed recompense regiment fragment
+reconize | reconcile recondite reconnoitre preconise reconsign recognise
+refered | refereed referred referee refired revered referenced referenda reoffered reference referent proofread
+refridgerator | refrigerator refrigerate refrigerant regenerator reperforator rotogravure periodograph
+reknowned | renowned foreknown foreknowledge foreknow unowned regnant repugnant
+releive | relieve relive receive relative reflexive reveille revelative relevance relievo
+relevent | relevant relent reverent revenant relearnt resolvent Rolvenden
+religous | religious religiose religions rebellious religion religiosity paralogous
+remeber | remember Meremere membered Reber Bremer Romberg remblai
+remembrence | remembrance re-emergence rememberer remanence rememberable membraneous membranaceous
+rennovate | renovate renovator innovate reinnervate perennate hereinafter reinflate
+repitition | repetition repartition redeposition reignition reimposition reputational trepidation
+requirment | requirement acquirement require infrequent requicken regimental regiment
+resistence | resistance persistence resipiscence insistence preexistence resistant residence
+responsability | responsibility respectability reasonability impressionability presentability responsibly responsible
+restraunt | restraint restaurant restrain registrant remonstrant recalcitrant obstruent
+reveiw | review reveille reverie revere Revere reveal reverb
+rythm | rhythm Ryther Mathry myth Rothman erythema
+saftey | safety Safety Satley sate Saivite softie
+sattelite | satellite Satellite Satterthwaite Israelite stellated Stieltjes
+scarey | scare scary scares scarer scared scare y Carey Carrey scarce Scarfe scarab screechy
+screeming | screening screaming screeching reminiscing screwing screenwriting scaremonger Sacramento
+seige | siege seise seine serge sedge beige seigeury Sergei Geiger greige seigneur seignior
+sensetive | sensitive sensitivity sensitise selective consecutive unassertive sensate
+seperate | separate perseverate desperate temperate exasperate separator separatism
+seperatly | separately desperately temperately separably Sproatley sprightly
+sergant | sergeant servant merganser termagant Termagant organiser secant Sargent
+severly | severely Beverly Everly reversely severalty severity Seville saveloy
+shaddow | shadow shaddock shadblow shadoof Shardlow shadbush shutdown
+shephard | Shephard shepherd Shepherds Sherford
+shhet | sheet shh et shh-et Sheet sherbet Keshet Eisheth Shewhart Ashhurst
+sholder | solder holder shoulder scolder s holder sh older sh-older Sholden Holderness shorthold Shergold should’ve should
+shoping | shooing hoping shopping shoeing shaping shoring sloping scoping shoving showing s hoping sh oping sh-oping shopkeeping shipping
+shrick | shtick shriek shrink sh rick sh-rick Sheldrick ricksha shrike Herrick shuriken Shrigley
+significent | significant significance significative magnificent signifiant signifieds signifier
+signiture | signature garniture furniture signwriter progeniture signatory signet-ring
+silouette | silhouette pirouette oubliette etiquette toilette Sillitoe newsletter
+similiar | similar miliaria familiar miliary milliard similitude simulacra
+similiarity | similarity familiarity antimilitarist militarist antimilitarism osmolarity similitude
+sincerly | sincerely sincerity sincere sinisterly sisterly senseless sensilla
+soccor | soccer Socorro sirocco Corsock scirocco SCORM sockeye
+sophmore | soph more soph-more sophomoric Rushmore sopherim mesomorph ephemerides ephemeris
+sorceror | sorcerer sorceress sorcery processor enforcer Sorocold cicerone
+spagetti | spaghetti spacetime geospatial Padgett pargeting spectate spectator
+speach | speak peach speech
+sponser | sponsor sponger response Spooner Spenser spoonier spinster spinose
+spontanious | spontaneous spontaneity sanctimonious contagious instantaneous serpentinise despondency
+spreding | speeding spreading spreeing spending respring Redinger Springside Spreydon Spreyton
+stomache | stomach stomacher stomached stomachs stomach e moustache stomata Hacheston toothache Stodmarsh steamship
+strenth | strength strewth Strensham Trentham Stretham Streethay strenuous Strensall
+struggel | struggle strudel streusel straggle suggest straggly strigil
+substract | subtract subs tract subs-tract substrata substrate substratum subcontract substructure abstract
+sucess | success sauces succeeds suckles seduces surcease Suissas
+suddently | suddenly prudently stridently impudently despondently occidental accidental
+sufficent | sufficient suffice sufficiency munificent efficient stupefacient rufescent
+suficient | sufficient sufficiency efficient scientific deficient stupefacient munificent
+summery | summery summer summerly summers summary mummery summer y Sumerian Smerrill
+supercede | supersede
+superintendant | superintendent super intendant super-intendant superintend ant superintend-ant superintendence superintendency superintend superintelligent superabundant superintelligence
+suposedly | supposedly supposed composedly suppose superpose supersede supercity
+suprise | uprise surprise sunrise s uprise sup rise sup-rise Surprise supervise Sunrise suberise superuser surprisal
+suround | surround subround unround turnround subrotund runaround surrender serenade
+surprize | surprise Surprise surprisal surprising supersize misprize suppress
+surrondings | surroundings surrounds non-corrodings surround Shurdington Grenadines surrender
+surveilance | surveillance
+symetric | symmetric trimetric sympatric stylometric isometric hypsometric piezometric
+tatoo | tattoo taboo ta too ta-too Tatoeba Tatton potato Talaton tatami Tatworth
+techinque | technique catechin cinquecento techie inquest technicum technikum
+teh | the eh tech tee tea ten tec meh heh Leh t eh Te Thad ate
+temparature | temperature temperate premature literature paratextual temperament temporariness
+tempature | temperature premature temperate tempura temptress Dermaptera
+temperment | temperament temperate temperance implementer petermen impermanent peppermint
+temprature | temperature premature temperate literature supranature temperance temperament
+tendancy | tenancy tendency intendancy attendance ascendancy redundancy tendinous tendonosis
+terrotory | territory interrogatory protectory terrorist terror triturator trattoria
+testemony | testimony penstemon pentstemon Testerton testosterone testament testimonial
+thier | their tier shier trier thief Thierry thither thievery thinker thine third
+thourough | thorough thou rough thou-rough throughout Thornbrough Thornborough Thoughter through Throwleigh
+threshhold | threshold thresh hold thresh-hold Threshfield three-fold shorthold shareholder Thrushelton shareholding
+tobbaco | tobacco babacoote Tobago cobaltous toboggan tieback
+togeher | together toucher thereto teratogen Hertzog stokehole Tockholes
+tolerence | tolerance Torrence redolence Terence Terrence tolerant clearance
+tommorow | tomorrow Moortown morrow Morrow Tomarata timorous
+tomorow | tomorrow morrow Morrow Moortown Doctorow Tomarata timorous
+tounge | tongue lounge Tonge Tongue outrange Hungerton tonnage tuneage
+tradgedy | tragedy gadgetry Troedyraur gadgety trade tragedian tragedienne
+trafic | tragic traffic ultramafic Traci trophic trifecta
+transfered | transferred transferee transference transferware transferase transfected transferor transferral
+truelly | cruelly truelove Trussell truncately truly trellis Strelley
+truely | truly truelove TrueType cruelly True trellis trolley
+trun | turn tun run trunk runt true trug Arun t run truant Runton Tron tRNA
+tunell | tun ell tun-ell tune ll tune-ll tunnel tuneless tuneful tuneable Tunley Tutnall
+tution | tuition tut ion tut-ion caution elution solution locution Station Titian
+twelth | twelfth Welther wealth twelve Feltwell twilit Twywell
+unanymous | unanimous anonymous antonymous synonymous paronymous anonymise unamused
+unconcious | unconscious uncontentious conscious unsuspicious unofficious unconcealed unconsumed
+untill | until
+upholstry | upholstery upholster sophistry profilist phalanstery
+usefull | useful usefully
+useing | using unseeing seining seeing singeing Usenet Usain
+usuall | usual usually
+ususaly | usually usual Alypius Salyut isiZulu Usselby
+vaccuum | vacuum vasculum vacua Wickman Vegemite
+vacum | vacuum vacua vasculum vacuolar Wickman
+varous | various vaporous valorous variolous arouses varices Variscan
+vegatables | vegetables vegetable eatables tablemates Venables vegetability catabolism
+veggtable | vegetable veritable regrettable gettable grantable vegetability worktable
+vehical | vesical vehicle vehicular ethical vertical high-cal Hicklin
+vincinity | vicinity vincibility virginity divinity inclusivity Vincent Vincennes
+violance | violence vigilance violoncello violate VideoLAN villainess valance
+visable | viable visible disable vi sable vi-sable vis able vis-able advisable revisable devisable missable visibility vincible
+waht | what wast wait want wart watt waft baht Wath Waite whet
+warrent | warren warrens warrant war rent war-rent warren t Warren arrestment torrent parent Warrington weren’t
+wedensday | Wednesday Wensleydale weekday Sweden Wednsebury Wednesbury
+weild | wield weld wild wiled weald weird Weill Wilde Weld Weald Wildt Wield
+wholhearted | wholehearted cold-hearted downhearted lionhearted warm-hearted wholewheat cool-headed
+wiegh | weigh wedge waive
+wierd | weird wired wider wield Wiener winier wilder Wilder weedy wide
+withdrawl | withdraw withdrawal withdraws withdrawn with drawl with-drawl withdraw l withdrew Brawith Flawith Blawith cathedral Cathedral
+wolrd | world wold word Wolford Wold wool Wool Wilfrid Wilfred
+writting | writing witting gritting fritting writhing writ ting writ-ting Wratting WritingTool Wittering wringing Brittany routeing
+yatch | yacht natch ratch latch catch match patch hatch batch watch Satch Hatch Atcham chitchat Yashmak
+yeild | yield Yelden Yeldham
+zeebra | zebra braze razee Jazeera Debra Zeebrugge Zubrin
+zelous | zealous ouzels louses louse ousels Zelston Zeals
+zuchinni | zucchini Inchinnan capuchin Capuchin Zeichner Schneier

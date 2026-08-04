@@ -153,6 +153,23 @@ TEST_F(SpellCheckerTest, AddToUserDictionaryStopsFlagging)
     EXPECT_TRUE(checker2.checkWord(word));
 }
 
+TEST_F(SpellCheckerTest, UserDictionaryMatchesCaseInsensitively)
+{
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+    const QString word = "scribamarkdown";
+
+    QFile::remove(SpellChecker::configDictDir() + "/user.dic");
+
+    // A capitalized add must satisfy the folded ("scribamarkdown") lookup:
+    // engine folds user entries to the same form the dictionary uses.
+    checker.addToUserDictionary("Scribamarkdown");
+    EXPECT_TRUE(checker.checkWord(word));
+
+    // Leave the user dictionary clean for subsequent tests.
+    QFile::remove(SpellChecker::configDictDir() + "/user.dic");
+}
+
 TEST_F(SpellCheckerTest, RemoveFromUserDictionary)
 {
     SpellChecker checker;

@@ -24,7 +24,8 @@
 namespace {
 
 constexpr const char *BundledFiles[] = {"en-US.txt", "en-GB.txt", "maori-nz.txt",
-                                        "canadian-en.txt", "keyboard-en-GB.txt"};
+                                        "canadian-en.txt", "keyboard-en-GB.txt",
+                                        "freq-en.txt"};
 
 QString bundledDictDir()
 {
@@ -110,7 +111,7 @@ bool isBundledFileName(const QString &base)
 {
     return base == QLatin1String("en-US") || base == QLatin1String("en-GB")
         || base == QLatin1String("maori-nz") || base == QLatin1String("canadian-en")
-        || base == QLatin1String("keyboard-en-GB");
+        || base == QLatin1String("keyboard-en-GB") || base == QLatin1String("freq-en");
 }
 
 bool copyFileTo(const QString &src, const QString &dst)

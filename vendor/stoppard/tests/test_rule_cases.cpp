@@ -225,6 +225,56 @@ void runFile(const char *name, const char *family, Dialect d)
     }
 }
 
+// R14 (spelling) variant: same wrong | right | R14 format, but the expected
+// issues come from the Engine with the spelling pass enabled (SPEC §19).
+void runSpellingFile(const char *name, Dialect d, Language l)
+{
+    Engine e(d);
+    e.setLanguage(l);
+    e.setDictionaryPaths(std::string(TESTS_DICT_DIR) + "/en-US.txt",
+                         std::string(TESTS_DICT_DIR) + "/en-GB.txt",
+                         std::string(TESTS_DICT_DIR) + "/maori-nz.txt",
+                         std::string(TESTS_DICT_DIR) + "/canadian-en.txt");
+    const std::string path = std::string(TESTS_DATA_DIR) + "/rule_cases/" + name;
+    std::ifstream f(path);
+    ASSERT_TRUE(f.good()) << path;
+    std::string line;
+    int lineno = 0;
+    while (std::getline(f, line)) {
+        ++lineno;
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty()) continue;
+        SCOPED_TRACE(name + std::string(":") + std::to_string(lineno) + " " + line);
+        const std::vector<std::u16string> parts = splitParts(utf8ToUtf16(line));
+        ASSERT_EQ(parts.size(), 3u);
+        EXPECT_EQ(std::string(parts[2].begin(), parts[2].end()), "R14");
+        const std::vector<Word> ww = splitWords(parts[0]);
+        std::vector<std::u16string> rr;
+        for (const Word &word : splitWords(parts[1])) rr.push_back(word.text);
+        const std::vector<Run> runs = diffRuns(ww, rr);
+        const std::vector<Issue> issues = e.check(parts[0]);
+        if (runs.empty()) {
+            expectClean(issues);
+            continue;
+        }
+        ASSERT_EQ(issues.size(), runs.size())
+            << "wrong: " << std::string(parts[0].begin(), parts[0].end());
+        for (const Run &r : runs) {
+            bool found = false;
+            for (const Issue &iss : issues) {
+                if (iss.start == static_cast<int>(r.start)
+                    && iss.length == static_cast<int>(r.length)) {
+                    found = true;
+                    ASSERT_FALSE(iss.suggestions.empty());
+                    EXPECT_EQ(iss.suggestions[0].text, r.suggestion);
+                }
+            }
+            EXPECT_TRUE(found) << "no issue at (" << r.start << "," << r.length << ") for: "
+                               << std::string(parts[0].begin(), parts[0].end());
+        }
+    }
+}
+
 } // namespace
 
 TEST(RuleCases, R1) { runFile("R1_modal.txt", "R1", Dialect::American); }
@@ -237,3 +287,9 @@ TEST(RuleCases, R7) { runFile("R7_double_modal.txt", "R7", Dialect::American); }
 TEST(RuleCases, R8) { runFile("R8_double_negative.txt", "R8", Dialect::American); }
 TEST(RuleCases, R9) { runFile("R9_regionalisms.txt", "R9", Dialect::British); }
 TEST(RuleCases, R12) { runFile("R12_confusion.txt", "R12", Dialect::American); }
+TEST(RuleCases, R14) {
+    runSpellingFile("R14_spelling.txt", Dialect::American, Language::American);
+}
+TEST(RuleCases, R14British) {
+    runSpellingFile("R14_spelling.txt", Dialect::British, Language::British);
+}

@@ -31,41 +31,46 @@ target_compile_options(stoppard PRIVATE -Wall -Wextra -Wpedantic)
 option(STOPPARD_BUILD_TESTS "Build stoppard tests" ON)
 
 if(STOPPARD_BUILD_TESTS)
-    include(FetchContent)
-    FetchContent_Declare(googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.15.2)
-    FetchContent_MakeAvailable(googletest)
-    include(GoogleTest)
-    enable_testing()
+include(FetchContent)
+FetchContent_Declare(googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.15.2)
+FetchContent_MakeAvailable(googletest)
+include(GoogleTest)
+enable_testing()
 
-    add_executable(test_stoppard
-        tests/test_tokenizer.cpp
-        tests/test_lexicon.cpp
-        tests/test_morphology.cpp
-        tests/test_smoke.cpp
-        tests/test_tagger.cpp
-        tests/test_chunker.cpp
-        tests/test_rules_framework.cpp
-        tests/test_rules_modal.cpp
-        tests/test_rules_aux.cpp
-        tests/test_rules_agreement.cpp
-        tests/test_rules_to_infinitive.cpp
-        tests/test_rules_determiner.cpp
-        tests/test_rules_pronoun_case.cpp
-        tests/test_rules_double_modal.cpp
-        tests/test_rules_double_negative.cpp
-        tests/test_rules_regionalisms.cpp
-        tests/test_rule_cases.cpp
-        tests/test_engine.cpp
-        tests/test_corpus.cpp
-        tests/test_regression.cpp
-        tests/test_mutations.cpp
-        tests/test_performance.cpp
-    )
-    target_link_libraries(test_stoppard PRIVATE stoppard GTest::gtest_main)
-    target_include_directories(test_stoppard PRIVATE src)
-    target_compile_definitions(test_stoppard PRIVATE
-        TESTS_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
-    gtest_discover_tests(test_stoppard)
+add_executable(test_stoppard
+    tests/test_tokenizer.cpp
+    tests/test_lexicon.cpp
+    tests/test_morphology.cpp
+    tests/test_smoke.cpp
+    tests/test_tagger.cpp
+    tests/test_chunker.cpp
+    tests/test_rules_framework.cpp
+    tests/test_rules_modal.cpp
+    tests/test_rules_aux.cpp
+    tests/test_rules_agreement.cpp
+    tests/test_rules_to_infinitive.cpp
+    tests/test_rules_determiner.cpp
+    tests/test_rules_pronoun_case.cpp
+    tests/test_rules_double_modal.cpp
+    tests/test_rules_double_negative.cpp
+    tests/test_rules_regionalisms.cpp
+    tests/test_rules_pronoun_numeral.cpp
+    tests/test_rule_cases.cpp
+    tests/test_recall.cpp
+    tests/test_engine.cpp
+    tests/test_corpus.cpp
+    tests/test_regression.cpp
+    tests/test_mutations.cpp
+    tests/test_performance.cpp
+    tests/test_spellcheck.cpp
+    tests/test_spelling_reference.cpp
+)
+target_link_libraries(test_stoppard PRIVATE stoppard GTest::gtest_main)
+target_include_directories(test_stoppard PRIVATE src)
+target_compile_definitions(test_stoppard PRIVATE
+    TESTS_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data"
+    TESTS_DICT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+gtest_discover_tests(test_stoppard)
 endif()

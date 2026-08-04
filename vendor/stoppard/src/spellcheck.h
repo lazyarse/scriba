@@ -16,6 +16,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -42,6 +43,14 @@ public:
     // TRY letter string and REP pairs (§19.4 keyboard tables).
     const std::u16string& tryString() const { return m_try; }
     const std::vector<std::pair<std::u16string, std::u16string>>& repPairs() const { return m_rep; }
+    // Word-frequency rank (1 = most frequent, 0 = unknown) for suggestion
+    // re-ranking (§19.4 backlog: word-frequency ranking). Loaded from
+    // freq-en.txt next to the dictionaries; absent file = all ranks 0.
+    uint32_t freqRank(std::u16string_view folded) const
+    {
+        const auto it = m_freq.find(std::u16string(folded));
+        return it == m_freq.end() ? 0 : it->second;
+    }
     // Length buckets for the ngramsuggest |len diff| <= 4 scan.
     const std::vector<std::vector<std::u16string_view>>&
     lengthBuckets(Language language) const
@@ -59,6 +68,9 @@ private:
     std::vector<std::vector<std::u16string_view>> m_gbByLen;
     std::u16string m_try;   // folded keyboard/letter-fallback string
     std::vector<std::pair<std::u16string, std::u16string>> m_rep;
+    // Frequency ranks (line number, 1-based) from freq-en.txt (§19.4
+    // word-frequency ranking research backlog, landed at M11).
+    std::unordered_map<std::u16string, uint32_t> m_freq;
 };
 
 // Accent-insensitive, case-insensitive fold applied to dictionary entries
