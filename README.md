@@ -2,11 +2,7 @@
 
 # Scriba Markdown Editor
 
-**A privacy-first, no-nonsense, configurable Markdown editor for technical people.** Designed to *actually* do what it should without plugin hell. No node, react, angular, or bloat; just a binary which sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
-
-:cucumber:
-![Opencode Badge + Big Pickles!](docs/images/badge-opencode.svg)
-:cucumber:
+**A privacy-first, no-nonsense, full-featured, configurable Markdown editor for technical people.** Designed to *actually* do what you need without plugin hell. No node, react, angular, or bloat; just a binary which sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
 
 ![C++23 Badge](docs/images/badge-cpp23.svg)
 ![Qt6 Badge](docs/images/badge-qt6.svg)
@@ -24,15 +20,16 @@ See the [Gallery](docs/gallery.md) for more screenshots.
 
 - Load / Save multiple documents in a `session` with a tabbed interface
 - Pick up exactly where you left off with cursor and view-port restore in documents
-- Privacy-first, in-editor spell and grammar check with various dialects. Import audience-specific word sets with ease: legal, medical, technical, etc. — all options naturally configurable
+- Privacy-first 100% offline, in-editor spell and grammar check with various dialects. Import audience-specific word sets with ease: legal, medical, technical, etc.
 - Print and PDF export using print-specific CSS style sheets and many type-setting and orphan prevention features 
 - Readability metrics to keep your writing audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. Only view what metrics are important to you
 - Find and Replace with optional regex search and replacement back-references
 - Export: PDF, DOCX, and HTML; Import: HTML
-- Useful in-editor auto complete to assist in creating tables, lists, links to local filenames, and yes, even emojis
-- Numerous [helpers](docs/chart-helpers.md) for ECharts charts (including stock/candlestick) and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV import, and helpers for LaTeX, MChem, and tables 
-- [keyboard shortcuts](docs/shortcuts.md) for everything (or maybe, nearly everything) and a [kitchensink.md](docs/kitchensink.md) with full feature examples
-- Accessibility support to help you use Scriba the way you need, with CSS-based GUI themes: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height and more. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
+- Useful in-editor sugar such as: auto complete suggestions to assist in creating tables, lists, links to local filenames, and yes, even emojis; fold up headers and fenced-code blocks to reduce vertical space; auto-correct for commonly mis-spelt words like 'teh', 'and'; duplicate / delete a whole line without highlighting it; an optional gutter to show line numbers; optional auto-save;  
+- Verification of your source files: typos, poor grammar, malformed urls, broken links to local files, and non-existing links to sections are all obnoxiously underlined
+- Numerous [chart helpers](docs/chart-helpers.md) for ECharts charts (including stock/candlestick) and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV import with field mappings, and extra helpers for LaTeX, MChem, and tables
+- Speed enhancements: open the most-used documents quickly with ALT+[0-9], [keyboard shortcuts](docs/shortcuts.md) for everything (or maybe, nearly everything); a [kitchensink.md](docs/kitchensink.md) with full feature examples to get you up and running quickly; and, an internal cache of page renders to prevent preview regeneration when switching tabs; leap between headers with a simple keyboard shortcut
+- Accessibility support to help you use Scriba the way you need, with CSS-based GUI themes: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height, change the caret width, and more. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
 - [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and various injection vectors for you and your audience
 
 ### Standing on the Shoulders of Giants:
@@ -155,13 +152,14 @@ Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't cr
 
 On Windows, add Qt's bin directory to PATH first:
 
-```cmd
+```plaintext
 set PATH=C:\Qt\6.10.3\msvc2022_64\bin;%PATH%
 build\Release\scriba.exe
 build\Release\scriba.exe file.md
 ```
 
 For a permanent fix, add `C:\Qt\6.10.3\msvc2022_64\bin` to your system PATH.
+
 ```
 On Windows, add it via:
 1. Open System Properties → Advanced → Environment Variables

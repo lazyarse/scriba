@@ -122,7 +122,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Tests must only ever touch `~/.config/scribaTest/` (see `tests/TestConfig.h` / `setupTestConfig()`); never write to the real `~/.config/scriba/` from a test. Suites with a custom `main()` must call `setupTestConfig()`; config-focused suites link the `scriba_test_main` static library
 - Dialog buttons (QDialogButtonBox and standalone QPushButton) must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`. Add `&` keyboard shortcuts to all dialog buttons where possible (unique per dialog).
 - Always rebuild after making changes — CSS, resource, or source files all require a rebuild to take effect
-- After building the Release binary, run it briefly to check for segfaults: `timeout 3 build/scriba || true`. This must run AFTER `cmake --build build` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build (see the ordered Verification sequence under Build)
+- After building the Release binary, run it briefly to check for segfaults: `timeout 3 build/scriba || true`. This must run AFTER `cmake --build build -j4` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build (see the ordered Verification sequence under Build)
 - Only rebuild the .deb package when explicitly asked to — do not rebuild it automatically after changes
 - After adding a new keyboard shortcut, update `resources/shortcuts.html` to document it
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`

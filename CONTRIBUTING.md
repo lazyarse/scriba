@@ -225,7 +225,7 @@ Two build directories, each serving a different job:
 ### Dev loop (tests) — `build-dbg`
 
 ```bash
-cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j4
+cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j$(nproc)
 cd build-dbg && ctest --output-on-failure -j1
 ```
 
@@ -234,7 +234,7 @@ Use true `Debug`, not `RelWithDebInfo` — RelWithDebInfo still compiles at `-O2
 ### Release binary — `build`
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build build -j4
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build build -j$(nproc)
 ```
 
 Build only after the test suite passes; tests are OFF here (they live in `build-dbg`).
@@ -247,7 +247,7 @@ timeout 3 build/scriba || true
 
 This must run AFTER `cmake --build build` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build.
 
-The `-D` flags above are only needed the first time a build dir is configured (or to change a cached value). CMake stores them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j4` / `cmake --build build -j4`.
+The `-D` flags above are only needed the first time a build dir is configured (or to change a cached value). CMake stores them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j$(nproc)` / `cmake --build build -j$(nproc)`.
 
 ## Testing
 
