@@ -30,7 +30,7 @@ See the [Gallery](docs/gallery.md) for more screenshots.
 - Numerous [chart helpers](docs/chart-helpers.md) for ECharts charts (including stock/candlestick) and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV import with field mappings, and extra helpers for LaTeX, MChem, and tables
 - Speed enhancements: open the most-used documents quickly with ALT+[0-9], [keyboard shortcuts](docs/shortcuts.md) for everything (or maybe, nearly everything); a [kitchensink.md](docs/kitchensink.md) with full feature examples to get you up and running quickly; and, an internal cache of page renders to prevent preview regeneration when switching tabs; leap between headers with a simple keyboard shortcut
 - Accessibility support to help you use Scriba the way you need, with CSS-based GUI themes: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height, change the caret width, and more. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
-- [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and various injection vectors for you and your audience
+- [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and other injection vectors to protect you and your audience.
 
 ### Standing on the Shoulders of Giants:
 
