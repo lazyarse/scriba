@@ -43,6 +43,7 @@
 #include "KatexHelperDialog.h"
 #include "MchemHelperDialog.h"
 #include "HtmlToMarkdown.h"
+#include "ValidationReportDialog.h"
 
 static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
 static constexpr const char *kOpenMdFilter = "Markdown Files (*.md *.markdown *.txt);;All Files (*)";
@@ -843,6 +844,17 @@ void MainWindow::setupMenuBar()
             ed->toggleGutter();
     });
 
+    QAction *fullScreenAction = viewMenu->addAction("&Full Screen");
+    fullScreenAction->setShortcut(QKeySequence(Qt::Key_F11));
+    fullScreenAction->setCheckable(true);
+    connect(fullScreenAction, &QAction::triggered, this, [this](bool checked) {
+        if (checked) {
+            showFullScreen();
+        } else {
+            showNormal();
+        }
+    });
+
     for (int i = 1; i <= 10; ++i) {
         Qt::Key key = (i == 10) ? Qt::Key_0
                                 : static_cast<Qt::Key>(Qt::Key_0 + i);
@@ -1483,6 +1495,11 @@ void MainWindow::generateValidationReport()
 {
     if (m_reportInFlight)
         return;
+
+    ValidationReportDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+    m_reportOptions = dlg.options();
     m_reportInFlight = true;
 
     m_reportSources.clear();
@@ -1495,60 +1512,71 @@ void MainWindow::generateValidationReport()
         m_reportSources.append({m_tabs[i].filePath, ed->toPlainText()});
     }
 
-    // Spelling: a fresh checker honors the configured dictionary and dialect
-    // regardless of which tab is active. Used only on the UI thread.
-    std::unique_ptr<SpellChecker> spellChecker = std::make_unique<SpellChecker>();
     QSettings settings;
     const QString dialect = settings
         .value(Preferences::GrammarDialect, QStringLiteral("American")).toString();
-    spellChecker->setDialect(dialect);
-    const QString language = settings.value(Preferences::DictionaryLanguage).toString();
-    const QString resolved = language.isEmpty()
-        ? SpellChecker::defaultLanguageForDialect(dialect) : language;
-    bool loaded = spellChecker->loadLanguage(resolved);
-    if (!loaded) {
-        for (const QString &lang : SpellChecker::availableLanguages()) {
-            if (spellChecker->loadLanguage(lang)) {
-                loaded = true;
-                break;
+
+    // Spelling: a fresh checker honors the configured dictionary and dialect
+    // regardless of which tab is active. Used only on the UI thread, and only
+    // when the user asked for the spelling category.
+    std::unique_ptr<SpellChecker> spellChecker;
+    if (m_reportOptions.categories.contains(ValidationReport::Category::Spelling)) {
+        spellChecker = std::make_unique<SpellChecker>();
+        spellChecker->setDialect(dialect);
+        const QString language = settings.value(Preferences::DictionaryLanguage).toString();
+        const QString resolved = language.isEmpty()
+            ? SpellChecker::defaultLanguageForDialect(dialect) : language;
+        if (!spellChecker->loadLanguage(resolved)) {
+            for (const QString &lang : SpellChecker::availableLanguages()) {
+                if (spellChecker->loadLanguage(lang))
+                    break;
             }
         }
     }
 
     ValidationReport report;
-    m_reportDocs = report.scan(m_reportSources, loaded ? spellChecker.get() : nullptr);
+    m_reportDocs = report.scan(m_reportSources,
+                               spellChecker ? spellChecker.get() : nullptr,
+                               m_reportOptions);
 
-    // Grammar pass on a background thread (whole-document and expensive); the
-    // results are merged into m_reportDocs when the thread finishes.
-    auto *worker = new ValidationReportThread(new StoppardEngine(dialect));
-    worker->sources = m_reportSources;
-    m_reportThread = worker;
-    connect(worker, &QThread::finished, this, [this, worker]() {
-        if (m_reportThread == worker)
-            m_reportThread = nullptr;
-        onValidationReportReady(worker->results);
-        worker->deleteLater();
-    });
-    worker->start();
-
-    statusBar()->showMessage(tr("Generating validation report..."));
+    if (m_reportOptions.categories.contains(ValidationReport::Category::Grammar)) {
+        // Grammar pass on a background thread (whole-document and expensive);
+        // the results are merged into m_reportDocs when the thread finishes.
+        auto *worker = new ValidationReportThread(new StoppardEngine(dialect));
+        worker->sources = m_reportSources;
+        m_reportThread = worker;
+        connect(worker, &QThread::finished, this, [this, worker]() {
+            if (m_reportThread == worker)
+                m_reportThread = nullptr;
+            onValidationReportReady(worker->results);
+            worker->deleteLater();
+        });
+        worker->start();
+        statusBar()->showMessage(tr("Generating validation report..."));
+    } else {
+        openValidationReport(); // no grammar selected: assemble synchronously
+    }
 }
 
 void MainWindow::onValidationReportReady(
     const QVector<QList<GrammarChecker::Issue>> &grammarIssues)
 {
-    m_reportInFlight = false;
-
     const int count = qMin(m_reportDocs.size(), grammarIssues.size());
     for (int i = 0; i < count; ++i) {
         m_reportDocs[i].issues[ValidationReport::Category::Grammar] =
             ValidationReport::grammarIssuesToLineIssues(m_reportSources[i].text,
                                                         grammarIssues[i]);
     }
+    openValidationReport();
+}
+
+void MainWindow::openValidationReport()
+{
+    m_reportInFlight = false;
 
     const QDateTime now = QDateTime::currentDateTime();
     const QString md = ValidationReport::renderMarkdown(
-        m_reportDocs, now.toString(Qt::ISODate));
+        m_reportDocs, now.toString(Qt::ISODate), m_reportOptions.categories);
 
     int idx = addTab(QString());
     if (idx < 0 || idx >= m_tabs.size())

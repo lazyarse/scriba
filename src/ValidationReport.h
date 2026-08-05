@@ -16,6 +16,7 @@
 
 #include "GrammarChecker.h"
 #include <QMap>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -47,6 +48,36 @@ public:
 
     enum class Category { Spelling, Grammar, Links, Markdown };
 
+    // The individual markdown-consistency checks, so the report dialog can
+    // toggle each one independently.
+    enum class MarkdownCheck {
+        HeadingLevelSkip,
+        DuplicateHeading,
+        TrailingWhitespace,
+        ConsecutiveBlankLines,
+        OverlongLine,
+        HashNoSpace,
+        FootnoteReference,
+    };
+
+    // Which categories and markdown sub-checks to run. Empty sets disable the
+    // corresponding scans entirely.
+    struct ValidationOptions {
+        QSet<Category> categories =
+            {Category::Spelling, Category::Grammar, Category::Links, Category::Markdown};
+        QSet<MarkdownCheck> markdown = {
+            MarkdownCheck::HeadingLevelSkip,
+            MarkdownCheck::DuplicateHeading,
+            MarkdownCheck::TrailingWhitespace,
+            MarkdownCheck::ConsecutiveBlankLines,
+            MarkdownCheck::OverlongLine,
+            MarkdownCheck::HashNoSpace,
+            MarkdownCheck::FootnoteReference,
+        };
+
+        static ValidationOptions all() { return ValidationOptions{}; }
+    };
+
     // One finding. line and column are 1-based; column is 0 when the whole
     // line is the unit (most markdown-consistency checks).
     struct Issue {
@@ -63,22 +94,40 @@ public:
         QMap<Category, QVector<Issue>> issues; // in scan order
     };
 
-    // Scan `sources` and return one report per source, in order. Runs
-    // spelling (only when a loaded spell checker is supplied), links and
-    // markdown-consistency checks. Grammar is merged in by the caller from
-    // the async worker via grammarIssuesToLineIssues().
+    // Scan `sources` and return one report per source, in order. Runs the
+    // checks enabled by `options` (spelling only when a loaded spell checker
+    // is supplied). Grammar is merged in by the caller from the async worker
+    // via grammarIssuesToLineIssues().
     QVector<DocumentReport> scan(const QVector<DocumentSource> &sources,
-                                 SpellChecker *spellChecker) const;
+                                 SpellChecker *spellChecker,
+                                 const ValidationOptions &options = ValidationOptions::all()) const;
 
     // Convert raw grammar issues (offsets relative to `text`) into line/col
     // report issues, keeping the first replace-with suggestion as the fix.
     static QVector<Issue> grammarIssuesToLineIssues(
         const QString &text, const QList<GrammarChecker::Issue> &issues);
 
-    // The markdown-consistency scan. Pure; exposed for tests.
-    static QVector<Issue> scanMarkdownIssues(const QString &text);
+    // The markdown-consistency scan. Pure; exposed for tests. When `checks`
+    // is non-empty only the listed sub-checks run; an empty set disables all
+    // of them.
+    static QVector<Issue> scanMarkdownIssues(
+        const QString &text,
+        const QSet<MarkdownCheck> &checks = {
+            MarkdownCheck::HeadingLevelSkip,
+            MarkdownCheck::DuplicateHeading,
+            MarkdownCheck::TrailingWhitespace,
+            MarkdownCheck::ConsecutiveBlankLines,
+            MarkdownCheck::OverlongLine,
+            MarkdownCheck::HashNoSpace,
+            MarkdownCheck::FootnoteReference,
+        });
 
-    // Render collected reports to markdown for display in a new tab.
-    static QString renderMarkdown(const QVector<DocumentReport> &reports,
-                                  const QString &generatedAt);
+    // Render collected reports to markdown for display in a new tab. Only the
+    // categories present in `categories` produce a summary column and report
+    // section.
+    static QString renderMarkdown(
+        const QVector<DocumentReport> &reports,
+        const QString &generatedAt,
+        const QSet<Category> &categories = {Category::Spelling, Category::Grammar,
+                                            Category::Links, Category::Markdown});
 };

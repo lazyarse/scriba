@@ -33,6 +33,10 @@
 | --- | --- | --- | --- |
 | [![Chart Builder](images/chart-dialog.png)](images/chart-dialog.png) | [![Stock Chart Builder](images/stock-chart-dialog.png)](images/stock-chart-dialog.png) | [![Mermaid Chart](images/mermaid-dialog.png)](images/mermaid-dialog.png) | [![Check Spelling](images/check-spelling.png)](images/check-spelling.png) |
 
+| Validation Report Options |
+| --- |
+| [![Validation Report Options](images/validation-report.png)](images/validation-report.png) |
+
 
 | Print / Export PDF |
 | --- |

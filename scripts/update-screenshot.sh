@@ -141,6 +141,14 @@ xvfb-run -a sh -c '
     xdotool keyup 73
     capture "Check Spelling" '"$OUT_DIR"'/check-spelling.png
 
+    # --- Validation Report options (choose which checks to run) ---
+    # NB: like the F7 above, `xdotool key` with F7 latches a phantom Alt, so
+    # send the raw keycode (73 = F7) with Ctrl+Shift held down instead.
+    xdotool windowfocus "$WID"
+    sleep 0.2
+    xdotool keydown ctrl keydown shift keydown 73 keyup 73 keyup shift keyup ctrl
+    capture "Validation Report Options" '"$OUT_DIR"'/validation-report.png
+
     # --- Print / Export PDF (long wait: WebEngine load, mermaid/echarts
     # promises, chromium --print-to-pdf, then preview reload) ---
     open ctrl+p

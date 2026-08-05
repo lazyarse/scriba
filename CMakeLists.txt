@@ -62,6 +62,7 @@ add_executable(scriba WIN32
     src/GrammarChecker.cpp
     src/StoppardEngine.cpp
     src/ValidationReport.cpp
+    src/ValidationReportDialog.cpp
     vendor/md4c/src/md4c.c
     vendor/md4c/src/md4c-html.c
     vendor/md4c/src/entity.c
@@ -199,6 +200,7 @@ if(BUILD_TESTS)
         src/GrammarChecker.cpp
         src/StoppardEngine.cpp
         src/ValidationReport.cpp
+        src/ValidationReportDialog.cpp
     )
     target_include_directories(scriba_spell PUBLIC ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(scriba_spell PUBLIC scriba_core stoppard Qt6::Network)
@@ -280,6 +282,11 @@ if(BUILD_TESTS)
     target_include_directories(test_validation_report PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_validation_report PRIVATE GTest::gtest scriba_spell Qt6::Test)
     add_test(NAME test_validation_report COMMAND ${_TEST_PREFIX} ./test_validation_report)
+
+    add_executable(test_validation_report_dialog tests/test_validation_report_dialog.cpp)
+    target_include_directories(test_validation_report_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_validation_report_dialog PRIVATE scriba_test_main scriba_spell)
+    add_test(NAME test_validation_report_dialog COMMAND ${_TEST_PREFIX} ./test_validation_report_dialog)
 
     add_executable(test_editor_list_continuation tests/test_editor_list_continuation.cpp)
     target_link_libraries(test_editor_list_continuation PRIVATE scriba_core GTest::gtest_main)

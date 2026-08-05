@@ -121,7 +121,8 @@ void checkDuplicateHeading(QVector<ValidationReport::Issue> &issues, int line,
 
 QVector<ValidationReport::DocumentReport>
 ValidationReport::scan(const QVector<DocumentSource> &sources,
-                       SpellChecker *spellChecker) const
+                       SpellChecker *spellChecker,
+                       const ValidationOptions &options) const
 {
     QVector<DocumentReport> reports;
     reports.reserve(sources.size());
@@ -132,7 +133,8 @@ ValidationReport::scan(const QVector<DocumentSource> &sources,
             : QFileInfo(source.filePath).fileName();
         report.filePath = source.filePath;
 
-        if (spellChecker && spellChecker->isLoaded()) {
+        if (options.categories.contains(Category::Spelling)
+            && spellChecker && spellChecker->isLoaded()) {
             QTextDocument doc;
             doc.setPlainText(source.text);
             const auto spellIssues = SpellHighlighter::scanDocument(&doc, spellChecker);
@@ -151,11 +153,14 @@ ValidationReport::scan(const QVector<DocumentSource> &sources,
 
         const QString baseDir = source.filePath.isEmpty()
             ? QString() : QFileInfo(source.filePath).absolutePath();
-        const auto linkHits = SpellHighlighter::scanLinkIssues(source.text, baseDir);
-        for (const auto &lh : linkHits)
-            report.issues[Category::Links].append({lh.line, lh.col, lh.length, lh.message, {}});
+        if (options.categories.contains(Category::Links)) {
+            const auto linkHits = SpellHighlighter::scanLinkIssues(source.text, baseDir);
+            for (const auto &lh : linkHits)
+                report.issues[Category::Links].append({lh.line, lh.col, lh.length, lh.message, {}});
+        }
 
-        report.issues[Category::Markdown] = scanMarkdownIssues(source.text);
+        if (options.categories.contains(Category::Markdown))
+            report.issues[Category::Markdown] = scanMarkdownIssues(source.text, options.markdown);
 
         reports.append(report);
     }
@@ -186,7 +191,7 @@ ValidationReport::grammarIssuesToLineIssues(
 }
 
 QVector<ValidationReport::Issue>
-ValidationReport::scanMarkdownIssues(const QString &text)
+ValidationReport::scanMarkdownIssues(const QString &text, const QSet<MarkdownCheck> &checks)
 {
     const QStringList lines = text.split(QLatin1Char('\n'));
     static const QRegularExpression atxRe(R"(^(\#{1,6})\s+(.+))");
@@ -226,22 +231,23 @@ ValidationReport::scanMarkdownIssues(const QString &text)
             prevCheckable = false;
             prevWasHeading = false;
             prevLine.clear();
-            if (blankRun == 3)
+            if (blankRun == 3 && checks.contains(MarkdownCheck::ConsecutiveBlankLines))
                 issues.append({i + 1, 0, 0,
                                QStringLiteral("Consecutive blank lines (3 or more)"), {}});
             continue;
         }
         blankRun = 0;
 
-        if (line.endsWith(QLatin1Char(' ')) || line.endsWith(QLatin1Char('\t')))
+        if (checks.contains(MarkdownCheck::TrailingWhitespace)
+            && (line.endsWith(QLatin1Char(' ')) || line.endsWith(QLatin1Char('\t'))))
             issues.append({i + 1, 0, 0, QStringLiteral("Trailing whitespace"), {}});
 
-        if (line.length() > kMaxLineLength)
+        if (checks.contains(MarkdownCheck::OverlongLine) && line.length() > kMaxLineLength)
             issues.append({i + 1, 0, 0,
                            QStringLiteral("Line too long (%1 characters)").arg(line.length()),
                            {}});
 
-        if (noSpaceHashRe.match(line).hasMatch())
+        if (checks.contains(MarkdownCheck::HashNoSpace) && noSpaceHashRe.match(line).hasMatch())
             issues.append({i + 1, 0, 0,
                            QStringLiteral("Heading missing space after '#' (not rendered as a heading)"),
                            {}});
@@ -268,13 +274,15 @@ ValidationReport::scanMarkdownIssues(const QString &text)
             while (title.endsWith(QLatin1Char('#')))
                 title.chop(1);
             title = title.trimmed();
-            if (prevHeadingLevel > 0 && level > prevHeadingLevel + 1)
+            if (prevHeadingLevel > 0 && level > prevHeadingLevel + 1
+                && checks.contains(MarkdownCheck::HeadingLevelSkip))
                 issues.append({i + 1, 0, 0,
                                QStringLiteral("Heading level skipped (#%1 after #%2)")
                                    .arg(level).arg(prevHeadingLevel),
                                {}});
             prevHeadingLevel = level;
-            checkDuplicateHeading(issues, i + 1, title, seenHeadingSlugs);
+            if (checks.contains(MarkdownCheck::DuplicateHeading))
+                checkDuplicateHeading(issues, i + 1, title, seenHeadingSlugs);
             prevCheckable = true;
             prevWasHeading = true;
             prevLine = line;
@@ -293,13 +301,15 @@ ValidationReport::scanMarkdownIssues(const QString &text)
                 continue;
             }
             const int level = setext.captured(1).startsWith(QLatin1Char('=')) ? 1 : 2;
-            if (prevHeadingLevel > 0 && level > prevHeadingLevel + 1)
+            if (prevHeadingLevel > 0 && level > prevHeadingLevel + 1
+                && checks.contains(MarkdownCheck::HeadingLevelSkip))
                 issues.append({i + 1, 0, 0,
                                QStringLiteral("Heading level skipped (#%1 after #%2)")
                                    .arg(level).arg(prevHeadingLevel),
                                {}});
             prevHeadingLevel = level;
-            checkDuplicateHeading(issues, i + 1, prevLine.trimmed(), seenHeadingSlugs);
+            if (checks.contains(MarkdownCheck::DuplicateHeading))
+                checkDuplicateHeading(issues, i + 1, prevLine.trimmed(), seenHeadingSlugs);
             prevCheckable = false;
             prevWasHeading = false;
             prevLine.clear();
@@ -312,7 +322,8 @@ ValidationReport::scanMarkdownIssues(const QString &text)
     }
 
     for (const auto &use : footnoteUses) {
-        if (!footnoteDefs.contains(use.second))
+        if (!footnoteDefs.contains(use.second)
+            && checks.contains(MarkdownCheck::FootnoteReference))
             issues.append({use.first, 0, 0,
                            QStringLiteral("Unmatched footnote reference: [^%1]").arg(use.second),
                            {}});
@@ -327,47 +338,54 @@ ValidationReport::scanMarkdownIssues(const QString &text)
 }
 
 QString ValidationReport::renderMarkdown(const QVector<DocumentReport> &reports,
-                                         const QString &generatedAt)
+                                         const QString &generatedAt,
+                                         const QSet<Category> &categories)
 {
+    // Active categories in fixed display order.
+    const QVector<Category> order = {
+        Category::Spelling, Category::Grammar, Category::Links, Category::Markdown};
+    QVector<Category> active;
+    for (Category c : order)
+        if (categories.contains(c))
+            active.append(c);
+
     QString md;
     md += "# Validation Report\n\n";
     md += "Generated: " + generatedAt + "\n\n";
 
     md += "## Summary\n\n";
-    md += "| Document | Spelling | Grammar | Links & anchors | Markdown |\n";
-    md += "| --- | --- | --- | --- | --- |\n";
-    int totals[4] = {0, 0, 0, 0};
+    md += "| Document |";
+    for (Category c : active)
+        md += " " + QString::fromUtf8(categoryName(c)) + " |";
+    md += "\n| --- |";
+    for (qsizetype i = 0; i < active.size(); ++i)
+        md += " --- |";
+    md += "\n";
+
+    QVector<int> totals(active.size(), 0);
     for (const DocumentReport &report : reports) {
-        const qsizetype counts[4] = {
-            report.issues.value(Category::Spelling).size(),
-            report.issues.value(Category::Grammar).size(),
-            report.issues.value(Category::Links).size(),
-            report.issues.value(Category::Markdown).size(),
-        };
-        for (int i = 0; i < 4; ++i)
-            totals[i] += static_cast<int>(counts[i]);
-        md += "| " + report.label + " | " + QString::number(counts[0]) + " | "
-            + QString::number(counts[1]) + " | " + QString::number(counts[2]) + " | "
-            + QString::number(counts[3]) + " |\n";
+        md += "| " + report.label;
+        for (qsizetype i = 0; i < active.size(); ++i) {
+            const int count = static_cast<int>(report.issues.value(active.at(i)).size());
+            totals[i] += count;
+            md += " | " + QString::number(count);
+        }
+        md += " |\n";
     }
-    md += "| **Total** | **" + QString::number(totals[0]) + "** | **"
-        + QString::number(totals[1]) + "** | **" + QString::number(totals[2]) + "** | **"
-        + QString::number(totals[3]) + "** |\n\n";
-    const int grandTotal = totals[0] + totals[1] + totals[2] + totals[3];
-    md += "Total issues: " + QString::number(grandTotal) + "\n\n---\n";
+    md += "| **Total** |";
+    int grandTotal = 0;
+    for (int t : totals) {
+        md += " **" + QString::number(t) + "** |";
+        grandTotal += t;
+    }
+    md += "\n\nTotal issues: " + QString::number(grandTotal) + "\n\n---\n";
 
     for (const DocumentReport &report : reports) {
         md += "\n## " + report.label + "\n";
         if (!report.filePath.isEmpty())
             md += "\nPath: `" + report.filePath + "`\n";
-        md += renderCategory(categoryName(Category::Spelling),
-                             report.issues.value(Category::Spelling));
-        md += renderCategory(categoryName(Category::Grammar),
-                             report.issues.value(Category::Grammar));
-        md += renderCategory(categoryName(Category::Links),
-                             report.issues.value(Category::Links));
-        md += renderCategory(categoryName(Category::Markdown),
-                             report.issues.value(Category::Markdown));
+        for (Category c : active)
+            md += renderCategory(categoryName(c), report.issues.value(c));
     }
     return md;
 }

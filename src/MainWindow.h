@@ -156,6 +156,7 @@ private:
     // expensive whole-document grammar pass on a background thread, then
     // opens the assembled markdown in a new tab.
     void onValidationReportReady(const QVector<QList<GrammarChecker::Issue>> &grammarIssues);
+    void openValidationReport();
     void stopValidationReport();
 
     QSplitter *m_splitter;
@@ -198,6 +199,7 @@ private:
     QHash<int, QString> m_reportTitles;
     QVector<ValidationReport::DocumentSource> m_reportSources;
     QVector<ValidationReport::DocumentReport> m_reportDocs;
+    ValidationReport::ValidationOptions m_reportOptions;
 
 protected:
     void updateTabBarVisibility();

@@ -169,6 +169,58 @@ TEST_F(ValidationReportTest, SetextHeadingIsNotAHeadingSkip)
     EXPECT_TRUE(messages(issues).isEmpty());
 }
 
+TEST_F(ValidationReportTest, ScanHonoursSelectedCategories)
+{
+    ValidationReport report;
+    ValidationReport::ValidationOptions opts;
+    opts.categories = {ValidationReport::Category::Links};
+    const QVector<ValidationReport::DocumentReport> docs =
+        report.scan({{m_docPath,
+                      QStringLiteral("recieve\n[bad](missing.md)\n#nope\n\n\n\n")}},
+                    m_checker.get(), opts);
+    const auto &doc = docs.first();
+    EXPECT_TRUE(doc.issues.value(ValidationReport::Category::Spelling).isEmpty());
+    EXPECT_TRUE(doc.issues.value(ValidationReport::Category::Markdown).isEmpty());
+    EXPECT_FALSE(doc.issues.value(ValidationReport::Category::Links).isEmpty());
+}
+
+TEST_F(ValidationReportTest, ScanMarkdownHonoursSelectedSubChecks)
+{
+    const QString text = QStringLiteral(
+        "# Title\n## Title\n"
+        "# Level one\n### Level three\n"
+        "trailing  \n"
+        "\n\n\n");
+    const auto onlyDuplicate = ValidationReport::scanMarkdownIssues(
+        text, {ValidationReport::MarkdownCheck::DuplicateHeading});
+    const QStringList msgs = messages(onlyDuplicate);
+    ASSERT_EQ(1, msgs.size()) << msgs.join("\n").toStdString();
+    EXPECT_TRUE(msgs.contains(QStringLiteral("Duplicate heading (anchor #title already used)")));
+
+    // An empty sub-check set disables every markdown check.
+    const auto none = ValidationReport::scanMarkdownIssues(text, {});
+    EXPECT_TRUE(none.isEmpty());
+}
+
+TEST_F(ValidationReportTest, RenderMarkdownOmitsUncheckedCategories)
+{
+    ValidationReport::DocumentReport doc;
+    doc.label = QStringLiteral("doc.md");
+    doc.issues[ValidationReport::Category::Spelling]
+        .append({1, 1, 0, QStringLiteral("recieve"), {}});
+    const QString rendered = ValidationReport::renderMarkdown(
+        {doc}, QStringLiteral("2026-08-05T12:00:00"),
+        {ValidationReport::Category::Spelling});
+
+    EXPECT_TRUE(rendered.contains(QStringLiteral("### Spelling")));
+    EXPECT_FALSE(rendered.contains(QStringLiteral("### Grammar")));
+    EXPECT_FALSE(rendered.contains(QStringLiteral("### Links & anchors")));
+    EXPECT_FALSE(rendered.contains(QStringLiteral("### Markdown consistency")));
+    // The summary table keeps only the selected column.
+    EXPECT_TRUE(rendered.contains(QStringLiteral("| Document | Spelling |")));
+    EXPECT_FALSE(rendered.contains(QStringLiteral("| Grammar |")));
+}
+
 // ---- full report ----
 
 TEST_F(ValidationReportTest, ReportFindsAllCategories)
