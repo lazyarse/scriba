@@ -279,22 +279,93 @@ TEST_F(EditorTestHarness, BlankTableRowExitsTable)
     assertCursor(3, 0);
 }
 
-TEST_F(EditorTestHarness, EnterAtStartOfTableRowSplitsWithoutContinuation)
+TEST_F(EditorTestHarness, BlankTableRowExitsTableFromInsideCells)
+{
+    QSettings().setValue(Preferences::AutoAlignTables, false);
+    setContent("| a | b |\n|---|---|\n|  |  |");
+    placeCursor(2, 2);
+    enter();
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n\n");
+    assertCursor(3, 0);
+    QSettings().setValue(Preferences::AutoAlignTables, true);
+}
+
+TEST_F(EditorTestHarness, BlankRowAfterAutocompleteExitsOnEnter)
+{
+    QSettings().setValue(Preferences::AutoAlignTables, false);
+    typeLine("|h1|h2|h3|");
+    assertCursor(2, 2);
+    enter();
+    EXPECT_EQ(text(), "|h1|h2|h3|\n|---|---|---|\n\n");
+    assertCursor(3, 0);
+    QSettings().setValue(Preferences::AutoAlignTables, true);
+}
+
+TEST_F(EditorTestHarness, EnterAtStartOfEmptyTableRowExitsTable)
+{
+    setContent("| a | b |\n|---|---|\n|  |  |");
+    placeCursor(2, 0);
+    enter();
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n\n");
+    assertCursor(3, 0);
+}
+
+TEST_F(EditorTestHarness, EnterAtStartOfTableDataRowCreatesEmptyRow)
 {
     setContent("| a | b |\n|---|---|\n| x | y |");
     placeCursor(2, 0);
     enter();
-    EXPECT_EQ(text(), "| a | b |\n|---|---|\n\n| x | y |");
-    assertCursor(3, 0);
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n| x | y |\n|  |  |");
+    assertCursor(3, 2);
 }
 
-TEST_F(EditorTestHarness, EnterMidTableRowSplitsWithoutContinuation)
+TEST_F(EditorTestHarness, EnterMidCellInTableDataRowCreatesEmptyRow)
+{
+    setContent("| header1 | header2 | header3 |\n|---------|---------|---------|\n| left    | mid     | right   |");
+    placeCursor(2, 13);
+    enter();
+    EXPECT_EQ(text(), "| header1 | header2 | header3 |\n|---------|---------|---------|\n| left    | mid     | right   |\n|  |  |  |");
+    assertCursor(3, 2);
+}
+
+TEST_F(EditorTestHarness, EnterMidHeaderRowCreatesTable)
 {
     setContent("| a | b |");
     placeCursor(0, 4);
     enter();
-    EXPECT_EQ(text(), "| a \n| b |");
-    assertCursor(1, 0);
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n|   |   |");
+    assertCursor(2, 2);
+}
+
+TEST_F(EditorTestHarness, EnterMidHeaderWithExistingTableJumpsToFirstDataRow)
+{
+    setContent("| h1 | h2 | h3 |\n|----|----|----|\n| a  | b  | c  |");
+    placeCursor(0, 4);
+    enter();
+    EXPECT_EQ(text(), "| h1 | h2 | h3 |\n|----|----|----|\n| a  | b  | c  |");
+    assertCursor(2, 2);
+}
+
+TEST_F(EditorTestHarness, EnterOnSeparatorRowJumpsToFirstDataRow)
+{
+    setContent("| a | b |\n|---|---|\n| x | y |");
+    placeCursor(1, 3);
+    enter();
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n| x | y |");
+    assertCursor(2, 2);
+    placeCursor(1, 7);
+    enter();
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n| x | y |");
+    assertCursor(2, 2);
+}
+
+TEST_F(EditorTestHarness, EnterOnSeparatorRowWithoutDataRowCreatesFirstDataRow)
+{
+    setContent("| a | b |\n|---|---|");
+    placeCursor(1, 2);
+    enter();
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n|  |  |");
+    assertCursor(2, 2);
 }
 
 TEST_F(EditorTestHarness, HtmlTableRowContinuesOnEnter)

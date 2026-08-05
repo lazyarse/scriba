@@ -110,22 +110,14 @@ QString handleTableReturn(const QString &line, const QString &prevLine)
 {
     if (line.startsWith('|')) {
         // Separator row → no continuation
-        if (line.contains("---"))
+        if (isMdSeparatorRow(line))
             return {};
 
         int cols = line.count('|') - 1;
         if (cols <= 0) return {};
 
         // Blank row → exit table
-        QStringList cells = line.split('|');
-        bool allEmpty = true;
-        for (int i = 1; i < cells.size(); ++i) {
-            if (!cells[i].trimmed().isEmpty()) {
-                allEmpty = false;
-                break;
-            }
-        }
-        if (allEmpty) {
+        if (isBlankMdTableRow(line)) {
             return QString(clearSentinel);
         }
 
@@ -166,6 +158,34 @@ QString handleTableReturn(const QString &line, const QString &prevLine)
 QString makeEmptyTableRow(int cols)
 {
     return "|" + QString("  |").repeated(cols);
+}
+
+// A markdown table separator row: pipes where every cell is made only of
+// optional colons and at least one dash (spaces allowed around it). This also
+// matches narrow columns such as `|:--:|` or `|--:|` that a wide separator
+// would not — the spec's three-dash minimum is not a real constraint here
+// because the formatter itself can emit shorter separators for 1-2 char cells.
+bool isMdSeparatorRow(const QString &line)
+{
+    static const QRegularExpression re(R"(^\|(?:\s*:?-+:?\s*\|)+$)");
+    return re.match(line).hasMatch();
+}
+
+bool isBlankMdTableRow(const QString &line)
+{
+    if (!line.startsWith('|'))
+        return false;
+    if (isMdSeparatorRow(line))
+        return false;
+    const int cols = line.count('|') - 1;
+    if (cols <= 0)
+        return false;
+    const QStringList cells = line.split('|');
+    for (int i = 1; i < cells.size(); ++i) {
+        if (!cells[i].trimmed().isEmpty())
+            return false;
+    }
+    return true;
 }
 
 QString makeEmptyHtmlTableRow(int cols)
@@ -288,17 +308,6 @@ MdAlign mdAlignFromSeparator(const QString &sep)
     if (right) return MdAlign::Right;
     if (left) return MdAlign::Left;
     return MdAlign::Default;
-}
-
-// A markdown table separator row: pipes where every cell is made only of
-// optional colons and at least one dash (spaces allowed around it). This also
-// matches narrow columns such as `|:--:|` or `|--:|` that a wide separator
-// would not — the spec's three-dash minimum is not a real constraint here
-// because the formatter itself can emit shorter separators for 1-2 char cells.
-bool isMdSeparatorRow(const QString &line)
-{
-    static const QRegularExpression re(R"(^\|(?:\s*:?-+:?\s*\|)+$)");
-    return re.match(line).hasMatch();
 }
 
 QString padMdCell(const QString &content, int width, MdAlign align)

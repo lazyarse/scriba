@@ -30,6 +30,14 @@ QString escapeJsString(const QString &s);
 bool isThematicBreak(const QString &line);
 QString handleListReturn(const QString &line);
 QString handleTableReturn(const QString &line, const QString &prevLine);
+// Returns whether `line` is a markdown table separator row: pipes where every
+// cell is made only of optional colons and at least one dash (spaces allowed
+// around it). Matches narrow columns such as `|:--:|` or `|--:|` too, not just
+// the spec's three-dash minimum.
+bool isMdSeparatorRow(const QString &line);
+// Returns whether `line` is a markdown table data row whose cells are all
+// empty (e.g. `|   |   |`). Separator rows are never blank.
+bool isBlankMdTableRow(const QString &line);
 QString makeEmptyTableRow(int cols);
 QString makeEmptyHtmlTableRow(int cols);
 int tableNavCell(const QString &line, int cursorPos, bool forward);

@@ -208,60 +208,97 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
 
         QTextBlock prevBlock = cursor.block().previous();
-        // Only auto-continue table rows when the caret is at the end of the
-        // block; pressing Enter mid-row (or at the start) should split normally.
-        if (cursor.positionInBlock() == line.length()) {
-            QString result = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
-            if (!result.isEmpty()) {
-                if (result == QString(clearSentinel)) {
-                    if (line.contains("<tr>") && line.contains("<td>")) {
-                        cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                        cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
-                        cursor.removeSelectedText();
-                        QTextCursor search = document()->find("</table>", cursor);
-                        if (!search.isNull()) {
-                            search.movePosition(QTextCursor::EndOfLine);
-                            setTextCursor(search);
-                            insertPlainText("\n\n");
-                            return;
-                        }
-                    }
-                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                    cursor.removeSelectedText();
-                    insertParagraphWithLineHeight(event);
+        // Auto-continue table rows when the caret is at the end of the block.
+        // Enter mid-row normally splits the paragraph, but an empty data row
+        // (e.g. the one just auto-completed below a header) exits the table
+        // even when the caret sits inside a cell rather than at the row's end,
+        // while Enter on a data/header row's content keeps working the table.
+        if (line.startsWith('|') && isMdSeparatorRow(line)) {
+            // Separator row: never split. Jump to the first data row below, or
+            // create an empty one if the table has no data rows yet.
+            QTextBlock block = cursor.block().next();
+            while (block.isValid()) {
+                QString t = block.text();
+                if (t.startsWith('|') && !isMdSeparatorRow(t)) {
+                    QTextCursor tc = textCursor();
+                    tc.setPosition(block.position() + 2, QTextCursor::MoveAnchor);
+                    setTextCursor(tc);
                     return;
                 }
+                block = block.next();
+            }
+            int cols = qMax(line.count('|') - 1, 1);
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+            cursor.insertText("\n" + makeEmptyTableRow(cols));
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
+            setTextCursor(cursor);
+            return;
+        }
 
-                // Header row: skip to first data row below separator
-                QTextBlock nextBlock = cursor.block().next();
-                if (nextBlock.isValid() && nextBlock.text().contains("---")) {
-                    QTextBlock block = nextBlock.next();
-                    while (block.isValid()) {
-                        QString t = block.text();
-                        if (t.startsWith('|') && !t.contains("---")) {
-                            QTextCursor tc = textCursor();
-                            tc.setPosition(block.position() + 2, QTextCursor::MoveAnchor);
-                            setTextCursor(tc);
-                            return;
-                        }
-                        block = block.next();
+        QString result;
+        if (cursor.positionInBlock() == line.length()) {
+            result = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
+        } else if (isBlankMdTableRow(line)) {
+            result = QString(clearSentinel);
+        } else if (line.startsWith('|')) {
+            // Mid-cell Enter on a data or header row: let handleTableReturn
+            // decide — data rows continue with an empty row below, header rows
+            // fall through to the header-skip block to jump to the first data
+            // row (or create a fresh table).
+            const QString r = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
+            if (!r.isEmpty() && r != QString(clearSentinel))
+                result = r;
+        }
+        if (!result.isEmpty()) {
+            if (result == QString(clearSentinel)) {
+                if (line.contains("<tr>") && line.contains("<td>")) {
+                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
+                    cursor.removeSelectedText();
+                    QTextCursor search = document()->find("</table>", cursor);
+                    if (!search.isNull()) {
+                        search.movePosition(QTextCursor::EndOfLine);
+                        setTextCursor(search);
+                        insertPlainText("\n\n");
+                        return;
                     }
                 }
-
-                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
-                cursor.insertText("\n" + result);
                 cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                int cellPos = result.startsWith("<tr>") ? result.indexOf("<td>") + 4 : 2;
-                cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
-                setTextCursor(cursor);
-                // Typing a header row then Enter creates a fresh table
-                // (separator + empty data row) — align it right away.
-                if (result.contains("---")
-                    && QSettings().value(Preferences::AutoAlignTables, true).toBool())
-                    formatMdTableBlock(cursor.blockNumber());
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+                insertParagraphWithLineHeight(event);
                 return;
             }
+
+            // Header row: skip to first data row below separator
+            QTextBlock nextBlock = cursor.block().next();
+            if (nextBlock.isValid() && isMdSeparatorRow(nextBlock.text())) {
+                QTextBlock block = nextBlock.next();
+                while (block.isValid()) {
+                    QString t = block.text();
+                    if (t.startsWith('|') && !isMdSeparatorRow(t)) {
+                        QTextCursor tc = textCursor();
+                        tc.setPosition(block.position() + 2, QTextCursor::MoveAnchor);
+                        setTextCursor(tc);
+                        return;
+                    }
+                    block = block.next();
+                }
+            }
+
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+            cursor.insertText("\n" + result);
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            int cellPos = result.startsWith("<tr>") ? result.indexOf("<td>") + 4 : 2;
+            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
+            setTextCursor(cursor);
+            // Typing a header row then Enter creates a fresh table
+            // (separator + empty data row) — align it right away.
+            if (result.contains("---")
+                && QSettings().value(Preferences::AutoAlignTables, true).toBool())
+                formatMdTableBlock(cursor.blockNumber());
+            return;
         }
 
         // Folded region: Enter at the end of a folded foldable line (or while the
