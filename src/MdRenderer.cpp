@@ -53,10 +53,12 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     case MD_BLOCK_DOC:
         break;
     case MD_BLOCK_P:
+        self->m_typoState.lastChar = QChar(' ');
         self->writeHtml(QString("<p data-line=\"%1\">").arg(self->m_currentLine));
         break;
     case MD_BLOCK_H: {
         auto *d = static_cast<MD_BLOCK_H_DETAIL*>(detail);
+        self->m_typoState.lastChar = QChar(' ');
         self->writeHtml(QString("<h%1 data-line=\"%2\">").arg(d->level).arg(self->m_currentLine));
         break;
     }
@@ -70,6 +72,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->writeHtml("<ol>");
         break;
     case MD_BLOCK_LI:
+        self->m_typoState.lastChar = QChar(' ');
         self->enterListItem(detail);
         break;
     case MD_BLOCK_HR:
@@ -78,6 +81,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     case MD_BLOCK_HTML:
         break;
     case MD_BLOCK_QUOTE:
+        self->m_typoState.lastChar = QChar(' ');
         self->writeHtml("<blockquote>");
         break;
     case MD_BLOCK_ADMONITION:
@@ -96,9 +100,11 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->writeHtml("<tr>");
         break;
     case MD_BLOCK_TH:
+        self->m_typoState.lastChar = QChar(' ');
         self->enterAlignedCell(detail, "th");
         break;
     case MD_BLOCK_TD:
+        self->m_typoState.lastChar = QChar(' ');
         self->enterAlignedCell(detail, "td");
         break;
     default:
@@ -290,19 +296,26 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
         if (self->m_img.inside) {
             self->m_img.alt += QString::fromUtf8(text, size);
         } else {
-            self->writeHtml(escapeHtml(QString::fromUtf8(text, size)));
+            QString raw = QString::fromUtf8(text, size);
+            if (self->m_typography)
+                raw = Typography::apply(raw, self->m_typography, self->m_typoState);
+            self->writeHtml(escapeHtml(raw));
         }
         break;
     }
     case MD_TEXT_BR:
         self->m_currentLine++;
-        if (!self->m_img.inside)
+        if (!self->m_img.inside) {
+            self->m_typoState.lastChar = QChar(' ');
             self->writeHtml("<br>");
+        }
         break;
     case MD_TEXT_SOFTBR:
         self->m_currentLine++;
-        if (!self->m_img.inside)
+        if (!self->m_img.inside) {
+            self->m_typoState.lastChar = QChar(' ');
             self->writeHtml("\n");
+        }
         break;
     case MD_TEXT_CODE:
         if (self->m_img.inside) {

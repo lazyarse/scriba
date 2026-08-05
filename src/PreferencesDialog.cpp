@@ -18,6 +18,7 @@
 #include "CssLoader.h"
 #include "CssEditorDialog.h"
 #include "Preferences.h"
+#include "Typography.h"
 #include "SpellChecker.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -759,6 +760,100 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_pageList->addItem("Writing");
     }
 
+    /* --- Page: Typography --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *group = new QGroupBox("Smart Typography");
+        QVBoxLayout *groupLayout = new QVBoxLayout(group);
+        groupLayout->addSpacing(8);
+
+        auto *note = new QLabel(tr(
+            "Replace plain typed punctuation with print-quality equivalents in the "
+            "preview and exports (PDF, DOCX, HTML). Your Markdown source is never "
+            "changed. Code blocks, inline code and math are left untouched."));
+        note->setWordWrap(true);
+        note->setStyleSheet("color: gray; padding: 8px;");
+        groupLayout->addWidget(note);
+
+        m_typographyQuotesCheck = new QCheckBox(tr("Curly quotes and apostrophes"));
+        m_typographyQuotesCheck->setToolTip(tr("\"double\" and 'single' become \u201cdouble\u201d and \u2018single\u2019"));
+        m_typographyQuotesCheck->setChecked(settings.value(Preferences::TypographyQuotes, false).toBool());
+        groupLayout->addWidget(m_typographyQuotesCheck);
+
+        m_typographyDashesCheck = new QCheckBox(tr("Dashes"));
+        m_typographyDashesCheck->setToolTip(tr("- becomes \u2010 (hyphen), -- becomes \u2013 (en dash), --- becomes \u2014 (em dash)"));
+        m_typographyDashesCheck->setChecked(settings.value(Preferences::TypographyDashes, false).toBool());
+        groupLayout->addWidget(m_typographyDashesCheck);
+
+        m_typographyEllipsisCheck = new QCheckBox(tr("Ellipsis"));
+        m_typographyEllipsisCheck->setToolTip(tr("... becomes \u2026"));
+        m_typographyEllipsisCheck->setChecked(settings.value(Preferences::TypographyEllipsis, false).toBool());
+        groupLayout->addWidget(m_typographyEllipsisCheck);
+
+        m_typographyMultiplicationCheck = new QCheckBox(tr("Multiplication sign"));
+        m_typographyMultiplicationCheck->setToolTip(tr("3x4 or 3 x 4 becomes 3\u00d74"));
+        m_typographyMultiplicationCheck->setChecked(settings.value(Preferences::TypographyMultiplication, false).toBool());
+        groupLayout->addWidget(m_typographyMultiplicationCheck);
+
+        m_typographyDegreeFractionPrimeCheck = new QCheckBox(tr("Degrees, fractions and primes"));
+        m_typographyDegreeFractionPrimeCheck->setToolTip(tr("90oF becomes 90\u00b0F, 1/2 becomes \u00bd, 5'10 becomes 5\u203210"));
+        m_typographyDegreeFractionPrimeCheck->setChecked(settings.value(Preferences::TypographyDegreeFractionPrime, false).toBool());
+        groupLayout->addWidget(m_typographyDegreeFractionPrimeCheck);
+
+        m_typographyNbspCheck = new QCheckBox(tr("Non-breaking spaces"));
+        m_typographyNbspCheck->setToolTip(tr("a word and 10 kg get non-breaking spaces"));
+        m_typographyNbspCheck->setChecked(settings.value(Preferences::TypographyNbsp, false).toBool());
+        groupLayout->addWidget(m_typographyNbspCheck);
+
+        groupLayout->addSpacing(8);
+        auto *exampleLabel = new QLabel(tr("<b>Example</b>"));
+        groupLayout->addWidget(exampleLabel);
+
+        const QString sample = QStringLiteral("He said \"It's easy -- 3x4 ... 1/2 of 90oF in 10 kg\"");
+        m_typographyPlainLabel = new QLabel(sample);
+        m_typographyPlainLabel->setWordWrap(true);
+        m_typographyPlainLabel->setStyleSheet("color: gray;");
+        groupLayout->addWidget(m_typographyPlainLabel);
+
+        m_typographyExampleLabel = new QLabel;
+        m_typographyExampleLabel->setWordWrap(true);
+        m_typographyExampleLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        groupLayout->addWidget(m_typographyExampleLabel);
+
+        auto updateExample = [this, sample]() {
+            Typography::Options opts;
+            if (m_typographyQuotesCheck->isChecked())
+                opts |= Typography::Option::Quotes;
+            if (m_typographyDashesCheck->isChecked())
+                opts |= Typography::Option::Dashes;
+            if (m_typographyEllipsisCheck->isChecked())
+                opts |= Typography::Option::Ellipsis;
+            if (m_typographyMultiplicationCheck->isChecked())
+                opts |= Typography::Option::Multiplication;
+            if (m_typographyDegreeFractionPrimeCheck->isChecked())
+                opts |= Typography::Option::DegreeFractionPrime;
+            if (m_typographyNbspCheck->isChecked())
+                opts |= Typography::Option::NonBreakingSpace;
+            Typography::State state;
+            m_typographyExampleLabel->setText(Typography::apply(sample, opts, state));
+        };
+        for (auto *cb : { m_typographyQuotesCheck, m_typographyDashesCheck,
+                          m_typographyEllipsisCheck, m_typographyMultiplicationCheck,
+                          m_typographyDegreeFractionPrimeCheck, m_typographyNbspCheck })
+            connect(cb, &QCheckBox::toggled, this, updateExample);
+        updateExample();
+
+        layout->addWidget(group);
+        layout->addStretch();
+
+        m_pages->addWidget(wrapPage(page));
+        m_pageList->addItem("Typography");
+    }
+
     /* --- Page 6: Replacements --- */
     {
         QWidget *page = new QWidget;
@@ -1286,6 +1381,12 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EmojiCompletionLimit, m_emojiCompletionSpin->value());
         settings.setValue(Preferences::LanguageAutoComplete, m_languageAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::AutoCorrectEnabled, m_autoCorrectCheck->isChecked());
+        settings.setValue(Preferences::TypographyQuotes, m_typographyQuotesCheck->isChecked());
+        settings.setValue(Preferences::TypographyDashes, m_typographyDashesCheck->isChecked());
+        settings.setValue(Preferences::TypographyEllipsis, m_typographyEllipsisCheck->isChecked());
+        settings.setValue(Preferences::TypographyMultiplication, m_typographyMultiplicationCheck->isChecked());
+        settings.setValue(Preferences::TypographyDegreeFractionPrime, m_typographyDegreeFractionPrimeCheck->isChecked());
+        settings.setValue(Preferences::TypographyNbsp, m_typographyNbspCheck->isChecked());
         QStringList autoCorrectPairs;
         for (int r = 0; r < m_replacementsTable->rowCount(); ++r) {
             const QString typo = m_replacementsTable->item(r, 0)

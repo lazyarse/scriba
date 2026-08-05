@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "MarkdownParser.h"
 #include "MdRenderer.h"
+#include "Typography.h"
 #include <md4c.h>
 
 QString MarkdownParser::toHtml(const QString &markdown, bool noHtml)
@@ -28,5 +29,6 @@ QString MarkdownParser::toHtml(const QString &markdown, bool noHtml)
         parserFlags |= MD_FLAG_NOHTML;
 
     MdRenderer renderer;
+    renderer.setTypography(Typography::optionsFromSettings());
     return renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), parserFlags);
 }

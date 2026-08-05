@@ -110,6 +110,16 @@ private:
     QCheckBox *m_languageAutoCompleteCheck;
     QCheckBox *m_autoCorrectCheck;
     QTableWidget *m_replacementsTable;
+
+    // Typography
+    QCheckBox *m_typographyQuotesCheck = nullptr;
+    QCheckBox *m_typographyDashesCheck = nullptr;
+    QCheckBox *m_typographyEllipsisCheck = nullptr;
+    QCheckBox *m_typographyMultiplicationCheck = nullptr;
+    QCheckBox *m_typographyDegreeFractionPrimeCheck = nullptr;
+    QCheckBox *m_typographyNbspCheck = nullptr;
+    QLabel *m_typographyPlainLabel = nullptr;
+    QLabel *m_typographyExampleLabel = nullptr;
     QCheckBox *m_centreSingleViewCheck;
     QSpinBox *m_centreSingleViewWidthSpin;
     QCheckBox *m_splitEditorAutoCheck;

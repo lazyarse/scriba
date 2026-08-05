@@ -1665,7 +1665,7 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
         }
 
         menu.addSeparator();
-        QAction *addAction = menu.addAction("Add to Dictionary");
+        QAction *addAction = menu.addAction("Add to Dictionary: " + misspelled.text);
         connect(addAction, &QAction::triggered, this, [this, misspelled]() {
             m_spellChecker->addToUserDictionary(misspelled.text);
             m_spellHighlighter->refresh();

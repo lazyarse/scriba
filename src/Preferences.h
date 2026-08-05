@@ -49,6 +49,13 @@ namespace Preferences {
     constexpr const char *AutoCorrectEnabled = "autoCorrectEnabled";
     constexpr const char *AutoCorrectPairs = "autoCorrectPairs";
 
+    constexpr const char *TypographyQuotes = "typographyQuotes";
+    constexpr const char *TypographyDashes = "typographyDashes";
+    constexpr const char *TypographyEllipsis = "typographyEllipsis";
+    constexpr const char *TypographyMultiplication = "typographyMultiplication";
+    constexpr const char *TypographyDegreeFractionPrime = "typographyDegreeFractionPrime";
+    constexpr const char *TypographyNbsp = "typographyNbsp";
+
     constexpr const char *HeavyRenderDelay = "heavyRenderDelay";
     constexpr int DefaultHeavyRenderDelay = Debounce::HeavyRender;
 

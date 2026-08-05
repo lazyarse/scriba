@@ -17,12 +17,18 @@
 #include <QString>
 #include <md4c.h>
 
+#include "Typography.h"
+
 class MdRenderer
 {
 public:
     MdRenderer();
 
     QString render(const char *input, MD_SIZE size, unsigned parserFlags);
+
+    // Enables smart-typography conversion of normal text runs. Options default
+    // to none, so rendering is byte-for-byte unchanged until set.
+    void setTypography(Typography::Options opts) { m_typography = opts; }
 
 private:
     struct ImageState {
@@ -53,5 +59,7 @@ private:
     QString m_output;
     int m_currentLine = 1;
     ImageState m_img;
+    Typography::Options m_typography;
+    Typography::State m_typoState;
 };
 
