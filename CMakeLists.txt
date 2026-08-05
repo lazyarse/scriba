@@ -23,6 +23,7 @@ add_executable(scriba WIN32
     src/Preview.cpp
     src/MarkdownParser.cpp
     src/MdRenderer.cpp
+    src/Typography.cpp
     src/CssConfig.cpp
     src/CssLoader.cpp
     src/CssUtils.cpp
@@ -175,6 +176,7 @@ if(BUILD_TESTS)
     add_library(scriba_core STATIC
         src/MarkdownParser.cpp
         src/MdRenderer.cpp
+        src/Typography.cpp
         src/CssUtils.cpp
         src/StaticHelpers.cpp
         src/Readability.cpp
@@ -230,6 +232,10 @@ if(BUILD_TESTS)
     add_executable(test_md_renderer_helpers tests/test_md_renderer_helpers.cpp)
     target_link_libraries(test_md_renderer_helpers PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_md_renderer_helpers COMMAND ${_TEST_PREFIX} ./test_md_renderer_helpers)
+
+    add_executable(test_typography tests/test_typography.cpp)
+    target_link_libraries(test_typography PRIVATE scriba_core scriba_test_main)
+    add_test(NAME test_typography COMMAND ${_TEST_PREFIX} ./test_typography)
 
     add_executable(test_css_utils tests/test_css_utils.cpp)
     target_link_libraries(test_css_utils PRIVATE scriba_core GTest::gtest_main)

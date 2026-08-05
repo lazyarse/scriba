@@ -35,6 +35,7 @@ public:
         Multiplication      = 0x8,  // 3x4 -> 3×4
         DegreeFractionPrime = 0x10, // 90oF, 1/2, 5'10 -> 90°F, ½, 5′10
         NonBreakingSpace    = 0x20, // a word, 10 kg -> non-breaking space
+        Symbols             = 0x40, // (c) (r) (tm) (p) (sm) -> © ® ™ ℗ ℠
     };
     Q_DECLARE_FLAGS(Options, Option)
 

@@ -19,6 +19,7 @@
 #include "Typography.h"
 
 #include <QSettings>
+#include <QFile>
 
 using Option = Typography::Option;
 
@@ -140,15 +141,102 @@ TEST(TypographyNbsp, NumberAndUnit)
     EXPECT_EQ(typo(Option::NonBreakingSpace, u"x10 kg"), QStringLiteral("x10 kg"));
 }
 
+TEST(TypographySymbols, Conversions)
+{
+    EXPECT_EQ(typo(Option::Symbols, u"(c) 2026"), QStringLiteral("\u00A9 2026"));
+    EXPECT_EQ(typo(Option::Symbols, u"(r)"), QStringLiteral("\u00AE"));
+    EXPECT_EQ(typo(Option::Symbols, u"Acme (tm)"), QStringLiteral("Acme \u2122"));
+    EXPECT_EQ(typo(Option::Symbols, u"(p)"), QStringLiteral("\u2117"));
+    EXPECT_EQ(typo(Option::Symbols, u"(sm)"), QStringLiteral("\u2120"));
+    EXPECT_EQ(typo(Option::Symbols, u"start (c) end"), QStringLiteral("start \u00A9 end"));
+}
+
+TEST(TypographySymbols, NonMatches)
+{
+    EXPECT_EQ(typo(Option::Symbols, u"func(c)"), QStringLiteral("func(c)"));
+    EXPECT_EQ(typo(Option::Symbols, u"(cl)"), QStringLiteral("(cl)"));
+    EXPECT_EQ(typo(Option::Symbols, u"(ccc)"), QStringLiteral("(ccc)"));
+    EXPECT_EQ(typo(Option::Symbols, u"(C)"), QStringLiteral("(C)"));
+    EXPECT_EQ(typo(Option::Symbols, u"tm)"), QStringLiteral("tm)"));
+    EXPECT_EQ(typo(Option::Symbols, u"(t)"), QStringLiteral("(t)"));
+    EXPECT_EQ(typo(Option::Symbols, u"(c)ash"), QStringLiteral("(c)ash"));
+    EXPECT_EQ(typo(Option::Symbols, u"'(c)'"), QStringLiteral("'\u00A9'"));
+}
+
 TEST(TypographyMath, SkipsMathRegions)
 {
     const auto all = Option::Quotes | Option::Dashes | Option::Ellipsis
-                   | Option::Multiplication | Option::DegreeFractionPrime | Option::NonBreakingSpace;
+                   | Option::Multiplication | Option::DegreeFractionPrime | Option::NonBreakingSpace
+                   | Option::Symbols;
     EXPECT_EQ(typo(all, u"$1/2$"), QStringLiteral("$1/2$"));
     EXPECT_EQ(typo(all, u"$$x--y$$"), QStringLiteral("$$x--y$$"));
     EXPECT_EQ(typo(all, u"$3x4$"), QStringLiteral("$3x4$"));
     EXPECT_EQ(typo(all, u"$5.00"), QStringLiteral("$5.00"));
     EXPECT_EQ(typo(all, u"$1/2$ and 3x4"), QStringLiteral("$1/2$ and 3\u00D74"));
+    EXPECT_EQ(typo(all, u"$(c)$"), QStringLiteral("$(c)$"));
+}
+
+TEST(TypographyMath, KitchensinkMathUntouched)
+{
+    const auto all = Option::Quotes | Option::Dashes | Option::Ellipsis
+                   | Option::Multiplication | Option::DegreeFractionPrime | Option::NonBreakingSpace
+                   | Option::Symbols;
+    EXPECT_EQ(typo(all, u"Inline math: $E = mc^2$, $\\sum_{i=1}^{n} x_i$, $\\int_0^\\infty e^{-x} \\, dx$"),
+              QStringLiteral("Inline math: $E = mc^2$, $\\sum_{i=1}^{n} x_i$, $\\int_0^\\infty e^{-x} \\, dx$"));
+    EXPECT_EQ(typo(all, u"$\\ce{CH4 + 2O2 -> CO2 + 2H2O}$"),
+              QStringLiteral("$\\ce{CH4 + 2O2 -> CO2 + 2H2O}$"));
+    EXPECT_EQ(typo(all, u"$\\ce{NaCl(s) ->[\\text{H2O}] Na^+(aq) + Cl^-(aq)}$"),
+              QStringLiteral("$\\ce{NaCl(s) ->[\\text{H2O}] Na^+(aq) + Cl^-(aq)}$"));
+    EXPECT_EQ(typo(all, u"$\\ce{Fe^{3+}}$, $\\ce{SO4^{2-}}$, $\\ce{Ca^{2+}}$"),
+              QStringLiteral("$\\ce{Fe^{3+}}$, $\\ce{SO4^{2-}}$, $\\ce{Ca^{2+}}$"));
+}
+
+TEST(TypographyMath, FullKitchensinkMathUntouched)
+{
+    QSettings settings;
+    settings.setValue(Preferences::TypographyQuotes, true);
+    settings.setValue(Preferences::TypographyDashes, true);
+    settings.setValue(Preferences::TypographyEllipsis, true);
+    settings.setValue(Preferences::TypographyMultiplication, true);
+    settings.setValue(Preferences::TypographyDegreeFractionPrime, true);
+    settings.setValue(Preferences::TypographyNbsp, true);
+    settings.setValue(Preferences::TypographySymbols, true);
+    settings.sync();
+
+    QFile file(QStringLiteral("docs/kitchensink.md"));
+    if (!file.exists())
+        file.setFileName(QStringLiteral("../docs/kitchensink.md"));
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly)) << "open kitchensink.md";
+    const QString md = QString::fromUtf8(file.readAll());
+
+    const QString html = MarkdownParser::toHtml(md);
+
+    // Everything between $ delimiters (inline and $$...$$ display) must be
+    // verbatim. Toggle inMath at each '$' and collect the content between.
+    QString mathContent;
+    bool inMath = false;
+    for (const QChar ch : html) {
+        if (ch == QLatin1Char('$')) {
+            inMath = !inMath;
+            continue;
+        }
+        if (inMath)
+            mathContent += ch;
+    }
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2010")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2013")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2014")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2026")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2018")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2019")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u201C")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u201D")));
+
+    for (const auto &key : { Preferences::TypographyQuotes, Preferences::TypographyDashes,
+                             Preferences::TypographyEllipsis, Preferences::TypographyMultiplication,
+                             Preferences::TypographyDegreeFractionPrime, Preferences::TypographyNbsp,
+                             Preferences::TypographySymbols })
+        settings.remove(key);
 }
 
 TEST(TypographyOptions, DefaultsOff)
@@ -163,12 +251,14 @@ TEST(TypographySettings, RoundTrip)
     settings.setValue(Preferences::TypographyQuotes, true);
     settings.setValue(Preferences::TypographyDashes, true);
     settings.setValue(Preferences::TypographyNbsp, true);
+    settings.setValue(Preferences::TypographySymbols, true);
     settings.sync();
 
     const auto opts = Typography::optionsFromSettings();
     EXPECT_TRUE(opts.testFlag(Option::Quotes));
     EXPECT_TRUE(opts.testFlag(Option::Dashes));
     EXPECT_TRUE(opts.testFlag(Option::NonBreakingSpace));
+    EXPECT_TRUE(opts.testFlag(Option::Symbols));
     EXPECT_FALSE(opts.testFlag(Option::Ellipsis));
     EXPECT_FALSE(opts.testFlag(Option::Multiplication));
     EXPECT_FALSE(opts.testFlag(Option::DegreeFractionPrime));
@@ -176,6 +266,7 @@ TEST(TypographySettings, RoundTrip)
     settings.remove(Preferences::TypographyQuotes);
     settings.remove(Preferences::TypographyDashes);
     settings.remove(Preferences::TypographyNbsp);
+    settings.remove(Preferences::TypographySymbols);
 }
 
 TEST(TypographyIntegration, RendererConvertsParagraphText)

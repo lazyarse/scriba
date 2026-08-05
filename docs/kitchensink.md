@@ -10,11 +10,24 @@ A quick tour of what Scriba can do.
 
 > Block quote with **inline** styling.
 
+### Smart Typography
+
+When rendering the preview and exports (PDF, DOCX, HTML), Scriba can convert plain typed punctuation into print-quality equivalents. Your Markdown source is never changed — enable the conversions you want in **Preferences → Typography**. Code blocks, inline code, math and raw HTML are always left untouched.
+
+- **Curly quotes and apostrophes:** "double" and 'single' quotes become curly, and don't — it's an apostrophe — 'tis the season.
+- **Dashes:** a - b (hyphen), a -- b (en dash), a --- b (em dash).
+- **Ellipsis:** To be continued...
+- **Multiplication:** 3x4 and 3 x 4.
+- **Degrees, fractions and primes:** 90oF, 1/2, 3/4, 5'10" tall.
+- **Non-breaking spaces:** a bird, 10 kg, 10 %.
+- **Symbols:** (c) 2026, (r), (tm), (p), (sm).
+
 ### Header Links
 
 Jump to any heading in this document by linking to its slug:
 
 - [Typography](#typography)
+- [Smart Typography](#smart-typography)
 - [Mermaid Diagrams](#mermaid-diagrams)
 - [Find & Replace](#find-replace)
 

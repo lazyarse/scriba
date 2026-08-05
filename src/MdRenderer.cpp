@@ -54,11 +54,15 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         break;
     case MD_BLOCK_P:
         self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
         self->writeHtml(QString("<p data-line=\"%1\">").arg(self->m_currentLine));
         break;
     case MD_BLOCK_H: {
         auto *d = static_cast<MD_BLOCK_H_DETAIL*>(detail);
         self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
         self->writeHtml(QString("<h%1 data-line=\"%2\">").arg(d->level).arg(self->m_currentLine));
         break;
     }
@@ -73,6 +77,8 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         break;
     case MD_BLOCK_LI:
         self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
         self->enterListItem(detail);
         break;
     case MD_BLOCK_HR:
@@ -82,6 +88,8 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         break;
     case MD_BLOCK_QUOTE:
         self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
         self->writeHtml("<blockquote>");
         break;
     case MD_BLOCK_ADMONITION:
@@ -101,10 +109,14 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         break;
     case MD_BLOCK_TH:
         self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
         self->enterAlignedCell(detail, "th");
         break;
     case MD_BLOCK_TD:
         self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
         self->enterAlignedCell(detail, "td");
         break;
     default:

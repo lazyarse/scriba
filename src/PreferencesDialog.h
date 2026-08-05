@@ -118,6 +118,7 @@ private:
     QCheckBox *m_typographyMultiplicationCheck = nullptr;
     QCheckBox *m_typographyDegreeFractionPrimeCheck = nullptr;
     QCheckBox *m_typographyNbspCheck = nullptr;
+    QCheckBox *m_typographySymbolsCheck = nullptr;
     QLabel *m_typographyPlainLabel = nullptr;
     QLabel *m_typographyExampleLabel = nullptr;
     QCheckBox *m_centreSingleViewCheck;

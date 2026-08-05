@@ -177,8 +177,11 @@ QString Typography::apply(QStringView text, Options opts, State &state)
                 state.inDisplayMath = true;
                 i += 2;
             } else if (i + 1 < n && !text[i + 1].isSpace()) {
-                // Inline math only when a closing $ exists in this run, so
-                // lone currency "$5" is never swallowed.
+                // Inline math $...$. md4c may split a span across several text
+                // runs (e.g. around \-escapes), so the closing $ need not be in
+                // this run. Only a $ followed by a digit with no closing $ in
+                // the run is treated as currency ("$5.00") and left alone; any
+                // dangling math state is reset at the next block boundary.
                 bool hasClosing = false;
                 for (qsizetype j = i + 1; j < n; ++j) {
                     if (text[j] == QLatin1Char('$')) {
@@ -186,7 +189,7 @@ QString Typography::apply(QStringView text, Options opts, State &state)
                         break;
                     }
                 }
-                if (hasClosing) {
+                if (hasClosing || !text[i + 1].isDigit()) {
                     append(QLatin1Char('$'), false);
                     state.inMath = true;
                     ++i;
@@ -287,6 +290,37 @@ QString Typography::apply(QStringView text, Options opts, State &state)
                     append(QChar(0x2032));
                     ++i;
                     continue;
+                }
+            }
+        }
+
+        // --- Symbols: (c) (r) (tm) (p) (sm) -> © ® ™ ℗ ℠ ---
+        if (opts.testFlag(Option::Symbols) && c == QLatin1Char('(')) {
+            const QChar prev = prevImmediate(i);
+            if (prev.isNull() || !prev.isLetterOrNumber()) {
+                const char16_t replacement = [&]() -> char16_t {
+                    if (i + 2 < n && text[i + 1] == QLatin1Char('c') && text[i + 2] == QLatin1Char(')'))
+                        return 0x00A9; // ©
+                    if (i + 2 < n && text[i + 1] == QLatin1Char('r') && text[i + 2] == QLatin1Char(')'))
+                        return 0x00AE; // ®
+                    if (i + 2 < n && text[i + 1] == QLatin1Char('p') && text[i + 2] == QLatin1Char(')'))
+                        return 0x2117; // ℗
+                    if (i + 3 < n && text[i + 1] == QLatin1Char('t') && text[i + 2] == QLatin1Char('m')
+                        && text[i + 3] == QLatin1Char(')'))
+                        return 0x2122; // ™
+                    if (i + 3 < n && text[i + 1] == QLatin1Char('s') && text[i + 2] == QLatin1Char('m')
+                        && text[i + 3] == QLatin1Char(')'))
+                        return 0x2120; // ℠
+                    return 0;
+                }();
+                if (replacement != 0) {
+                    const qsizetype consumed = replacement == 0x2122 || replacement == 0x2120 ? 4 : 3;
+                    const QChar next = i + consumed < n ? text[i + consumed] : QChar();
+                    if (next.isNull() || !next.isLetter()) {
+                        append(QChar(replacement));
+                        i += consumed;
+                        continue;
+                    }
                 }
             }
         }
@@ -395,5 +429,7 @@ Typography::Options Typography::optionsFromSettings()
         opts |= Option::DegreeFractionPrime;
     if (settings.value(Preferences::TypographyNbsp, false).toBool())
         opts |= Option::NonBreakingSpace;
+    if (settings.value(Preferences::TypographySymbols, false).toBool())
+        opts |= Option::Symbols;
     return opts;
 }
