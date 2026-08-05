@@ -1004,6 +1004,10 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_linkCheckCheck->setChecked(settings.value(Preferences::LinkCheckEnabled, true).toBool());
         checkLayout->addWidget(m_linkCheckCheck);
 
+        m_markdownCheckCheck = new QCheckBox("Underline markdown inconsistencies as you type");
+        m_markdownCheckCheck->setChecked(settings.value(Preferences::MarkdownCheckEnabled, false).toBool());
+        checkLayout->addWidget(m_markdownCheckCheck);
+
         layout->addWidget(checkGroup);
 
         QGroupBox *underlineGroup = new QGroupBox("Override underline colors");
@@ -1029,6 +1033,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
             settings.value(Preferences::GrammarUnderlineColor, "#00cc66").toString());
         m_linkColorBtn = makeUnderlineSwatchBtn(
             settings.value(Preferences::LinkUnderlineColor, "#f09000").toString());
+        m_markdownColorBtn = makeUnderlineSwatchBtn(
+            settings.value(Preferences::MarkdownUnderlineColor, "#3b82f6").toString());
 
         underlineLayout->addWidget(new QLabel("Spelling:"));
         underlineLayout->addWidget(m_spellColorBtn);
@@ -1038,6 +1044,9 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         underlineLayout->addSpacing(12);
         underlineLayout->addWidget(new QLabel("Links:"));
         underlineLayout->addWidget(m_linkColorBtn);
+        underlineLayout->addSpacing(12);
+        underlineLayout->addWidget(new QLabel("Markdown:"));
+        underlineLayout->addWidget(m_markdownColorBtn);
         underlineLayout->addStretch();
         layout->addWidget(underlineGroup);
 
@@ -1063,6 +1072,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         connectUnderlineSwatch(m_spellColorBtn, Preferences::SpellUnderlineColor, "Spelling Underline Color");
         connectUnderlineSwatch(m_grammarColorBtn, Preferences::GrammarUnderlineColor, "Grammar Underline Color");
         connectUnderlineSwatch(m_linkColorBtn, Preferences::LinkUnderlineColor, "Link Underline Color");
+        connectUnderlineSwatch(m_markdownColorBtn, Preferences::MarkdownUnderlineColor, "Markdown Underline Color");
 
         m_underlineColorGroup = underlineGroup;
         connect(underlineGroup, &QGroupBox::toggled, this, [this, emitUnderlineColorsChanged]() {
@@ -1467,10 +1477,12 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
         settings.setValue(Preferences::LinkCheckEnabled, m_linkCheckCheck->isChecked());
+        settings.setValue(Preferences::MarkdownCheckEnabled, m_markdownCheckCheck->isChecked());
         settings.setValue(Preferences::UnderlineColorOverride, m_underlineColorGroup->isChecked());
         settings.setValue(Preferences::SpellUnderlineColor, m_spellColorBtn->text());
         settings.setValue(Preferences::GrammarUnderlineColor, m_grammarColorBtn->text());
         settings.setValue(Preferences::LinkUnderlineColor, m_linkColorBtn->text());
+        settings.setValue(Preferences::MarkdownUnderlineColor, m_markdownColorBtn->text());
         settings.setValue(Preferences::DictionaryLanguage, m_languageCombo->currentData().toString());
         settings.setValue(Preferences::GrammarDialect, m_grammarDialectCombo->currentText());
         QStringList customWords;

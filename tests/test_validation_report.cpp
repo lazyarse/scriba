@@ -297,6 +297,44 @@ TEST_F(ValidationReportTest, UntitledTabIsLabelledUntitled)
     EXPECT_EQ(QStringLiteral("(Untitled)"), docs.first().label);
 }
 
+TEST_F(ValidationReportTest, RenderMarkdownDeepLinksToFindings)
+{
+    // The summary table's document cell must link to the report's per-file
+    // heading and each count cell to that file's category sub-heading, using
+    // the same slug/dedup the preview's generateHeadingIds() produces.
+    ValidationReport report;
+    const QVector<ValidationReport::DocumentReport> docs =
+        report.scan({{m_docPath, QStringLiteral("A typo recieve here.\n")}}, m_checker.get());
+    const QString out = ValidationReport::renderMarkdown(
+        {docs.value(0)}, QStringLiteral("2026-08-05T12:00:00"));
+
+    // Document cell deep link: [doc.md](#docmd) — the `.` in the label is
+    // dropped, `d`,`o`,`c`,`m`,`d` remain.
+    EXPECT_TRUE(out.contains(QStringLiteral("[doc.md](#docmd)")))
+        << out.toStdString();
+    // Spelling count cell links to the per-file "Spelling" sub-heading.
+    EXPECT_TRUE(out.contains(QStringLiteral("[1](#spelling)")))
+        << out.toStdString();
+    // The summary and file headings are emitted (anchors that make the links
+    // resolve) in the right slug order.
+    EXPECT_TRUE(out.contains(QStringLiteral("# Validation Report")));
+    EXPECT_TRUE(out.contains(QStringLiteral("## Summary")));
+    EXPECT_TRUE(out.contains(QStringLiteral("## doc.md")));
+    EXPECT_TRUE(out.contains(QStringLiteral("### Spelling")));
+}
+
+TEST_F(ValidationReportTest, RenderMarkdownContextQuoteHighlightsSpan)
+{
+    QString rendered;
+    const auto doc = scanOne(QStringLiteral("line one\nA typo recieve here.\n"),
+                             &rendered);
+    ASSERT_FALSE(doc.issues.value(ValidationReport::Category::Spelling).isEmpty());
+    // The finding's context quote wraps the misspelled word in `==…==` so the
+    // preview renders it as a highlighted <mark>.
+    EXPECT_TRUE(rendered.contains(QLatin1String("> A typo ==recieve== here.")))
+        << rendered.toStdString();
+}
+
 TEST_F(ValidationReportTest, GrammarIssuesGetLineAndColumn)
 {
     const QString text = QStringLiteral("line one\nI has a cat.\n");

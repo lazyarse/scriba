@@ -66,6 +66,30 @@ Use CSS `::before` to prepend an icon to `.admonition-title`:
 
 These use Unicode characters (info, checkmark, warning, cross) and are purely CSS-based — no image files needed.
 
+## Highlighting (`==highlight==`)
+
+Scriba's markdown parser renders `==text==` as a `<mark>` element (a native, easy-to-type highlight). The default look in `preview-base.css` is:
+
+```css
+mark {
+    background-color: var(--mark-bg, rgba(255, 214, 0, 0.45));
+    color: var(--mark-color, inherit);
+    padding: 0 0.15em;
+    border-radius: 2px;
+}
+```
+
+A theme can restyle the highlight by overriding the `--mark-bg` / `--mark-color` custom properties (note the value defaults to theme-independent amber) or the `mark` selector directly:
+
+```css
+:root {
+    --mark-bg: #ffd700;
+    --mark-color: #1a1a1a;
+}
+```
+
+Every bundled theme (`resources/themes/*.css`) sets its own `--mark-bg` / `--mark-color`, so the highlight carries a per-theme tint instead of the theme-independent amber default. The translucent-amber fallback in `preview-base.css` applies only to user themes that don't override it, and still reads on both light and dark editor backgrounds.
+
 ## Theme slots
 
 The Scriba colour system has two layers:
@@ -105,6 +129,7 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 | Caution accent | `.admonition.caution` `border-left-color` | Caution colour |
 | Checkbox checked background | `--checkbox-checked-bg` | Filled checkbox fill (overrides chrome `%13`) |
 | Checkbox tick | `--checkbox-tick-color` | Checkbox tick mark |
+| Highlight | `mark` `background-color` | `==highlight==` mark fill (`--mark-bg`, `--mark-color`) |
 
 ### Chrome slots
 

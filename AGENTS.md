@@ -11,7 +11,7 @@ Two build dirs, each serving a different job:
 - `build-dbg/` — **Debug** build for the dev/test loop (`-DBUILD_TESTS=ON`). Fastest to compile; assertions on. Use this while developing and running the test suite.
 - `build/` — **Release** build for the final binary only (tests OFF). Build it after the test suite passes; this is the binary you ship and package.
 
-Full builds are heavy (WebEngine resources, JS bundles, many test targets). Use `timeout 480000` with bash or pass a large timeout value — the default 120s may not be enough.
+Full builds are heavy (WebEngine resources, JS bundles, many test targets). Use `timeout 10m` with bash or pass a large timeout value — the default 120s may not be enough.
 
 ### Dev loop (tests) — `build-dbg`
 

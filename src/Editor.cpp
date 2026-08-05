@@ -739,6 +739,8 @@ bool Editor::eventFilter(QObject *obj, QEvent *event)
                 paintHitRange(painter, block, hit.start, hit.length, SpellHighlighter::grammarUnderlineColor(), fm, underlineY);
             for (const SpellHighlighter::GrammarHit &hit : m_spellHighlighter->linkIssuesInBlock(blockNumber))
                 paintHitRange(painter, block, hit.start, hit.length, SpellHighlighter::linkUnderlineColor(), fm, underlineY);
+            for (const SpellHighlighter::GrammarHit &hit : m_spellHighlighter->markdownHitsInBlock(blockNumber))
+                paintHitRange(painter, block, hit.start, hit.length, SpellHighlighter::markdownUnderlineColor(), fm, underlineY);
         }
         return false;
     }
@@ -1286,6 +1288,7 @@ void Editor::applySpellSettings()
     const bool spellEnabled = s.value(Preferences::SpellCheckEnabled, true).toBool();
     const bool grammarEnabled = s.value(Preferences::GrammarCheckEnabled, false).toBool();
     const bool linkEnabled = s.value(Preferences::LinkCheckEnabled, true).toBool();
+    const bool markdownEnabled = s.value(Preferences::MarkdownCheckEnabled, false).toBool();
     // Empty = "follow dialect": the grammar dialect selects the base dictionary.
     const QString language = s.value(Preferences::DictionaryLanguage).toString();
     const QString dialect = s.value(Preferences::GrammarDialect, QStringLiteral("American")).toString();
@@ -1310,6 +1313,7 @@ void Editor::applySpellSettings()
     m_spellHighlighter->setSpellCheckingEnabled(spellEnabled && loaded);
     m_spellHighlighter->setGrammarCheckingEnabled(grammarEnabled);
     m_spellHighlighter->setLinkCheckingEnabled(linkEnabled);
+    m_spellHighlighter->setMarkdownCheckingEnabled(markdownEnabled);
 
     if (auto *stoppard = dynamic_cast<StoppardEngine *>(m_grammarChecker.get()))
         stoppard->setDialect(dialect);

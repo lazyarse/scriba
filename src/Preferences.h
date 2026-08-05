@@ -91,12 +91,14 @@ namespace Preferences {
     constexpr const char *SpellCheckEnabled = "spellCheckEnabled";
     constexpr const char *GrammarCheckEnabled = "grammarCheckEnabled";
     constexpr const char *LinkCheckEnabled = "linkCheckEnabled";
+    constexpr const char *MarkdownCheckEnabled = "markdownCheckEnabled";
     constexpr const char *DictionaryLanguage = "dictionaryLanguage";
     constexpr const char *GrammarDialect = "grammarDialect";
     constexpr const char *UnderlineColorOverride = "underlineColorOverride";
     constexpr const char *SpellUnderlineColor = "spellUnderlineColor";
     constexpr const char *GrammarUnderlineColor = "grammarUnderlineColor";
     constexpr const char *LinkUnderlineColor = "linkUnderlineColor";
+    constexpr const char *MarkdownUnderlineColor = "markdownUnderlineColor";
 
     constexpr const char *StripPreviewScripts = "stripPreviewScripts";
     constexpr const char *StripExportScripts = "stripExportScripts";

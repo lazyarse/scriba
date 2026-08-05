@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "SpellHighlighter.h"
 #include "LinkValidator.h"
+#include "MarkdownChecker.h"
 #include "Preferences.h"
 #include "SpellChecker.h"
 #include "StaticHelpers.h"
@@ -37,6 +38,7 @@ struct UnderlineColors {
     QColor spell;
     QColor grammar;
     QColor link;
+    QColor markdown;
 };
 
 UnderlineColors loadUnderlineColors()
@@ -46,11 +48,13 @@ UnderlineColors loadUnderlineColors()
     static const QColor spellDefault(0xd6, 0x40, 0x50);
     static const QColor grammarDefault(0x00, 0xcc, 0x66);
     static const QColor linkDefault(0xf0, 0x90, 0x00);
+    static const QColor markdownDefault(0x3b, 0x82, 0xf6);
     UnderlineColors c;
     if (!QSettings().value(Preferences::UnderlineColorOverride, false).toBool()) {
         c.spell = spellDefault;
         c.grammar = grammarDefault;
         c.link = linkDefault;
+        c.markdown = markdownDefault;
         return c;
     }
     c.spell = QColor(QSettings().value(Preferences::SpellUnderlineColor,
@@ -59,6 +63,8 @@ UnderlineColors loadUnderlineColors()
         grammarDefault.name()).toString());
     c.link = QColor(QSettings().value(Preferences::LinkUnderlineColor,
         linkDefault.name()).toString());
+    c.markdown = QColor(QSettings().value(Preferences::MarkdownUnderlineColor,
+        markdownDefault.name()).toString());
     return c;
 }
 
@@ -138,6 +144,11 @@ QColor SpellHighlighter::grammarUnderlineColor()
 QColor SpellHighlighter::linkUnderlineColor()
 {
     return underlineColors().link;
+}
+
+QColor SpellHighlighter::markdownUnderlineColor()
+{
+    return underlineColors().markdown;
 }
 
 void SpellHighlighter::reloadUnderlineColors()
@@ -272,6 +283,16 @@ void SpellHighlighter::setLinkCheckingEnabled(bool enabled)
         emit spellHitsChanged(); // clear any painted underlines
 }
 
+void SpellHighlighter::setMarkdownCheckingEnabled(bool enabled)
+{
+    m_markdownEnabled = enabled;
+    m_markdownHits.clear();
+    if (enabled)
+        runSpellCheck(); // recompute so fresh underlines appear immediately
+    else
+        emit spellHitsChanged(); // clear any painted underlines
+}
+
 void SpellHighlighter::setCurrentFile(const QString &path)
 {
     m_currentFile = path;
@@ -284,9 +305,10 @@ void SpellHighlighter::refresh()
     m_grammarIssues.clear();
     m_spellHits.clear();
     m_linkHits.clear();
+    m_markdownHits.clear();
     m_staleBlocks.clear();
     const bool spellActive = m_spellEnabled && m_checker && m_checker->isLoaded();
-    if (spellActive || m_linkEnabled) {
+    if (spellActive || m_linkEnabled || m_markdownEnabled) {
         for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next())
             m_staleBlocks.insert(block.blockNumber());
         runSpellCheck();
@@ -299,7 +321,7 @@ void SpellHighlighter::refresh()
 void SpellHighlighter::scheduleSpellCheck(int position, int charsRemoved, int charsAdded)
 {
     const bool spellActive = m_spellEnabled && m_checker && m_checker->isLoaded();
-    if ((!spellActive && !m_linkEnabled))
+    if ((!spellActive && !m_linkEnabled && !m_markdownEnabled))
         return;
     // Format-only changes (highlighting, block-state updates) emit
     // contentsChange with (0,0) — the edits' own reformats. Skip those, or
@@ -365,7 +387,7 @@ void SpellHighlighter::scheduleSpellCheck(int position, int charsRemoved, int ch
 void SpellHighlighter::runSpellCheck()
 {
     const bool spellActive = m_spellEnabled && m_checker && m_checker->isLoaded();
-    if (!spellActive && !m_linkEnabled)
+    if (!spellActive && !m_linkEnabled && !m_markdownEnabled)
         return;
 
     // Reference definitions and heading slugs are collected over the whole
@@ -375,11 +397,29 @@ void SpellHighlighter::runSpellCheck()
     if (m_linkEnabled)
         context = collectDocumentContext();
 
+    // Markdown-consistency findings are document-global (a duplicate heading
+    // or a level skip depends on headings on other lines), so scan the whole
+    // document once and bucket the results by block.
+    if (m_markdownEnabled) {
+        QStringList lines;
+        for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next())
+            lines.append(block.text());
+        m_markdownHits.clear();
+        // Issue::line is 1-based and lines map 1:1 to blocks.
+        const auto mdIssues = MarkdownChecker::scan(lines.join(QLatin1Char('\n')));
+        for (const auto &issue : mdIssues) {
+            const int blockNumber = issue.line - 1;
+            if (blockNumber < 0 || blockNumber >= lines.size())
+                continue;
+            m_markdownHits[blockNumber].append({issue.start, issue.length, issue.message, {}});
+        }
+    }
+
     // Walk the whole document so fence/front-matter state stays consistent
     // even when only some blocks are stale (the state machine must advance
     // across the blocks in between).
     int state = 0;
-    bool any = m_linkEnabled; // link hits are recomputed wholesale each pass
+    bool any = m_linkEnabled || m_markdownEnabled; // these recompute wholesale each pass
     for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next()) {
         const int blockNumber = block.blockNumber();
         const BlockContext ctx = blockContext(blockNumber, block.text(), state);
@@ -619,6 +659,11 @@ QVector<SpellHighlighter::GrammarHit> SpellHighlighter::spellHitsInBlock(int blo
 QVector<SpellHighlighter::GrammarHit> SpellHighlighter::linkIssuesInBlock(int blockNumber) const
 {
     return m_linkHits.value(blockNumber);
+}
+
+QVector<SpellHighlighter::GrammarHit> SpellHighlighter::markdownHitsInBlock(int blockNumber) const
+{
+    return m_markdownHits.value(blockNumber);
 }
 
 SpellHighlighter::DocumentContext SpellHighlighter::collectDocumentContext() const

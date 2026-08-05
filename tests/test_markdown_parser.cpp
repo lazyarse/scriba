@@ -96,6 +96,12 @@ TEST(MarkdownParserTest, Strikethrough) {
     EXPECT_TRUE(html.contains("deleted"));
 }
 
+TEST(MarkdownParserTest, Highlight) {
+    QString html = MarkdownParser::toHtml("==highlighted==");
+    EXPECT_TRUE(html.contains("<mark>"));
+    EXPECT_TRUE(html.contains("highlighted"));
+}
+
 TEST(MarkdownParserTest, Link) {
     QString html = MarkdownParser::toHtml("[click](https://example.com)");
     EXPECT_TRUE(html.contains("<a href="));

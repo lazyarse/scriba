@@ -23,7 +23,7 @@ QString MarkdownParser::toHtml(const QString &markdown, bool noHtml)
 
     unsigned long parserFlags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH
                               | MD_FLAG_TASKLISTS | MD_FLAG_PERMISSIVEURLAUTOLINKS
-                              | MD_FLAG_ADMONITIONS;
+                              | MD_FLAG_ADMONITIONS | MD_FLAG_HIGHLIGHT;
 
     if (noHtml)
         parserFlags |= MD_FLAG_NOHTML;

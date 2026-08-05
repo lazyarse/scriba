@@ -229,6 +229,10 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
     case MD_SPAN_DEL:
         self->writeHtml("<del>");
         break;
+    case MD_SPAN_MARK:
+        if (!self->m_img.inside)
+            self->writeHtml("<mark>");
+        break;
     case MD_SPAN_U:
         self->writeHtml("<u>");
         break;
@@ -284,6 +288,10 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
     case MD_SPAN_DEL:
         if (self->m_img.inside) break;
         self->writeHtml("</del>");
+        break;
+    case MD_SPAN_MARK:
+        if (self->m_img.inside) break;
+        self->writeHtml("</mark>");
         break;
     case MD_SPAN_U:
         if (self->m_img.inside) break;

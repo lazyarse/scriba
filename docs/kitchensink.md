@@ -6,7 +6,7 @@ A quick tour of what Scriba can do.
 
 ### Typography
 
-**Bold**, *italic*, ~~strike through~~, `inline code`, and a [link](#). Emojis: :rocket: :heart: :sparkles: :smile: :tada:
+**Bold**, *italic*, ~~strike through~~, ==highlighted text==, `inline code`, and a [link](#). Emojis: :rocket: :heart: :sparkles: :smile: :tada:
 
 > Block quote with **inline** styling.
 

@@ -242,3 +242,10 @@ hr { border: none; border-top: 1px solid #ccc; }
 .hljs-emphasis {
     font-style: italic;
 }
+
+/* Highlight (`==text==` → <mark>); PDF export uses a print-friendly tint. */
+mark {
+    background-color: #fff3b0;
+    color: #1a1a1a;
+    padding: 0 0.12em;
+}

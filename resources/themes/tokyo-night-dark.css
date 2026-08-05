@@ -7,6 +7,8 @@
 :root {
     --checkbox-checked-bg: #41435f;
     --checkbox-tick-color: #fff;
+    --mark-bg: rgba(224, 175, 104, 0.45);
+    --mark-color: #a9b1d6;
 }
 
 body {

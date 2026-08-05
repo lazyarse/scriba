@@ -22,6 +22,7 @@ add_executable(scriba WIN32
     src/Gutter.cpp
     src/Preview.cpp
     src/MarkdownParser.cpp
+    src/MarkdownChecker.cpp
     src/MdRenderer.cpp
     src/Typography.cpp
     src/CssConfig.cpp
@@ -197,6 +198,7 @@ if(BUILD_TESTS)
         src/SpellChecker.cpp
         src/SpellHighlighter.cpp
         src/LinkValidator.cpp
+        src/MarkdownChecker.cpp
         src/GrammarChecker.cpp
         src/StoppardEngine.cpp
         src/ValidationReport.cpp
@@ -277,6 +279,11 @@ if(BUILD_TESTS)
     target_include_directories(test_broken_links PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_broken_links PRIVATE GTest::gtest scriba_spell Qt6::Test)
     add_test(NAME test_broken_links COMMAND ${_TEST_PREFIX} ./test_broken_links)
+
+    add_executable(test_markdown_checker tests/test_markdown_checker.cpp)
+    target_include_directories(test_markdown_checker PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_markdown_checker PRIVATE scriba_core GTest::gtest_main scriba_spell)
+    add_test(NAME test_markdown_checker COMMAND ${_TEST_PREFIX} ./test_markdown_checker)
 
     add_executable(test_validation_report tests/test_validation_report.cpp resources/scriba.qrc)
     target_include_directories(test_validation_report PRIVATE ${CMAKE_SOURCE_DIR}/src)

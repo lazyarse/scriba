@@ -153,6 +153,7 @@ private:
     QCheckBox *m_spellCheckCheck;
     QCheckBox *m_grammarCheckCheck;
     QCheckBox *m_linkCheckCheck;
+    QCheckBox *m_markdownCheckCheck;
     QComboBox *m_languageCombo;
     QComboBox *m_grammarDialectCombo;
     QListWidget *m_customWordsList;
@@ -162,5 +163,6 @@ private:
     QPushButton *m_spellColorBtn;
     QPushButton *m_grammarColorBtn;
     QPushButton *m_linkColorBtn;
+    QPushButton *m_markdownColorBtn;
 };
 

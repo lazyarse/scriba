@@ -27,36 +27,6 @@
 
 namespace {
 
-// Marks a line as fenced code / front matter, mirroring the state machine in
-// SpellHighlighter::blockContext so the checks skip the same content the
-// editor's underlines ignore. Kept in sync deliberately (a short, stable
-// function; the highlighter's copy is private to its translation unit).
-struct BlockContext {
-    int state = 0; // 0 plain, 1 fenced code, 2 front matter
-    bool checkable = true;
-};
-
-BlockContext blockContext(int blockNumber, const QString &text, int previousState)
-{
-    static const QRegularExpression fenceRe(R"(^\s*(?:```+|~~~+))");
-    static const QRegularExpression frontMatterRe(R"(^\s*---\s*$)");
-    const bool opener = fenceRe.match(text).hasMatch();
-    const bool boundary = frontMatterRe.match(text).hasMatch();
-    BlockContext ctx;
-    if (previousState == 1) {
-        ctx.state = opener ? 0 : 1;
-    } else if (previousState == 2) {
-        ctx.state = boundary ? 0 : 2;
-    } else if (blockNumber == 0 && boundary) {
-        ctx.state = 2;
-    } else if (opener) {
-        ctx.state = 1;
-    }
-    ctx.checkable = previousState != 1 && previousState != 2 && !opener
-        && !(blockNumber == 0 && boundary);
-    return ctx;
-}
-
 // Converts a document offset to 1-based line/column.
 void lineCol(const QString &text, int offset, int *line, int *column)
 {
@@ -84,7 +54,10 @@ const char *categoryName(ValidationReport::Category category)
     return "";
 }
 
-QString renderCategory(const char *name, const QVector<ValidationReport::Issue> &issues)
+QString contextQuote(const QStringList &lines, const ValidationReport::Issue &issue);
+
+QString renderCategory(const char *name, const QVector<ValidationReport::Issue> &issues,
+                      const QStringList &lines)
 {
     QString md = QLatin1String("\n### ") + QLatin1String(name) + QLatin1String("\n\n");
     if (issues.isEmpty())
@@ -97,24 +70,53 @@ QString renderCategory(const char *name, const QVector<ValidationReport::Issue> 
         if (!issue.suggestion.isEmpty())
             md += QLatin1String(" -> ") + issue.suggestion;
         md += QLatin1Char('\n');
+        const QString quote = contextQuote(lines, issue);
+        if (!quote.isEmpty())
+            md += quote + QLatin1Char('\n');
     }
     return md;
 }
 
-// Records a duplicate-heading finding when `title`'s slug has been seen.
-void checkDuplicateHeading(QVector<ValidationReport::Issue> &issues, int line,
-                           const QString &title, QSet<QString> &seenSlugs)
+// Builds a short blockquote of the offending source line, with the issue's span
+// wrapped in `==…==` so the preview renders it as a highlighted <mark>.
+// Returns an empty string when there is no meaningful span to quote (blank
+// line, whole-line span, or no source lines).
+QString contextQuote(const QStringList &lines, const ValidationReport::Issue &issue)
 {
-    const QString slug = LinkValidator::headingSlug(title);
-    if (slug.isEmpty())
-        return;
-    if (seenSlugs.contains(slug)) {
-        issues.append({line, 0, 0,
-                       QStringLiteral("Duplicate heading (anchor #%1 already used)").arg(slug),
-                       {}});
-    } else {
-        seenSlugs.insert(slug);
+    const int lineIndex = issue.line - 1; // Issue::line is 1-based
+    if (lineIndex < 0 || lineIndex >= lines.size())
+        return QString();
+    const QString full = lines.at(lineIndex);
+    if (issue.column <= 0 || issue.length <= 0)
+        return QStringLiteral("> ") + (full.isEmpty() ? QStringLiteral(" ") : full);
+    const int spanStart = qBound(0, issue.column - 1, qMax(0, full.size() - 1));
+    const int spanLen = qMin(issue.length, full.size() - spanStart);
+    if (spanLen <= 0)
+        return QStringLiteral("> ") + (full.isEmpty() ? QStringLiteral(" ") : full);
+    const int spanEnd = spanStart + spanLen;
+    const int kMax = 140;
+    if (full.size() <= kMax) {
+        return QStringLiteral("> ") + full.left(spanStart) + QLatin1String("==")
+            + full.mid(spanStart, spanLen) + QLatin1String("==") + full.mid(spanEnd);
     }
+    // Truncate the line around the span, keeping the whole span visible.
+    const int window = qMin(kMax, full.size());
+    const int extra = window - spanLen;       // budget for context either side
+    const int before = spanStart;             // chars available before the span
+    const int after = full.size() - spanEnd;  // chars available after the span
+    int lead = qMin(extra / 2, before);
+    int trail = qMin(extra - lead, after);
+    lead = qMin(extra - trail, before);       // use up any unused trailing budget
+    const int begin = spanStart - lead;
+    const int finish = spanEnd + trail;
+    QString out;
+    if (begin > 0)
+        out += QLatin1String("…");
+    out += full.mid(begin, spanStart - begin) + QLatin1String("==")
+        + full.mid(spanStart, spanLen) + QLatin1String("==") + full.mid(spanEnd, finish - spanEnd);
+    if (finish < full.size())
+        out += QLatin1String("…");
+    return QStringLiteral("> ") + out;
 }
 
 } // namespace
@@ -132,6 +134,7 @@ ValidationReport::scan(const QVector<DocumentSource> &sources,
             ? QStringLiteral("(Untitled)")
             : QFileInfo(source.filePath).fileName();
         report.filePath = source.filePath;
+        report.sourceLines = source.text.split(QLatin1Char('\n'));
 
         if (options.categories.contains(Category::Spelling)
             && spellChecker && spellChecker->isLoaded()) {
@@ -159,8 +162,14 @@ ValidationReport::scan(const QVector<DocumentSource> &sources,
                 report.issues[Category::Links].append({lh.line, lh.col, lh.length, lh.message, {}});
         }
 
-        if (options.categories.contains(Category::Markdown))
-            report.issues[Category::Markdown] = scanMarkdownIssues(source.text, options.markdown);
+        if (options.categories.contains(Category::Markdown)) {
+            const auto mdIssues = MarkdownChecker::scan(source.text, options.markdown);
+            QVector<Issue> issues;
+            issues.reserve(mdIssues.size());
+            for (const auto &mi : mdIssues)
+                issues.append({mi.line, mi.start + 1, mi.length, mi.message, {}});
+            report.issues[Category::Markdown] = issues;
+        }
 
         reports.append(report);
     }
@@ -193,147 +202,11 @@ ValidationReport::grammarIssuesToLineIssues(
 QVector<ValidationReport::Issue>
 ValidationReport::scanMarkdownIssues(const QString &text, const QSet<MarkdownCheck> &checks)
 {
-    const QStringList lines = text.split(QLatin1Char('\n'));
-    static const QRegularExpression atxRe(R"(^(\#{1,6})\s+(.+))");
-    static const QRegularExpression noSpaceHashRe(R"(^\#{1,6}\S)");
-    static const QRegularExpression setextRe(R"(^(={3,}|-{3,})\s*$)");
-    static const QRegularExpression footnoteDefRe(R"(^\[\^([^\]]+)\]:)");
-    static const QRegularExpression footnoteUseRe(R"(\[\^([^\]\n]+)\])");
-    static const QRegularExpression inlineCodeRe(R"(`[^`\n]*`)");
-    static const int kMaxLineLength = 120;
-
+    const auto mdIssues = MarkdownChecker::scan(text, checks);
     QVector<Issue> issues;
-    QSet<QString> footnoteDefs;
-    QVector<QPair<int, QString>> footnoteUses; // (1-based line, reference name)
-
-    int state = 0;
-    int prevHeadingLevel = 0;
-    QSet<QString> seenHeadingSlugs;
-    int blankRun = 0;
-    bool prevCheckable = false; // previous checkable line could carry setext text
-    bool prevWasHeading = false;
-    QString prevLine;
-
-    for (int i = 0; i < lines.size(); ++i) {
-        const QString &line = lines.at(i);
-        const BlockContext ctx = blockContext(i, line, state);
-        state = ctx.state;
-        if (!ctx.checkable) {
-            blankRun = 0;
-            prevCheckable = false;
-            prevWasHeading = false;
-            prevLine.clear();
-            continue;
-        }
-
-        if (line.trimmed().isEmpty()) {
-            ++blankRun;
-            prevCheckable = false;
-            prevWasHeading = false;
-            prevLine.clear();
-            if (blankRun == 3 && checks.contains(MarkdownCheck::ConsecutiveBlankLines))
-                issues.append({i + 1, 0, 0,
-                               QStringLiteral("Consecutive blank lines (3 or more)"), {}});
-            continue;
-        }
-        blankRun = 0;
-
-        if (checks.contains(MarkdownCheck::TrailingWhitespace)
-            && (line.endsWith(QLatin1Char(' ')) || line.endsWith(QLatin1Char('\t'))))
-            issues.append({i + 1, 0, 0, QStringLiteral("Trailing whitespace"), {}});
-
-        if (checks.contains(MarkdownCheck::OverlongLine) && line.length() > kMaxLineLength)
-            issues.append({i + 1, 0, 0,
-                           QStringLiteral("Line too long (%1 characters)").arg(line.length()),
-                           {}});
-
-        if (checks.contains(MarkdownCheck::HashNoSpace) && noSpaceHashRe.match(line).hasMatch())
-            issues.append({i + 1, 0, 0,
-                           QStringLiteral("Heading missing space after '#' (not rendered as a heading)"),
-                           {}});
-
-        // Footnotes: a definition line records the name; usages are checked
-        // against the collected definitions at the end. Inline code is
-        // blanked so `[^x]` inside backticks is not reported.
-        const QRegularExpressionMatch defMatch = footnoteDefRe.match(line);
-        if (defMatch.hasMatch()) {
-            footnoteDefs.insert(defMatch.captured(1));
-        } else {
-            QString scanLine = line;
-            scanLine.replace(inlineCodeRe, QString());
-            QRegularExpressionMatchIterator it = footnoteUseRe.globalMatch(scanLine);
-            while (it.hasNext())
-                footnoteUses.append({i + 1, it.next().captured(1)});
-        }
-
-        // ATX heading `# Title`.
-        const QRegularExpressionMatch atx = atxRe.match(line);
-        if (atx.hasMatch()) {
-            const int level = atx.captured(1).length();
-            QString title = atx.captured(2).trimmed();
-            while (title.endsWith(QLatin1Char('#')))
-                title.chop(1);
-            title = title.trimmed();
-            if (prevHeadingLevel > 0 && level > prevHeadingLevel + 1
-                && checks.contains(MarkdownCheck::HeadingLevelSkip))
-                issues.append({i + 1, 0, 0,
-                               QStringLiteral("Heading level skipped (#%1 after #%2)")
-                                   .arg(level).arg(prevHeadingLevel),
-                               {}});
-            prevHeadingLevel = level;
-            if (checks.contains(MarkdownCheck::DuplicateHeading))
-                checkDuplicateHeading(issues, i + 1, title, seenHeadingSlugs);
-            prevCheckable = true;
-            prevWasHeading = true;
-            prevLine = line;
-            continue;
-        }
-
-        // Setext heading underline (`====` / `----`) — or a horizontal rule
-        // when the previous line is blank or itself a heading.
-        const QRegularExpressionMatch setext = setextRe.match(line);
-        if (setext.hasMatch()) {
-            const bool isHr = !(prevCheckable && !prevWasHeading);
-            if (isHr) {
-                prevCheckable = false;
-                prevWasHeading = false;
-                prevLine.clear();
-                continue;
-            }
-            const int level = setext.captured(1).startsWith(QLatin1Char('=')) ? 1 : 2;
-            if (prevHeadingLevel > 0 && level > prevHeadingLevel + 1
-                && checks.contains(MarkdownCheck::HeadingLevelSkip))
-                issues.append({i + 1, 0, 0,
-                               QStringLiteral("Heading level skipped (#%1 after #%2)")
-                                   .arg(level).arg(prevHeadingLevel),
-                               {}});
-            prevHeadingLevel = level;
-            if (checks.contains(MarkdownCheck::DuplicateHeading))
-                checkDuplicateHeading(issues, i + 1, prevLine.trimmed(), seenHeadingSlugs);
-            prevCheckable = false;
-            prevWasHeading = false;
-            prevLine.clear();
-            continue;
-        }
-
-        prevCheckable = true;
-        prevWasHeading = false;
-        prevLine = line;
-    }
-
-    for (const auto &use : footnoteUses) {
-        if (!footnoteDefs.contains(use.second)
-            && checks.contains(MarkdownCheck::FootnoteReference))
-            issues.append({use.first, 0, 0,
-                           QStringLiteral("Unmatched footnote reference: [^%1]").arg(use.second),
-                           {}});
-    }
-
-    std::sort(issues.begin(), issues.end(), [](const Issue &a, const Issue &b) {
-        if (a.line != b.line)
-            return a.line < b.line;
-        return a.column < b.column;
-    });
+    issues.reserve(mdIssues.size());
+    for (const auto &mi : mdIssues)
+        issues.append({mi.line, mi.start + 1, mi.length, mi.message, {}});
     return issues;
 }
 
@@ -349,11 +222,29 @@ QString ValidationReport::renderMarkdown(const QVector<DocumentReport> &reports,
         if (categories.contains(c))
             active.append(c);
 
+    // Simulate the preview's heading-anchor assignment (JsSnippets headingIdJs)
+    // over the headings we emit, in DOM order, so the summary-table links
+    // resolve to real anchors when the report is opened in a tab.
+    QSet<QString> used;
+    auto allocateAnchor = [&used](const QString &text) {
+        const QString base = LinkValidator::headingSlug(text);
+        if (base.isEmpty())
+            return QString();
+        QString id = base;
+        int n = 1;
+        while (used.contains(id))
+            id = base + QLatin1Char('-') + QString::number(n++);
+        used.insert(id);
+        return id;
+    };
+
     QString md;
     md += "# Validation Report\n\n";
+    allocateAnchor(QStringLiteral("Validation Report"));
     md += "Generated: " + generatedAt + "\n\n";
 
     md += "## Summary\n\n";
+    allocateAnchor(QStringLiteral("Summary"));
     md += "| Document |";
     for (Category c : active)
         md += " " + QString::fromUtf8(categoryName(c)) + " |";
@@ -364,11 +255,21 @@ QString ValidationReport::renderMarkdown(const QVector<DocumentReport> &reports,
 
     QVector<int> totals(active.size(), 0);
     for (const DocumentReport &report : reports) {
-        md += "| " + report.label;
+        const QString docAnchor = allocateAnchor(report.label);
+        QStringList catAnchors;
+        for (Category c : active)
+            catAnchors.append(allocateAnchor(QString::fromUtf8(categoryName(c))));
+        md += "| " + (docAnchor.isEmpty()
+                          ? report.label
+                          : QStringLiteral("[%1](#%2)").arg(report.label, docAnchor));
         for (qsizetype i = 0; i < active.size(); ++i) {
             const int count = static_cast<int>(report.issues.value(active.at(i)).size());
             totals[i] += count;
-            md += " | " + QString::number(count);
+            const QString &anchor = catAnchors.at(i);
+            if (anchor.isEmpty())
+                md += " | " + QString::number(count);
+            else
+                md += " | [" + QString::number(count) + "](#" + anchor + ")";
         }
         md += " |\n";
     }
@@ -385,7 +286,7 @@ QString ValidationReport::renderMarkdown(const QVector<DocumentReport> &reports,
         if (!report.filePath.isEmpty())
             md += "\nPath: `" + report.filePath + "`\n";
         for (Category c : active)
-            md += renderCategory(categoryName(c), report.issues.value(c));
+            md += renderCategory(categoryName(c), report.issues.value(c), report.sourceLines);
     }
     return md;
 }

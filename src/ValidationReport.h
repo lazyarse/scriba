@@ -15,9 +15,11 @@
 #pragma once
 
 #include "GrammarChecker.h"
+#include "MarkdownChecker.h"
 #include <QMap>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 class SpellChecker;
@@ -49,16 +51,10 @@ public:
     enum class Category { Spelling, Grammar, Links, Markdown };
 
     // The individual markdown-consistency checks, so the report dialog can
-    // toggle each one independently.
-    enum class MarkdownCheck {
-        HeadingLevelSkip,
-        DuplicateHeading,
-        TrailingWhitespace,
-        ConsecutiveBlankLines,
-        OverlongLine,
-        HashNoSpace,
-        FootnoteReference,
-    };
+    // toggle each one independently. Alias of MarkdownChecker::Check: the two
+    // scans share the same engine, so the report and the editor's in-document
+    // underlines can never drift apart.
+    using MarkdownCheck = MarkdownChecker::Check;
 
     // Which categories and markdown sub-checks to run. Empty sets disable the
     // corresponding scans entirely.
@@ -91,6 +87,7 @@ public:
     struct DocumentReport {
         QString label;                         // file name or "(Untitled)"
         QString filePath;
+        QStringList sourceLines;               // source text split on '\n'
         QMap<Category, QVector<Issue>> issues; // in scan order
     };
 

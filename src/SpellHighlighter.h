@@ -112,6 +112,7 @@ public:
     static QColor spellUnderlineColor();
     static QColor grammarUnderlineColor();
     static QColor linkUnderlineColor();
+    static QColor markdownUnderlineColor();
     // Re-reads the underline colors from settings (called after a preference
     // change; also resets the cache in tests).
     static void reloadUnderlineColors();
@@ -127,6 +128,10 @@ public:
     void setSpellCheckingEnabled(bool enabled);
     void setGrammarCheckingEnabled(bool enabled);
     void setLinkCheckingEnabled(bool enabled);
+    // Markdown-consistency underlines (heading-level skips, duplicate
+    // headings, `#` headings without a space, ...). Off by default: it is a
+    // per-keystroke distraction, so like grammar it must be opted into.
+    void setMarkdownCheckingEnabled(bool enabled);
     // The document's file path: link targets are resolved relative to its
     // directory (an empty path resolves against the current working
     // directory). Triggers a re-check so underlines follow the new base.
@@ -163,6 +168,10 @@ public:
 
     // Broken-link ranges (start offset + length within the block) for a block.
     QVector<GrammarHit> linkIssuesInBlock(int blockNumber) const;
+
+    // Markdown-consistency ranges (start offset + length within the block) for
+    // a block. Empty for blocks that are not part of a finding.
+    QVector<GrammarHit> markdownHitsInBlock(int blockNumber) const;
 
 signals:
     // The spell/link hit caches were refreshed (after a debounced or
@@ -212,6 +221,7 @@ private:
     bool m_spellEnabled = true;
     bool m_grammarEnabled = false;
     bool m_linkEnabled = true;
+    bool m_markdownEnabled = false;
     // The document's file path, for resolving relative link targets.
     QString m_currentFile;
     // Cached heading indexes of other documents, keyed by absolute path and
@@ -235,4 +245,6 @@ private:
     QHash<int, QVector<GrammarHit>> m_spellHits;
     // blockNumber → broken-link ranges within the block
     QHash<int, QVector<GrammarHit>> m_linkHits;
+    // blockNumber → markdown-consistency ranges within the block
+    QHash<int, QVector<GrammarHit>> m_markdownHits;
 };

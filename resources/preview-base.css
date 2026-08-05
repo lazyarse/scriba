@@ -236,3 +236,12 @@ li {
 .admonition.important .admonition-title { color: #b8860b; }
 .admonition.warning .admonition-title { color: #ea4335; }
 .admonition.caution .admonition-title { color: #ea4335; }
+
+/* Highlight (`==text==` → <mark>). Themes may override --mark-bg / --mark-color
+   (see docs/themes.md). */
+mark {
+    background-color: var(--mark-bg, rgba(255, 214, 0, 0.45));
+    color: var(--mark-color, inherit);
+    padding: 0 0.15em;
+    border-radius: 2px;
+}
