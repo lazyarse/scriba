@@ -452,7 +452,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
         }
 
         static const QRegularExpression unorderedRe(R"(^\s*[-*+]\s?)");
-        static const QRegularExpression orderedRe(R"(^\s*\d+\.\s?)");
+        static const QRegularExpression orderedRe(R"(^\s*\d+[.)]\s?)");
         auto matchUnordered = unorderedRe.match(line);
         auto matchOrdered = orderedRe.match(line);
         bool isList = matchUnordered.hasMatch() || matchOrdered.hasMatch();
@@ -1364,7 +1364,7 @@ Editor::CursorContext Editor::detectCursorContext() const
 {
     QString line = currentLineText();
 
-    static const QRegularExpression listRe(R"(^\s*[-*+]\s|^\s*\d+\.\s)");
+    static const QRegularExpression listRe(R"(^\s*[-*+]\s|^\s*\d+[.)]\s)");
     if (listRe.match(line).hasMatch())
         return CursorContext::ListItem;
 

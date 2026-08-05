@@ -208,6 +208,15 @@ TEST(MarkdownParserTest, OrderedList) {
     EXPECT_TRUE(html.contains("Third"));
 }
 
+TEST(MarkdownParserTest, OrderedListParen) {
+    QString md = "1) First\n2) Second\n3) Third";
+    QString html = MarkdownParser::toHtml(md);
+    EXPECT_TRUE(html.contains("<ol>"));
+    EXPECT_TRUE(html.contains("<li"));
+    EXPECT_TRUE(html.contains("First"));
+    EXPECT_TRUE(html.contains("Third"));
+}
+
 TEST(MarkdownParserTest, UnorderedList) {
     QString md = "- one\n- two\n- three";
     QString html = MarkdownParser::toHtml(md);

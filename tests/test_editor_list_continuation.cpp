@@ -31,6 +31,14 @@ TEST(ListContinuation, OrderedIncrement) {
     EXPECT_EQ(handleListReturn("1. first"), "2. ");
 }
 
+TEST(ListContinuation, OrderedParenIncrement) {
+    EXPECT_EQ(handleListReturn("1) first"), "2) ");
+}
+
+TEST(ListContinuation, OrderedParenIncrementDoubleDigit) {
+    EXPECT_EQ(handleListReturn("9) ninth"), "10) ");
+}
+
 TEST(ListContinuation, OrderedIncrementDoubleDigit) {
     EXPECT_EQ(handleListReturn("9. ninth"), "10. ");
 }
@@ -43,12 +51,20 @@ TEST(ListContinuation, IndentedOrdered) {
     EXPECT_EQ(handleListReturn("  1. nested"), "  2. ");
 }
 
+TEST(ListContinuation, IndentedOrderedParen) {
+    EXPECT_EQ(handleListReturn("  1) nested"), "  2) ");
+}
+
 TEST(ListContinuation, EmptyUnorderedClears) {
     EXPECT_EQ(handleListReturn("-"), QString(clearSentinel));
 }
 
 TEST(ListContinuation, EmptyOrderedClears) {
     EXPECT_EQ(handleListReturn("1."), QString(clearSentinel));
+}
+
+TEST(ListContinuation, EmptyOrderedParenClears) {
+    EXPECT_EQ(handleListReturn("1)"), QString(clearSentinel));
 }
 
 TEST(ListContinuation, EmptyIndentedClears) {
@@ -107,6 +123,14 @@ TEST(IndentListLine, IndentsOrdered) {
     EXPECT_EQ(indentListLine("1. item"), "  1. item");
 }
 
+TEST(IndentListLine, IndentsOrderedParen) {
+    EXPECT_EQ(indentListLine("1) item"), "  1) item");
+}
+
+TEST(IndentListLine, IndentsOrderedParenIndented) {
+    EXPECT_EQ(indentListLine("  1) item"), "    1) item");
+}
+
 TEST(IndentListLine, NoChangeForPlainText) {
     EXPECT_EQ(indentListLine("just text"), "just text");
 }
@@ -117,6 +141,10 @@ TEST(OutdentListLine, OutdentsDoubleSpace) {
 
 TEST(OutdentListLine, OutdentsFourSpace) {
     EXPECT_EQ(outdentListLine("    - item"), "  - item");
+}
+
+TEST(OutdentListLine, OutdentsOrderedParen) {
+    EXPECT_EQ(outdentListLine("  1) item"), "1) item");
 }
 
 TEST(OutdentListLine, NoChangeForNoIndent) {

@@ -38,14 +38,37 @@ Tool tips for title, alt text in that priority. Hover over the below images
 
 ### Lists
 
+Ordered with `.` markers:
+
 1. First
 2. Second
 3. Third
+
+Ordered with `)` markers:
+
+1) First
+2) Second
+3) Third
+
+Unordered with `-` markers:
 
 - Unordered
 - Nested
   - Indented
   - Items
+
+Unordered with `+` markers:
+
++ Plus one
++ Plus two
+
+Unordered with `*` markers:
+
+* Star one
+* Star two
+
+Task lists:
+
 - [x] Task done
 - [ ] Task pending
 

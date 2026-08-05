@@ -56,7 +56,7 @@ static const QRegularExpression &unorderedListRe()
 
 static const QRegularExpression &orderedListRe()
 {
-    static QRegularExpression re(R"(^(\s*)(\d+)\.\s?)");
+    static QRegularExpression re(R"(^(\s*)(\d+)([.)])\s?)");
     return re;
 }
 
@@ -91,7 +91,7 @@ QString handleListReturn(const QString &line)
         if (rest.isEmpty())
             return QString(clearSentinel);
         int next = match.captured(2).toInt() + 1;
-        return match.captured(1) + QString::number(next) + ". ";
+        return match.captured(1) + QString::number(next) + match.captured(3) + " ";
     }
     return {};
 }
