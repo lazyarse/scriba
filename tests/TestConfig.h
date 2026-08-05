@@ -16,16 +16,28 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QSettings>
 
-// Redirects all app config access to a dedicated test directory
-// (~/.config/scribaTest) and wipes it so every test run starts clean.
-// Must be called after the QApplication is created, before any test runs.
+// Redirects all app config access to a per-process directory under the OS
+// temp path (QDir::tempPath(), /tmp on Linux, %TEMP% on Windows) and wipes it
+// so every test run starts clean. The directory is unique per process (keyed
+// on the PID) so ctest can run test suites in parallel without them colliding
+// on a shared config file. Must be called after the QApplication is created,
+// before any test runs.
 inline void setupTestConfig()
 {
     QCoreApplication::setOrganizationName("scribaTest");
     QCoreApplication::setApplicationName("scribaTest");
-    const QString testConfigDir = QDir::homePath() + "/.config/scribaTest";
+
+    const QString unique = "scribaTest_" + QString::number(QCoreApplication::applicationPid());
+    const QString testConfigDir = QDir::tempPath() + "/" + unique;
+
+    // Force file-based settings (and into the per-process dir, above) so
+    // Windows doesn't hit the shared registry and parallel runs stay isolated.
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, testConfigDir);
     qputenv("SCRIBA_TEST_CONFIG_DIR", testConfigDir.toUtf8());
+
     QDir(testConfigDir).removeRecursively();
     QDir().mkpath(testConfigDir);
 }

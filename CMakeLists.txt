@@ -629,5 +629,17 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
     target_include_directories(test_csv_reader PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_csv_reader PRIVATE GTest::gtest_main Qt6::Core)
     add_test(NAME test_csv_reader COMMAND ${_TEST_PREFIX} ./test_csv_reader)
+
+    # WebEngine-spawning suites must not fork concurrently: concurrent WebEngine
+    # processes cause flaky failures. Serialize them against each other (via
+    # RESOURCE_LOCK) under `ctest -jN` while non-WebEngine tests run in parallel.
+    set_tests_properties(
+        test_mermaid_dialog test_chart_dialog test_stock_chart_dialog
+        test_katex_helper_dialog test_mchem_helper_dialog
+        test_scroll_sync test_html_to_markdown test_anchor_navigation
+        test_emoji_preview test_auto_save test_multi_tab_typing
+        test_dirty_on_load test_editor_initial_css test_find_dialog
+        test_pdf_export test_export_html test_docx_image_export
+        PROPERTIES RESOURCE_LOCK webkit)
 endif()
 

@@ -138,10 +138,10 @@ The `-D` flags are only needed the first time a build dir is configured; CMake c
 ### Run tests
 
 ```bash
-cd build-dbg && ctest --output-on-failure -j1
+cd build-dbg && ctest --output-on-failure -j4
 ```
 
-Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't crash on your headless CI.
+Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't crash on your headless CI. Parallel runs are safe: WebEngine suites serialize via `RESOURCE_LOCK webkit`, and each test's config is isolated to a per-process temp dir.
 
 ## Running
 
