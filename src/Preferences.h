@@ -49,6 +49,8 @@ namespace Preferences {
     constexpr const char *AutoCorrectEnabled = "autoCorrectEnabled";
     constexpr const char *AutoCorrectPairs = "autoCorrectPairs";
 
+    constexpr const char *AutoAlignTables = "autoAlignTables";
+
     constexpr const char *TypographyQuotes = "typographyQuotes";
     constexpr const char *TypographyDashes = "typographyDashes";
     constexpr const char *TypographyEllipsis = "typographyEllipsis";

@@ -1434,6 +1434,8 @@ void MainWindow::showTableInsert()
         int offset = dlg.isHtml() ? 16 : 2;
         cursor.setPosition(insertPos + offset, QTextCursor::MoveAnchor);
         ed->setTextCursor(cursor);
+        if (!dlg.isHtml())
+            ed->formatTableAt(insertPos);
         ed->centerCursor();
     }
 }

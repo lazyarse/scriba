@@ -137,6 +137,9 @@ private:
     QPushButton *m_editorBgBtn;
     QPushButton *m_editorFontBtn;
 
+    // Tables
+    QCheckBox *m_autoAlignTablesCheck;
+
     // Preview
     QSpinBox *m_heavyRenderDelaySpin;
 

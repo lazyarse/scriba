@@ -14,10 +14,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 #include <QApplication>
+#include <QSettings>
 #include <QTextBlock>
 
 #include "Editor.h"
 #include "EditorTestHarness.h"
+#include "Preferences.h"
 #include "TestConfig.h"
 
 TEST_F(EditorTestHarness, TypingInsertsTextAndMovesCursor)
@@ -218,8 +220,45 @@ TEST_F(EditorTestHarness, TabOnThematicBreakIsNoOp)
 TEST_F(EditorTestHarness, FirstTableRowCreatesSeparatorAndDataRow)
 {
     typeLine("| a | b |");
-    EXPECT_EQ(text(), "| a | b |\n|---|---|\n|  |  |");
+    EXPECT_EQ(text(), "| a | b |\n|---|---|\n|   |   |");
     assertCursor(2, 2);
+}
+
+TEST_F(EditorTestHarness, EditingTableThenLeavingAlignsColumns)
+{
+    setContent("| a | bb |\n|---|---|\n| ccc | d |\nend");
+    placeCursor(2, 5);
+    typeText("!");
+    placeCursor(3, 0);
+    EXPECT_EQ(text(), "| a    | bb |\n|------|----|\n| ccc! | d  |\nend");
+}
+
+TEST_F(EditorTestHarness, LeavingUntouchedTableDoesNotReformat)
+{
+    setContent("| a | bb |\n|---|---|\n| ccc | d |\nend");
+    placeCursor(2, 4);
+    placeCursor(3, 0);
+    EXPECT_EQ(text(), "| a | bb |\n|---|---|\n| ccc | d |\nend");
+}
+
+TEST_F(EditorTestHarness, AutoAlignDisabledSkipsReformat)
+{
+    QSettings().setValue(Preferences::AutoAlignTables, false);
+    setContent("| a | bb |\n|---|---|\n| ccc | d |\nend");
+    placeCursor(2, 4);
+    typeText("!");
+    placeCursor(3, 0);
+    EXPECT_EQ(text(), "| a | bb |\n|---|---|\n| cc!c | d |\nend");
+    QSettings().setValue(Preferences::AutoAlignTables, true);
+}
+
+TEST_F(EditorTestHarness, TableSeparatorAlignmentFollowedOnReformat)
+{
+    setContent("| name | qty |\n|:-----|---:|\n| apple | 1 |\nend");
+    placeCursor(2, 7);
+    typeText("s");
+    placeCursor(3, 0);
+    EXPECT_EQ(text(), "| name   | qty |\n|:-------|----:|\n| apples |   1 |\nend");
 }
 
 TEST_F(EditorTestHarness, TableDataRowContinuesOnEnter)

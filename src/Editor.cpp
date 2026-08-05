@@ -112,6 +112,16 @@ Editor::Editor(QWidget *parent)
     // the overlay when a check completes.
     connect(m_spellHighlighter, &SpellHighlighter::spellHitsChanged,
             m_underlineOverlay, QOverload<>::of(&QWidget::update));
+
+    connect(this, &Editor::cursorPositionChanged,
+            this, &Editor::onCursorPositionChanged);
+    // Any text change while the cursor is inside a table marks it dirty so it
+    // gets re-aligned when the cursor leaves. The formatting guard stops the
+    // reformat from re-marking itself.
+    connect(document(), &QTextDocument::contentsChanged, this, [this]() {
+        if (m_trackTableStartBlock >= 0 && !m_formattingTable)
+            m_tableDirty = true;
+    });
 }
 
 Editor::~Editor() = default;
@@ -245,6 +255,11 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 int cellPos = result.startsWith("<tr>") ? result.indexOf("<td>") + 4 : 2;
                 cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
                 setTextCursor(cursor);
+                // Typing a header row then Enter creates a fresh table
+                // (separator + empty data row) — align it right away.
+                if (result.contains("---")
+                    && QSettings().value(Preferences::AutoAlignTables, true).toBool())
+                    formatMdTableBlock(cursor.blockNumber());
                 return;
             }
         }
@@ -1358,6 +1373,115 @@ void Editor::setMermaidAction(QAction *action)
 QString Editor::currentLineText() const
 {
     return textCursor().block().text();
+}
+
+void Editor::onCursorPositionChanged()
+{
+    if (m_formattingTable)
+        return;
+
+    if (!QSettings().value(Preferences::AutoAlignTables, true).toBool())
+        return;
+
+    QTextCursor cursor = textCursor();
+    if (cursor.hasSelection())
+        return;
+
+    const QString line = cursor.block().text();
+    const bool inTable = line.startsWith('|');
+
+    if (inTable) {
+        if (m_trackTableStartBlock < 0) {
+            // Entering a table: record its first block so edits while the
+            // cursor is inside can be tracked and the table reformatted once
+            // the cursor leaves.
+            QTextBlock block = cursor.block();
+            while (block.previous().isValid() && block.previous().text().startsWith('|'))
+                block = block.previous();
+            m_trackTableStartBlock = block.blockNumber();
+            m_tableDirty = false;
+        }
+        return;
+    }
+
+    if (m_trackTableStartBlock >= 0) {
+        const int start = m_trackTableStartBlock;
+        const bool dirty = m_tableDirty;
+        m_trackTableStartBlock = -1;
+        m_tableDirty = false;
+        if (dirty)
+            formatMdTableBlock(start);
+    }
+}
+
+void Editor::formatTableAt(int documentPos)
+{
+    if (!QSettings().value(Preferences::AutoAlignTables, true).toBool())
+        return;
+    QTextBlock block = document()->findBlock(documentPos);
+    if (block.isValid() && block.text().startsWith('|'))
+        formatMdTableBlock(block.blockNumber());
+}
+
+void Editor::formatMdTableBlock(int startBlock)
+{
+    QTextDocument *doc = document();
+    QTextBlock block = doc->findBlockByNumber(startBlock);
+    if (!block.isValid() || !block.text().startsWith('|'))
+        return;
+
+    QTextBlock first = block;
+    while (first.previous().isValid() && first.previous().text().startsWith('|'))
+        first = first.previous();
+    QTextBlock last = block;
+    while (last.next().isValid() && last.next().text().startsWith('|'))
+        last = last.next();
+
+    QStringList rows;
+    for (QTextBlock b = first; ; b = b.next()) {
+        rows << b.text();
+        if (b == last)
+            break;
+    }
+
+    // Only real markdown tables (those with a separator row) are aligned.
+    bool hasSeparator = false;
+    for (const QString &row : rows) {
+        if (row.contains("---")) {
+            hasSeparator = true;
+            break;
+        }
+    }
+    if (!hasSeparator)
+        return;
+
+    const QString formatted = formatMdTable(rows);
+    if (formatted.isEmpty() || formatted == rows.join('\n'))
+        return; // not a table, or already aligned — nothing to do
+
+    // Preserve the cursor: block numbers don't change (row count is stable),
+    // so restore the same block with the column clamped to the new width.
+    const int cursorBlock = textCursor().blockNumber();
+    const int cursorCol = textCursor().positionInBlock();
+
+    m_formattingTable = true;
+    QTextCursor tc(doc);
+    tc.beginEditBlock();
+    const int startPos = first.position();
+    const int endPos = last.position() + last.length() - 1;
+    tc.setPosition(startPos);
+    tc.setPosition(endPos, QTextCursor::KeepAnchor);
+    tc.removeSelectedText();
+    tc.insertText(formatted);
+    tc.endEditBlock();
+    m_formattingTable = false;
+
+    QTextBlock newBlock = doc->findBlockByNumber(cursorBlock);
+    if (newBlock.isValid()) {
+        QTextCursor rc(doc);
+        rc.setPosition(newBlock.position() + qMin(cursorCol, static_cast<int>(newBlock.length()) - 1));
+        setTextCursor(rc);
+    }
 }
 
 Editor::CursorContext Editor::detectCursorContext() const

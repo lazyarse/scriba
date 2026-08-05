@@ -34,6 +34,13 @@ QString makeEmptyTableRow(int cols);
 QString makeEmptyHtmlTableRow(int cols);
 int tableNavCell(const QString &line, int cursorPos, bool forward);
 int tableNavHtmlCell(const QString &line, int cursorPos, bool forward);
+// Re-aligns a markdown table: takes the contiguous `|`-delimited rows of a
+// table block (header, separator, and data rows) and returns the rows re-spaced
+// so the column pipes line up. Per-column alignment follows the separator row
+// (`:---` left, `---:` right, `:---:` center, `---` default/left). Returns an
+// empty QString when `rows` is not a valid table (no separator row containing
+// `---`). Cell content is trimmed; escaped pipes (`\|`) are preserved.
+QString formatMdTable(const QStringList &rows);
 QString indentListLine(const QString &line);
 QString outdentListLine(const QString &line);
 QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column);

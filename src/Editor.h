@@ -51,6 +51,11 @@ public:
     // overlay. Call after a preference change that doesn't need a full
     // re-check (e.g. the underline color swatches).
     void refreshUnderlines();
+    // Re-aligns the markdown table whose block contains `documentPos` (used
+    // right after the Insert Table dialog drops a table into the document).
+    // No-op when the block isn't a table row or the auto-align preference is
+    // off.
+    void formatTableAt(int documentPos);
 
     SpellChecker *spellChecker() const { return m_spellChecker.get(); }
     SpellHighlighter *spellHighlighter() const { return m_spellHighlighter; }
@@ -111,6 +116,10 @@ private:
     void changeCodeLanguage();
     QString currentLineText() const;
 
+    // Auto-alignment of markdown table source (see Preferences::AutoAlignTables)
+    void onCursorPositionChanged();
+    void formatMdTableBlock(int startBlock);
+
     QString m_currentFile;
     QCompleter *m_completer = nullptr;
     QStringList m_emojiShortcodes;
@@ -121,6 +130,14 @@ private:
     bool m_inResize = false;
     QList<QAction *> m_insertActions;
     QAction *m_mermaidAction = nullptr;
+
+    // Table auto-alignment state. While the cursor sits in a `|`-delimited
+    // table row, m_trackTableStartBlock is the first block of that table and
+    // m_tableDirty records whether its text changed. When the cursor moves
+    // off a dirty table, it gets reformatted (see onCursorPositionChanged).
+    int m_trackTableStartBlock = -1;
+    bool m_tableDirty = false;
+    bool m_formattingTable = false;
 
     std::unique_ptr<SpellChecker> m_spellChecker;
     std::unique_ptr<GrammarChecker> m_grammarChecker;

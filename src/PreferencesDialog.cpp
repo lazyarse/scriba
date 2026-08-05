@@ -556,6 +556,20 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         });
 
         layout->addWidget(gutterGroup);
+
+        /* --- Tables --- */
+        QGroupBox *tablesGroup = new QGroupBox("Tables");
+        QVBoxLayout *tablesLayout = new QVBoxLayout(tablesGroup);
+        tablesLayout->addSpacing(8);
+
+        m_autoAlignTablesCheck = new QCheckBox("Align markdown table columns when you stop editing");
+        m_autoAlignTablesCheck->setToolTip("Spaces out the pipes of a table you have edited "
+            "(or just created) so the columns line up, following the "
+            "left/center/right alignment marked in the separator row.");
+        m_autoAlignTablesCheck->setChecked(settings.value(Preferences::AutoAlignTables, true).toBool());
+        tablesLayout->addWidget(m_autoAlignTablesCheck);
+
+        layout->addWidget(tablesGroup);
         layout->addStretch();
 
         m_pages->addWidget(wrapPage(page));
@@ -1445,6 +1459,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EnableCspPreview, m_enableCspPreviewCheck->isChecked());
         settings.setValue(Preferences::EnableCspExport, m_enableCspExportCheck->isChecked());
         settings.setValue(Preferences::ShowLineNumbers, m_showLineNumbersCheck->isChecked());
+        settings.setValue(Preferences::AutoAlignTables, m_autoAlignTablesCheck->isChecked());
         settings.setValue(Preferences::GutterColorOverride, m_gutterOverrideGroup->isChecked());
         settings.setValue(Preferences::GutterBgColor, m_gutterBgBtn->text());
         settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());

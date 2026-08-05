@@ -240,6 +240,164 @@ int tableNavHtmlCell(const QString &line, int cursorPos, bool forward)
     }
 }
 
+namespace {
+
+enum class MdAlign { Default, Left, Right, Center };
+
+// Splits a markdown table row into its cells. A `|` is a column separator
+// unless it is escaped (`\|`, i.e. preceded by an odd number of backslashes).
+// The empty first/last parts produced by the leading/trailing pipes are
+// dropped; cells are returned trimmed.
+QStringList splitMdTableRow(const QString &line)
+{
+    QStringList parts;
+    QString cur;
+    int backslashes = 0;
+    for (const QChar &ch : line) {
+        if (ch == '|' && (backslashes % 2) == 0) {
+            parts << cur;
+            cur.clear();
+            backslashes = 0;
+        } else {
+            if (ch == '\\')
+                ++backslashes;
+            else
+                backslashes = 0;
+            cur += ch;
+        }
+    }
+    parts << cur;
+
+    if (!parts.isEmpty() && parts.first().isEmpty())
+        parts.removeFirst();
+    if (!parts.isEmpty() && parts.last().isEmpty())
+        parts.removeLast();
+
+    QStringList cells;
+    cells.reserve(parts.size());
+    for (const QString &p : parts)
+        cells << p.trimmed();
+    return cells;
+}
+
+MdAlign mdAlignFromSeparator(const QString &sep)
+{
+    const bool left = sep.startsWith(':');
+    const bool right = sep.endsWith(':');
+    if (left && right) return MdAlign::Center;
+    if (right) return MdAlign::Right;
+    if (left) return MdAlign::Left;
+    return MdAlign::Default;
+}
+
+// A markdown table separator row: pipes where every cell is made only of
+// optional colons and at least one dash (spaces allowed around it). This also
+// matches narrow columns such as `|:--:|` or `|--:|` that a wide separator
+// would not — the spec's three-dash minimum is not a real constraint here
+// because the formatter itself can emit shorter separators for 1-2 char cells.
+bool isMdSeparatorRow(const QString &line)
+{
+    static const QRegularExpression re(R"(^\|(?:\s*:?-+:?\s*\|)+$)");
+    return re.match(line).hasMatch();
+}
+
+QString padMdCell(const QString &content, int width, MdAlign align)
+{
+    const int len = content.size();
+    if (len >= width)
+        return content;
+    if (align == MdAlign::Right)
+        return QString(width - len, ' ') + content;
+    if (align == MdAlign::Center) {
+        const int left = (width - len) / 2;
+        const int right = width - len - left;
+        return QString(left, ' ') + content + QString(right, ' ');
+    }
+    return content + QString(width - len, ' ');
+}
+
+QString mdSeparatorCell(MdAlign align, int width)
+{
+    switch (align) {
+    case MdAlign::Left:    return ':' + QString(width + 1, '-');
+    case MdAlign::Right:   return QString(width + 1, '-') + ':';
+    case MdAlign::Center:  return ':' + QString(width, '-') + ':';
+    case MdAlign::Default: return QString(width + 2, '-');
+    }
+    return QString(width + 2, '-');
+}
+
+} // namespace
+
+QString formatMdTable(const QStringList &rows)
+{
+    // The separator row (the one containing dashes) defines the column count
+    // and per-column alignment. Without one this is not a markdown table.
+    int sepIndex = -1;
+    for (int i = 0; i < rows.size(); ++i) {
+        if (isMdSeparatorRow(rows[i])) {
+            sepIndex = i;
+            break;
+        }
+    }
+    if (sepIndex < 0)
+        return {};
+
+    QList<QStringList> cellRows;
+    cellRows.reserve(rows.size());
+    int maxCols = 0;
+    for (const QString &row : rows) {
+        QStringList cells = splitMdTableRow(row);
+        if (cells.size() > maxCols)
+            maxCols = cells.size();
+        cellRows << cells;
+    }
+    if (maxCols <= 0)
+        return {};
+
+    const QStringList &sepCells = cellRows[sepIndex];
+
+    QVector<MdAlign> align(maxCols, MdAlign::Default);
+    for (int c = 0; c < maxCols; ++c) {
+        if (c < sepCells.size())
+            align[c] = mdAlignFromSeparator(sepCells[c]);
+    }
+
+    QVector<int> width(maxCols, 0);
+    for (int r = 0; r < cellRows.size(); ++r) {
+        if (r == sepIndex)
+            continue; // the separator's dashes must not drive column widths
+        const QStringList &cells = cellRows[r];
+        for (int c = 0; c < maxCols; ++c) {
+            const int len = c < cells.size() ? cells[c].size() : 0;
+            if (len > width[c])
+                width[c] = len;
+        }
+    }
+    for (int c = 0; c < maxCols; ++c)
+        width[c] = qMax(width[c], 1);
+
+    QStringList out;
+    out.reserve(rows.size());
+    for (int r = 0; r < cellRows.size(); ++r) {
+        if (r == sepIndex) {
+            QString line = "|";
+            for (int c = 0; c < maxCols; ++c)
+                line += mdSeparatorCell(align[c], width[c]) + "|";
+            out << line;
+        } else {
+            const QStringList &cells = cellRows[r];
+            QString line = "|";
+            for (int c = 0; c < maxCols; ++c) {
+                const QString content = c < cells.size() ? cells[c] : QString();
+                line += " " + padMdCell(content, width[c], align[c]) + " |";
+            }
+            out << line;
+        }
+    }
+    return out.join('\n');
+}
+
 QString indentListLine(const QString &line)
 {
     if (isThematicBreak(line))

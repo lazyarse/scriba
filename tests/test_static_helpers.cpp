@@ -197,4 +197,125 @@ TEST(IsSafePreviewImageTest, RejectsNonImageExtension) {
     }
 }
 
+TEST(FormatMdTableTest, AlignsColumnsWithDefaultAlignment) {
+    QStringList rows = {"| a | bb |", "|---|---|", "| ccc | d |"};
+    EXPECT_EQ(formatMdTable(rows),
+        "| a   | bb |\n"
+        "|-----|----|\n"
+        "| ccc | d  |");
+}
+
+TEST(FormatMdTableTest, RespectsSeparatorAlignment) {
+    QStringList rows = {
+        "| name | qty |",
+        "|:-----|---:|",
+        "| apple | 1 |",
+        "| grapefruit | 100 |"
+    };
+    EXPECT_EQ(formatMdTable(rows),
+        "| name       | qty |\n"
+        "|:-----------|----:|\n"
+        "| apple      |   1 |\n"
+        "| grapefruit | 100 |");
+}
+
+TEST(FormatMdTableTest, CenterAlignment) {
+    QStringList rows = {
+        "| h1 | h2 | h3 |",
+        "|:---|:---:|---:|",
+        "| a | bb | ccc |"
+    };
+    EXPECT_EQ(formatMdTable(rows),
+        "| h1 | h2 |  h3 |\n"
+        "|:---|:--:|----:|\n"
+        "| a  | bb | ccc |");
+}
+
+TEST(FormatMdTableTest, LeftAlignmentFlushLeftAcrossRows) {
+    QStringList rows = {
+        "| a |",
+        "|:--|",
+        "| xyz |",
+        "| longcontent |",
+        "| m |"
+    };
+    EXPECT_EQ(formatMdTable(rows),
+        "| a           |\n"
+        "|:------------|\n"
+        "| xyz         |\n"
+        "| longcontent |\n"
+        "| m           |");
+}
+
+TEST(FormatMdTableTest, RightAlignmentFlushRightAcrossRows) {
+    QStringList rows = {
+        "| a |",
+        "|---:|",
+        "| xyz |",
+        "| longcontent |",
+        "| m |"
+    };
+    EXPECT_EQ(formatMdTable(rows),
+        "|           a |\n"
+        "|------------:|\n"
+        "|         xyz |\n"
+        "| longcontent |\n"
+        "|           m |");
+}
+
+TEST(FormatMdTableTest, CenterSingleCharInEvenColumn) {
+    // A 1-char cell cannot be perfectly centred in an even-width column; the
+    // extra space lands on the right so pipes stay aligned.
+    QStringList rows = {
+        "| a |",
+        "|:--:|",
+        "| bb |",
+        "| c |"
+    };
+    EXPECT_EQ(formatMdTable(rows),
+        "| a  |\n"
+        "|:--:|\n"
+        "| bb |\n"
+        "| c  |");
+}
+
+TEST(FormatMdTableTest, EmptyCellsGetColumnWidth) {
+    QStringList rows = {"| a | b |", "|---|---|", "|  |  |"};
+    EXPECT_EQ(formatMdTable(rows),
+        "| a | b |\n"
+        "|---|---|\n"
+        "|   |   |");
+}
+
+TEST(FormatMdTableTest, EscapedPipePreserved) {
+    QStringList rows = {"| a\\|b | c |", "|---|---|", "| d | e |"};
+    EXPECT_EQ(formatMdTable(rows),
+        "| a\\|b | c |\n"
+        "|------|---|\n"
+        "| d    | e |");
+}
+
+TEST(FormatMdTableTest, NotATableReturnsEmpty) {
+    QStringList rows = {"| a | b |", "| c | d |"};
+    EXPECT_TRUE(formatMdTable(rows).isEmpty());
+    EXPECT_TRUE(formatMdTable({"plain text"}).isEmpty());
+    EXPECT_TRUE(formatMdTable({}).isEmpty());
+}
+
+TEST(FormatMdTableTest, RaggedRowsAreNormalized) {
+    QStringList rows = {"| a | b |", "|---|---|", "| c |"};
+    EXPECT_EQ(formatMdTable(rows),
+        "| a | b |\n"
+        "|---|---|\n"
+        "| c |   |");
+}
+
+TEST(FormatMdTableTest, Idempotent) {
+    QStringList rows = {"| a | bb |", "|---|---|", "| ccc | d |"};
+    QString once = formatMdTable(rows);
+    QString twice = formatMdTable(once.split('\n'));
+    EXPECT_EQ(once, twice);
+}
+
+
 
