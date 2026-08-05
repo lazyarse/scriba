@@ -889,6 +889,71 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(checkGroup);
 
+        QGroupBox *underlineGroup = new QGroupBox("Override underline colors");
+        underlineGroup->setCheckable(true);
+        underlineGroup->setChecked(settings.value(Preferences::UnderlineColorOverride, false).toBool());
+        auto *underlineLayout = new QHBoxLayout(underlineGroup);
+        underlineLayout->setContentsMargins(6, 18, 6, 6);
+
+        auto makeUnderlineSwatchBtn = [](const QString &hex) {
+            auto *btn = new QPushButton;
+            QPixmap px(16, 16);
+            px.fill(QColor(hex));
+            btn->setIcon(QIcon(px));
+            btn->setIconSize(QSize(16, 16));
+            btn->setText(hex);
+            btn->setCursor(Qt::PointingHandCursor);
+            return btn;
+        };
+
+        m_spellColorBtn = makeUnderlineSwatchBtn(
+            settings.value(Preferences::SpellUnderlineColor, "#d64050").toString());
+        m_grammarColorBtn = makeUnderlineSwatchBtn(
+            settings.value(Preferences::GrammarUnderlineColor, "#00cc66").toString());
+        m_linkColorBtn = makeUnderlineSwatchBtn(
+            settings.value(Preferences::LinkUnderlineColor, "#f09000").toString());
+
+        underlineLayout->addWidget(new QLabel("Spelling:"));
+        underlineLayout->addWidget(m_spellColorBtn);
+        underlineLayout->addSpacing(12);
+        underlineLayout->addWidget(new QLabel("Grammar:"));
+        underlineLayout->addWidget(m_grammarColorBtn);
+        underlineLayout->addSpacing(12);
+        underlineLayout->addWidget(new QLabel("Links:"));
+        underlineLayout->addWidget(m_linkColorBtn);
+        underlineLayout->addStretch();
+        layout->addWidget(underlineGroup);
+
+        auto emitUnderlineColorsChanged = [this]() { emit underlineColorsChanged(); };
+
+        auto connectUnderlineSwatch = [this, emitUnderlineColorsChanged](
+            QPushButton *btn, const char *key, const char *title) {
+            connect(btn, &QPushButton::clicked, this, [this, btn, key, title, emitUnderlineColorsChanged]() {
+                QColor current(btn->text());
+                QColor c = QColorDialog::getColor(current, this, QString::fromLatin1(title));
+                if (!c.isValid())
+                    return;
+                QSettings s;
+                s.setValue(QString::fromLatin1(key), c.name());
+                QPixmap px(16, 16);
+                px.fill(c);
+                btn->setIcon(QIcon(px));
+                btn->setText(c.name());
+                m_underlineColorGroup->setChecked(true);
+                emitUnderlineColorsChanged();
+            });
+        };
+        connectUnderlineSwatch(m_spellColorBtn, Preferences::SpellUnderlineColor, "Spelling Underline Color");
+        connectUnderlineSwatch(m_grammarColorBtn, Preferences::GrammarUnderlineColor, "Grammar Underline Color");
+        connectUnderlineSwatch(m_linkColorBtn, Preferences::LinkUnderlineColor, "Link Underline Color");
+
+        m_underlineColorGroup = underlineGroup;
+        connect(underlineGroup, &QGroupBox::toggled, this, [this, emitUnderlineColorsChanged]() {
+            QSettings s;
+            s.setValue(Preferences::UnderlineColorOverride, m_underlineColorGroup->isChecked());
+            emitUnderlineColorsChanged();
+        });
+
         QGroupBox *grammarGroup = new QGroupBox("Grammar");
         QFormLayout *grammarLayout = new QFormLayout(grammarGroup);
         grammarLayout->setContentsMargins(12, 12, 12, 12);
@@ -1277,6 +1342,10 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
         settings.setValue(Preferences::LinkCheckEnabled, m_linkCheckCheck->isChecked());
+        settings.setValue(Preferences::UnderlineColorOverride, m_underlineColorGroup->isChecked());
+        settings.setValue(Preferences::SpellUnderlineColor, m_spellColorBtn->text());
+        settings.setValue(Preferences::GrammarUnderlineColor, m_grammarColorBtn->text());
+        settings.setValue(Preferences::LinkUnderlineColor, m_linkColorBtn->text());
         settings.setValue(Preferences::DictionaryLanguage, m_languageCombo->currentData().toString());
         settings.setValue(Preferences::GrammarDialect, m_grammarDialectCombo->currentText());
         QStringList customWords;

@@ -47,6 +47,10 @@ public:
     void setInsertActions(const QList<QAction *> &actions);
     void setMermaidAction(QAction *action);
     void recheckSpelling();
+    // Reloads the underline colors from settings and repaints the squiggle
+    // overlay. Call after a preference change that doesn't need a full
+    // re-check (e.g. the underline color swatches).
+    void refreshUnderlines();
 
     SpellChecker *spellChecker() const { return m_spellChecker.get(); }
     SpellHighlighter *spellHighlighter() const { return m_spellHighlighter; }

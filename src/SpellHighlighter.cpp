@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "SpellHighlighter.h"
 #include "LinkValidator.h"
+#include "Preferences.h"
 #include "SpellChecker.h"
 #include "StaticHelpers.h"
 #include <QColor>
@@ -22,6 +23,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QSettings>
 #include <QStringList>
 #include <QTextBlock>
 #include <QTextCharFormat>
@@ -30,6 +32,41 @@
 #include <QUrl>
 
 namespace {
+
+struct UnderlineColors {
+    QColor spell;
+    QColor grammar;
+    QColor link;
+};
+
+UnderlineColors loadUnderlineColors()
+{
+    // The current defaults when "Override underline colors" is off; stored
+    // values when it is on.
+    static const QColor spellDefault(0xd6, 0x40, 0x50);
+    static const QColor grammarDefault(0x00, 0xcc, 0x66);
+    static const QColor linkDefault(0xf0, 0x90, 0x00);
+    UnderlineColors c;
+    if (!QSettings().value(Preferences::UnderlineColorOverride, false).toBool()) {
+        c.spell = spellDefault;
+        c.grammar = grammarDefault;
+        c.link = linkDefault;
+        return c;
+    }
+    c.spell = QColor(QSettings().value(Preferences::SpellUnderlineColor,
+        spellDefault.name()).toString());
+    c.grammar = QColor(QSettings().value(Preferences::GrammarUnderlineColor,
+        grammarDefault.name()).toString());
+    c.link = QColor(QSettings().value(Preferences::LinkUnderlineColor,
+        linkDefault.name()).toString());
+    return c;
+}
+
+UnderlineColors &underlineColors()
+{
+    static UnderlineColors colors = loadUnderlineColors();
+    return colors;
+}
 
 QTextCharFormat spellFormat()
 {
@@ -90,17 +127,22 @@ BlockContext blockContext(int blockNumber, const QString &text, int previousStat
 
 QColor SpellHighlighter::spellUnderlineColor()
 {
-    return QColor(0xd6, 0x40, 0x50);
+    return underlineColors().spell;
 }
 
 QColor SpellHighlighter::grammarUnderlineColor()
 {
-    return QColor(0x00, 0xcc, 0x66);
+    return underlineColors().grammar;
 }
 
 QColor SpellHighlighter::linkUnderlineColor()
 {
-    return QColor(0xf0, 0x90, 0x00);
+    return underlineColors().link;
+}
+
+void SpellHighlighter::reloadUnderlineColors()
+{
+    underlineColors() = loadUnderlineColors();
 }
 
 QColor SpellHighlighter::spellHighlightColor()

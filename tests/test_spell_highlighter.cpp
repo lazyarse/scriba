@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 
+#include "Preferences.h"
 #include "SpellChecker.h"
 #include "SpellHighlighter.h"
 
@@ -436,6 +437,50 @@ TEST_F(SpellHighlighterSpellDebounceTest, CheckCompletionEmitsSignal)
     QTest::keyClicks(m_edit, "zzz");
     QTest::qWait(700);
     EXPECT_GT(spy.count(), 1);
+}
+
+class SpellHighlighterUnderlineColorTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        QSettings().clear();
+        SpellHighlighter::reloadUnderlineColors();
+    }
+
+    void TearDown() override
+    {
+        QSettings().clear();
+        SpellHighlighter::reloadUnderlineColors();
+    }
+};
+
+TEST_F(SpellHighlighterUnderlineColorTest, DefaultsWhenOverrideOff)
+{
+    QSettings s;
+    s.setValue(Preferences::SpellUnderlineColor, "#123456");
+    s.setValue(Preferences::GrammarUnderlineColor, "#abcdef");
+    s.setValue(Preferences::LinkUnderlineColor, "#ff0000");
+    s.setValue(Preferences::UnderlineColorOverride, false);
+    SpellHighlighter::reloadUnderlineColors();
+
+    EXPECT_EQ(SpellHighlighter::spellUnderlineColor(), QColor(0xd6, 0x40, 0x50));
+    EXPECT_EQ(SpellHighlighter::grammarUnderlineColor(), QColor(0x00, 0xcc, 0x66));
+    EXPECT_EQ(SpellHighlighter::linkUnderlineColor(), QColor(0xf0, 0x90, 0x00));
+}
+
+TEST_F(SpellHighlighterUnderlineColorTest, OverridesAppliedWhenEnabled)
+{
+    QSettings s;
+    s.setValue(Preferences::SpellUnderlineColor, "#123456");
+    s.setValue(Preferences::GrammarUnderlineColor, "#abcdef");
+    s.setValue(Preferences::LinkUnderlineColor, "#ff0000");
+    s.setValue(Preferences::UnderlineColorOverride, true);
+    SpellHighlighter::reloadUnderlineColors();
+
+    EXPECT_EQ(SpellHighlighter::spellUnderlineColor(), QColor("#123456"));
+    EXPECT_EQ(SpellHighlighter::grammarUnderlineColor(), QColor("#abcdef"));
+    EXPECT_EQ(SpellHighlighter::linkUnderlineColor(), QColor("#ff0000"));
 }
 
 } // namespace

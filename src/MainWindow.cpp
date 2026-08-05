@@ -1318,6 +1318,12 @@ void MainWindow::showPreferences()
         });
     connect(&dlg, &PreferencesDialog::uiFontSizeChanged, this,
         [this](int) { refreshPreviewCss(); });
+    connect(&dlg, &PreferencesDialog::underlineColorsChanged, this,
+        [this]() {
+            for (const auto &tab : m_tabs)
+                if (tab.editor)
+                    tab.editor->refreshUnderlines();
+        });
     QSettings s;
     if (dlg.exec() == QDialog::Accepted) {
         applyStyleSheetToAllEditors();

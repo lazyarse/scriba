@@ -83,6 +83,10 @@ namespace Preferences {
     constexpr const char *LinkCheckEnabled = "linkCheckEnabled";
     constexpr const char *DictionaryLanguage = "dictionaryLanguage";
     constexpr const char *GrammarDialect = "grammarDialect";
+    constexpr const char *UnderlineColorOverride = "underlineColorOverride";
+    constexpr const char *SpellUnderlineColor = "spellUnderlineColor";
+    constexpr const char *GrammarUnderlineColor = "grammarUnderlineColor";
+    constexpr const char *LinkUnderlineColor = "linkUnderlineColor";
 
     constexpr const char *StripPreviewScripts = "stripPreviewScripts";
     constexpr const char *StripExportScripts = "stripExportScripts";

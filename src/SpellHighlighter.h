@@ -103,6 +103,9 @@ public:
     static QColor spellUnderlineColor();
     static QColor grammarUnderlineColor();
     static QColor linkUnderlineColor();
+    // Re-reads the underline colors from settings (called after a preference
+    // change; also resets the cache in tests).
+    static void reloadUnderlineColors();
     // Background highlight used by the Check Spelling dialog to point at the
     // current error.
     static QColor spellHighlightColor();

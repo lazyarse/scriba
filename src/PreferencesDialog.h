@@ -45,6 +45,7 @@ signals:
     void stylesheetChanged();
     void editorSettingsChanged(const QString &fontFamily, int fontSize, int lineHeight, int padding, int caretWidth);
     void uiFontSizeChanged(int uiFontSizePt);
+    void underlineColorsChanged();
 
 private slots:
     void addStylesheet();
@@ -143,5 +144,9 @@ private:
     QListWidget *m_customWordsList;
     QListWidget *m_importedList;
     QListWidget *m_ignoredWordsList;
+    QGroupBox *m_underlineColorGroup;
+    QPushButton *m_spellColorBtn;
+    QPushButton *m_grammarColorBtn;
+    QPushButton *m_linkColorBtn;
 };
 

@@ -1229,6 +1229,7 @@ void Editor::applySpellSettings()
 {
     if (!m_spellChecker || !m_spellHighlighter)
         return;
+    SpellHighlighter::reloadUnderlineColors();
     QSettings s;
     const bool spellEnabled = s.value(Preferences::SpellCheckEnabled, true).toBool();
     const bool grammarEnabled = s.value(Preferences::GrammarCheckEnabled, false).toBool();
@@ -1267,6 +1268,13 @@ void Editor::applySpellSettings()
 void Editor::recheckSpelling()
 {
     applySpellSettings();
+}
+
+void Editor::refreshUnderlines()
+{
+    SpellHighlighter::reloadUnderlineColors();
+    if (m_underlineOverlay)
+        m_underlineOverlay->update();
 }
 
 void Editor::setSpellCheckHighlight(int blockNumber, int start, int length)
