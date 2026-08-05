@@ -53,6 +53,20 @@ xvfb-run -a sh -c '
         xdotool key "$1"
     }
 
+    # --- Two-tab tabbar (divider line only shows when the tabbar is visible,
+    # i.e. with 2+ tabs), so open a second document for the shot ---
+    printf "# Notes\n\nSecond document for the two-tab capture\n" > /tmp/scriba-second-tab.md
+    open ctrl+o
+    sleep 2
+    xdotool type -- "/tmp/scriba-second-tab.md"
+    sleep 1
+    xdotool key Return
+    sleep 5
+    import -window "$WID" '"$OUT_DIR"'/tabbar.png
+    echo "  -> '"$OUT_DIR"'/tabbar.png"
+    open ctrl+w
+    sleep 1
+
     # --- Preferences: capture each page ---
     open ctrl+alt+p
     PREF=$(waitwin "Preferences") || exit 1

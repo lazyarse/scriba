@@ -2,6 +2,10 @@
 
 ![Screenshot](images/screenshot.png)
 
+## Tabs
+
+![Two tabs — the divider runs under the inactive tab, while the active tab merges into the content](images/tabbar.png)
+
 ## Auto Complete
 ![Auto complete Demo](images/autocomplete-demo.gif)
 

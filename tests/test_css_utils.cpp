@@ -96,6 +96,28 @@ TEST(CssUtilsTest, AllWidgetTypesPresent) {
     EXPECT_TRUE(css.contains("#scriba-editor"));
 }
 
+TEST(CssUtilsTest, TabBarBottomBorder) {
+    // The tabbar's 1px thumb border around inactive tabs forms the divider
+    // under the tab strip; the selected tab must stay borderless so it merges
+    // into the editor below. Regression guard for the tabbar base look.
+    QString theme = "body { background: #000000; }";
+    QString css = CssUtils::deriveChromeCss(theme);
+
+    QRegularExpression barBorder("QTabBar \\{ [^}]*border: none");
+    EXPECT_TRUE(barBorder.match(css).hasMatch());
+
+    QRegularExpression tabBorder("QTabBar::tab \\{ [^}]*border: 1px solid #[0-9A-F]{6}");
+    EXPECT_TRUE(tabBorder.match(css).hasMatch());
+
+    QRegularExpression selectedNoBorder("QTabBar::tab:selected \\{ [^}]*border: none");
+    EXPECT_TRUE(selectedNoBorder.match(css).hasMatch());
+
+    // The selected tab must also adopt the editor background so it reads as
+    // connected to the content below.
+    QRegularExpression selectedBg("QTabBar::tab:selected \\{ [^}]*background-color: #[0-9A-F]{6}");
+    EXPECT_TRUE(selectedBg.match(css).hasMatch());
+}
+
 TEST(CssUtilsTest, DarkModeScrollbarColors) {
     QString theme = "body { background: #1a1a2e; }";
     QString css = CssUtils::deriveChromeCss(theme);

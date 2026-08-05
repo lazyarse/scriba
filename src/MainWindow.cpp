@@ -306,7 +306,7 @@ void MainWindow::setupUi()
     m_tabBar = new QTabBar();
     m_tabBar->setTabsClosable(true);
     m_tabBar->setMovable(true);
-    m_tabBar->setDrawBase(false);
+    m_tabBar->setDrawBase(true);
     m_tabBar->setElideMode(Qt::ElideRight);
 
     m_editorStack = new QStackedWidget();
