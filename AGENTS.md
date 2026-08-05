@@ -29,11 +29,23 @@ Use true `Debug`, NOT `RelWithDebInfo`: RelWithDebInfo still compiles at `-O2`/`
 # clean only needed after branch switches (stale _autogen dirs);
 # normal incremental rebuilds: skip clean, just configure + build
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build build -j4
+timeout 3 build/scriba || true   # smoke-test the freshly linked binary — AFTER this build
 ```
 
 Binary: `build/scriba`
 
 The `-D` flags above are only needed the first time a build dir is configured (or to change a cached value). CMake stores them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j4` / `cmake --build build -j4`.
+
+### Verification sequence (order matters)
+
+Full check after any code/resource change:
+
+1. `cmake --build build-dbg -j4` — dev/test loop build
+2. `cd build-dbg && ctest --output-on-failure -j1` — tests pass
+3. `cmake --build build -j4` — rebuild the Release binary
+4. `timeout 3 build/scriba || true` — smoke-test the **freshly** built Release binary
+
+Step 4 must come AFTER step 3. Running it right after step 1/2 smoke-tests a stale `build/scriba` from the previous Release build.
 
 ## Package (Linux)
 
@@ -110,7 +122,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Tests must only ever touch `~/.config/scribaTest/` (see `tests/TestConfig.h` / `setupTestConfig()`); never write to the real `~/.config/scriba/` from a test. Suites with a custom `main()` must call `setupTestConfig()`; config-focused suites link the `scriba_test_main` static library
 - Dialog buttons (QDialogButtonBox and standalone QPushButton) must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`. Add `&` keyboard shortcuts to all dialog buttons where possible (unique per dialog).
 - Always rebuild after making changes — CSS, resource, or source files all require a rebuild to take effect
-- After building, run the application briefly to check for segfaults: `timeout 3 build/scriba || true`
+- After building the Release binary, run it briefly to check for segfaults: `timeout 3 build/scriba || true`. This must run AFTER `cmake --build build` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build (see the ordered Verification sequence under Build)
 - Only rebuild the .deb package when explicitly asked to — do not rebuild it automatically after changes
 - After adding a new keyboard shortcut, update `resources/shortcuts.html` to document it
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`

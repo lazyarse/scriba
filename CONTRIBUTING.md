@@ -239,6 +239,14 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build bui
 
 Build only after the test suite passes; tests are OFF here (they live in `build-dbg`).
 
+After building, smoke-test the freshly linked binary:
+
+```bash
+timeout 3 build/scriba || true
+```
+
+This must run AFTER `cmake --build build` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build.
+
 The `-D` flags above are only needed the first time a build dir is configured (or to change a cached value). CMake stores them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j4` / `cmake --build build -j4`.
 
 ## Testing
