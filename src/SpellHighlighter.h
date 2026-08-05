@@ -99,6 +99,15 @@ public:
         QVector<GrammarChecker::Issue::Suggestion> suggestions;
     };
 
+    // One broken-link hit in a whole document, as found by scanLinkIssues().
+    // line and col are 1-based within the document.
+    struct LinkHit {
+        int line = 0;
+        int col = 0;
+        int length = 0;
+        QString message;
+    };
+
     // Squiggle colors, shared with Editor's custom underline painting.
     static QColor spellUnderlineColor();
     static QColor grammarUnderlineColor();
@@ -137,6 +146,13 @@ public:
     // editor flags. Returns issues in document order.
     static QVector<SpellIssue> scanDocument(QTextDocument *document,
                                             SpellChecker *checker);
+
+    // Whole-document broken-link scan (file targets, URLs, reference usages,
+    // heading anchors) using the same pass the underlines use. `baseDir`
+    // resolves relative targets; empty uses the current working directory.
+    // Returns hits with 1-based line/col. Used by the Validation Report.
+    static QVector<LinkHit> scanLinkIssues(const QString &text,
+                                           const QString &baseDir);
 
     // Grammar issues (start offset + length within the block) for a block.
     QVector<GrammarHit> grammarIssuesInBlock(int blockNumber) const;

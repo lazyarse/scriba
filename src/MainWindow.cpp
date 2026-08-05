@@ -39,6 +39,7 @@
 #include "MermaidDialog.h"
 #include "SpellCheckDialog.h"
 #include "SpellChecker.h"
+#include "StoppardEngine.h"
 #include "KatexHelperDialog.h"
 #include "MchemHelperDialog.h"
 #include "HtmlToMarkdown.h"
@@ -46,6 +47,41 @@
 static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
 static constexpr const char *kOpenMdFilter = "Markdown Files (*.md *.markdown *.txt);;All Files (*)";
 static constexpr int kMsPerMinute = 60000;
+
+namespace {
+
+// Runs the whole-document grammar pass for the Validation Report on a
+// background thread. GrammarChecker (StoppardEngine) is stateless and
+// thread-safe, so an instance created here is safe to call from run(). Plain
+// QThread subclass (no new signals), so no moc is needed.
+class ValidationReportThread : public QThread
+{
+public:
+    ValidationReportThread(GrammarChecker *checker)
+        : m_checker(checker)
+    {
+    }
+
+    ~ValidationReportThread() override { delete m_checker; }
+
+    // Set before start(); read after finished().
+    QVector<ValidationReport::DocumentSource> sources;
+    QVector<QList<GrammarChecker::Issue>> results;
+
+protected:
+    void run() override
+    {
+        results.reserve(sources.size());
+        for (const auto &source : sources)
+            results.append(m_checker ? m_checker->check(source.text)
+                                     : QList<GrammarChecker::Issue>());
+    }
+
+private:
+    GrammarChecker *m_checker = nullptr;
+};
+
+} // namespace
 
 
 
@@ -86,6 +122,9 @@ static constexpr int kMsPerMinute = 60000;
 #include <QJsonArray>
 #include <QInputDialog>
 #include <QJsonObject>
+#include <QThread>
+#include <QDateTime>
+#include <memory>
 
 bool MainWindow::s_notifyStaleCss = false;
 
@@ -420,6 +459,17 @@ void MainWindow::removeTab(int index)
     m_editorStack->removeWidget(editor);
     m_tabBar->removeTab(index);
     delete editor;
+
+    // Removing a tab renumbers every following tab: shift report-tab titles
+    // down so updateTabLabel() still finds them.
+    m_reportTitles.remove(index);
+    QHash<int, QString> shifted;
+    for (auto it = m_reportTitles.constBegin(); it != m_reportTitles.constEnd(); ++it) {
+        const int key = it.key();
+        shifted.insert(key > index ? key - 1 : key, it.value());
+    }
+    m_reportTitles = shifted;
+
     updateTabBarVisibility();
 }
 
@@ -512,8 +562,12 @@ void MainWindow::updateTabLabel(int index)
         return;
 
     const TabInfo &info = m_tabs[index];
-    QString name = info.filePath.isEmpty() ? QStringLiteral("Untitled")
-                                           : QFileInfo(info.filePath).fileName();
+    QString name;
+    if (m_reportTitles.contains(index))
+        name = m_reportTitles.value(index);
+    else
+        name = info.filePath.isEmpty() ? QStringLiteral("Untitled")
+                                       : QFileInfo(info.filePath).fileName();
     if (info.dirty)
         name += QStringLiteral(" *");
     m_tabBar->setTabText(index, name);
@@ -854,6 +908,10 @@ void MainWindow::setupMenuBar()
     QAction *spellCheckAction = toolsMenu->addAction("&Check Spelling...");
     spellCheckAction->setShortcut(QKeySequence(Qt::Key_F7));
     connect(spellCheckAction, &QAction::triggered, this, &MainWindow::showSpellCheckDialog);
+
+    QAction *reportAction = toolsMenu->addAction("&Validation Report...");
+    reportAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F7));
+    connect(reportAction, &QAction::triggered, this, &MainWindow::generateValidationReport);
 
     toolsMenu->addSeparator();
 
@@ -1419,6 +1477,103 @@ void MainWindow::showSpellCheckDialog()
     }
     SpellCheckDialog dlg(ed, this);
     dlg.exec();
+}
+
+void MainWindow::generateValidationReport()
+{
+    if (m_reportInFlight)
+        return;
+    m_reportInFlight = true;
+
+    m_reportSources.clear();
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (m_reportTitles.contains(i))
+            continue; // never re-scan an earlier report tab
+        Editor *ed = m_tabs[i].editor;
+        if (!ed)
+            continue;
+        m_reportSources.append({m_tabs[i].filePath, ed->toPlainText()});
+    }
+
+    // Spelling: a fresh checker honors the configured dictionary and dialect
+    // regardless of which tab is active. Used only on the UI thread.
+    std::unique_ptr<SpellChecker> spellChecker = std::make_unique<SpellChecker>();
+    QSettings settings;
+    const QString dialect = settings
+        .value(Preferences::GrammarDialect, QStringLiteral("American")).toString();
+    spellChecker->setDialect(dialect);
+    const QString language = settings.value(Preferences::DictionaryLanguage).toString();
+    const QString resolved = language.isEmpty()
+        ? SpellChecker::defaultLanguageForDialect(dialect) : language;
+    bool loaded = spellChecker->loadLanguage(resolved);
+    if (!loaded) {
+        for (const QString &lang : SpellChecker::availableLanguages()) {
+            if (spellChecker->loadLanguage(lang)) {
+                loaded = true;
+                break;
+            }
+        }
+    }
+
+    ValidationReport report;
+    m_reportDocs = report.scan(m_reportSources, loaded ? spellChecker.get() : nullptr);
+
+    // Grammar pass on a background thread (whole-document and expensive); the
+    // results are merged into m_reportDocs when the thread finishes.
+    auto *worker = new ValidationReportThread(new StoppardEngine(dialect));
+    worker->sources = m_reportSources;
+    m_reportThread = worker;
+    connect(worker, &QThread::finished, this, [this, worker]() {
+        if (m_reportThread == worker)
+            m_reportThread = nullptr;
+        onValidationReportReady(worker->results);
+        worker->deleteLater();
+    });
+    worker->start();
+
+    statusBar()->showMessage(tr("Generating validation report..."));
+}
+
+void MainWindow::onValidationReportReady(
+    const QVector<QList<GrammarChecker::Issue>> &grammarIssues)
+{
+    m_reportInFlight = false;
+
+    const int count = qMin(m_reportDocs.size(), grammarIssues.size());
+    for (int i = 0; i < count; ++i) {
+        m_reportDocs[i].issues[ValidationReport::Category::Grammar] =
+            ValidationReport::grammarIssuesToLineIssues(m_reportSources[i].text,
+                                                        grammarIssues[i]);
+    }
+
+    const QDateTime now = QDateTime::currentDateTime();
+    const QString md = ValidationReport::renderMarkdown(
+        m_reportDocs, now.toString(Qt::ISODate));
+
+    int idx = addTab(QString());
+    if (idx < 0 || idx >= m_tabs.size())
+        return;
+    Editor *ed = m_tabs[idx].editor;
+    ed->setPlainText(md);
+    ed->document()->setModified(false);
+    m_tabs[idx].dirty = false;
+    m_reportTitles.insert(idx,
+        tr("Validation Report - ") + now.toString(QStringLiteral("yyyy-MM-dd HH:mm")));
+    updateTabLabel(idx);
+    m_tabBar->setTabToolTip(idx, tr("Validation report (regenerate with Ctrl+Shift+F7)"));
+    statusBar()->clearMessage();
+}
+
+void MainWindow::stopValidationReport()
+{
+    if (!m_reportThread)
+        return;
+    QThread *thread = m_reportThread;
+    m_reportThread = nullptr;
+    disconnect(thread, &QThread::finished, this, nullptr);
+    thread->quit();
+    thread->wait();
+    delete thread; // ValidationReportThread dtor frees the grammar checker
 }
 
 void MainWindow::showTableInsert()
@@ -2456,6 +2611,10 @@ void MainWindow::updateTabBarVisibility()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    // A still-running validation grammar worker would keep a QThread alive
+    // past the MainWindow it signals back to: stop and reap it first.
+    stopValidationReport();
+
     QSettings s;
 
     bool autoSave = s.value(Preferences::AutoSaveOnExit, false).toBool();

@@ -24,7 +24,11 @@
 #include <QTabBar>
 #include <QStackedWidget>
 #include <QVector>
+#include <QSet>
+#include <QHash>
 #include <QJsonObject>
+
+#include "ValidationReport.h"
 
 class Editor;
 class Preview;
@@ -82,6 +86,7 @@ private slots:
     void showKatexHelper();
     void showMchemHelper();
     void showSpellCheckDialog();
+    void generateValidationReport();
 
     void onFindNext();
     void onFindPrev();
@@ -146,6 +151,13 @@ private:
     void saveSessionAsAction();
     void loadSessionAction();
 
+    // Validation Report (Tools → Validation Report…): snapshots the open
+    // documents, scans spelling/links/markdown synchronously, runs the
+    // expensive whole-document grammar pass on a background thread, then
+    // opens the assembled markdown in a new tab.
+    void onValidationReportReady(const QVector<QList<GrammarChecker::Issue>> &grammarIssues);
+    void stopValidationReport();
+
     QSplitter *m_splitter;
     Preview *m_preview;
     MarkdownParser *m_parser;
@@ -175,6 +187,17 @@ private:
     QTimer *m_anchorTimer = nullptr;
     QString m_pendingAnchor;
     int m_anchorTries = 0;
+
+    // Validation Report state. m_reportSources/m_reportDocs are snapshots made
+    // on the UI thread before the grammar worker starts; the worker's results
+    // are merged into m_reportDocs in onValidationReportReady(). m_reportTitles
+    // keys report tab indices to their date-stamped title so updateTabLabel()
+    // keeps them after edits.
+    bool m_reportInFlight = false;
+    QThread *m_reportThread = nullptr;
+    QHash<int, QString> m_reportTitles;
+    QVector<ValidationReport::DocumentSource> m_reportSources;
+    QVector<ValidationReport::DocumentReport> m_reportDocs;
 
 protected:
     void updateTabBarVisibility();

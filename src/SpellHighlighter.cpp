@@ -483,6 +483,27 @@ SpellHighlighter::scanDocument(QTextDocument *document, SpellChecker *checker)
     return issues;
 }
 
+QVector<SpellHighlighter::LinkHit>
+SpellHighlighter::scanLinkIssues(const QString &text, const QString &baseDir)
+{
+    QTextDocument doc;
+    doc.setPlainText(text);
+    // Attaching a highlighter and setting the current file runs the same full
+    // link pass the underlines use (setCurrentFile triggers runSpellCheck(),
+    // whose link half needs no spell checker). Relative targets resolve
+    // against baseDir via the synthetic file path.
+    SpellHighlighter hl(&doc);
+    hl.setCurrentFile(baseDir.isEmpty() ? QString()
+                                        : QDir(baseDir).filePath(QStringLiteral("__validation__.md")));
+    QVector<LinkHit> hits;
+    for (int i = 0; i < doc.blockCount(); ++i) {
+        const QVector<GrammarHit> blockHits = hl.linkIssuesInBlock(i);
+        for (const auto &h : blockHits)
+            hits.append({i + 1, h.start + 1, h.length, h.message});
+    }
+    return hits;
+}
+
 void SpellHighlighter::highlightBlock(const QString &text)
 {
     const int blockNumber = currentBlock().blockNumber();
