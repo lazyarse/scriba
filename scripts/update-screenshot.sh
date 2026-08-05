@@ -61,7 +61,7 @@ xvfb-run -a sh -c '
     sleep 1
     import -window "$PREF" '"$OUT_DIR"'/preferences-general.png
     echo "  -> '"$OUT_DIR"'/preferences-general.png"
-    for PAGE in themes editor preview writing spelling security; do
+    for PAGE in themes editor preview writing replacements spelling security; do
         xdotool key Down
         sleep 1
         import -window "$PREF" '"$OUT_DIR"'/preferences-$PAGE.png

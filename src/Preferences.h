@@ -46,6 +46,8 @@ namespace Preferences {
     constexpr const char *FileCompletionLimit = "fileCompletionLimit";
     constexpr const char *FileAutoComplete = "fileAutoComplete";
     constexpr const char *LanguageAutoComplete = "languageAutoComplete";
+    constexpr const char *AutoCorrectEnabled = "autoCorrectEnabled";
+    constexpr const char *AutoCorrectPairs = "autoCorrectPairs";
 
     constexpr const char *HeavyRenderDelay = "heavyRenderDelay";
     constexpr int DefaultHeavyRenderDelay = Debounce::HeavyRender;
@@ -149,6 +151,37 @@ namespace Preferences {
     inline QString emojiRenderingToString(EmojiRendering mode)
     {
         return mode == EmojiRendering::Color ? QStringLiteral("color") : QStringLiteral("bw");
+    }
+
+    // "typo=replacement" pairs shipped by default. Users may edit, remove or add
+    // to these; the Preferences dialog's Restore Defaults button merges them back.
+    inline QStringList defaultAutoCorrectPairs()
+    {
+        return {
+            QStringLiteral("teh=the"),
+            QStringLiteral("hte=the"),
+            QStringLiteral("adn=and"),
+            QStringLiteral("nad=and"),
+            QStringLiteral("waht=what"),
+            QStringLiteral("taht=that"),
+            QStringLiteral("wih=with"),
+            QStringLiteral("fo=of"),
+            QStringLiteral("ot=to"),
+            QStringLiteral("tehre=there"),
+            QStringLiteral("theyre=they're"),
+            QStringLiteral("dont=don't"),
+            QStringLiteral("cant=can't"),
+            QStringLiteral("wont=won't"),
+            QStringLiteral("im=I'm"),
+            QStringLiteral("ive=I've"),
+            QStringLiteral("yuo=you"),
+            QStringLiteral("recieve=receive"),
+            QStringLiteral("seperate=separate"),
+            QStringLiteral("definately=definitely"),
+            QStringLiteral("occured=occurred"),
+            QStringLiteral("ocassion=occasion"),
+            QStringLiteral("alot=a lot"),
+        };
     }
 
     // Migrate a pre-versioning config (no "configVersion" key) forward to the

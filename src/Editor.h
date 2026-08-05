@@ -71,6 +71,8 @@ private:
     void insertParagraphWithLineHeight(QKeyEvent *event);
     bool isInsideLinkContext(const QTextCursor &cursor, QString &partialPath) const;
     bool isInsideHtmlPathContext(const QTextCursor &cursor, QString &partialPath) const;
+    void applyAutoCorrect(bool separatorTyped);
+    bool isInsideInlineCode() const;
     bool showFileCompletion(const QString &partialPath);
     void acceptCompletion(const QString &completion);
     void positionCompletionPopup(const QRect &cursorRect);

@@ -428,6 +428,72 @@ bool extractEmojiCode(const QString &line, int cursorPos, QString &partialCode)
     return true;
 }
 
+QString autoCorrectWord(const QString &line, int cursorPos, const QStringList &pairs,
+                        bool separatorTyped, int *wordStart, int *wordLength)
+{
+    if (wordStart)
+        *wordStart = -1;
+    if (wordLength)
+        *wordLength = 0;
+    if (pairs.isEmpty() || cursorPos <= 0 || cursorPos > line.size())
+        return {};
+
+    // A word (apostrophes/hyphens included), optionally followed by the
+    // separator(s) just typed. When separatorTyped, at least one trailing
+    // non-letter must be present so an in-progress word is never corrected.
+    static const QRegularExpression wordRe(R"(([A-Za-z]+(?:['-][A-Za-z]+)*)([^A-Za-z]*)$)");
+    auto match = wordRe.match(line.left(cursorPos));
+    if (!match.hasMatch())
+        return {};
+    const QString typed = match.captured(1);
+    const QString trailing = match.captured(2);
+    if (separatorTyped && trailing.isEmpty())
+        return {};
+
+    const int start = match.capturedStart(1);
+    if (start > 0) {
+        const QChar prev = line[start - 1];
+        // Must not be glued to a larger token: letters/digits, or characters
+        // that appear inside URLs, emails, paths, identifiers or code spans.
+        if (prev.isLetterOrNumber() || prev == '@' || prev == '.'
+            || prev == '/' || prev == '_' || prev == '-' || prev == '`' || prev == '\\')
+            return {};
+    }
+
+    QString replacement;
+    const QString lower = typed.toLower();
+    for (const QString &entry : pairs) {
+        const int eq = entry.indexOf('=');
+        if (eq <= 0 || eq >= entry.size() - 1)
+            continue;
+        if (entry.left(eq).toLower() != lower)
+            continue;
+        replacement = entry.mid(eq + 1);
+        break;
+    }
+    if (replacement.isEmpty() || replacement == typed)
+        return {};
+
+    // Preserve the case of what was typed.
+    bool allUpper = typed.size() > 1;
+    for (QChar c : typed) {
+        if (c.isLower()) {
+            allUpper = false;
+            break;
+        }
+    }
+    if (allUpper)
+        replacement = replacement.toUpper();
+    else if (typed[0].isUpper())
+        replacement[0] = replacement[0].toUpper();
+
+    if (wordStart)
+        *wordStart = start;
+    if (wordLength)
+        *wordLength = typed.size();
+    return replacement;
+}
+
 // Sequential (fuzzy) match: every character of the fragment appears in the
 // entry in order, possibly with skipped characters in between. Subsumes plain
 // substring containment, so "scrsvg" matches "scriba.svg". The score ranks

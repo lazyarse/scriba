@@ -234,10 +234,12 @@ Use true `Debug`, not `RelWithDebInfo` — RelWithDebInfo still compiles at `-O2
 ### Release binary — `build`
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build build -j4
 ```
 
 Build only after the test suite passes; tests are OFF here (they live in `build-dbg`).
+
+The `-D` flags above are only needed the first time a build dir is configured (or to change a cached value). CMake stores them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j4` / `cmake --build build -j4`.
 
 ## Testing
 

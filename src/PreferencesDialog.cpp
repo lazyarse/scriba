@@ -28,6 +28,8 @@
 #include <QFileInfo>
 #include <QSettings>
 #include <QGroupBox>
+#include <QHeaderView>
+#include <QTableWidgetItem>
 #include <QLabel>
 #include <QIcon>
 #include <QFile>
@@ -757,6 +759,111 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_pageList->addItem("Writing");
     }
 
+    /* --- Page 6: Replacements --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *group = new QGroupBox("Typo Autocorrect");
+        QVBoxLayout *groupLayout = new QVBoxLayout(group);
+        groupLayout->addSpacing(8);
+
+        m_autoCorrectCheck = new QCheckBox("Correct typos as you type");
+        m_autoCorrectCheck->setChecked(settings.value(Preferences::AutoCorrectEnabled, true).toBool());
+        groupLayout->addWidget(m_autoCorrectCheck);
+
+        auto *note = new QLabel(tr(
+            "When a word is completed (space, punctuation or Enter) it is replaced with the "
+            "word in the Replaces column whenever the word before the caret matches the Typo "
+            "column. Matching ignores case and the case of your typing is preserved, so \"Teh\" "
+            "becomes \"The\". Corrections are skipped inside code blocks, inline code and link "
+            "URLs, and Ctrl+Z undoes one."));
+        note->setWordWrap(true);
+        note->setStyleSheet("color: gray; padding: 8px;");
+        groupLayout->addWidget(note);
+
+        m_replacementsTable = new QTableWidget(0, 2);
+        m_replacementsTable->setHorizontalHeaderLabels({tr("Typo"), tr("Replaces")});
+        m_replacementsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        m_replacementsTable->verticalHeader()->setVisible(false);
+        m_replacementsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        groupLayout->addWidget(m_replacementsTable);
+
+        auto stripButtonIcons = [](const QList<QPushButton *> &buttons) {
+            for (auto *btn : buttons)
+                btn->setIcon(QIcon());
+        };
+
+        auto *addBtn = new QPushButton(tr("Ad&d"));
+        auto *removeBtn = new QPushButton(tr("R&emove"));
+        auto *restoreBtn = new QPushButton(tr("Res&tore Defaults"));
+        stripButtonIcons({addBtn, removeBtn, restoreBtn});
+        QHBoxLayout *btnRow = new QHBoxLayout();
+        btnRow->addWidget(addBtn);
+        btnRow->addWidget(removeBtn);
+        btnRow->addWidget(restoreBtn);
+        btnRow->addStretch();
+        groupLayout->addLayout(btnRow);
+
+        layout->addWidget(group);
+        layout->addStretch();
+
+        QStringList pairs = settings.value(Preferences::AutoCorrectPairs).toStringList();
+        if (pairs.isEmpty())
+            pairs = Preferences::defaultAutoCorrectPairs();
+        for (const QString &pair : pairs) {
+            const int eq = pair.indexOf('=');
+            if (eq <= 0)
+                continue;
+            const int row = m_replacementsTable->rowCount();
+            m_replacementsTable->insertRow(row);
+            m_replacementsTable->setItem(row, 0, new QTableWidgetItem(pair.left(eq)));
+            m_replacementsTable->setItem(row, 1, new QTableWidgetItem(pair.mid(eq + 1)));
+        }
+
+        connect(addBtn, &QPushButton::clicked, this, [this]() {
+            const int row = m_replacementsTable->rowCount();
+            m_replacementsTable->insertRow(row);
+            m_replacementsTable->setItem(row, 0, new QTableWidgetItem);
+            m_replacementsTable->setItem(row, 1, new QTableWidgetItem);
+            m_replacementsTable->setCurrentCell(row, 0);
+            m_replacementsTable->editItem(m_replacementsTable->item(row, 0));
+        });
+        connect(removeBtn, &QPushButton::clicked, this, [this]() {
+            const auto selected = m_replacementsTable->selectionModel()->selectedRows();
+            QList<int> rows;
+            for (const auto &idx : selected)
+                rows << idx.row();
+            std::sort(rows.begin(), rows.end(), std::greater<int>());
+            for (int r : rows)
+                m_replacementsTable->removeRow(r);
+        });
+        connect(restoreBtn, &QPushButton::clicked, this, [this]() {
+            for (const QString &pair : Preferences::defaultAutoCorrectPairs()) {
+                const int eq = pair.indexOf('=');
+                if (eq <= 0)
+                    continue;
+                bool exists = false;
+                for (int r = 0; r < m_replacementsTable->rowCount(); ++r) {
+                    auto *item = m_replacementsTable->item(r, 0);
+                    if (item && item->text().toLower() == pair.left(eq).toLower())
+                        exists = true;
+                }
+                if (!exists) {
+                    const int row = m_replacementsTable->rowCount();
+                    m_replacementsTable->insertRow(row);
+                    m_replacementsTable->setItem(row, 0, new QTableWidgetItem(pair.left(eq)));
+                    m_replacementsTable->setItem(row, 1, new QTableWidgetItem(pair.mid(eq + 1)));
+                }
+            }
+        });
+
+        m_pages->addWidget(wrapPage(page));
+        m_pageList->addItem("Replacements");
+    }
+
     /* --- Page 5: Spelling --- */
     {
         QWidget *page = new QWidget;
@@ -1113,6 +1220,18 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EmojiAutoComplete, m_emojiAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::EmojiCompletionLimit, m_emojiCompletionSpin->value());
         settings.setValue(Preferences::LanguageAutoComplete, m_languageAutoCompleteCheck->isChecked());
+        settings.setValue(Preferences::AutoCorrectEnabled, m_autoCorrectCheck->isChecked());
+        QStringList autoCorrectPairs;
+        for (int r = 0; r < m_replacementsTable->rowCount(); ++r) {
+            const QString typo = m_replacementsTable->item(r, 0)
+                ? m_replacementsTable->item(r, 0)->text().trimmed() : QString();
+            const QString repl = m_replacementsTable->item(r, 1)
+                ? m_replacementsTable->item(r, 1)->text().trimmed() : QString();
+            if (typo.isEmpty() || repl.isEmpty() || typo.contains('='))
+                continue;
+            autoCorrectPairs << typo + "=" + repl;
+        }
+        settings.setValue(Preferences::AutoCorrectPairs, autoCorrectPairs);
         settings.setValue(Preferences::CentreSingleViewContent, m_centreSingleViewCheck->isChecked());
         settings.setValue(Preferences::CentreSingleViewWidth, m_centreSingleViewWidthSpin->value());
         settings.setValue(Preferences::SplitViewEditorMaxWidth,

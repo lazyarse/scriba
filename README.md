@@ -135,6 +135,8 @@ During development, build the test suite in a separate Debug build dir (`build-d
 cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j$(nproc)
 ```
 
+The `-D` flags are only needed the first time a build dir is configured; CMake caches them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j$(nproc)`.
+
 ### Run tests
 
 ```bash

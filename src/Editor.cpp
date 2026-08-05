@@ -173,6 +173,10 @@ void Editor::keyPressEvent(QKeyEvent *event)
             }
         }
 
+        // Enter completes the word on the current line, so correct a finished
+        // typo before the paragraph is split.
+        applyAutoCorrect(false);
+
         QTextCursor cursor = textCursor();
         QString line = cursor.block().text();
         // Only auto-continue list markers when the caret is at the end of the
@@ -633,6 +637,9 @@ void Editor::keyPressEvent(QKeyEvent *event)
             }
         }
     } else if (!event->text().isEmpty()) {
+        // A space or punctuation just completed the word before the cursor, so
+        // apply any configured typo replacement before re-evaluating completions.
+        applyAutoCorrect(true);
         QChar c = event->text()[0];
         bool shown = false;
         if (c.isLetterOrNumber() || c == '_' || c == ':' || c == '+' || c == '-' || c == '.' || c == '/') {
@@ -1025,6 +1032,62 @@ void Editor::acceptEmojiCompletion(const QString &completion)
     cursor.removeSelectedText();
     cursor.insertText(completion);
     setTextCursor(cursor);
+}
+
+void Editor::applyAutoCorrect(bool separatorTyped)
+{
+    QSettings s;
+    if (!s.value(Preferences::AutoCorrectEnabled, true).toBool())
+        return;
+    const QStringList pairs = s.value(Preferences::AutoCorrectPairs).toStringList();
+    if (pairs.isEmpty())
+        return;
+
+    QTextCursor cursor = textCursor();
+    const QString line = cursor.block().text();
+    const int pos = cursor.positionInBlock();
+
+    int wordStart = -1;
+    int wordLength = 0;
+    const QString replacement = autoCorrectWord(line, pos, pairs, separatorTyped, &wordStart, &wordLength);
+    if (replacement.isEmpty() || wordStart < 0)
+        return;
+
+    // Never rewrite inside markdown link/HTML attribute paths, code spans or
+    // emoji shortcodes.
+    QString partial;
+    if (isInsideLinkContext(cursor, partial) || isInsideHtmlPathContext(cursor, partial))
+        return;
+    if (isInsideEmojiContext(cursor, partial))
+        return;
+    if (insideFencedCode(cursor.blockNumber()) || isInsideInlineCode())
+        return;
+
+    // Replace the word (keeping any trailing separator so the caret stays put);
+    // one edit block so a single undo restores the typo.
+    const int blockStart = cursor.block().position();
+    const QString trailing = line.mid(wordStart + wordLength, pos - wordStart - wordLength);
+    cursor.beginEditBlock();
+    cursor.setPosition(blockStart + wordStart, QTextCursor::MoveAnchor);
+    cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
+    cursor.removeSelectedText();
+    cursor.insertText(replacement + trailing);
+    cursor.endEditBlock();
+    setTextCursor(cursor);
+}
+
+bool Editor::isInsideInlineCode() const
+{
+    // Backtick parity before the caret on the current line (mirrors the spell
+    // highlighter's per-line handling of inline code spans).
+    const QString line = textCursor().block().text();
+    const int pos = textCursor().positionInBlock();
+    int backticks = 0;
+    for (int i = 0; i < pos; ++i) {
+        if (line[i] == '`' && (i == 0 || line[i - 1] != '\\'))
+            ++backticks;
+    }
+    return backticks % 2 == 1;
 }
 
 namespace {

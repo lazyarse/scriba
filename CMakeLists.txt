@@ -357,6 +357,11 @@ if(BUILD_TESTS)
     target_link_libraries(test_editor_typing PRIVATE GTest::gtest test_editor_helpers scriba_spell)
     add_test(NAME test_editor_typing COMMAND ${_TEST_PREFIX} ./test_editor_typing)
 
+    add_executable(test_editor_autocorrect tests/test_editor_autocorrect.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
+    target_include_directories(test_editor_autocorrect PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_editor_autocorrect PRIVATE GTest::gtest test_editor_helpers scriba_spell)
+    add_test(NAME test_editor_autocorrect COMMAND ${_TEST_PREFIX} ./test_editor_autocorrect)
+
     add_executable(test_enter_scroll tests/test_enter_scroll.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_enter_scroll PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_enter_scroll PRIVATE GTest::gtest test_editor_helpers scriba_spell)

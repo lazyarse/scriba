@@ -11,9 +11,13 @@
 | --- | --- | --- |
 | [![General](images/preferences-general.png)](images/preferences-general.png) | [![Themes](images/preferences-themes.png)](images/preferences-themes.png) | [![Editor](images/preferences-editor.png)](images/preferences-editor.png) |
 
-| Writing | Spelling | Security | Preview |
+| Writing | Replacements | Spelling | Security |
 | --- | --- | --- | --- |
-| [![Writing](images/preferences-writing.png)](images/preferences-writing.png) | [![Spelling](images/preferences-spelling.png)](images/preferences-spelling.png) | [![Security](images/preferences-security.png)](images/preferences-security.png) | [![Preview](images/preferences-preview.png)](images/preferences-preview.png) |
+| [![Writing](images/preferences-writing.png)](images/preferences-writing.png) | [![Replacements](images/preferences-replacements.png)](images/preferences-replacements.png) | [![Spelling](images/preferences-spelling.png)](images/preferences-spelling.png) | [![Security](images/preferences-security.png)](images/preferences-security.png) |
+
+| Preview |
+| --- |
+| [![Preview](images/preferences-preview.png)](images/preferences-preview.png) |
 
 ## Dialogues
 

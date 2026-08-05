@@ -28,10 +28,12 @@ Use true `Debug`, NOT `RelWithDebInfo`: RelWithDebInfo still compiles at `-O2`/`
 # build only after tests pass; tests are OFF here (they live in build-dbg)
 # clean only needed after branch switches (stale _autogen dirs);
 # normal incremental rebuilds: skip clean, just configure + build
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build build -j4
 ```
 
 Binary: `build/scriba`
+
+The `-D` flags above are only needed the first time a build dir is configured (or to change a cached value). CMake stores them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j4` / `cmake --build build -j4`.
 
 ## Package (Linux)
 

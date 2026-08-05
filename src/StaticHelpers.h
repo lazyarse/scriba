@@ -49,6 +49,19 @@ bool extractHtmlPath(const QString &line, int cursorPos, QString &value);
 int htmlPathReplaceStart(const QString &line, int cursorPos);
 bool extractEmojiCode(const QString &line, int cursorPos, QString &partialCode);
 
+// Typo autocorrect: returns the replacement for the word ending at cursorPos, or
+// an empty QString when no configured "typo=replacement" pair applies. Matching
+// is case-insensitive and the replacement preserves the typed word's case
+// ("teh"->"the", "Teh"->"The", "TEH"->"THE"). When `separatorTyped` is true the
+// word must be followed by at least one non-letter (the separator just typed),
+// so mid-word keystrokes never correct. The word may contain apostrophes and
+// hyphens ("should'nt"). The character before the word must be a word boundary,
+// so URLs/emails/paths/identifiers are left alone. On a match, *wordStart and
+// *wordLength receive the word's extent within `line` (word only, excluding any
+// trailing separator).
+QString autoCorrectWord(const QString &line, int cursorPos, const QStringList &pairs,
+                        bool separatorTyped, int *wordStart = nullptr, int *wordLength = nullptr);
+
 struct FileCompletionResult
 {
     QStringList entries;

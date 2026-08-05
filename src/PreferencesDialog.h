@@ -28,6 +28,7 @@
 
 
 #include <QComboBox>
+#include <QTableWidget>
 
 class CssConfig;
 class CssLoader;
@@ -106,6 +107,8 @@ private:
     QCheckBox *m_emojiAutoCompleteCheck;
     QSpinBox *m_emojiCompletionSpin;
     QCheckBox *m_languageAutoCompleteCheck;
+    QCheckBox *m_autoCorrectCheck;
+    QTableWidget *m_replacementsTable;
     QCheckBox *m_centreSingleViewCheck;
     QSpinBox *m_centreSingleViewWidthSpin;
     QCheckBox *m_splitEditorAutoCheck;
