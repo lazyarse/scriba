@@ -66,6 +66,12 @@ public:
     void setSpellCheckHighlight(int blockNumber, int start, int length);
     void clearSpellCheckHighlight();
 
+    // The lint explanation shown when the mouse hovers the given block/offset:
+    // the markdown, grammar, broken-link or misspelled-word message under it,
+    // or an empty string when nothing is flagged there. Pure (no GUI side
+    // effects) so it is unit-testable.
+    QString explanationAt(int blockNumber, int positionInBlock);
+
     static constexpr int kUnderlineDropPx = 2;     // extra px below fm.underlinePos()
     static constexpr int kUnderlinePenWidthPx = 3; // thickness of painted underlines
 
@@ -74,6 +80,8 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void scrollContentsBy(int dx, int dy) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void leaveEvent(QEvent *event) override;
     bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
@@ -143,6 +151,9 @@ private:
     std::unique_ptr<GrammarChecker> m_grammarChecker;
     SpellHighlighter *m_spellHighlighter = nullptr;
     QWidget *m_underlineOverlay = nullptr;
+    // The explanation currently shown in the hover tooltip, so identical
+    // hovers do not re-trigger QToolTip::showText on every mouse move.
+    QString m_activeTooltip;
 
     // Gutter + folding
     Gutter *m_gutter = nullptr;

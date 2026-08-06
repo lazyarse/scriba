@@ -218,6 +218,55 @@ TEST_F(UnderlineOverlayTest, AmberUnderlinePaintedForBrokenLink)
     EXPECT_TRUE(found) << "amber underline must be painted under the broken link target";
 }
 
+TEST_F(UnderlineOverlayTest, ExplanationShownForMarkdownDuplicateHeading)
+{
+    QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
+    m_editor->recheckSpelling();
+    m_editor->setPlainText(QStringLiteral("# Title\n# Title"));
+    m_editor->spellHighlighter()->refresh();
+
+    // Second heading is a duplicate; the first one (and its content) is clean.
+    EXPECT_TRUE(m_editor->explanationAt(1, 3).contains(QStringLiteral("Duplicate heading")))
+        << "hovering the duplicate heading must yield the checker's message";
+    EXPECT_TRUE(m_editor->explanationAt(0, 3).isEmpty())
+        << "a clean heading must have no explanation";
+}
+
+TEST_F(UnderlineOverlayTest, ExplanationShownForBrokenLink)
+{
+    QSettings().setValue(Preferences::SpellCheckEnabled, false);
+    m_editor->recheckSpelling();
+
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    QFile exists(dir.filePath(QStringLiteral("exists.md")));
+    ASSERT_TRUE(exists.open(QIODevice::WriteOnly));
+    m_editor->setCurrentFile(dir.filePath(QStringLiteral("doc.md")));
+    m_editor->setPlainText(QStringLiteral("see [text](missing-file.md) and [text](exists.md)"));
+    m_editor->spellHighlighter()->refresh();
+
+    auto *hl = m_editor->findChild<SpellHighlighter *>();
+    ASSERT_NE(hl, nullptr);
+    const auto hits = hl->linkIssuesInBlock(0);
+    ASSERT_EQ(1, hits.size());
+
+    const QString tip = m_editor->explanationAt(0, hits[0].start + 1);
+    EXPECT_TRUE(tip.startsWith(QStringLiteral("Broken link: ")));
+    EXPECT_TRUE(tip.contains(QStringLiteral("missing-file.md")))
+        << "the tooltip must name the broken target";
+    EXPECT_TRUE(m_editor->explanationAt(0, hits[0].start + hits[0].length + 1).isEmpty())
+        << "the adjacent valid link must stay clean";
+}
+
+TEST_F(UnderlineOverlayTest, ExplanationShowsMisspelledWord)
+{
+    setDocAndHighlight(4, 60);
+    EXPECT_TRUE(m_editor->explanationAt(4, 1).contains(QStringLiteral("helo")))
+        << "hovering the typo must name the misspelled word";
+    EXPECT_TRUE(m_editor->explanationAt(0, 1).isEmpty())
+        << "a correctly-spelled line must have no explanation";
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

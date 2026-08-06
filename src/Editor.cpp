@@ -31,6 +31,7 @@
 #include <QInputDialog>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QResizeEvent>
@@ -46,6 +47,7 @@
 #include <QTextDocument>
 #include <QTextLayout>
 #include <QTimer>
+#include <QToolTip>
 #include <QAbstractTextDocumentLayout>
 
 namespace {
@@ -1381,6 +1383,69 @@ SpellHighlighter::WordHit Editor::misspelledWordAt(const QTextCursor &cursor) co
     return {};
 }
 
+QString Editor::explanationAt(int blockNumber, int positionInBlock)
+{
+    if (!m_spellHighlighter)
+        return {};
+
+    // A finding's span covers [start, start + length]. Zero-length findings
+    // (e.g. the consecutive-blank-lines check) are treated as covering the
+    // whole line so the message shows wherever the line is hovered.
+    const auto hitAt = [positionInBlock](const QVector<SpellHighlighter::GrammarHit> &hits)
+        -> const SpellHighlighter::GrammarHit * {
+        for (const SpellHighlighter::GrammarHit &hit : hits) {
+            const bool covers = hit.length == 0
+                || (positionInBlock >= hit.start
+                    && positionInBlock <= hit.start + hit.length);
+            if (covers)
+                return &hit;
+        }
+        return nullptr;
+    };
+
+    if (const SpellHighlighter::GrammarHit *hit
+        = hitAt(m_spellHighlighter->markdownHitsInBlock(blockNumber)))
+        return hit->message;
+    if (const SpellHighlighter::GrammarHit *hit
+        = hitAt(m_spellHighlighter->grammarIssuesInBlock(blockNumber)))
+        return hit->message;
+    if (const SpellHighlighter::GrammarHit *hit
+        = hitAt(m_spellHighlighter->linkIssuesInBlock(blockNumber)))
+        return QStringLiteral("Broken link: %1").arg(hit->message);
+    if (const SpellHighlighter::GrammarHit *hit
+        = hitAt(m_spellHighlighter->spellHitsInBlock(blockNumber))) {
+        const QTextBlock block = document()->findBlockByNumber(blockNumber);
+        if (block.isValid()) {
+            const QString word = block.text().mid(hit->start, hit->length);
+            if (!word.isEmpty())
+                return QStringLiteral("Misspelled word: %1").arg(word);
+        }
+    }
+    return {};
+}
+
+void Editor::mouseMoveEvent(QMouseEvent *event)
+{
+    const QTextCursor cursor = cursorForPosition(event->pos());
+    const QString tip = explanationAt(cursor.block().blockNumber(),
+                                      cursor.positionInBlock());
+    if (tip != m_activeTooltip) {
+        m_activeTooltip = tip;
+        if (tip.isEmpty())
+            QToolTip::hideText();
+        else
+            QToolTip::showText(mapToGlobal(event->pos()), tip, this);
+    }
+    QTextEdit::mouseMoveEvent(event);
+}
+
+void Editor::leaveEvent(QEvent *event)
+{
+    m_activeTooltip.clear();
+    QToolTip::hideText();
+    QTextEdit::leaveEvent(event);
+}
+
 void Editor::invalidateEmojiIconCache()
 {
     m_emojiIconCache.clear();
@@ -1838,7 +1903,6 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
             }
         }
 
-        menu.addSeparator();
         QAction *addAction = menu.addAction("Add to Dictionary: " + misspelled.text);
         connect(addAction, &QAction::triggered, this, [this, misspelled]() {
             m_spellChecker->addToUserDictionary(misspelled.text);
@@ -1913,6 +1977,19 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
             continue;
         QAction *brokenLink = menu.addAction("Broken link: " + hit.message);
         brokenLink->setEnabled(false);
+        menu.addSeparator();
+    }
+
+    // Markdown-consistency issues under the cursor (heading-level skips,
+    // duplicate headings, trailing whitespace, ...): an informational entry,
+    // same as broken links — there is no single automatic fix.
+    for (const SpellHighlighter::GrammarHit &hit
+         : m_spellHighlighter->markdownHitsInBlock(cursor.block().blockNumber())) {
+        if (cursor.positionInBlock() < hit.start
+            || cursor.positionInBlock() > hit.start + hit.length)
+            continue;
+        QAction *mdIssue = menu.addAction("Markdown: " + hit.message);
+        mdIssue->setEnabled(false);
         menu.addSeparator();
     }
 

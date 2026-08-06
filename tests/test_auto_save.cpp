@@ -14,12 +14,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 #include <QApplication>
-#include <QElapsedTimer>
-#include <QSettings>
-#include <QTest>
 #include <QTemporaryFile>
+#include <QSettings>
 #include <QTextCursor>
-#include <QTimer>
 
 #include "MainWindow.h"
 #include "Editor.h"
@@ -139,36 +136,6 @@ TEST_F(AutoSaveTest, SaveOnExitDoesNotWriteWhenDisabled) {
     ASSERT_TRUE(f.open(QIODevice::ReadOnly | QIODevice::Text));
     QString saved = QString::fromUtf8(f.readAll());
     EXPECT_EQ(saved, "original content\n");
-}
-
-TEST_F(AutoSaveTest, AcceptedPreferenceApplyKeepsEditorAppliesSynchronous) {
-    window = new MainWindow();
-    window->show();
-    QApplication::processEvents();
-
-    QSettings s;
-    s.setValue(Preferences::EditorCaretWidth, 5);
-    QApplication::processEvents();
-
-    // The editor-affecting applies must be visible immediately: the dialog's
-    // live preview keeps the editor in sync, and OK-ing must not revert it.
-    window->applyAcceptedPreferences();
-    EXPECT_EQ(window->editor()->cursorWidth(), 5)
-        << "editor settings must apply synchronously on OK";
-
-    // The WebEngine preview work must be deferred off the modal-close path. A
-    // 50ms timer armed right after the call fires well before the ~5s renderer
-    // stall that previously blocked the editor after OK-ing the preferences
-    // dialog.
-    bool fired = false;
-    QTimer::singleShot(50, QCoreApplication::instance(), [&fired]() { fired = true; });
-    QElapsedTimer t;
-    t.start();
-    while (!fired && t.elapsed() < 3000) {
-        QApplication::processEvents();
-        QTest::qWait(10);
-    }
-    EXPECT_TRUE(fired) << "preference-apply preview work blocked the GUI thread";
 }
 
 int main(int argc, char **argv) {

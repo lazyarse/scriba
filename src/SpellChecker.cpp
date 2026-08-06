@@ -341,6 +341,22 @@ void SpellChecker::applyEngineConfig()
     if (!isLoaded())
         return;
 
+    // Reconfiguring reloads every dictionary from disk and rebuilds the lookup
+    // tables — a costly, tab-count-scaling operation that ran on every
+    // Preferences OK even when nothing had changed. Skip it when the effective
+    // configuration is identical to the last one applied.
+    QStringList merged = m_userWords.values();
+    merged << m_ignoredWords.values();
+    merged << importedWords();
+    merged.removeDuplicates();
+    merged.sort();
+
+    QString key = m_language + QLatin1Char('|') + m_dialect
+                  + QLatin1Char('|') + merged.join(QLatin1Char(','));
+    if (key == m_configKey)
+        return;
+    m_configKey = key;
+
     if (m_dialect == QStringLiteral("British"))
         m_engine.setDialect(stoppard::Dialect::British);
     else if (m_dialect == QStringLiteral("Australian"))
@@ -362,15 +378,12 @@ void SpellChecker::applyEngineConfig()
                                 (bundledDictDir() + "/maori-nz.txt").toStdString(),
                                 (bundledDictDir() + "/canadian-en.txt").toStdString());
 
-    QStringList merged = m_userWords.values();
-    merged << m_ignoredWords.values();
-    merged << importedWords();
-    merged.removeDuplicates();
     std::vector<std::u16string> words;
     words.reserve(static_cast<size_t>(merged.size()));
     for (const QString &w : merged)
         words.push_back(w.toStdU16String());
     m_engine.setUserWords(std::move(words));
+    ++m_configLoads;
 }
 
 void SpellChecker::setDialect(const QString &dialect)

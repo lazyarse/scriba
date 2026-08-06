@@ -403,6 +403,35 @@ TEST_F(SpellCheckerTest, ImportedListMarkedDictionaryIsNotLanguage)
     EXPECT_FALSE(checker.loadLanguage("technical"));
 }
 
+TEST_F(SpellCheckerTest, UnchangedConfigurationSkipsRebuild)
+{
+    // Regression: every Preferences OK reapplied the engine configuration to
+    // every tab, reloading the dictionaries from disk each time — a ~5s stall
+    // that scaled with the number of open tabs even when nothing had changed.
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));   // first load rebuilds
+    EXPECT_EQ(checker.configLoads(), 1);
+
+    // Reapplying identical language and dialect is a no-op.
+    EXPECT_TRUE(checker.loadLanguage("en_US"));
+    checker.setDialect("American");               // the default, unchanged
+    EXPECT_EQ(checker.configLoads(), 1);
+
+    // A real dialect change rebuilds.
+    checker.setDialect("British");
+    EXPECT_EQ(checker.configLoads(), 2);
+
+    // Reapplying the same dialect again is a no-op.
+    checker.setDialect("British");
+    EXPECT_EQ(checker.configLoads(), 2);
+
+    // A user-dictionary change rebuilds; an identical re-add is a no-op.
+    checker.addToUserDictionary("scribadictword");
+    EXPECT_EQ(checker.configLoads(), 3);
+    checker.addToUserDictionary("scribadictword");
+    EXPECT_EQ(checker.configLoads(), 3);
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

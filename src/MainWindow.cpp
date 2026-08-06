@@ -1493,7 +1493,32 @@ void MainWindow::showPreferences()
         });
     QSettings s;
     if (dlg.exec() == QDialog::Accepted) {
-        applyAcceptedPreferences();
+        applyStyleSheetToAllEditors();
+        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
+        applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
+        updateAll();
+        updateStats();
+        for (const auto &tab : m_tabs) {
+            if (tab.editor) {
+                tab.editor->invalidateEmojiIconCache();
+                tab.editor->updateGutterSettings();
+                tab.editor->recheckSpelling();
+                applyEditorContentWidth(tab.editor);
+            }
+        }
+        applyPreviewSplitWidth();
+        updatePreview();
+
+        int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
+        if (interval > 0)
+            m_autoSaveTimer->start(interval * kMsPerMinute);
+        else
+            m_autoSaveTimer->stop();
+
+        int heavyDelay = s.value(Preferences::HeavyRenderDelay,
+            Preferences::DefaultHeavyRenderDelay).toInt();
+        if (m_previewInitialized)
+            m_preview->page()->runJavaScript(QString("window._scribaHeavyDelay=%1").arg(heavyDelay));
     } else {
         m_cssConfig->setActiveStylesheet(oldStylesheet);
         m_cssLoader->invalidateCache();
@@ -1501,58 +1526,6 @@ void MainWindow::showPreferences()
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
         applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
     }
-}
-
-void MainWindow::applyAcceptedPreferences()
-{
-    QSettings s;
-
-    // Synchronous, editor-affecting applies. These never touch QtWebEngine and
-    // must take effect immediately so the visible editor matches the dialog.
-    applyStyleSheetToAllEditors();
-    applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
-    applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
-
-    int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
-    if (interval > 0)
-        m_autoSaveTimer->start(interval * kMsPerMinute);
-    else
-        m_autoSaveTimer->stop();
-
-    for (const auto &tab : m_tabs) {
-        if (tab.editor) {
-            tab.editor->invalidateEmojiIconCache();
-            tab.editor->updateGutterSettings();
-            tab.editor->recheckSpelling();
-            applyEditorContentWidth(tab.editor);
-        }
-    }
-
-    // Everything below escalates into QtWebEngine (runJavaScript/scribaUpdate).
-    // Issued synchronously right after QDialog::exec() unwinds, the renderer IPC
-    // that the modal event loop starved the renderer process of all lands at once
-    // and blocks the GUI thread for seconds. Defer the preview work one
-    // event-loop turn so the modal unwind and pending renderer messages drain
-    // first; coalesce so rapid OK-clicking schedules at most one deferred tail.
-    if (m_deferredPrefsTailPending)
-        return;
-    m_deferredPrefsTailPending = true;
-    QTimer::singleShot(0, this, [this]() {
-        m_deferredPrefsTailPending = false;
-        syncCssWatcher();
-        refreshPreviewCss();
-        applyStripeSetting();
-        applyCodeLangSetting();
-        updateStats();
-        applyPreviewSplitWidth();
-        updatePreview();
-        if (m_previewInitialized) {
-            QSettings prefs;
-            int heavyDelay = prefs.value(Preferences::HeavyRenderDelay,
-                Preferences::DefaultHeavyRenderDelay).toInt();
-            m_preview->page()->runJavaScript(QString("window._scribaHeavyDelay=%1").arg(heavyDelay));
-        }
-    });
 }
 
 void MainWindow::showChartBuilder()

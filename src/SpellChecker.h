@@ -43,6 +43,10 @@ public:
 
     bool checkWord(const QString &word);
     QStringList suggestions(const QString &word);
+    // How many times the engine has actually been reconfigured (dictionaries
+    // reloaded and lookup tables rebuilt). Exposed for tests to assert that
+    // reapplying an unchanged configuration is a no-op.
+    quint64 configLoads() const { return m_configLoads; }
 
     void addToUserDictionary(const QString &word);
     void removeFromUserDictionary(const QString &word);
@@ -90,6 +94,8 @@ private:
     stoppard::Engine m_engine;
     QString m_language;
     QString m_dialect = QStringLiteral("American");
+    QString m_configKey;
+    quint64 m_configLoads = 0;
     QSet<QString> m_userWords;
     QSet<QString> m_ignoredWords;
 };
