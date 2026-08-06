@@ -118,9 +118,25 @@ The NSIS installer adds Scriba to the Start Menu and registers `.md` files to op
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB
 ```
 
-Copy the `.deb` to `/tmp/` before installing if your home directory blocks `_apt`:
+Copy the `.deb` to `/tmp/` before installing — your home directory likely blocks `_apt`:
 ```bash
 cp scriba-*-Linux.deb /tmp/ && sudo apt install /tmp/scriba-*-Linux.deb
+```
+
+If you install straight from `./scriba-...deb` and your home directory is mode `700` (the default for `~/`) you may see:
+
+```
+'...scriba-...-Linux.deb' couldn't be accessed by user '_apt'. - pkgAcquire::Run (13: Permission denied)
+```
+
+and the same message for every parent directory of the `.deb`.
+
+**This is an apt behaviour, not a Scriba bug.** To isolate package acquisition, `apt` reads the file as the unprivileged `_apt` user, which must be able to traverse *every* directory above the `.deb` — not just read the file itself. `apt` can reach `/var/cache/apt/archives/` (where it downloads normally-installed packages itself), but `_apt` cannot step into a `700` home directory, so it falls back to running as root. The install still succeeds; the message is non-fatal.
+
+It surfaces for `./scriba` because it's a *locally-built* `.deb` inside a restrictive home directory — any hand-built package there triggers it, while repos-installed software never does. Fix by copying the `.deb` to a world-traversable location like `/tmp/` (above), or install without apt's sandbox:
+
+```bash
+sudo dpkg -i scriba-*-Linux.deb
 ```
 
 Output: `scriba-1.0.0-Linux.deb` (may include a `-dirty` suffix if the working tree has uncommitted changes)
