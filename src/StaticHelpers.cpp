@@ -66,34 +66,48 @@ bool isThematicBreak(const QString &line)
     return re.match(line).hasMatch();
 }
 
-QString handleListReturn(const QString &line)
+// Returns the list-marker continuation prefix for a markdown list item line
+// (e.g. "  - ", "2. ", "- [ ] "), or an empty QString when `line` isn't a list
+// item or is a thematic break. Ordered lists are incremented; task checkboxes
+// are reset to unchecked.
+static QString listMarkerPrefix(const QString &line)
 {
     if (isThematicBreak(line))
         return {};
     static QRegularExpression taskRe(R"(^(\s*)([-*+])\s+\[[ xX]\]\s?)");
     auto taskMatch = taskRe.match(line);
-    if (taskMatch.hasMatch()) {
-        QString rest = line.mid(taskMatch.capturedEnd()).trimmed();
-        if (rest.isEmpty())
-            return QString(clearSentinel);
+    if (taskMatch.hasMatch())
         return taskMatch.captured(1) + taskMatch.captured(2) + " [ ] ";
-    }
     auto match = unorderedListRe().match(line);
-    if (match.hasMatch()) {
-        QString rest = line.mid(match.capturedEnd()).trimmed();
-        if (rest.isEmpty())
-            return QString(clearSentinel);
+    if (match.hasMatch())
         return match.captured(1) + match.captured(2) + " ";
-    }
     match = orderedListRe().match(line);
-    if (match.hasMatch()) {
-        QString rest = line.mid(match.capturedEnd()).trimmed();
-        if (rest.isEmpty())
-            return QString(clearSentinel);
-        int next = match.captured(2).toInt() + 1;
-        return match.captured(1) + QString::number(next) + match.captured(3) + " ";
-    }
+    if (match.hasMatch())
+        return match.captured(1) + QString::number(match.captured(2).toInt() + 1)
+               + match.captured(3) + " ";
     return {};
+}
+
+QString handleListReturn(const QString &line)
+{
+    const QString prefix = listMarkerPrefix(line);
+    if (prefix.isEmpty())
+        return {};
+    if (line.mid(prefix.length()).trimmed().isEmpty())
+        return QString(clearSentinel);
+    return prefix;
+}
+
+QString handleListSplitReturn(const QString &line, int caretPos)
+{
+    const QString prefix = listMarkerPrefix(line);
+    if (prefix.isEmpty())
+        return {};
+    if (caretPos < prefix.length())
+        return {};
+    if (line.mid(caretPos).trimmed().isEmpty())
+        return {};
+    return prefix;
 }
 
 static int listIndentWidth(const QString &line)

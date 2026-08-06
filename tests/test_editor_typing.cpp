@@ -117,13 +117,30 @@ TEST_F(EditorTestHarness, EnterAtStartOfListItemSplitsWithoutContinuation)
     assertCursor(1, 0);
 }
 
-TEST_F(EditorTestHarness, EnterMidListItemSplitsWithoutContinuation)
+TEST_F(EditorTestHarness, EnterMidListItemContinuesList)
 {
     setContent("- abcd");
-    placeCursor(0, 2);
+    placeCursor(0, 4);
     enter();
-    EXPECT_EQ(text(), "- \nabcd");
-    assertCursor(1, 0);
+    EXPECT_EQ(text(), "- ab\n- cd");
+    assertCursor(1, 2);
+}
+
+TEST_F(EditorTestHarness, EnterMidOrderedListItemContinuesList)
+{
+    setContent("1. one two");
+    placeCursor(0, 4);
+    enter();
+    EXPECT_EQ(text(), "1. o\n2. ne two");
+    assertCursor(1, 3);
+}
+
+TEST_F(EditorTestHarness, EnterMidTaskListItemContinuesList)
+{
+    setContent("- [ ] todo now");
+    placeCursor(0, 8);
+    enter();
+    EXPECT_EQ(text(), "- [ ] to\n- [ ] do now");
 }
 
 TEST_F(EditorTestHarness, EnterAtStartOfOrderedListItemSplitsWithoutContinuation)

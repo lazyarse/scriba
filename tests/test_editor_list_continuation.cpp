@@ -239,6 +239,46 @@ TEST(HandleListReturn, DashItemStillContinues) {
     EXPECT_EQ(handleListReturn("- item"), "- ");
 }
 
+TEST(ListSplitReturn, MidLineContinuesDash) {
+    EXPECT_EQ(handleListSplitReturn("- hello", 3), "- ");
+}
+
+TEST(ListSplitReturn, MidLineContinuesTask) {
+    EXPECT_EQ(handleListSplitReturn("- [ ] todo", 8), "- [ ] ");
+}
+
+TEST(ListSplitReturn, MidLineContinuesOrdered) {
+    EXPECT_EQ(handleListSplitReturn("1. first", 3), "2. ");
+}
+
+TEST(ListSplitReturn, MidLineContinuesIndented) {
+    EXPECT_EQ(handleListSplitReturn("  - nested", 6), "  - ");
+}
+
+TEST(ListSplitReturn, CaretInsideMarkerSplitsNormally) {
+    EXPECT_EQ(handleListSplitReturn("- hello", 1), QString());
+}
+
+TEST(ListSplitReturn, CaretAtStartSplitsNormally) {
+    EXPECT_EQ(handleListSplitReturn("- hello", 0), QString());
+}
+
+TEST(ListSplitReturn, NothingAfterCaretSplitsNormally) {
+    EXPECT_EQ(handleListSplitReturn("- hello", 7), QString());
+}
+
+TEST(ListSplitReturn, OnlyTrailingWhitespaceSplitsNormally) {
+    EXPECT_EQ(handleListSplitReturn("- hi  ", 4), QString());
+}
+
+TEST(ListSplitReturn, PlainTextReturnsEmpty) {
+    EXPECT_EQ(handleListSplitReturn("just text", 5), QString());
+}
+
+TEST(ListSplitReturn, ThematicBreakReturnsEmpty) {
+    EXPECT_EQ(handleListSplitReturn("---", 2), QString());
+}
+
 TEST(TableReturn, ContinuationReturnsRow) {
     EXPECT_EQ(handleTableReturn("| a | b |", "| x | y |"), "|  |  |");
 }

@@ -205,6 +205,15 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 insertPlainText(result);
                 return;
             }
+        } else {
+            // Splitting a list item mid-line should carry the list marker onto
+            // the new line instead of leaving a bare paragraph split.
+            QString marker = handleListSplitReturn(line, cursor.positionInBlock());
+            if (!marker.isEmpty()) {
+                QTextEdit::keyPressEvent(event);
+                insertPlainText(marker);
+                return;
+            }
         }
 
         QTextBlock prevBlock = cursor.block().previous();
