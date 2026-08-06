@@ -70,6 +70,22 @@ bool extractHtmlPath(const QString &line, int cursorPos, QString &value);
 int htmlPathReplaceStart(const QString &line, int cursorPos);
 bool extractEmojiCode(const QString &line, int cursorPos, QString &partialCode);
 
+// Shared emoji catalog and rendering (used by both the editor autocomplete and
+// the Emoji Picker dialog). Parsed once from :/emoji.js; `codePoint` is the
+// twemoji SVG filename stem (unqualified, fe0f stripped when possible).
+struct EmojiEntry {
+    QString shortcode;
+    QString unicode;
+    QString codePoint;
+};
+QList<EmojiEntry> emojiCatalog();
+// Resolves a unicode emoji string to its bundled twemoji resource path
+// (:/twemoji/svg/<stem>.svg) or an empty QString when no SVG is available.
+QString emojiTwemojiPath(const QString &unicode);
+// Renders `unicode` into a `size`x`size` pixmap honoring the EmojiMode setting:
+// color renders the twemoji SVG, bw the Symbola glyph. Transparent background.
+QPixmap renderEmojiPixmap(const QString &unicode, int size);
+
 // Typo autocorrect: returns the replacement for the word ending at cursorPos, or
 // an empty QString when no configured "typo=replacement" pair applies. Matching
 // is case-insensitive and the replacement preserves the typed word's case

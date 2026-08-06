@@ -14,6 +14,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+#include "StaticHelpers.h"
+
 #include <QDialog>
 #include <QString>
 #include <QList>
@@ -40,17 +42,7 @@ private slots:
     void onItemClicked(QListWidgetItem *item);
 
 private:
-    struct EmojiEntry {
-        QString shortcode;
-        QString unicode;
-        QString codePoint;
-    };
-
     void loadEmojiData();
-    void rebuildGrid();
-    static QString unicodeToCodePoint(const QString &unicode);
-    static QString stripFe0f(const QString &codePoint);
-    bool resolveSvgPath(EmojiEntry &entry) const;
 
     QLineEdit *m_searchBox;
     QListWidget *m_list;

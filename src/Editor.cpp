@@ -24,7 +24,6 @@
 #include <QCompleter>
 #include <QContextMenuEvent>
 #include <QDir>
-#include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QFontMetrics>
@@ -39,7 +38,6 @@
 #include <QSettings>
 #include <QStandardItemModel>
 #include <QStringListModel>
-#include <QSvgRenderer>
 #include <QTextBlock>
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
@@ -924,19 +922,9 @@ void Editor::acceptCompletion(const QString &completion)
 
 void Editor::loadEmojiShortcodes()
 {
-    QFile file(":/emoji.js");
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return;
-
-    QString content = QString::fromUtf8(file.readAll());
-    static const QRegularExpression re(R"('([a-z0-9_+\-]+)'\s*:\s*'([^']+)')");
-    auto it = re.globalMatch(content);
-    while (it.hasNext()) {
-        auto match = it.next();
-        QString name = match.captured(1);
-        QString unicode = match.captured(2);
-        m_emojiShortcodes.append(name);
-        m_emojiUnicode[name] = unicode;
+    for (const EmojiEntry &entry : emojiCatalog()) {
+        m_emojiShortcodes.append(entry.shortcode);
+        m_emojiUnicode[entry.shortcode] = entry.unicode;
     }
     m_emojiShortcodes.removeDuplicates();
     m_emojiShortcodes.sort();
@@ -1016,56 +1004,7 @@ QPixmap Editor::renderEmojiIcon(const QString &emojiStr) const
     if (auto it = m_emojiIconCache.find(emojiStr); it != m_emojiIconCache.end())
         return *it;
 
-    QPixmap pix(18, 18);
-    pix.fill(Qt::transparent);
-    QPainter painter(&pix);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    QString mode = QSettings().value(Preferences::EmojiMode,
-        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
-
-    if (mode == "color") {
-        QStringList parts;
-        for (int i = 0; i < emojiStr.size();) {
-            uint code = emojiStr[i].unicode();
-            if (code >= 0xD800 && code <= 0xDBFF && i + 1 < emojiStr.size()) {
-                uint low = emojiStr[i + 1].unicode();
-                code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
-                i += 2;
-            } else {
-                i += 1;
-            }
-            parts.append(QString::number(code, 16));
-        }
-        QStringList stripped = parts;
-        stripped.removeAll("fe0f");
-        QString svgPath;
-        for (const QString &candidate : {stripped.join("-"), parts.join("-")}) {
-            QString path = QString(":/twemoji/svg/%1.svg").arg(candidate);
-            if (QFile::exists(path)) {
-                svgPath = path;
-                break;
-            }
-        }
-        if (!svgPath.isEmpty()) {
-            QSvgRenderer renderer(svgPath);
-            renderer.render(&painter, QRectF(0, 0, 18, 18));
-        } else {
-            QFont font("Symbola");
-            font.setPixelSize(16);
-            painter.setFont(font);
-            painter.setPen(Qt::black);
-            painter.drawText(QRect(0, 0, 18, 18), Qt::AlignCenter, emojiStr);
-        }
-    } else {
-        QFont font("Symbola");
-        font.setPixelSize(16);
-        painter.setFont(font);
-        painter.setPen(Qt::black);
-        painter.drawText(QRect(0, 0, 18, 18), Qt::AlignCenter, emojiStr);
-    }
-
-    painter.end();
+    QPixmap pix = renderEmojiPixmap(emojiStr, 18);
     m_emojiIconCache[emojiStr] = pix;
     return pix;
 }

@@ -18,6 +18,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSet>
 
 TEST(EscapeJsStringTest, EmptyString) {
     EXPECT_EQ(escapeJsString(""), "");
@@ -315,6 +316,62 @@ TEST(FormatMdTableTest, Idempotent) {
     QString once = formatMdTable(rows);
     QString twice = formatMdTable(once.split('\n'));
     EXPECT_EQ(once, twice);
+}
+
+TEST(EmojiCatalogTest, ParsesNonEmpty) {
+    EXPECT_FALSE(emojiCatalog().isEmpty());
+}
+
+TEST(EmojiCatalogTest, ShortcodesUnique) {
+    QSet<QString> seen;
+    for (const EmojiEntry &e : emojiCatalog()) {
+        EXPECT_FALSE(seen.contains(e.shortcode)) << "duplicate shortcode " << e.shortcode.toUtf8().constData();
+        seen.insert(e.shortcode);
+    }
+}
+
+TEST(EmojiCatalogTest, SortedAlphabetically) {
+    const QList<EmojiEntry> catalog = emojiCatalog();
+    for (int i = 1; i < catalog.size(); ++i)
+        EXPECT_LT(catalog[i - 1].shortcode, catalog[i].shortcode);
+}
+
+TEST(EmojiCatalogTest, KnowShortcodesPresent) {
+    QStringList codes;
+    for (const EmojiEntry &e : emojiCatalog())
+        codes << e.shortcode;
+    EXPECT_TRUE(codes.contains("smile"));
+    EXPECT_TRUE(codes.contains("heartpulse"));
+    EXPECT_TRUE(codes.contains("woman-facepalming"));
+}
+
+TEST(EmojiCatalogTest, CodePointConsistentWithTwemojiPath) {
+    for (const EmojiEntry &e : emojiCatalog()) {
+        EXPECT_FALSE(e.codePoint.isEmpty());
+        const QString svg = QString(":/twemoji/svg/%1.svg").arg(e.codePoint);
+        if (QFile::exists(svg))
+            EXPECT_EQ(emojiTwemojiPath(e.unicode), svg);
+        else
+            EXPECT_TRUE(emojiTwemojiPath(e.unicode).isEmpty())
+                << e.shortcode.toUtf8().constData() << " has an SVG but no codePoint SVG";
+    }
+}
+
+TEST(EmojiTwemojiPathTest, SimpleEmojiResolves) {
+    // 😄 (U+1F604) has a plain SVG, no fe0f stripping.
+    EXPECT_EQ(emojiTwemojiPath(QString::fromUtf8("\xF0\x9F\x98\x84")),
+        ":/twemoji/svg/1f604.svg");
+}
+
+TEST(EmojiTwemojiPathTest, ZWJSequenceFallsBackToFullCodepoints) {
+    // 🤦&zwj;♀️ keeps its fe0f in the twemoji filename, so the stripped
+    // candidate must not win.
+    EXPECT_EQ(emojiTwemojiPath(QString::fromUtf8("\xF0\x9F\xA4\xA6\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F")),
+        ":/twemoji/svg/1f926-200d-2640-fe0f.svg");
+}
+
+TEST(EmojiTwemojiPathTest, UnknownReturnsEmpty) {
+    EXPECT_TRUE(emojiTwemojiPath("not-an-emoji").isEmpty());
 }
 
 

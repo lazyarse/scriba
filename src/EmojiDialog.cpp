@@ -22,9 +22,6 @@
 #include <QLabel>
 #include <QDialogButtonBox>
 #include <QSettings>
-#include <QFile>
-#include <QRegularExpression>
-#include <QSvgRenderer>
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
@@ -104,58 +101,7 @@ QString EmojiDialog::selectedShortcode() const
 
 void EmojiDialog::loadEmojiData()
 {
-    QFile file(":/emoji.js");
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return;
-
-    QString content = QString::fromUtf8(file.readAll());
-
-    QRegularExpression re(R"('([a-z0-9_+\-]+)'\s*:\s*'([^']+)')");
-    auto it = re.globalMatch(content);
-
-    while (it.hasNext()) {
-        auto match = it.next();
-        EmojiEntry entry;
-        entry.shortcode = match.captured(1);
-        entry.unicode = match.captured(2);
-        entry.codePoint = unicodeToCodePoint(entry.unicode);
-        resolveSvgPath(entry);
-        m_all.append(entry);
-    }
-}
-
-QString EmojiDialog::unicodeToCodePoint(const QString &unicode)
-{
-    QStringList parts;
-    auto ucs4 = unicode.toUcs4();
-    for (uint cp : ucs4)
-        parts.append(QString::number(cp, 16));
-    return parts.join('-');
-}
-
-QString EmojiDialog::stripFe0f(const QString &codePoint)
-{
-    QStringList parts = codePoint.split('-');
-    parts.removeAll("fe0f");
-    return parts.join('-');
-}
-
-bool EmojiDialog::resolveSvgPath(EmojiEntry &entry) const
-{
-    QString path = QString(":/twemoji/svg/%1.svg").arg(entry.codePoint);
-    if (QFile::exists(path))
-        return true;
-
-    QString stripped = stripFe0f(entry.codePoint);
-    if (stripped != entry.codePoint) {
-        path = QString(":/twemoji/svg/%1.svg").arg(stripped);
-        if (QFile::exists(path)) {
-            entry.codePoint = stripped;
-            return true;
-        }
-    }
-
-    return false;
+    m_all = emojiCatalog();
 }
 
 void EmojiDialog::filterEmoji(const QString &text)
@@ -178,46 +124,20 @@ void EmojiDialog::filterEmoji(const QString &text)
         QPixmap pix(iconSize, iconSize);
         pix.fill(Qt::transparent);
 
-        if (m_colorMode) {
-            QString svgPath = QString(":/twemoji/svg/%1.svg").arg(entry.codePoint);
-            if (QFile::exists(svgPath)) {
-                QPainter painter(&pix);
-                painter.setRenderHint(QPainter::Antialiasing);
-                if (darkBg) {
-                    painter.setBrush(QColor(220, 220, 220));
-                    painter.setPen(Qt::NoPen);
-                    painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
-                }
-                QSvgRenderer renderer(svgPath);
-                renderer.render(&painter, QRectF(0, 0, iconSize, iconSize));
-            } else {
-                QPainter painter(&pix);
-                painter.setRenderHint(QPainter::Antialiasing);
-                if (darkBg) {
-                    painter.setBrush(QColor(220, 220, 220));
-                    painter.setPen(Qt::NoPen);
-                    painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
-                }
-                QFont f = painter.font();
-                f.setPixelSize(iconSize - 6);
-                painter.setFont(f);
-                painter.setPen(darkBg ? Qt::black : Qt::darkGray);
-                painter.drawText(QRect(0, 0, iconSize, iconSize), Qt::AlignCenter, entry.unicode);
-            }
-        } else {
+        // A light disc sits behind glyph-rendered emoji on dark themes (color
+        // mode with a real twemoji SVG doesn't need one). The shared renderer
+        // supplies the glyph/SVG, so the disc is composited underneath.
+        bool svgShown = m_colorMode && !emojiTwemojiPath(entry.unicode).isEmpty();
+        if (darkBg && !svgShown) {
             QPainter painter(&pix);
             painter.setRenderHint(QPainter::Antialiasing);
-            if (darkBg) {
-                QColor circle(220, 220, 220);
-                painter.setBrush(circle);
-                painter.setPen(Qt::NoPen);
-                painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
-            }
-            QFont f = painter.font();
-            f.setPixelSize(iconSize - 6);
-            painter.setFont(f);
-            painter.setPen(darkBg ? Qt::black : Qt::darkGray);
-            painter.drawText(QRect(0, 0, iconSize, iconSize), Qt::AlignCenter, entry.unicode);
+            painter.setBrush(QColor(220, 220, 220));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(QRectF(2, 2, iconSize - 4, iconSize - 4));
+        }
+        {
+            QPainter painter(&pix);
+            painter.drawPixmap(0, 0, renderEmojiPixmap(entry.unicode, iconSize));
         }
 
         auto *item = new QListWidgetItem(QIcon(pix), entry.shortcode);

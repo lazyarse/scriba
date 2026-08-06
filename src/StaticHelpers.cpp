@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "StaticHelpers.h"
+#include "Preferences.h"
 #include <algorithm>
 #include <QRegularExpression>
 #include <QXmlStreamReader>
@@ -26,6 +27,10 @@
 #include <QAbstractButton>
 #include <QPair>
 #include <QVector>
+#include <QSet>
+#include <QSettings>
+#include <QFont>
+#include <QRect>
 
 QString escapeJsString(const QString &s)
 {
@@ -490,6 +495,90 @@ QString readResourceFile(const QString &path)
     if (f.open(QIODevice::ReadOnly | QIODevice::Text))
         return QString::fromUtf8(f.readAll());
     return {};
+}
+
+QList<EmojiEntry> emojiCatalog()
+{
+    static QList<EmojiEntry> catalog;
+    if (!catalog.isEmpty())
+        return catalog;
+
+    static const QRegularExpression re(R"('([a-z0-9_+\-]+)'\s*:\s*'([^']+)')");
+    auto it = re.globalMatch(readResourceFile(":/emoji.js"));
+    QSet<QString> seen;
+    while (it.hasNext()) {
+        auto match = it.next();
+        EmojiEntry entry;
+        entry.shortcode = match.captured(1);
+        entry.unicode = match.captured(2);
+
+        QStringList parts;
+        for (uint cp : entry.unicode.toUcs4())
+            parts.append(QString::number(cp, 16));
+        QStringList stripped = parts;
+        stripped.removeAll("fe0f");
+        QString strippedStr = stripped.join("-");
+        entry.codePoint = QFile::exists(QString(":/twemoji/svg/%1.svg").arg(strippedStr))
+            ? strippedStr : parts.join("-");
+
+        if (seen.contains(entry.shortcode))
+            continue;
+        seen.insert(entry.shortcode);
+        catalog.append(entry);
+    }
+    std::sort(catalog.begin(), catalog.end(),
+              [](const EmojiEntry &a, const EmojiEntry &b) { return a.shortcode < b.shortcode; });
+    return catalog;
+}
+
+QString emojiTwemojiPath(const QString &unicode)
+{
+    QStringList parts;
+    for (uint cp : unicode.toUcs4())
+        parts.append(QString::number(cp, 16));
+    QStringList stripped = parts;
+    stripped.removeAll("fe0f");
+    for (const QString &candidate : {stripped.join("-"), parts.join("-")}) {
+        QString path = QString(":/twemoji/svg/%1.svg").arg(candidate);
+        if (QFile::exists(path))
+            return path;
+    }
+    return {};
+}
+
+QPixmap renderEmojiPixmap(const QString &unicode, int size)
+{
+    QPixmap pix(size, size);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    bool color = Preferences::emojiRenderingFromString(
+        QSettings().value(Preferences::EmojiMode,
+                          Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString())
+        == Preferences::EmojiRendering::Color;
+
+    if (color) {
+        QString svgPath = emojiTwemojiPath(unicode);
+        if (!svgPath.isEmpty()) {
+            QSvgRenderer renderer(svgPath);
+            renderer.render(&painter, QRectF(0, 0, size, size));
+        } else {
+            QFont font("Symbola");
+            font.setPixelSize(size - 2);
+            painter.setFont(font);
+            painter.setPen(Qt::black);
+            painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, unicode);
+        }
+    } else {
+        QFont font("Symbola");
+        font.setPixelSize(size - 2);
+        painter.setFont(font);
+        painter.setPen(Qt::black);
+        painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, unicode);
+    }
+
+    return pix;
 }
 
 QString duplicateCssFile(const QString &sourcePath, const QString &destDir, const QString &baseName)
