@@ -48,7 +48,6 @@ scriba/
 │   ├── test_cursor_restore.cpp
 │   ├── test_katex_integration.cpp
 │   ├── test_readability.cpp
-│   ├── test_vegalite_dialog.cpp
 │   ├── test_editor_autocomplete.cpp
 │   ├── test_editor_completion_ui.cpp
 │   ├── test_scroll_sync.cpp
@@ -238,7 +237,7 @@ Full builds are heavy (WebEngine resources, JS bundles, many test targets), so g
 
 ```bash
 cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j$(nproc)
-cd build-dbg && ctest --output-on-failure -j1
+cd build-dbg && ctest --output-on-failure -j4
 ```
 
 Use true `Debug`, not `RelWithDebInfo` — RelWithDebInfo still compiles at `-O2`/`-O3`, so it builds at Release speed with none of the dev-loop benefit. Debug compiles far faster (the ~10 test targets each recompile `MainWindow.cpp` plus ~35 other sources), at the cost of slower test runtimes — which barely matters since most tests are bound by WebEngine startup, not CPU.
@@ -268,7 +267,9 @@ Every test binary starts from `tests/TestConfig.h` (`setupTestConfig()`), which 
 - QSettings data lands in `~/.config/scribaTest/scribaTest.conf` (org/app = `scribaTest`), not the real app's `~/.config/scriba/scriba.conf`
 - File-based config (base CSS, themes, spell-check dictionaries) is redirected via the `SCRIBA_TEST_CONFIG_DIR` env var, honoured by `CssUtils::scribaConfigDir()` (used by `CssLoader::configDir()` and `SpellChecker::configDictDir()`)
 
-Suites with their own `main()` call `setupTestConfig()` right after creating the `QApplication`; the 3 config-focused suites (`test_css_loader`, `test_settings_migration`, `test_css_config`) link the shared `scriba_test_main` static library instead of `GTest::gtest_main`. **Never write outside `~/.config/scribaTest/` from a test** — the real user config in `~/.config/scriba/` must stay untouched by test runs.
+Suites with their own `main()` call `setupTestConfig()` right after creating the `QApplication`; the config-focused suites (`test_css_loader`, `test_settings_migration`, `test_css_config`, `test_css_highlighter`) link the shared `scriba_test_main` static library instead of `GTest::gtest_main`. **Never write outside `~/.config/scribaTest/` from a test** — the real user config in `~/.config/scriba/` must stay untouched by test runs.
+
+Tests run in parallel under `ctest -jN`: `setupTestConfig()` keys each suite's config dir on its PID so non-WebEngine suites never collide. Any test that spawns QtWebEngine (links `Qt6::WebEngineWidgets`, constructs a `QWebEngineView`/`QWebEnginePage`, or pulls in `src/Preview.cpp`/`MainWindow.cpp`/a dialog `.cpp` that creates one) MUST be added to the `set_tests_properties(... PROPERTIES RESOURCE_LOCK webkit)` block in `CMakeLists.txt`, serializing it against the other WebEngine suites — concurrent WebEngine processes cause flaky failures.
 
 ## Base CSS Versioning
 
