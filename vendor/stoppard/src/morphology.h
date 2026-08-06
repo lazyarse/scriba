@@ -33,6 +33,7 @@ struct VerbFormInfo {
 
 VerbForms lookupVerbForms(std::u16string_view lemma);      // full paradigm (regular rules + irregular table)
 VerbFormInfo classifyVerbForm(std::u16string_view word);   // word -> (lemma, form); unknown for bare non-table words
+bool isIrregularVerbBase(std::u16string_view word);        // member of the closed irregular-verb base table
 std::u16string pluralize(std::u16string_view noun);
 std::u16string singularize(std::u16string_view noun);
 int nounNumber(std::u16string_view noun);                  // -1, +1, 0 unknown/both

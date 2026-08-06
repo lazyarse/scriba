@@ -145,6 +145,10 @@ public:
             }
             case AuxVerb::Be: {
                 if (verb.pos != PosTag::Verb && verb.pos != PosTag::Auxiliary) continue;
+                // A following Be auxiliary is a copula chain ("at 2am is
+                // difficult" -> am/is), not a gerund error. Have/Do after Be
+                // stay flagged ("I am has" -> "having").
+                if (verb.pos == PosTag::Auxiliary && verb.auxVerb == AuxVerb::Be) continue;
                 const VerbForm f = formOf(verb);
                 if (f == VerbForm::ThirdSingular || f == VerbForm::Past) {
                     const VerbForms vf = lookupVerbForms(lemmaOf(verb));

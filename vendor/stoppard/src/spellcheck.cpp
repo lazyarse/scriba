@@ -654,9 +654,9 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
     // so a candidate scoring exactly thresh is dropped.
     // STOPPARD_NGRAM_THRESH_GE=1 switches the boundary to >= for measurement.
     const bool threshGE = std::getenv("STOPPARD_NGRAM_THRESH_GE") != nullptr;
-    const int scanCap = [] {
+    const size_t scanCap = [] {
         const char *v = std::getenv("STOPPARD_SCAN_CAP");
-        return v ? std::max(10, std::atoi(v)) : 100;
+        return v ? size_t(std::max(10, std::atoi(v))) : 100;
     }();
 
     if (dbg)
@@ -756,7 +756,6 @@ void ngramSuggest(SugContext &c, std::u16string_view typo)
     std::stable_sort(order.begin(), order.end(),
                      [&](size_t a, size_t b) { return gscores[a] > gscores[b]; });
 
-    const size_t oldns = c.wlst.size();
     int same = 0;
     for (size_t idx : order) {
         // Collect into the shared pool (M11): the final ranking decides the

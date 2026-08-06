@@ -22,7 +22,9 @@ add_library(stoppard STATIC
     src/rules_regionalisms.cpp
     src/rules_confusion.cpp
     src/rules_pronoun_numeral.cpp
+    src/rules_capitalization.cpp
     src/spellcheck.cpp
+    src/pos.cpp
     src/engine.cpp
 )
 target_include_directories(stoppard PUBLIC include)

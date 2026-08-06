@@ -245,6 +245,7 @@ std::u16string pastOf(std::u16string_view base)
 
 std::u16string gerundOf(std::u16string_view base)
 {
+    if (base == u"be") return u"being";   // single-letter stem keeps its e
     if (base.size() >= 2 && base.back() == u'e') {
         if (base[base.size() - 2] == u'e') return std::u16string(base) + u"ing";
         if (base.size() >= 2 && base[base.size() - 2] == u'i') return std::u16string(base.substr(0, base.size() - 2)) + u"ying";
@@ -373,6 +374,12 @@ std::u16string toLower(std::u16string_view word)
 }
 
 } // namespace
+
+bool isIrregularVerbBase(std::u16string_view word)
+{
+    const std::u16string key = toLower(word);
+    return findVerb(key) != nullptr;
+}
 
 std::u16string matchCase(std::u16string_view source, std::u16string out)
 {

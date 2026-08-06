@@ -29,7 +29,7 @@ Use true `Debug`, NOT `RelWithDebInfo`: RelWithDebInfo still compiles at `-O2`/`
 # clean only needed after branch switches (stale _autogen dirs);
 # normal incremental rebuilds: skip clean, just configure + build
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build build -j4
-timeout 7 build/scriba || true   # smoke-test the freshly linked binary — AFTER this build
+timeout 10 build/scriba || true   # smoke-test the freshly linked binary — AFTER this build
 ```
 
 Binary: `build/scriba`
@@ -43,7 +43,7 @@ Full check after any code/resource change:
 1. `cmake --build build-dbg -j4` — dev/test loop build
 2. `cd build-dbg && ctest --output-on-failure -j4` — tests pass
 3. `cmake --build build -j4` — rebuild the Release binary
-4. `timeout 7 build/scriba || true` — smoke-test the **freshly** built Release binary
+4. `timeout 10 build/scriba || true` — smoke-test the **freshly** built Release binary
 
 Step 4 must come AFTER step 3. Running it right after step 1/2 smoke-tests a stale `build/scriba` from the previous Release build.
 
@@ -122,7 +122,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 - Tests must only ever touch `~/.config/scribaTest/` (see `tests/TestConfig.h` / `setupTestConfig()`); never write to the real `~/.config/scriba/` from a test. Suites with a custom `main()` must call `setupTestConfig()`; config-focused suites link the `scriba_test_main` static library
 - Dialog buttons (QDialogButtonBox and standalone QPushButton) must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`. Add `&` keyboard shortcuts to all dialog buttons where possible (unique per dialog).
 - Always rebuild after making changes — CSS, resource, or source files all require a rebuild to take effect
-- After building the Release binary, run it briefly to check for segfaults: `timeout 7 build/scriba || true`. This must run AFTER `cmake --build build -j4` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build (see the ordered Verification sequence under Build)
+- After building the Release binary, run it briefly to check for segfaults: `timeout 10 build/scriba || true`. This must run AFTER `cmake --build build -j4` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build (see the ordered Verification sequence under Build)
 - Only rebuild the .deb package when explicitly asked to — do not rebuild it automatically after changes
 - After adding a new keyboard shortcut, update `resources/shortcuts.html` to document it
 - After adding a new menu item or any significant UI change, update `docs/images/screenshot.png` by running `scripts/update-screenshot.sh`
@@ -144,6 +144,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev
 
 - `vendor/md4c/` contains the vendored markdown parser with local patches in `vendor/md4c/patches/`. To upgrade md4c: copy new upstream `src/*` into `vendor/md4c/src/`, then `git apply vendor/md4c/patches/*.patch` from the repo root. If patches fail, rework and update the .patch files.
 - `vendor/mathml2omml/` is the vendored MathML↔OMML library (v3.0.0, working copy — local changes go straight into it, no patch workflow). To upgrade: copy new upstream `mathml2omml.{cpp,h}` over the vendored ones. The v3.0.0 API uses `std::string_view` throughout (`XmlSink` methods, `convert()` params) and the string-returning `convert()` returns `std::expected<std::string, std::string>`; `src/HtmlToOoxml.cpp` (`QtOmmlSink`) has been adapted accordingly.
+- `vendor/stoppard/` carries a local `foldWord` fork-fix (see `vendor/stoppard/AGENTS.md` → Vendored drift) — re-apply it after every stoppard sync until the fix lands upstream.
 - Tests exist in `tests/` — run with `cd build-dbg && ctest --output-on-failure -j4` after building `build-dbg` with `-DBUILD_TESTS=ON`. Always run ctest from `build-dbg/` — running it from the repo root finds no tests and leaves a `Testing/Temporary/` bookkeeping dir in the source tree (gitignored via `/Testing/`, but still clutter). Tests auto-wrap in `xvfb-run` when available. Running in parallel is safe: WebEngine-spawning suites are serialized against each other via `RESOURCE_LOCK webkit` in `CMakeLists.txt`, and `setupTestConfig()` (tests/TestConfig.h) isolates each test's config into a per-process temp dir (`QDir::tempPath()`, wiped on use), so parallel runs can't collide on a shared config file. `-j4` runs the whole suite in roughly half the wall time of `-j1` with no flakes.
 - Editor typing integration tests (`test_editor_typing`) drive the real `Editor` widget with `QTest` key events — no WebEngine, deterministic input. Tests asserting exact sentinel semantics (empty list marker clears to a bare newline, blank table row exits the table) verify real `keyPressEvent` behaviour: if they fail it is a genuine behaviour regression, NOT flakiness. Do not rerun to "confirm" — investigate.
 - `QTextDocument::contentsChange` vs `contentsChanged` (verified empirically against Qt 6.10): on a bare `QTextDocument`, `QTextCursor::insertText()` emits ONLY `contentsChanged` — no `contentsChange`. Typing into a real `QTextEdit` (or `QTextCursor` on its document) does emit `contentsChange` with real removed/added counts. Format-only work (`QSyntaxHighlighter::rehighlight()`, spell/syntax highlighting) emits `contentsChange` with `(0, 0)` in-app. So: tests asserting `contentsChange`-driven behavior (e.g. grammar-lint scheduling) must drive a real `QTextEdit` via `QTest::keyClicks`/`keyClicks`, and code that must react only to real edits should connect `contentsChange` and skip `removed == 0 && added == 0` (see `SpellHighlighter::scheduleGrammarLint` and `MainWindow.cpp:342`).

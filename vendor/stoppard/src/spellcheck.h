@@ -24,6 +24,12 @@
 
 namespace stoppard {
 
+// Accent-insensitive, case-insensitive fold applied to dictionary entries
+// and to every token before lookup. Exposed so the engine can fold user-word
+// entries the same way (otherwise a capitalized add never matches the folded
+// lookup). Mirrors dictionary handling in SpellData::load().
+std::u16string foldWord(std::u16string_view s);
+
 // Spelling (R14, SPEC §19). Immutable after load; safe to share across
 // threads. Loaded from the paths a consumer supplies (plain word lists, one
 // word per line — see data/ and scripts/fetch_dictionaries.py).
@@ -72,12 +78,6 @@ private:
     // word-frequency ranking research backlog, landed at M11).
     std::unordered_map<std::u16string, uint32_t> m_freq;
 };
-
-// Accent-insensitive, case-insensitive fold applied to dictionary entries
-// and to every token before lookup. Exposed so the engine can fold user-word
-// entries the same way (otherwise a capitalized add never matches the folded
-// lookup). Mirrors dictionary handling in SpellData::load().
-std::u16string foldWord(std::u16string_view s);
 
 // Shared single-word spelling check (SPEC §19.5 token policy), used by
 // runSpelling and the Engine's per-word API. Returns the folded form

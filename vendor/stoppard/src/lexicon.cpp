@@ -224,6 +224,7 @@ constexpr Entry kLexicon[] = {
     {u"throughout", {WordTag::Preposition}},
     {u"tiny", {WordTag::Adjective}},
     {u"to",   {WordTag::Preposition}},
+    {u"too",  {WordTag::Adverb}},
     {u"toward", {WordTag::Preposition}},
     {u"towards", {WordTag::Preposition}},
     {u"two",  {WordTag::Determiner, +1}},

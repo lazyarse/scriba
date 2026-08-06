@@ -56,6 +56,7 @@ public:
     Dialect dialect() const;
     void setDialect(Dialect d);
     void setLanguage(Language l);   // spelling dictionary (§19); default None
+    void setGrammar(bool on);       // grammar rules (default on); off = spelling-only
     void setUserWords(std::vector<std::u16string> words);  // atomic swap (§19.2)
     // Plain word-list dictionaries (one word per line). maoriPath and
     // canadianPath may be empty: the Māori exemption list (§19.7, consulted
@@ -78,6 +79,7 @@ private:
     struct Config {
         Dialect dialect = Dialect::American;
         Language language = Language::None;
+        bool grammar = true;
         std::vector<std::u16string> userWords;
     };
     std::atomic<std::shared_ptr<const Config>> m_config;

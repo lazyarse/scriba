@@ -15,6 +15,7 @@
 #include <algorithm>
 
 #include "rules.h"
+#include "rules_capitalization.h"
 #include "rules_confusion.h"
 #include "rules_double_modal.h"
 #include "rules_double_negative.h"
@@ -30,9 +31,11 @@
 namespace stoppard {
 namespace {
 
-// Explicit registry in priority order (R1..R13). Overlapping issues: earlier
+// Explicit registry in priority order (R1..R16). Overlapping issues: earlier
 // rule wins, so R1 must sort before R3 (both fire on "I can has"), and R13
-// before R6 ("Us one asked": R6's "We" would shadow R13's "One of us").
+// before R6 ("Us one asked": R6's "We" would shadow R13's "One of us"). R15
+// (sentence-start capitalization) sorts before R16 so a sentence-initial "i"
+// keeps the R15 message and R16 is deduped.
 const std::vector<const Rule*>& registry()
 {
     static const std::vector<const Rule*> rules = {
@@ -47,6 +50,8 @@ const std::vector<const Rule*>& registry()
         &doubleNegativeRule(),
         &regionalismsRule(),
         &confusionRule(),
+        &sentenceCapitalizationRule(),
+        &pronounCapitalizationRule(),
     };
     return rules;
 }

@@ -23,7 +23,7 @@
 namespace stoppard {
 
 Engine::Engine(Dialect dialect)
-    : m_config(std::make_shared<const Config>(Config{dialect, Language::None, {}}))
+    : m_config(std::make_shared<const Config>(Config{dialect, Language::None, true, {}}))
 {
 }
 
@@ -33,14 +33,21 @@ void Engine::setDialect(Dialect d)
 {
     auto cfg = m_config.load();
     m_config.store(std::make_shared<const Config>(
-        Config{d, cfg->language, cfg->userWords}));
+        Config{d, cfg->language, cfg->grammar, cfg->userWords}));
 }
 
 void Engine::setLanguage(Language l)
 {
     auto cfg = m_config.load();
     m_config.store(std::make_shared<const Config>(
-        Config{cfg->dialect, l, cfg->userWords}));
+        Config{cfg->dialect, l, cfg->grammar, cfg->userWords}));
+}
+
+void Engine::setGrammar(bool on)
+{
+    auto cfg = m_config.load();
+    m_config.store(std::make_shared<const Config>(
+        Config{cfg->dialect, cfg->language, on, cfg->userWords}));
 }
 
 void Engine::setUserWords(std::vector<std::u16string> words)
@@ -52,7 +59,7 @@ void Engine::setUserWords(std::vector<std::u16string> words)
         w = foldWord(w);
     auto cfg = m_config.load();
     m_config.store(std::make_shared<const Config>(
-        Config{cfg->dialect, cfg->language, std::move(words)}));
+        Config{cfg->dialect, cfg->language, cfg->grammar, std::move(words)}));
 }
 
 void Engine::setDictionaryPaths(std::string enUSPath, std::string enGBPath,
@@ -96,7 +103,8 @@ std::vector<Issue> Engine::check(std::u16string_view text) const
     // Snapshot the config once; grammar and spelling then see one
     // consistent view, so the no-mutex thread-safety contract holds.
     auto cfg = m_config.load();
-    auto issues = runAll(text, cfg->dialect);
+    auto issues = cfg->grammar ? runAll(text, cfg->dialect)
+                               : std::vector<Issue>{};
     if (cfg->language != Language::None) {
         auto data = m_spellData.load();
         if (data) {

@@ -202,6 +202,7 @@ std::vector<TaggedToken> tag(std::u16string_view text)
                 if (const auto *lex = lookupWord(part))
                     pt = tagLexeme(*lex);
                 pt.token = {TokenKind::Word, tok.start + off, static_cast<int>(part.size())};
+                pt.fromLexicon = pt.pos != PosTag::Unknown;
                 updateContexts(pt, verbCtx, nounCtx);
                 modalCtx = nextModalCtx(pt, modalCtx);
                 out.push_back(pt);
@@ -214,6 +215,7 @@ std::vector<TaggedToken> tag(std::u16string_view text)
         if (const auto *lex = lookupWord(word)) {
             TaggedToken lt = tagLexeme(*lex);
             lt.token = tok;
+            lt.fromLexicon = true;
             afterTo = false;
             const bool isTo = lt.pos == PosTag::Preposition && word == u"to";
             if (isTo) {

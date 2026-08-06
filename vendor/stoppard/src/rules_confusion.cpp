@@ -17,11 +17,13 @@
 // pair is flagged when it occurs in a text slot that provably requires its
 // sibling: "I like swimming to." -> "too", "its going to rain" -> "it's",
 // "your going to be late" -> "you're", "their is a problem" -> "there",
-// "bigger then him" -> "than". Each entry carries a guard predicate that
-// encodes the provable slot (tag context + sentence position).
+// "bigger then him" -> "than", "I want too eat." -> "to". Each entry carries
+// a guard predicate that encodes the provable slot (tag context + sentence
+// position + closed-table content-word POS signals from pos.h).
 //
-// Rows deferred to M9 (dictionary pass — the sibling must be known to be a
-// noun/verb before firing): too->to, it's->its, who's->whose.
+// Rows that need the sibling to be a known content word are powered by
+// src/pos.h (v1): too->to (base-verb complement), it's->its / who's->whose
+// (contraction + possessed noun), mid-sentence to->too (degree word).
 #include "rules_confusion.h"
 
 #include <array>
@@ -30,6 +32,7 @@
 #include <vector>
 
 #include "morphology.h"
+#include "pos.h"
 
 namespace stoppard {
 namespace {
@@ -151,6 +154,96 @@ bool thenAfterComparative(const Analysis &a, size_t i)
     return true;
 }
 
+// too -> to: "too" + base verb, where the verb is a to-infinitive complement
+// of the preceding word ("I want too eat."). Both ends are closed-table
+// signals (pos::isInfinitiveTakingVerb / pos::isBaseVerb), never Unknown
+// tags, so the over-tagging of misspellings can't trigger it.
+bool tooBeforeBaseVerb(const Analysis &a, size_t i)
+{
+    const auto &toks = a.tokens;
+    if (toks[i].pos != PosTag::Adverb) return false;
+    if (folded(wordText(a, toks[i])) != u"too") return false;
+    if (i == 0 || i + 1 >= toks.size()) return false;
+    const auto &prev = toks[i - 1];
+    if (prev.token.kind != TokenKind::Word) return false;
+    // Resolve inflected forms ("plans", "hopes") to their lemma so the
+    // closed infinitive-taking table matches. A base verb uses its surface
+    // form directly: classifyVerbForm over-eagerly reads "need" as the past
+    // "ne" (any -ed ending).
+    const std::u16string prevWord = folded(wordText(a, prev));
+    const std::u16string prevKey = pos::isBaseVerb(prevWord)
+        ? prevWord
+        : (classifyVerbForm(prevWord).known ? classifyVerbForm(prevWord).lemma : prevWord);
+    if (!pos::isInfinitiveTakingVerb(prevKey)) return false;
+    const auto &next = toks[i + 1];
+    if (next.token.kind != TokenKind::Word) return false;
+    return pos::isBaseVerb(folded(wordText(a, next)));
+}
+
+// it's -> its / who's -> whose: the contraction stem (it/who) + "'s" when the
+// word after the contraction is a possessed noun (closed-table signal). The
+// exclusion is fromLexicon, not the heuristic pos: after a subject pronoun +
+// auxiliary "'s" the tagger's verbCtx over-tags the possessed noun as a Verb
+// ("it's tail" -> tail=Verb), so a pos-based skip would reject the legitimate
+// possessive. fromLexicon exactly separates the closed-class copula
+// continuations ("it's been", "it's a", "it's my", "it's five", "who's there")
+// from content words; the that/which/who skip excludes clefts ("it's value
+// that matters"). Mirrors harper's open false-positive bugs ("It's time to
+// go.", "It's been stuck in my head.") plus Merriam-Webster/Grammarly's
+// possessive-determiner semantics (its + noun).
+bool contractionBeforePossessedNoun(const Analysis &a, size_t i)
+{
+    const auto &toks = a.tokens;
+    if (i + 1 >= toks.size() || folded(wordText(a, toks[i + 1])) != u"'s")
+        return false;
+    if (i + 2 >= toks.size()) return false;
+    const auto &noun = toks[i + 2];
+    if (noun.token.kind != TokenKind::Word) return false;
+    if (noun.fromLexicon) return false;   // "it's been / a / my / five / there"
+    if (!pos::isPossessedNoun(folded(wordText(a, noun)))) return false;
+    if (i + 3 < toks.size()) {
+        const std::u16string nxt = folded(wordText(a, toks[i + 3]));
+        if (nxt == u"that" || nxt == u"which" || nxt == u"who") return false;
+    }
+    return true;
+}
+
+// to -> too (degree words): "to" + degree word (many/much/few/little) heading
+// a phrase, e.g. "I ate to many cookies." Both ends are closed-table signals
+// (pos::isDegreeWord / the noun-head requirement); the to-taking-verb guard
+// keeps prepositional verbs clean ("give to many charities", "connected to
+// many servers", "listen to much music" — harper's documented FP sources).
+bool toBeforeDegreeWord(const Analysis &a, size_t i)
+{
+    const auto &toks = a.tokens;
+    if (toks[i].pos != PosTag::Preposition) return false;
+    if (folded(wordText(a, toks[i])) != u"to") return false;
+    if (i + 2 >= toks.size()) return false;
+    const auto &deg = toks[i + 1];
+    if (deg.token.kind != TokenKind::Word) return false;
+    if (!pos::isDegreeWord(folded(wordText(a, deg)))) return false;
+    // The degree word must head a phrase: a following noun-ish word, not a
+    // verb or clause boundary.
+    const auto &head = toks[i + 2];
+    if (head.token.kind != TokenKind::Word) return false;
+    switch (head.pos) {
+    case PosTag::Verb: case PosTag::Auxiliary: case PosTag::Modal:
+    case PosTag::Conjunction: case PosTag::Preposition:
+    case PosTag::Punctuation:
+        return false;
+    default: break;
+    }
+    // "to" must not be governed by a to-taking/prepositional verb.
+    if (i >= 1 && toks[i - 1].token.kind == TokenKind::Word) {
+        const std::u16string prevWord = folded(wordText(a, toks[i - 1]));
+        const std::u16string prevKey = pos::isBaseVerb(prevWord)
+            ? prevWord
+            : (classifyVerbForm(prevWord).known ? classifyVerbForm(prevWord).lemma : prevWord);
+        if (pos::isToTakingVerb(prevKey)) return false;
+    }
+    return true;
+}
+
 struct Entry {
     u16string_view wrong;
     u16string_view correction;
@@ -158,12 +251,26 @@ struct Entry {
     u16string_view message;
 };
 
-constexpr std::array<Entry, 5> kEntries = {{
+constexpr std::array<Entry, 7> kEntries = {{
     {u"to", u"too", sentenceFinalTo, u"Did you mean \"too\" (also)?"},
+    {u"to", u"too", toBeforeDegreeWord, u"Did you mean \"too\" (also)?"},
+    {u"too", u"to", tooBeforeBaseVerb, u"Did you mean \"to\"?"},
     {u"its", u"it's", itsBeforeVerbAux, u"Did you mean \"it's\" (it is)?"},
     {u"your", u"you're", yourBeforeGerundTo, u"Did you mean \"you're\" (you are)?"},
     {u"their", u"there", theirBeforeBeAuxModal, u"Did you mean \"there\"?"},
     {u"then", u"than", thenAfterComparative, u"Did you mean \"than\"?"},
+}};
+
+struct ContractionEntry {
+    u16string_view stem;
+    u16string_view correction;
+    bool (*guard)(const Analysis &, size_t);
+    u16string_view message;
+};
+
+constexpr std::array<ContractionEntry, 2> kContractionEntries = {{
+    {u"it", u"its", contractionBeforePossessedNoun, u"Did you mean \"its\" (possessive)?"},
+    {u"who", u"whose", contractionBeforePossessedNoun, u"Did you mean \"whose\"?"},
 }};
 
 class RulesConfusion final : public Rule {
@@ -182,6 +289,22 @@ public:
                     matchCase(wordText(a, t), std::u16string(entry.correction));
                 out.push_back({t.token.start, t.token.length,
                                std::u16string(entry.message),
+                               {{SuggestionKind::Replace, correction}}});
+            }
+        }
+        // Contraction pairs ("it's", "who's") span two tokens; emit one issue
+        // covering stem + "'s" with the sibling correction.
+        for (const auto &entry : kContractionEntries) {
+            for (size_t i = 0; i + 1 < toks.size(); ++i) {
+                if (folded(wordText(a, toks[i])) != entry.stem) continue;
+                if (folded(wordText(a, toks[i + 1])) != u"'s") continue;
+                if (!entry.guard(a, i)) continue;
+                const int start = toks[i].token.start;
+                const int length = toks[i + 1].token.start
+                    + toks[i + 1].token.length - start;
+                const std::u16string correction =
+                    matchCase(a.text.substr(start, length), std::u16string(entry.correction));
+                out.push_back({start, length, std::u16string(entry.message),
                                {{SuggestionKind::Replace, correction}}});
             }
         }

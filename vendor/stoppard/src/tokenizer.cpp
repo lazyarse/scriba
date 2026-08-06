@@ -36,6 +36,15 @@ bool startsWith(std::u16string_view s, size_t at, std::u16string_view prefix)
     return s.substr(at, prefix.size()) == prefix;
 }
 
+std::u16string foldLower(std::u16string_view w)
+{
+    std::u16string out;
+    out.reserve(w.size());
+    for (char16_t c : w)
+        out.push_back(c >= u'A' && c <= u'Z' ? static_cast<char16_t>(c - u'A' + u'a') : c);
+    return out;
+}
+
 // Fenced block: "```" at line start -> closing "```" at line start, inclusive.
 bool fencedBlockAt(std::u16string_view text, size_t at, size_t &end)
 {
@@ -134,7 +143,11 @@ std::vector<std::u16string> splitContraction(std::u16string_view word)
         if (word.size() > suffix.size()
             && word.substr(word.size() - suffix.size()) == suffix) {
             const auto stem = word.substr(0, word.size() - suffix.size());
-            if (std::find(stems.begin(), stems.end(), stem) != stems.end())
+            // Case-insensitive stem match: "Who's", "You're", "It's" at
+            // sentence start decompose like their lowercase forms.
+            const std::u16string key = foldLower(stem);
+            if (std::any_of(stems.begin(), stems.end(),
+                            [&](std::u16string_view s) { return foldLower(s) == key; }))
                 return {std::u16string(stem), std::u16string(suffix)};
         }
     }

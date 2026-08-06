@@ -37,6 +37,7 @@ struct TaggedToken {
     AuxVerb auxVerb = AuxVerb::Be;
     AuxForm auxForm = AuxForm::Base;
     VerbForm verbForm = VerbForm::Base;
+    bool fromLexicon = false;        // tagged from the closed-class lexicon (not a heuristic guess)
     std::u16string lemma;            // lowercase lemma when known
 };
 

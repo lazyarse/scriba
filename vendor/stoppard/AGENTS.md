@@ -72,6 +72,16 @@ Spelling variants (color/colour, -ise/-ize) are explicitly out — Hunspell owns
 - Commit: conventional style (`feat:`, `fix:`, `test:`, `chore:`), one per task
 - Always build with `-DCMAKE_BUILD_TYPE=Release`
 
+## Vendored drift (Scriba)
+
+- [ ] **Remove once upstream fixes it:** `src/engine.cpp`, `src/spellcheck.{h,cpp}` carry a
+  local `foldWord` fix — `Engine::setUserWords` folds entries to match the case-/accent-
+  insensitive spelling lookup — that the upstream source repo (`../stoppard`) does not yet
+  have. A `../stoppard` → `vendor/stoppard/` sync overwrites it; re-apply the three hunks
+  after every copy until the fix lands upstream.
+  Tracked at `../stoppard/docs/bug-case-insensitive-user-dictionary.md` (bug report + the
+  `git apply` patch).
+
 ## Gotchas
 
 - `tests/` compile with `TESTS_DATA_DIR` pointing at the source `tests/data/` — never run tests
