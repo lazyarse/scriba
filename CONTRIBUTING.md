@@ -71,6 +71,19 @@ bash scripts/update-screenshot.sh
 
 This launches `build/scriba` under `xvfb-run`, loads `docs/kitchensink.md`, waits 3s, then captures the window with `import` (ImageMagick).
 
+The script also captures every dialog and Preferences page into `docs/images/`. The full run is slow (WebEngine startup plus per-dialog waits — minutes), so you can pass one or more targets to regenerate only the shots affected by a change:
+
+```bash
+bash scripts/update-screenshot.sh preferences-spelling   # one Preferences page
+bash scripts/update-screenshot.sh table-dialog           # a single dialog
+bash scripts/update-screenshot.sh preferences            # all Preferences pages
+bash scripts/update-screenshot.sh screenshot tabbar      # several targets at once
+```
+
+Preference pages are named `preferences-<page>` (or the bare page name, e.g. `spelling`) for `<page>` in `general themes editor preview writing typography replacements spelling security`. Run `bash scripts/update-screenshot.sh --help` for the full target list.
+
+When you add a new screenshot — a new dialog, or a new page to an existing dialog — register it in `scripts/update-screenshot.sh`: write a `shot_<name>()` function and add one line to the `TARGETS` table at the top of the script (`"<name>=<fn>|<one-line help>"`). `--help`, argument validation, the full suite and the dispatch all derive from that table, so nothing else needs touching — except a new Preferences page, which also needs its name in the `PREF_PAGES` array and the `idx` mapping in `shot_preference_page`. The file's header comment walks through the steps.
+
 New dialog or preferences-page captures must also be added to `docs/gallery.md`, which lists every screenshot except the main `screenshot.png` (that one stays embedded in the README).
 
 ### Autocomplete Demo GIF
