@@ -4,10 +4,13 @@
 
 ## Tabs
 
-![Two tabs — the divider runs under the inactive tab, while the active tab merges into the content](images/tabbar.png)
+![Three tabs — the divider runs under the inactive tabs, while the active tab merges into the content](images/tabbar.png)
 
 ## Auto Complete
 ![Auto complete Demo](images/autocomplete-demo.gif)
+
+## Markdown Tables
+![Markdown table alignment demo](images/table-demo.gif)
 
 ## Preferences
 

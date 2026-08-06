@@ -53,17 +53,34 @@ xvfb-run -a sh -c '
         xdotool key "$1"
     }
 
-    # --- Two-tab tabbar (divider line only shows when the tabbar is visible,
-    # i.e. with 2+ tabs), so open a second document for the shot ---
-    printf "# Notes\n\nSecond document for the two-tab capture\n" > /tmp/scriba-second-tab.md
+    # --- Three-tab tab bar (divider line only shows when the tab bar is visible,
+    # i.e. with 2+ tabs), so open two extra documents and select the second one
+    # for the shot. The second tab file is named "tab bar.md" so its tab label
+    # reads "tab bar" in the capture. ---
+    printf "# Notes\n\nSecond document for the tab bar capture\n" > "/tmp/tab bar.md"
+    printf "# Draft\n\nThird document for the tab bar capture\n" > /tmp/scriba-tab3.md
     open ctrl+o
     sleep 2
-    xdotool type -- "/tmp/scriba-second-tab.md"
+    xdotool type -- "/tmp/tab bar.md"
     sleep 1
     xdotool key Return
     sleep 5
+    open ctrl+o
+    sleep 2
+    xdotool type -- "/tmp/scriba-tab3.md"
+    sleep 1
+    xdotool key Return
+    sleep 5
+    open ctrl+shift+tab
+    sleep 2
     import -window "$WID" '"$OUT_DIR"'/tabbar.png
+    # The three-tab shot is more readable cropped to the top: tab bar plus the
+    # preview content just below it, skipping the empty editor/preview expanse
+    # and the status bar.
+    convert '"$OUT_DIR"'/tabbar.png -crop 1280x185+0+0 +repage '"$OUT_DIR"'/tabbar.png
     echo "  -> '"$OUT_DIR"'/tabbar.png"
+    open ctrl+w
+    sleep 1
     open ctrl+w
     sleep 1
 
