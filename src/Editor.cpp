@@ -17,6 +17,7 @@
 #include "Gutter.h"
 #include "StoppardEngine.h"
 #include "Preferences.h"
+#include "MarkdownChecker.h"
 #include "SpellChecker.h"
 #include "StaticHelpers.h"
 #include <algorithm>
@@ -63,6 +64,35 @@ GrammarChecker *sharedGrammarChecker()
         .value(Preferences::GrammarDialect, QStringLiteral("American"))
         .toString();
     return new StoppardEngine(dialect);
+}
+
+// Reads the per-check real-time markdown-consistency toggles from `settings`.
+// When the master `MarkdownCheckEnabled` is off no checks run; otherwise each
+// check is enabled unless its key is explicitly disabled.
+QSet<MarkdownChecker::Check> markdownChecksFromSettings(const QSettings &settings,
+                                                        bool masterEnabled)
+{
+    if (!masterEnabled)
+        return {};
+    auto on = [&settings](const char *key) {
+        return settings.value(QLatin1String(key), true).toBool();
+    };
+    QSet<MarkdownChecker::Check> checks;
+    if (on(Preferences::MarkdownCheckHeadingLevelSkip))
+        checks.insert(MarkdownChecker::Check::HeadingLevelSkip);
+    if (on(Preferences::MarkdownCheckDuplicateHeading))
+        checks.insert(MarkdownChecker::Check::DuplicateHeading);
+    if (on(Preferences::MarkdownCheckTrailingWhitespace))
+        checks.insert(MarkdownChecker::Check::TrailingWhitespace);
+    if (on(Preferences::MarkdownCheckConsecutiveBlankLines))
+        checks.insert(MarkdownChecker::Check::ConsecutiveBlankLines);
+    if (on(Preferences::MarkdownCheckOverlongLine))
+        checks.insert(MarkdownChecker::Check::OverlongLine);
+    if (on(Preferences::MarkdownCheckHashNoSpace))
+        checks.insert(MarkdownChecker::Check::HashNoSpace);
+    if (on(Preferences::MarkdownCheckFootnoteReference))
+        checks.insert(MarkdownChecker::Check::FootnoteReference);
+    return checks;
 }
 
 } // namespace
@@ -1239,6 +1269,7 @@ void Editor::applySpellSettings()
     const bool grammarEnabled = s.value(Preferences::GrammarCheckEnabled, false).toBool();
     const bool linkEnabled = s.value(Preferences::LinkCheckEnabled, true).toBool();
     const bool markdownEnabled = s.value(Preferences::MarkdownCheckEnabled, false).toBool();
+
     // Empty = "follow dialect": the grammar dialect selects the base dictionary.
     const QString language = s.value(Preferences::DictionaryLanguage).toString();
     const QString dialect = s.value(Preferences::GrammarDialect, QStringLiteral("American")).toString();
@@ -1264,6 +1295,7 @@ void Editor::applySpellSettings()
     m_spellHighlighter->setGrammarCheckingEnabled(grammarEnabled);
     m_spellHighlighter->setLinkCheckingEnabled(linkEnabled);
     m_spellHighlighter->setMarkdownCheckingEnabled(markdownEnabled);
+    m_spellHighlighter->setMarkdownChecks(markdownChecksFromSettings(s, markdownEnabled));
 
     if (auto *stoppard = dynamic_cast<StoppardEngine *>(m_grammarChecker.get()))
         stoppard->setDialect(dialect);

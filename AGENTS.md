@@ -44,8 +44,9 @@ Full check after any code/resource change:
 2. `cd build-dbg && ctest --output-on-failure -j4` — tests pass
 3. `cmake --build build -j4` — rebuild the Release binary
 4. `timeout 10 build/scriba || true` — smoke-test the **freshly** built Release binary
+5. (UI changes only) `scripts/update-screenshot.sh <affected targets>` — regenerate the screenshot gallery from the **freshly** built Release binary
 
-Step 4 must come AFTER step 3. Running it right after step 1/2 smoke-tests a stale `build/scriba` from the previous Release build.
+Steps 4 and 5 must come AFTER step 3. Running them right after step 1/2 smoke-tests / captures screenshots from a stale `build/scriba` from the previous Release build. The screenshot script expects a pre-built binary at `build/scriba` (it only builds one if none exists, which would then be a Release build anyway — but if a stale one is present it will happily capture that instead, so always rebuild first).
 
 ## Package (Linux)
 

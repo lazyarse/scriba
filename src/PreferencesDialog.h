@@ -155,6 +155,7 @@ private:
     QCheckBox *m_grammarCheckCheck;
     QCheckBox *m_linkCheckCheck;
     QCheckBox *m_markdownCheckCheck;
+    QVector<QCheckBox*> m_markdownSubChecks; // per-rule real-time markdown checks
     QComboBox *m_languageCombo;
     QComboBox *m_grammarDialectCombo;
     QListWidget *m_customWordsList;

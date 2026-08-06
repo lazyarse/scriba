@@ -232,11 +232,37 @@ TEST_F(UnderlineOverlayTest, ExplanationShownForMarkdownDuplicateHeading)
         << "a clean heading must have no explanation";
 }
 
+TEST_F(UnderlineOverlayTest, MarkdownSubChecksGateWhichUnderlinesAppear)
+{
+    QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
+    // Only duplicate-heading checking on; everything else off for real time.
+    QSettings().setValue(Preferences::MarkdownCheckHeadingLevelSkip, false);
+    QSettings().setValue(Preferences::MarkdownCheckDuplicateHeading, true);
+    QSettings().setValue(Preferences::MarkdownCheckTrailingWhitespace, false);
+    QSettings().setValue(Preferences::MarkdownCheckConsecutiveBlankLines, false);
+    QSettings().setValue(Preferences::MarkdownCheckOverlongLine, false);
+    QSettings().setValue(Preferences::MarkdownCheckHashNoSpace, false);
+    QSettings().setValue(Preferences::MarkdownCheckFootnoteReference, false);
+    m_editor->recheckSpelling();
+
+    // Line 1 is a duplicate heading; line 2 has trailing whitespace.
+    m_editor->setPlainText(QStringLiteral("# Title\n# Title\ntext   "));
+    m_editor->spellHighlighter()->refresh();
+
+    auto *hl = m_editor->findChild<SpellHighlighter *>();
+    ASSERT_NE(hl, nullptr);
+    const auto dupHits = hl->markdownHitsInBlock(1);
+    ASSERT_FALSE(dupHits.isEmpty());
+    EXPECT_TRUE(dupHits.at(0).message.contains(QStringLiteral("Duplicate heading")));
+    EXPECT_TRUE(hl->markdownHitsInBlock(2).isEmpty())
+        << "trailing whitespace must not be flagged when that sub-check is off";
+    EXPECT_TRUE(hl->markdownHitsInBlock(0).isEmpty());
+}
+
 TEST_F(UnderlineOverlayTest, ExplanationShownForBrokenLink)
 {
     QSettings().setValue(Preferences::SpellCheckEnabled, false);
     m_editor->recheckSpelling();
-
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
     QFile exists(dir.filePath(QStringLiteral("exists.md")));

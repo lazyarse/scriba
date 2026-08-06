@@ -293,6 +293,16 @@ void SpellHighlighter::setMarkdownCheckingEnabled(bool enabled)
         emit spellHitsChanged(); // clear any painted underlines
 }
 
+void SpellHighlighter::setMarkdownChecks(const QSet<MarkdownChecker::Check> &checks)
+{
+    m_markdownChecks = checks;
+    m_markdownHits.clear();
+    if (m_markdownEnabled)
+        runSpellCheck(); // recompute so underlines follow the new selection
+    else
+        emit spellHitsChanged(); // clear any painted underlines
+}
+
 void SpellHighlighter::setCurrentFile(const QString &path)
 {
     m_currentFile = path;
@@ -406,7 +416,8 @@ void SpellHighlighter::runSpellCheck()
             lines.append(block.text());
         m_markdownHits.clear();
         // Issue::line is 1-based and lines map 1:1 to blocks.
-        const auto mdIssues = MarkdownChecker::scan(lines.join(QLatin1Char('\n')));
+        const auto mdIssues = MarkdownChecker::scan(lines.join(QLatin1Char('\n')),
+                                                    m_markdownChecks);
         for (const auto &issue : mdIssues) {
             const int blockNumber = issue.line - 1;
             if (blockNumber < 0 || blockNumber >= lines.size())

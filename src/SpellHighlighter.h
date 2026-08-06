@@ -15,6 +15,7 @@
 #pragma once
 
 #include "GrammarChecker.h"
+#include "MarkdownChecker.h"
 #include <QDateTime>
 #include <QHash>
 #include <QList>
@@ -132,6 +133,10 @@ public:
     // headings, `#` headings without a space, ...). Off by default: it is a
     // per-keystroke distraction, so like grammar it must be opted into.
     void setMarkdownCheckingEnabled(bool enabled);
+    // The subset of markdown-consistency checks to underline. The checks are
+    // read from the preferences; an empty set underlines nothing. Changing
+    // them re-runs the scan so underlines follow immediately.
+    void setMarkdownChecks(const QSet<MarkdownChecker::Check> &checks);
     // The document's file path: link targets are resolved relative to its
     // directory (an empty path resolves against the current working
     // directory). Triggers a re-check so underlines follow the new base.
@@ -222,6 +227,8 @@ private:
     bool m_grammarEnabled = false;
     bool m_linkEnabled = true;
     bool m_markdownEnabled = false;
+    // The markdown-consistency checks to underline; empty disables them all.
+    QSet<MarkdownChecker::Check> m_markdownChecks = MarkdownChecker::defaultChecks();
     // The document's file path, for resolving relative link targets.
     QString m_currentFile;
     // Cached heading indexes of other documents, keyed by absolute path and
