@@ -252,6 +252,7 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
         onTabChanged(index);
     });
     connect(m_tabBar, &QTabBar::tabCloseRequested, this, &MainWindow::onTabCloseRequested);
+    connect(m_tabBar, &QTabBar::tabMoved, this, &MainWindow::onTabMoved);
 
     addTab();
 
@@ -434,6 +435,11 @@ int MainWindow::addTab(const QString &filePath)
     m_tabBar->addTab(label);
     m_tabBar->setCurrentIndex(idx);
     m_tabBar->setTabToolTip(idx, filePath.isEmpty() ? QString() : filePath);
+    // Stable per-tab identity so onTabMoved() can rebuild the parallel
+    // containers (m_tabs, m_editorStack, m_reportTitles) to match the tab
+    // bar's order after the user drags a tab. The Editor is deleted with its
+    // tab (removeTab), so we never look this pointer up after removal.
+    m_tabBar->setTabData(idx, QVariant::fromValue(reinterpret_cast<qulonglong>(editor)));
 
     connect(editor->document(), &QTextDocument::contentsChange, this,
         [this, editor](int, int charsRemoved, int charsAdded) {
@@ -497,6 +503,72 @@ void MainWindow::removeTab(int index)
     m_reportTitles = shifted;
 
     updateTabBarVisibility();
+}
+
+void MainWindow::onTabMoved(int from, int to)
+{
+    Q_UNUSED(from);
+    Q_UNUSED(to);
+    if (m_tabs.isEmpty())
+        return;
+
+    // The tab bar reorders itself when the user drags a tab, but the parallel
+    // containers (m_tabs, m_editorStack, m_reportTitles) stay in their old
+    // order. Rebuild them all from the tab bar's authoritative order using the
+    // Editor* identity stamped in each tab's tabData. Without this, index-keyed
+    // lookups (activeTabInfo()/currentEditor() -> m_tabs[tabBar->currentIndex()])
+    // return the wrong tab after a drag, so the preview would show another
+    // file's cached render. Called on every tabMoved during a drag; idempotent
+    // because identity is the stable Editor*.
+
+    QHash<Editor *, QString> oldReportTitles;
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (m_reportTitles.contains(i))
+            oldReportTitles.insert(m_tabs[i].editor, m_reportTitles.value(i));
+    }
+
+    QVector<TabInfo> reordered;
+    reordered.reserve(m_tabs.size());
+    QVector<QWidget *> stackOrder;
+    stackOrder.reserve(m_tabs.size());
+    for (int i = 0; i < m_tabBar->count(); ++i) {
+        auto *ed = reinterpret_cast<Editor *>(
+            m_tabBar->tabData(i).toULongLong());
+        if (!ed)
+            continue;
+        for (int j = 0; j < m_tabs.size(); ++j) {
+            if (m_tabs[j].editor == ed) {
+                reordered.append(m_tabs[j]);
+                stackOrder.append(ed);
+                break;
+            }
+        }
+    }
+    if (reordered.size() != m_tabs.size())
+        return;
+
+    m_tabs = reordered;
+
+    const int active = m_tabBar->currentIndex();
+    while (m_editorStack->count() > 0)
+        m_editorStack->removeWidget(m_editorStack->widget(0));
+    for (QWidget *w : stackOrder)
+        m_editorStack->addWidget(w);
+    if (active >= 0 && active < m_editorStack->count())
+        m_editorStack->setCurrentIndex(active);
+
+    m_reportTitles.clear();
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (auto it = oldReportTitles.constFind(m_tabs[i].editor);
+            it != oldReportTitles.constEnd()) {
+            m_reportTitles.insert(i, it.value());
+        }
+    }
+
+    m_connectedTabIndex = -1;
+    connectActiveEditor();
+    for (int i = 0; i < m_tabs.size(); ++i)
+        updateTabLabel(i);
 }
 
 int MainWindow::findTabByPath(const QString &filePath) const

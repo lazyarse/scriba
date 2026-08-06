@@ -94,6 +94,7 @@ private slots:
     void onReplace(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive);
     void onReplaceAll(const QString &search, const QString &replacement, bool useRegex, bool caseSensitive);
     void onTabChanged(int index);
+    void onTabMoved(int from, int to);
     void onTabCloseRequested(int index);
     void closeCurrentTab();
 

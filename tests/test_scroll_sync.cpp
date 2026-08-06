@@ -743,6 +743,61 @@ TEST_F(ScrollSyncIntegrationTest, TabSwitchUpdatesDocumentBaseUrl) {
     EXPECT_TRUE(evalStr("var i=document.querySelector('img');i?i.src:''").startsWith(expB));
 }
 
+/* ========== Regression: reordering tabs must move each tab's cached render with it ========== */
+
+TEST_F(ScrollSyncIntegrationTest, MoveTabCarriesPreviewCacheToNewPosition) {
+    const char docA[] = "AAA-REORDER\n\nLine two A.\n\nLine three A.\n";
+    const char docB[] = "BBB-REORDER\n\nLine two B.\n\nLine three B.\n";
+
+    auto ta = new QTemporaryFile();
+    ASSERT_TRUE(ta->open());
+    ta->write(docA);
+    ta->close();
+    window->loadFile(ta->fileName());   // tab 0, marker AAA
+
+    auto tb = new QTemporaryFile();
+    ASSERT_TRUE(tb->open());
+    tb->write(docB);
+    tb->close();
+    window->loadFile(tb->fileName());   // tab 1, marker BBB
+
+    auto *tabBar = window->findChild<QTabBar *>();
+    ASSERT_NE(tabBar, nullptr);
+    ASSERT_EQ(tabBar->count(), 2);
+
+    auto previewSettlesOn = [&](const QString &present, const QString &absent) {
+        for (int attempt = 0; attempt < 12; ++attempt) {
+            QString html;
+            window->preview()->page()->toHtml([&](const QString &h) { html = h; });
+            QTest::qWait(500);
+            if (html.contains(present) && !html.contains(absent))
+                return true;
+            QTest::qWait(1000);
+        }
+        return false;
+    };
+
+    // Currently on tab 1 (BBB), currently shown.
+    EXPECT_TRUE(previewSettlesOn("BBB-REORDER", "AAA-REORDER"));
+
+    // Reorder: move tab 0 (AAA) to position 1 -> order becomes [B, A].
+    tabBar->moveTab(0, 1);
+    QApplication::processEvents();
+
+    // Now index 0 holds B. A's cached render must have followed A to index 1.
+    tabBar->setCurrentIndex(0);
+    EXPECT_TRUE(previewSettlesOn("BBB-REORDER", "AAA-REORDER"));
+    tabBar->setCurrentIndex(1);
+    EXPECT_TRUE(previewSettlesOn("AAA-REORDER", "BBB-REORDER"));
+
+    // And back to index 0.
+    tabBar->setCurrentIndex(0);
+    EXPECT_TRUE(previewSettlesOn("BBB-REORDER", "AAA-REORDER"));
+
+    delete ta;
+    delete tb;
+}
+
 /* ========== Test G: togglePreview without initialized preview ========== */
 
 class TogglePreviewTest : public testing::Test {
