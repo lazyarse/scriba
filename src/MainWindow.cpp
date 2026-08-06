@@ -1521,16 +1521,31 @@ void MainWindow::generateValidationReport()
     if (m_reportInFlight)
         return;
 
-    ValidationReportDialog dlg(this);
+    QVector<TabEntry> tabs;
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (m_reportTitles.contains(i))
+            continue; // never re-scan an earlier report tab
+        const TabInfo &info = m_tabs[i];
+        if (!info.editor)
+            continue;
+        QString name = info.filePath.isEmpty()
+            ? tr("Untitled") : QFileInfo(info.filePath).fileName();
+        if (info.dirty)
+            name += QStringLiteral(" *");
+        tabs.append({i, name});
+    }
+
+    ValidationReportDialog dlg(tabs, this);
     if (dlg.exec() != QDialog::Accepted)
         return;
     m_reportOptions = dlg.options();
     m_reportInFlight = true;
 
+    const QSet<int> selected = dlg.selectedTabIndices();
     m_reportSources.clear();
     for (int i = 0; i < m_tabs.size(); ++i) {
-        if (m_reportTitles.contains(i))
-            continue; // never re-scan an earlier report tab
+        if (!selected.contains(i))
+            continue;
         Editor *ed = m_tabs[i].editor;
         if (!ed)
             continue;

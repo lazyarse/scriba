@@ -16,8 +16,10 @@
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QListWidget>
 #include <QPushButton>
 #include <QSettings>
 #include <QVBoxLayout>
@@ -56,14 +58,26 @@ const char *kSettingsKey = "ValidationReport/Checks";
 
 } // namespace
 
-ValidationReportDialog::ValidationReportDialog(QWidget *parent)
+ValidationReportDialog::ValidationReportDialog(const QVector<TabEntry> &tabs, QWidget *parent)
     : QDialog(parent)
+    , m_tabs(tabs)
 {
     setWindowTitle(tr("Validation Report Options"));
     buildUi();
     load();
     updateMarkdownMaster(m_markdown->isChecked());
     updateButtons();
+}
+
+QSet<int> ValidationReportDialog::selectedTabIndices() const
+{
+    QSet<int> selected;
+    for (int i = 0; i < m_tabsList->count(); ++i) {
+        auto *item = m_tabsList->item(i);
+        if (item->checkState() == Qt::Checked)
+            selected.insert(item->data(Qt::UserRole).toInt());
+    }
+    return selected;
 }
 
 ValidationReport::ValidationOptions ValidationReportDialog::options() const
@@ -107,9 +121,43 @@ void ValidationReportDialog::buildUi()
     auto *layout = new QVBoxLayout(this);
 
     auto *info = new QLabel(
-        tr("Choose which checks the validation report should run, then press Generate."), this);
+        tr("Choose which documents to scan and which checks to run, then press Generate."), this);
     info->setWordWrap(true);
     layout->addWidget(info);
+
+    auto *tabRow = new QHBoxLayout;
+    tabRow->addWidget(new QLabel(tr("&Documents to scan"), this));
+    tabRow->addStretch();
+    auto *selectAllBtn = new QPushButton(tr("Select &All"), this);
+    auto *selectNoneBtn = new QPushButton(tr("&None"), this);
+    for (auto *btn : {selectAllBtn, selectNoneBtn})
+        btn->setIcon(QIcon());
+    tabRow->addWidget(selectAllBtn);
+    tabRow->addWidget(selectNoneBtn);
+    layout->addLayout(tabRow);
+
+    m_tabsList = new QListWidget(this);
+    m_tabsList->setMaximumHeight(180);
+    for (const TabEntry &tab : m_tabs) {
+        auto *item = new QListWidgetItem(tab.label, m_tabsList);
+        item->setData(Qt::UserRole, tab.index);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(Qt::Checked);
+    }
+    layout->addWidget(m_tabsList);
+
+    connect(selectAllBtn, &QPushButton::clicked, this, [this] {
+        for (int i = 0; i < m_tabsList->count(); ++i)
+            m_tabsList->item(i)->setCheckState(Qt::Checked);
+        updateButtons();
+    });
+    connect(selectNoneBtn, &QPushButton::clicked, this, [this] {
+        for (int i = 0; i < m_tabsList->count(); ++i)
+            m_tabsList->item(i)->setCheckState(Qt::Unchecked);
+        updateButtons();
+    });
+    connect(m_tabsList, &QListWidget::itemChanged, this,
+            [this](QListWidgetItem *) { updateButtons(); });
 
     m_spelling = new QCheckBox(tr("Sp&elling"), this);
     m_grammar = new QCheckBox(tr("&Grammar"), this);
@@ -170,11 +218,16 @@ void ValidationReportDialog::load()
 
 void ValidationReportDialog::updateButtons()
 {
-    const bool any = m_spelling->isChecked() || m_grammar->isChecked() || m_links->isChecked()
+    const bool anyCategory = m_spelling->isChecked() || m_grammar->isChecked()
+        || m_links->isChecked()
         || (m_markdown->isChecked()
             && std::any_of(m_markdownChecks.begin(), m_markdownChecks.end(),
                            [](const QCheckBox *c) { return c->isChecked(); }));
-    m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(any);
+    bool anyTab = false;
+    for (int i = 0; i < m_tabsList->count(); ++i)
+        if (m_tabsList->item(i)->checkState() == Qt::Checked)
+            anyTab = true;
+    m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(anyCategory && anyTab);
 }
 
 void ValidationReportDialog::updateMarkdownMaster(bool checked)

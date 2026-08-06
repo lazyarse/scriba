@@ -16,22 +16,35 @@
 
 #include "ValidationReport.h"
 #include <QDialog>
+#include <QSet>
 #include <QVector>
 
 class QCheckBox;
 class QDialogButtonBox;
+class QListWidget;
+
+// One scannable tab offered in the dialog's "Documents to scan" list.
+struct TabEntry {
+    int index = -1;
+    QString label;
+};
 
 // Lets the user pick which checks the validation report should run: one
-// checkbox per category plus one per markdown-consistency sub-check. The
-// selection is persisted in QSettings and restored on the next open.
+// checkbox per category plus one per markdown-consistency sub-check, and a
+// checklist of the open tabs to scan (defaults to all). The check selection
+// is persisted in QSettings and restored on the next open.
 class ValidationReportDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit ValidationReportDialog(QWidget *parent = nullptr);
+    explicit ValidationReportDialog(const QVector<TabEntry> &tabs,
+                                    QWidget *parent = nullptr);
 
     ValidationReport::ValidationOptions options() const;
+
+    // Indices (as given in the TabEntry list) of the checked documents.
+    QSet<int> selectedTabIndices() const;
 
     // Persists the current selection to QSettings, then closes the dialog.
     void accept() override;
@@ -44,6 +57,8 @@ private:
     void buildUi();
     void load();
 
+    QVector<TabEntry> m_tabs;
+    QListWidget *m_tabsList;
     QCheckBox *m_spelling;
     QCheckBox *m_grammar;
     QCheckBox *m_links;
