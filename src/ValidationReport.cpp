@@ -110,10 +110,10 @@ QString contextQuote(const QStringList &lines, const ValidationReport::Issue &is
         const int begin = spanStart - lead;
         const int finish = spanEnd + trail;
         if (begin > 0)
-            line += QLatin1String("…");
+            line += QStringLiteral("…"); // U+2026; NOT QLatin1String (its bytes are UTF-8)
         line += full.mid(begin, finish - begin);
         if (finish < full.size())
-            line += QLatin1String("…");
+            line += QStringLiteral("…");
     }
 
     // Fence with more backticks than any run in the line, so a source line

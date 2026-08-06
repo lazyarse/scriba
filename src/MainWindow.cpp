@@ -1289,6 +1289,7 @@ void MainWindow::updatePreview(bool tabSwitch)
         }
         QString fullHtml = QString(
             "<!DOCTYPE html><html><head>"
+            "<meta charset=\"utf-8\">"
             "<style id=\"base-css\">%1</style>"
             "<style id=\"theme-css\">%2</style>"
             "<style id=\"stripe-css\">%4</style>"
@@ -1342,9 +1343,8 @@ void MainWindow::updatePreview(bool tabSwitch)
                 escapedBaseUrl = escapeJsString(baseUrl.toString());
         }
         QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6')")
-            .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode)
-            .arg(delay)
-            .arg(escapedBaseUrl);
+            .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode,
+                 QString::number(delay), escapedBaseUrl);
         m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
             if (result.toBool())
                 syncPreviewScroll();

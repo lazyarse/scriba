@@ -37,6 +37,21 @@
 
 Q_LOGGING_CATEGORY(lcPreview, "scriba.preview")
 
+// Returns true when the termination is an actual failure (a renderer that
+// died or was killed), false for an intentional/normal shutdown.
+static bool isRendererFailure(QWebEnginePage::RenderProcessTerminationStatus status)
+{
+    switch (status) {
+    case QWebEnginePage::NormalTerminationStatus:
+        return false;
+    case QWebEnginePage::AbnormalTerminationStatus:
+    case QWebEnginePage::CrashedTerminationStatus:
+    case QWebEnginePage::KilledTerminationStatus:
+        return true;
+    }
+    return true;
+}
+
 PreviewPage::PreviewPage(QObject *parent)
     : QWebEnginePage(parent)
 {
@@ -73,6 +88,16 @@ Preview::Preview(QWidget *parent)
 {
     setPage(new PreviewPage(this));
     page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
+    // All tabs share this one page (see MainWindow::updatePreview), so a dead
+    // renderer would otherwise blank every tab with no message: surface it.
+    connect(page(), &QWebEnginePage::renderProcessTerminated, this,
+            [this](QWebEnginePage::RenderProcessTerminationStatus status, int exitCode) {
+        Q_UNUSED(exitCode);
+        if (!isRendererFailure(status))
+            return;
+        showRenderError(QStringLiteral("The preview renderer stopped unexpectedly. "
+                                       "Switch preview off and on (or reload the document) to recover."));
+    });
     page()->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, true);
 }
 

@@ -295,6 +295,63 @@ TEST_F(ScrollSyncIntegrationTest, PreviewScrollSyncsAfterDeferredUpdate) {
     EXPECT_GT(scrollY, 0);
 }
 
+/* ========== Regression: %N tokens in content must not break incremental preview ========== */
+// themes.md's "What each element uses" table is full of literal %2..%20 tokens.
+// The incremental updater built its scribaUpdate(...) JS with chained
+// QString::arg() calls; the trailing .arg()s re-scan the whole string and
+// clobber those %N tokens, leaving %5/%6 unfilled -> SyntaxError -> the
+// preview silently stops updating. The initial full render (single multi-arg
+// .arg) is unaffected, so the doc looks fine until you edit it.
+
+TEST_F(ScrollSyncIntegrationTest, PreviewUpdatesDespitePercentPlaceholderTokens) {
+    const QString marker = QStringLiteral("AFTER-EDIT-UNIQUE-TOKEN-9f8d");
+    const char doc[] =
+        "| Widget / element | Background | Text |\n"
+        "|---|---|---|\n"
+        "| QDialog | `%2` | |\n"
+        "| QGroupBox | `%3` | `%4` |\n"
+        "| QCheckBox | `%10` | disabled `%9` |\n";
+
+    auto tf = new QTemporaryFile();
+    ASSERT_TRUE(tf->open());
+    tf->write(doc);
+    tf->close();
+
+    window->loadFile(tf->fileName());
+
+    // wait for the initial full render to finish
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    QTest::qWait(200);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i)
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    while (!loaded) {
+        if (!loadSpy.wait(5000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    ASSERT_TRUE(loaded);
+    QTest::qWait(1000);
+
+    // Append a marker line; the editor's deferred updatePreview pushes an
+    // incremental scribaUpdate that (pre-fix) was corrupted into a SyntaxError.
+    QTextCursor cursor(window->editor()->document());
+    cursor.movePosition(QTextCursor::End);
+    cursor.insertText(QStringLiteral("\n\n%1\n").arg(marker));
+    QApplication::processEvents();
+    QTest::qWait(500);
+
+    QString bodyText;
+    window->preview()->page()->runJavaScript(
+        "document.getElementById('scriba-content') ? "
+        "document.getElementById('scriba-content').innerText : ''",
+        [&](const QVariant &r) { bodyText = r.toString(); });
+    QTest::qWait(2000);
+
+    EXPECT_TRUE(bodyText.contains(marker))
+        << "preview should reflect live edits even when content contains %N tokens";
+    delete tf;
+}
+
 /* ========== Test D: Table insertion scroll sync ========== */
 
 TEST_F(ScrollSyncIntegrationTest, TableInsertScrollSyncsPreview) {

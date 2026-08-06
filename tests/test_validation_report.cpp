@@ -377,6 +377,60 @@ TEST_F(ValidationReportTest, ContextQuoteCannotMangleReportMarkdown)
         << html.toStdString();
 }
 
+// Regression: contextQuote truncates long source lines with an ellipsis marker.
+// That marker must be the real U+2026 — previously a QLatin1String("…") misread
+// the literal's UTF-8 bytes as Latin-1 and emitted U+00E2/U+0080/U+00A6 mojibake
+// into both the raw report and its rendered HTML. Injecting that corrupt byte
+// sequence into the shared preview DOM was implicated in the report "white
+// pane". Any line longer than the 140-char window must round-trip cleanly.
+TEST_F(ValidationReportTest, ContextQuoteTruncationKeepsUnicodeClean)
+{
+    // Long lines (>140) drawn from the real project docs that previously
+    // surfaced as `â�¦` mojibake in report quotes.
+    const QStringList lines = {
+        // AGENTS.md dialog-buttons convention (>140 chars).
+        QStringLiteral("Dialog buttons (QDialogButtonBox and standalone QPushButton) must have icons "
+                       "stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`. "
+                       "Add `&` keyboard shortcuts to all dialog buttons where possible (unique per dialog)."),
+        // CONTRIBUTING.md on @page handling (>140 chars).
+        QStringLiteral("through `QPageLayout`. That approach could not handle `@page { size }`, "
+                       "margin boxes, named pages, or page selectors, so the workaround was rewritten "
+                       "to use paged-\u2014media-specific CSS2.1 features."),
+        // A short line saturated with non-ASCII to prove nothing is double-encoded.
+        QStringLiteral("naïve façade \u2014 cost £50 ×3 “quotes” – ½ em …"),
+    };
+
+    QVector<ValidationReport::DocumentReport> docs;
+    for (qsizetype i = 0; i < lines.size(); ++i) {
+        ValidationReport::DocumentReport d;
+        d.label = QStringLiteral("doc%1.md").arg(i);
+        d.filePath = m_docPath;
+        d.sourceLines = { lines.at(i) };
+        // Fake a mid-line spelling issue so contextQuote truncates the window
+        // and emits the leading + trailing ellipsis markers.
+        const int col = 90;
+        d.issues[ValidationReport::Category::Spelling].append(
+            {1, col, 6, QStringLiteral("message"), {}});
+        docs.append(d);
+    }
+
+    const QString out = ValidationReport::renderMarkdown(docs, QStringLiteral("2026-08-05T12:00:00"));
+    const QString html = MarkdownParser::toHtml(out);
+
+    // The mojibake signature (U+00E2/U+0080/U+00A6) must be entirely absent.
+    EXPECT_FALSE(out.contains(QChar(0x00E2))) << out.toStdString();
+    EXPECT_FALSE(out.contains(QChar(0x0080))) << out.toStdString();
+    EXPECT_FALSE(out.contains(QChar(0x00A6))) << out.toStdString();
+    // The real ellipsis marker is present, and genuine non-ASCII is preserved.
+    EXPECT_TRUE(out.contains(QChar(0x2026))) << out.toStdString();
+    EXPECT_TRUE(out.contains(QChar(0x2014))) << out.toStdString(); // em dash
+    EXPECT_TRUE(out.contains(QChar(0x00A3))) << out.toStdString(); // £
+    // No control chars leak into the rendered report HTML.
+    EXPECT_FALSE(html.contains(QChar(0x0080))) << html.toStdString();
+    // And the fence blocks still close cleanly.
+    EXPECT_TRUE(html.contains(QLatin1String("</code></pre>"))) << html.toStdString();
+}
+
 TEST_F(ValidationReportTest, GrammarIssuesGetLineAndColumn)
 {
     const QString text = QStringLiteral("line one\nI has a cat.\n");
