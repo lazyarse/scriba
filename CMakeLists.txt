@@ -232,7 +232,7 @@ if(BUILD_TESTS)
     )
 
     add_executable(test_markdown_parser tests/test_markdown_parser.cpp)
-    target_link_libraries(test_markdown_parser PRIVATE scriba_core GTest::gtest_main)
+    target_link_libraries(test_markdown_parser PRIVATE scriba_core scriba_test_main)
     add_test(NAME test_markdown_parser COMMAND ${_TEST_PREFIX} ./test_markdown_parser)
 
     add_executable(test_md_renderer_helpers tests/test_md_renderer_helpers.cpp)

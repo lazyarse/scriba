@@ -142,6 +142,7 @@ private:
 
     // Preview
     QSpinBox *m_heavyRenderDelaySpin;
+    QCheckBox *m_hardSoftBreaksCheck;
 
     // Gutter
     QCheckBox *m_showLineNumbersCheck;

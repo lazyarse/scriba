@@ -100,6 +100,68 @@ def hello():
     print("Hello, Scriba!")
 ```
 
+## Markdown Extensions
+
+### Footnotes
+
+Reference a footnote with `[^label]` and define it anywhere with `[^label]:`:
+
+Water is H~2~O[^chem] and boils at 100°C[^bp]. The parser collects
+definitions into a footnotes section at the end of the document.
+
+[^chem]: Chemical formula for water.
+[^bp]: At sea level, standard atmospheric pressure.
+
+Repeated references share one definition and get back-links:
+
+Gravity accelerates at 9.81 m/s^2^[^g]. It is usually quoted as exactly
+that value[^g] in textbooks.
+
+[^g]: Standard gravity at Earth's surface.
+
+### Permissive Autolinks
+
+Bare URLs, e-mail addresses and `www.` links become clickable without any
+markup:
+
+- Plain URL: https://example.com/path?q=1
+- E-mail: hello@example.com
+- WWW: www.example.com
+
+Use `<>` angle brackets for explicit autolinks as usual: <https://example.com>.
+
+### Superscripts & Subscripts
+
+`^text^` renders as a superscript and `~text~` as a subscript:
+
+- Chemical formulas: H~2~O, CO~2~, C~6~H~12~O~6~
+- Math-style exponents: 2^10^ = 1024, e^ix^ + 1 = 0
+- Units and footnotes-style markers: 10 m^2^, x~1~ + x~2~
+
+### Spoilers
+
+Wrap text in `||...||` to cover it until hovered (useful for quiz answers):
+
+The capital of France is ||Paris||, not ||Berlin||.
+
+> [!note]
+> Spoilers are covered with a solid block in the preview; hover to reveal.
+> In PDF exports (no hover), the content is shown with a neutral background.
+
+### Hard line breaks
+
+By default a single newline inside a paragraph is a soft break — rendered as a
+space, and wrapping the line. Enable **Preferences → Preview → Treat single
+line breaks as hard breaks** to force every newline to render as a line break
+(`<br>`), like a plain-text editor:
+
+Without the setting this paragraph stays on
+one line in the preview even though the source is wrapped.
+
+With the setting enabled every newline
+in the source produces a visible line break
+in the preview.
+
 ## LaTeX Math
 
 See the [KaTeX docs](https://katex.org/) for supported functions and syntax.

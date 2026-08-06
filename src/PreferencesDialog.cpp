@@ -603,6 +603,14 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         renderForm->addRow("Heavy render delay:", m_heavyRenderDelaySpin);
         renderLayout->addLayout(renderForm);
 
+        m_hardSoftBreaksCheck = new QCheckBox(
+            "Treat single line breaks as hard breaks (<br>) in the preview and exports");
+        m_hardSoftBreaksCheck->setToolTip(tr("By default a single newline in a paragraph is a "
+            "soft break (rendered as a space). Enable to force every line break to render as a "
+            "new line."));
+        m_hardSoftBreaksCheck->setChecked(settings.value(Preferences::HardSoftBreaks, false).toBool());
+        renderLayout->addWidget(m_hardSoftBreaksCheck);
+
         layout->addWidget(renderGroup);
 
         layout->addStretch();
@@ -1474,6 +1482,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::GutterBgColor, m_gutterBgBtn->text());
         settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());
         settings.setValue(Preferences::HeavyRenderDelay, m_heavyRenderDelaySpin->value());
+        settings.setValue(Preferences::HardSoftBreaks, m_hardSoftBreaksCheck->isChecked());
         settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
         settings.setValue(Preferences::LinkCheckEnabled, m_linkCheckCheck->isChecked());

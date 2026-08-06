@@ -14,16 +14,24 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "MarkdownParser.h"
 #include "MdRenderer.h"
+#include "Preferences.h"
 #include "Typography.h"
 #include <md4c.h>
+#include <QSettings>
 
 QString MarkdownParser::toHtml(const QString &markdown, bool noHtml)
 {
     QByteArray utf8 = markdown.toUtf8();
 
     unsigned long parserFlags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH
-                              | MD_FLAG_TASKLISTS | MD_FLAG_PERMISSIVEURLAUTOLINKS
-                              | MD_FLAG_ADMONITIONS | MD_FLAG_HIGHLIGHT;
+                              | MD_FLAG_TASKLISTS | MD_FLAG_PERMISSIVEAUTOLINKS
+                              | MD_FLAG_ADMONITIONS | MD_FLAG_HIGHLIGHT
+                              | MD_FLAG_SUPERSCRIPTS | MD_FLAG_SUBSCRIPTS
+                              | MD_FLAG_SPOILERS | MD_FLAG_FOOTNOTES;
+
+    QSettings settings;
+    if (settings.value(Preferences::HardSoftBreaks, false).toBool())
+        parserFlags |= MD_FLAG_HARD_SOFT_BREAKS;
 
     if (noHtml)
         parserFlags |= MD_FLAG_NOHTML;

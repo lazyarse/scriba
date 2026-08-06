@@ -95,6 +95,20 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     case MD_BLOCK_ADMONITION:
         self->enterAdmonition(detail);
         break;
+    case MD_BLOCK_FOOTNOTE_DEF_SECTION:
+        self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
+        self->writeHtml("<section class=\"footnotes\"><ol>");
+        break;
+    case MD_BLOCK_FOOTNOTE_DEF: {
+        auto *d = static_cast<MD_BLOCK_FOOTNOTE_DEF_DETAIL*>(detail);
+        self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
+        self->writeHtml(QString("<li id=\"fn-%1\">").arg(d->id));
+        break;
+    }
     case MD_BLOCK_TABLE:
         self->writeHtml("<table>");
         break;
@@ -162,6 +176,21 @@ int MdRenderer::leaveBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     case MD_BLOCK_ADMONITION:
         self->writeHtml("</div>");
         break;
+    case MD_BLOCK_FOOTNOTE_DEF_SECTION:
+        self->writeHtml("</ol></section>");
+        break;
+    case MD_BLOCK_FOOTNOTE_DEF: {
+        auto *d = static_cast<MD_BLOCK_FOOTNOTE_DEF_DETAIL*>(detail);
+        for (unsigned int ref = 1; ref <= d->ref_count; ++ref) {
+            if (ref > 1)
+                self->writeHtml(" ");
+            self->writeHtml(QString("<a href=\"#fnref-%1-%2\" "
+                                    "class=\"footnote-backref\">&#8617;</a>")
+                .arg(d->id).arg(ref));
+        }
+        self->writeHtml("</li>");
+        break;
+    }
     case MD_BLOCK_TABLE:
         self->writeHtml("</table>");
         break;
@@ -236,6 +265,28 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
     case MD_SPAN_U:
         self->writeHtml("<u>");
         break;
+    case MD_SPAN_SUPERSCRIPT:
+        if (!self->m_img.inside)
+            self->writeHtml("<sup>");
+        break;
+    case MD_SPAN_SUBSCRIPT:
+        if (!self->m_img.inside)
+            self->writeHtml("<sub>");
+        break;
+    case MD_SPAN_SPOILER:
+        if (!self->m_img.inside)
+            self->writeHtml("<span class=\"spoiler\">");
+        break;
+    case MD_SPAN_FOOTNOTE_REF: {
+        // Self-contained span: no MD_TEXT callbacks fire between enter and
+        // leave, so the whole <sup><a>...</a></sup> is emitted here.
+        auto *d = static_cast<MD_SPAN_FOOTNOTE_REF_DETAIL*>(detail);
+        if (self->m_img.inside)
+            break;
+        self->writeHtml(QString("<sup><a href=\"#fn-%1\" id=\"fnref-%1-%2\">%1</a></sup>")
+            .arg(d->id).arg(d->ref_id));
+        break;
+    }
     default:
         if (!self->m_img.inside)
             break;
@@ -296,6 +347,21 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
     case MD_SPAN_U:
         if (self->m_img.inside) break;
         self->writeHtml("</u>");
+        break;
+    case MD_SPAN_SUPERSCRIPT:
+        if (self->m_img.inside) break;
+        self->writeHtml("</sup>");
+        break;
+    case MD_SPAN_SUBSCRIPT:
+        if (self->m_img.inside) break;
+        self->writeHtml("</sub>");
+        break;
+    case MD_SPAN_SPOILER:
+        if (self->m_img.inside) break;
+        self->writeHtml("</span>");
+        break;
+    case MD_SPAN_FOOTNOTE_REF:
+        /* enter_span already emitted the full <sup><a>…</a></sup> */
         break;
     default:
         break;

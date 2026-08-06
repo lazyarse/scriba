@@ -14,6 +14,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 #include "MarkdownParser.h"
+#include "Preferences.h"
+#include <QSettings>
 
 TEST(MarkdownParserTest, EmptyInput) {
     QString html = MarkdownParser::toHtml("");
@@ -310,4 +312,80 @@ TEST(MarkdownParserTest, NoHtmlFlagDoesNotEscapeCodeFence) {
     QString html = MarkdownParser::toHtml("```\n<div>escaped in code</div>\n```", true);
     EXPECT_TRUE(html.contains("<code"));
     EXPECT_TRUE(html.contains("&lt;div&gt;"));
+}
+
+TEST(MarkdownParserTest, FootnoteReference) {
+    QString html = MarkdownParser::toHtml("Text with a note.[^1]\n\n[^1]: The note body.");
+    EXPECT_TRUE(html.contains("<sup><a href=\"#fn-1\" id=\"fnref-1-1\">1</a></sup>"));
+    EXPECT_TRUE(html.contains("<section class=\"footnotes\"><ol>"));
+    EXPECT_TRUE(html.contains("<li id=\"fn-1\">"));
+    EXPECT_TRUE(html.contains("</ol></section>"));
+    EXPECT_TRUE(html.contains("The note body."));
+}
+
+TEST(MarkdownParserTest, FootnoteNamedLabel) {
+    QString html = MarkdownParser::toHtml("See the note.[^my-note]\n\n[^my-note]: Body text.");
+    EXPECT_TRUE(html.contains("id=\"fnref-1-1\""));
+    EXPECT_TRUE(html.contains("Body text."));
+}
+
+TEST(MarkdownParserTest, FootnoteMultipleRefs) {
+    QString html = MarkdownParser::toHtml("[^a] one and [^a] two.\n\n[^a]: Same note.");
+    EXPECT_TRUE(html.contains("id=\"fnref-1-1\""));
+    EXPECT_TRUE(html.contains("id=\"fnref-1-2\""));
+    EXPECT_TRUE(html.contains("class=\"footnote-backref\""));
+}
+
+TEST(MarkdownParserTest, PermissiveEmailAutolink) {
+    QString html = MarkdownParser::toHtml("Mail someone@example.com today.");
+    EXPECT_TRUE(html.contains("<a href="));
+    EXPECT_TRUE(html.contains("someone@example.com"));
+}
+
+TEST(MarkdownParserTest, PermissiveWwwAutolink) {
+    QString html = MarkdownParser::toHtml("See www.example.com for details.");
+    EXPECT_TRUE(html.contains("<a href="));
+    EXPECT_TRUE(html.contains("www.example.com"));
+}
+
+TEST(MarkdownParserTest, PermissiveUrlAutolink) {
+    QString html = MarkdownParser::toHtml("Go to https://example.com now.");
+    EXPECT_TRUE(html.contains("<a href="));
+    EXPECT_TRUE(html.contains("https://example.com"));
+}
+
+TEST(MarkdownParserTest, Superscript) {
+    QString html = MarkdownParser::toHtml("E = mc^2^");
+    EXPECT_TRUE(html.contains("<sup>"));
+    EXPECT_TRUE(html.contains("</sup>"));
+    EXPECT_TRUE(html.contains("2"));
+}
+
+TEST(MarkdownParserTest, Subscript) {
+    QString html = MarkdownParser::toHtml("H~2~O");
+    EXPECT_TRUE(html.contains("<sub>"));
+    EXPECT_TRUE(html.contains("</sub>"));
+    EXPECT_TRUE(html.contains("2"));
+}
+
+TEST(MarkdownParserTest, Spoiler) {
+    QString html = MarkdownParser::toHtml("Reveal ||the surprise||.");
+    EXPECT_TRUE(html.contains("<span class=\"spoiler\">"));
+    EXPECT_TRUE(html.contains("</span>"));
+    EXPECT_TRUE(html.contains("the surprise"));
+}
+
+TEST(MarkdownParserTest, HardSoftBreaksDefaultOff) {
+    QString html = MarkdownParser::toHtml("line one\nline two");
+    EXPECT_FALSE(html.contains("<br"));
+    EXPECT_TRUE(html.contains("line one"));
+    EXPECT_TRUE(html.contains("line two"));
+}
+
+TEST(MarkdownParserTest, HardSoftBreaksPrefOn) {
+    QSettings settings;
+    settings.setValue(Preferences::HardSoftBreaks, true);
+    QString html = MarkdownParser::toHtml("line one\nline two");
+    EXPECT_TRUE(html.contains("<br>"));
+    settings.setValue(Preferences::HardSoftBreaks, false);
 }

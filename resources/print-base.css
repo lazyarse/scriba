@@ -249,3 +249,33 @@ mark {
     color: #1a1a1a;
     padding: 0 0.12em;
 }
+
+/* Footnotes (`[^label]` references). */
+section.footnotes {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid #ddd;
+    font-size: 0.9em;
+}
+
+section.footnotes ol {
+    padding-left: 1.5em;
+}
+
+section.footnotes li {
+    margin-bottom: 0.3em;
+}
+
+section.footnotes a.footnote-backref {
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* Spoiler (`||hidden text||`); PDF export has no hover, so render the content
+   visible with a neutral background. */
+span.spoiler {
+    background-color: #e8e8e8;
+    color: #1a1a1a;
+    border-radius: 3px;
+    padding: 0 0.15em;
+}
