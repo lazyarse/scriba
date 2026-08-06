@@ -90,7 +90,17 @@ sudo apt install xvfb xdotool
 pip install -r scripts/requirements.txt
 ```
 
-Both scripts expect a pre-built binary at `build/scriba`. The main window opens at Qt's default 640×480 (it doesn't set its own size), so both scripts size it manually with `xdotool windowsize` before capturing (`update-screenshot.sh:22`, `create-autocomplete-demo.py:77`).
+Both scripts expect a pre-built binary at `build/scriba`. The main window opens at Qt's default 640×480 (it doesn't set its own size), so the shared `demo_helper.py` sizes it manually with `xdotool windowsize` (1000×400, `windowmove`d to 0,0) before capturing; `update-screenshot.sh:22` sizes its window to 1280×800.
+
+### Table Demo GIF
+
+After changing table formatting or alignment behavior, update `docs/images/table-demo.gif`:
+
+```bash
+python3 scripts/create-table-demo.py
+```
+
+Like the autocomplete demo, this auto-wraps in `xvfb-run`, simulates keystrokes with `xdotool`, captures frames with `mss`, and assembles the GIF. It needs a pre-built binary at `build/scriba` and the same `xvfb`/`xdotool`/Pillow/mss dependencies as above. The script writes its config to `/tmp/scriba-demo-config` (`dictionaryLanguage=en_GB`, `grammarDialect=British`) so the British spelling "Centre" in the header column isn't flagged by the spell checker, and both scripts share the key-simulation, capture, and GIF-assembly helpers in `scripts/demo_helper.py`.
 
 ### Keyboard Shortcuts
 
