@@ -112,6 +112,20 @@ void Preview::hideRenderOverlay()
     page()->runJavaScript(QStringLiteral("scribaEndRender()"));
 }
 
+void Preview::showRenderError(const QString &message)
+{
+    // Replaces the "white pane" with a styled error panel when a render or
+    // page-load failure occurs (a failure scribaUpdate's own try/catch could
+    // not surface). Falls back to body text if the report's script isn't
+    // present in the current document.
+    const QString msg = message.isEmpty() ? QStringLiteral("Unknown error") : message;
+    page()->runJavaScript(
+        QStringLiteral("typeof scribaShowRenderError!=='undefined'"
+                       "?scribaShowRenderError(%1):void(document.body.textContent=%1)")
+            .arg(escapeJsString(msg)));
+    hideRenderOverlay();
+}
+
 void Preview::setDocumentPath(const QString &path)
 {
     m_documentPath = path;

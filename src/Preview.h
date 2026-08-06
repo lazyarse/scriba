@@ -54,6 +54,7 @@ public:
     void scrollToPercent(double pct);
     void setHtmlWithOverlay(const QString &html, const QUrl &baseUrl);
     void hideRenderOverlay();
+    void showRenderError(const QString &message);
     void setThemeBackgroundColor(const QColor &color);
 
 protected:

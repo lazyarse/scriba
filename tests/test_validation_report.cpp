@@ -17,6 +17,7 @@
 #include "SpellChecker.h"
 #include "StoppardEngine.h"
 #include "ValidationReport.h"
+#include "MarkdownParser.h"
 #include "TestConfig.h"
 
 #include <QApplication>
@@ -323,16 +324,57 @@ TEST_F(ValidationReportTest, RenderMarkdownDeepLinksToFindings)
     EXPECT_TRUE(out.contains(QStringLiteral("### Spelling")));
 }
 
-TEST_F(ValidationReportTest, RenderMarkdownContextQuoteHighlightsSpan)
+TEST_F(ValidationReportTest, RenderMarkdownContextQuoteQuotesSourceLine)
 {
     QString rendered;
     const auto doc = scanOne(QStringLiteral("line one\nA typo recieve here.\n"),
                              &rendered);
     ASSERT_FALSE(doc.issues.value(ValidationReport::Category::Spelling).isEmpty());
-    // The finding's context quote wraps the misspelled word in `==…==` so the
-    // preview renders it as a highlighted <mark>.
-    EXPECT_TRUE(rendered.contains(QLatin1String("> A typo ==recieve== here.")))
+    // The finding's context is quoted as an inert fenced code block so source
+    // content can never inject Markdown structure into the report.
+    EXPECT_TRUE(rendered.contains(
+        QLatin1String("```text\nA typo recieve here.\n```")))
         << rendered.toStdString();
+}
+
+// The regression behind the report "white preview": when a scanned source line
+// is itself Markdown (a table cell containing `==…==` highlights, inline
+// backticks, fences), quoting it back as live Markdown could produce an
+// unbalanced `==` and swallow the rest of the report's render. Quoting it as a
+// code block must keep the report well-formed.
+TEST_F(ValidationReportTest, ContextQuoteCannotMangleReportMarkdown)
+{
+    const QString poison =
+        QStringLiteral("| Symbol | `--bg` `background-color` | `==highlight==` fill (`--color`) |");
+    ValidationReport::DocumentReport doc;
+    doc.label = QStringLiteral("poison.md");
+    doc.filePath = m_docPath;
+    doc.sourceLines = { poison, QStringLiteral("ordinary line") };
+    const int col = poison.indexOf(QStringLiteral("==")) + 1; // span lands on the `==`
+    doc.issues[ValidationReport::Category::Spelling].append(
+        {1, col, 6, QStringLiteral("message"), {}});
+
+    ValidationReport::DocumentReport clean;
+    clean.label = QStringLiteral("clean.md");
+    clean.filePath = m_docPath;
+    clean.sourceLines = { QStringLiteral("A second document.") };
+
+    const QString out = ValidationReport::renderMarkdown(
+        {doc, clean}, QStringLiteral("2026-08-05T12:00:00"));
+    const QString html = MarkdownParser::toHtml(out);
+
+    // The poisoned line is quoted inertly (it must not become a `<mark>` or an
+    // open table), and the highlight is no longer injected as live Markdown.
+    EXPECT_EQ(0, html.count(QLatin1String("<mark>"))) << html.toStdString();
+    EXPECT_TRUE(html.contains(QLatin1String("<pre"))) << html.toStdString();
+    // The following report section still renders its own heading — proof the
+    // poisoned line did not swallow the rest into an unclosed block. The
+    // clean.md heading must appear AFTER the closed code block, not inside it.
+    EXPECT_TRUE(html.contains(QLatin1String("</code></pre>")))
+        << html.toStdString();
+    EXPECT_TRUE(html.lastIndexOf(QLatin1String("clean.md"))
+                > html.lastIndexOf(QLatin1String("</pre>")))
+        << html.toStdString();
 }
 
 TEST_F(ValidationReportTest, GrammarIssuesGetLineAndColumn)

@@ -77,46 +77,58 @@ QString renderCategory(const char *name, const QVector<ValidationReport::Issue> 
     return md;
 }
 
-// Builds a short blockquote of the offending source line, with the issue's span
-// wrapped in `==…==` so the preview renders it as a highlighted <mark>.
-// Returns an empty string when there is no meaningful span to quote (blank
-// line, whole-line span, or no source lines).
+// Builds a fenced code block quoting the offending source line, centered on
+// the issue's span so the finding's location stays visible. Quoting as code
+// keeps the line fully inert: source that is itself Markdown (tables, `>`
+// blockquotes, `==…==` highlights, fences, backticks) can never inject
+// structure into the report. Returns an empty string when the line is blank
+// or out of range.
 QString contextQuote(const QStringList &lines, const ValidationReport::Issue &issue)
 {
     const int lineIndex = issue.line - 1; // Issue::line is 1-based
     if (lineIndex < 0 || lineIndex >= lines.size())
         return QString();
     const QString full = lines.at(lineIndex);
-    if (issue.column <= 0 || issue.length <= 0)
-        return QStringLiteral("> ") + (full.isEmpty() ? QStringLiteral(" ") : full);
-    const int spanStart = qBound(0, issue.column - 1, qMax(0, full.size() - 1));
-    const int spanLen = qMin(issue.length, full.size() - spanStart);
-    if (spanLen <= 0)
-        return QStringLiteral("> ") + (full.isEmpty() ? QStringLiteral(" ") : full);
-    const int spanEnd = spanStart + spanLen;
+    if (full.isEmpty())
+        return QString();
+
+    // The offending line, truncated to a sane width around the issue's span.
     const int kMax = 140;
+    QString line;
     if (full.size() <= kMax) {
-        return QStringLiteral("> ") + full.left(spanStart) + QLatin1String("==")
-            + full.mid(spanStart, spanLen) + QLatin1String("==") + full.mid(spanEnd);
+        line = full;
+    } else {
+        const int spanStart = qBound(0, issue.column - 1, qMax(0, full.size() - 1));
+        const int spanLen = qMin(qMax(issue.length, 1), full.size() - spanStart);
+        const int spanEnd = spanStart + spanLen;
+        const int extra = kMax - spanLen;       // budget for context either side
+        const int before = spanStart;           // chars available before the span
+        const int after = full.size() - spanEnd;// chars available after the span
+        int lead = qMin(extra / 2, before);
+        int trail = qMin(extra - lead, after);
+        lead = qMin(extra - trail, before);     // use up any unused trailing budget
+        const int begin = spanStart - lead;
+        const int finish = spanEnd + trail;
+        if (begin > 0)
+            line += QLatin1String("…");
+        line += full.mid(begin, finish - begin);
+        if (finish < full.size())
+            line += QLatin1String("…");
     }
-    // Truncate the line around the span, keeping the whole span visible.
-    const int window = qMin(kMax, full.size());
-    const int extra = window - spanLen;       // budget for context either side
-    const int before = spanStart;             // chars available before the span
-    const int after = full.size() - spanEnd;  // chars available after the span
-    int lead = qMin(extra / 2, before);
-    int trail = qMin(extra - lead, after);
-    lead = qMin(extra - trail, before);       // use up any unused trailing budget
-    const int begin = spanStart - lead;
-    const int finish = spanEnd + trail;
-    QString out;
-    if (begin > 0)
-        out += QLatin1String("…");
-    out += full.mid(begin, spanStart - begin) + QLatin1String("==")
-        + full.mid(spanStart, spanLen) + QLatin1String("==") + full.mid(spanEnd, finish - spanEnd);
-    if (finish < full.size())
-        out += QLatin1String("…");
-    return QStringLiteral("> ") + out;
+
+    // Fence with more backticks than any run in the line, so a source line
+    // that is itself a fence opener cannot close our block early.
+    int maxRun = 0;
+    int cur = 0;
+    for (const QChar &c : line) {
+        cur = (c == QLatin1Char('`')) ? cur + 1 : 0;
+        if (cur > maxRun)
+            maxRun = cur;
+    }
+    const int n = qMax(3, maxRun + 1);
+    const QString fence(n, QLatin1Char('`'));
+    return QStringLiteral("\n") + fence + QStringLiteral("text\n")
+        + line + QLatin1Char('\n') + fence;
 }
 
 } // namespace

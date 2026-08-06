@@ -44,6 +44,7 @@ class MermaidDialog;
 class KatexHelperDialog;
 class MchemHelperDialog;
 class SpellCheckDialog;
+class QProgressBar;
 
 struct TabInfo {
     Editor *editor = nullptr;
@@ -158,6 +159,7 @@ private:
     void onValidationReportReady(const QVector<QList<GrammarChecker::Issue>> &grammarIssues);
     void openValidationReport();
     void stopValidationReport();
+    void updateReportProgress();
 
     QSplitter *m_splitter;
     Preview *m_preview;
@@ -179,6 +181,8 @@ private:
     QToolButton *m_previewBtn = nullptr;
     QLabel *m_statsLabel = nullptr;
     LogWindow *m_logWindow = nullptr;
+    QProgressBar *m_reportProgressBar = nullptr;
+    QTimer *m_reportProgressTimer = nullptr;
     QTimer *m_autoSaveTimer = nullptr;
     int m_previewState = 1;
     FindDialog *m_findDialog = nullptr;
