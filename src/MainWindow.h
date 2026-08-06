@@ -102,6 +102,7 @@ public:
     void toggleFindDialog();
     void autoSave();
     void showTableInsert();
+    void applyAcceptedPreferences();
 
 private:
     void setupUi();
@@ -178,6 +179,7 @@ private:
     QString m_cachedPreviewBaseCss;
     QString m_cachedOverlayCss;
     bool m_chromeUpdateScheduled = false;
+    bool m_deferredPrefsTailPending = false;
     QToolButton *m_fullscreenBtn = nullptr;
     QToolButton *m_previewBtn = nullptr;
     QLabel *m_statsLabel = nullptr;

@@ -1380,7 +1380,7 @@ void MainWindow::updatePreview(bool tabSwitch)
             "<script src=\"qrc:///echarts.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>window._scribaHeavyDelay=" + QString::number(heavyRenderDelay) + ";" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + echartsInitJs + setImgTitlesJs + imageOverlayJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode,delay,baseUrl){if(!document.body)return false;try{window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss){var tc=document.getElementById('theme-css');if(tc)tc.textContent=themeCss;}if(baseUrl){var b=document.getElementById('scriba-base');if(!b){b=document.createElement('base');b.id='scriba-base';var hd=document.head;hd.insertBefore(b,hd.firstChild);}b.href=baseUrl;}else{var b2=document.getElementById('scriba-base');if(b2)b2.remove();}window._scribaBasePath=baseUrl?new URL(baseUrl).pathname:location.pathname;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initECharts();hljs.highlightAll();generateHeadingIds();setImgTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},(typeof delay==='number'&&delay>=0)?delay:window._scribaHeavyDelay);return true;}catch(e){scribaShowRenderError(e&&e.message?e.message:e);scribaEndRender();return false;}}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}function scribaShowRenderError(m){var c=document.getElementById('scriba-content');if(!c&&document.body){c=document.createElement('div');c.id='scriba-content';document.body.appendChild(c);}if(!c)return;m=String(m==null?'Unknown render error':m);var t=document.createElement('div');t.style.cssText='margin:2rem auto;max-width:720px;padding:1.2rem 1.4rem;border:1px solid #d33;border-radius:6px;background:#fdf0f0;color:#8b0000;font-family:system-ui,sans-serif;';t.innerHTML='<strong>Preview error</strong><pre style=\"white-space:pre-wrap;word-break:break-word;font-family:monospace;margin:0.5rem 0 0;color:#6b0000;\">'+String(m).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';c.innerHTML='';c.appendChild(t);}document.addEventListener('DOMContentLoaded',function(){window._scribaBasePath=location.pathname;mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.echartsReady=initECharts();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
+            "<script>window._scribaHeavyDelay=" + QString::number(heavyRenderDelay) + ";" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + echartsInitJs + setImgTitlesJs + setFootnoteTitlesJs + imageOverlayJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode,delay,baseUrl){if(!document.body)return false;try{window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss){var tc=document.getElementById('theme-css');if(tc)tc.textContent=themeCss;}if(baseUrl){var b=document.getElementById('scriba-base');if(!b){b=document.createElement('base');b.id='scriba-base';var hd=document.head;hd.insertBefore(b,hd.firstChild);}b.href=baseUrl;}else{var b2=document.getElementById('scriba-base');if(b2)b2.remove();}window._scribaBasePath=baseUrl?new URL(baseUrl).pathname:location.pathname;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initECharts();hljs.highlightAll();generateHeadingIds();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},(typeof delay==='number'&&delay>=0)?delay:window._scribaHeavyDelay);return true;}catch(e){scribaShowRenderError(e&&e.message?e.message:e);scribaEndRender();return false;}}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}function scribaShowRenderError(m){var c=document.getElementById('scriba-content');if(!c&&document.body){c=document.createElement('div');c.id='scriba-content';document.body.appendChild(c);}if(!c)return;m=String(m==null?'Unknown render error':m);var t=document.createElement('div');t.style.cssText='margin:2rem auto;max-width:720px;padding:1.2rem 1.4rem;border:1px solid #d33;border-radius:6px;background:#fdf0f0;color:#8b0000;font-family:system-ui,sans-serif;';t.innerHTML='<strong>Preview error</strong><pre style=\"white-space:pre-wrap;word-break:break-word;font-family:monospace;margin:0.5rem 0 0;color:#6b0000;\">'+String(m).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';c.innerHTML='';c.appendChild(t);}document.addEventListener('DOMContentLoaded',function(){window._scribaBasePath=location.pathname;mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.echartsReady=initECharts();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
             "</head><body id=\"preview\">"
             "<div id=\"scriba-rendering-overlay\">Rendering…</div>"
             "<div id=\"scriba-content\">%3</div>"
@@ -1493,32 +1493,7 @@ void MainWindow::showPreferences()
         });
     QSettings s;
     if (dlg.exec() == QDialog::Accepted) {
-        applyStyleSheetToAllEditors();
-        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
-        applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
-        updateAll();
-        updateStats();
-        for (const auto &tab : m_tabs) {
-            if (tab.editor) {
-                tab.editor->invalidateEmojiIconCache();
-                tab.editor->updateGutterSettings();
-                tab.editor->recheckSpelling();
-                applyEditorContentWidth(tab.editor);
-            }
-        }
-        applyPreviewSplitWidth();
-        updatePreview();
-
-        int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
-        if (interval > 0)
-            m_autoSaveTimer->start(interval * kMsPerMinute);
-        else
-            m_autoSaveTimer->stop();
-
-        int heavyDelay = s.value(Preferences::HeavyRenderDelay,
-            Preferences::DefaultHeavyRenderDelay).toInt();
-        if (m_previewInitialized)
-            m_preview->page()->runJavaScript(QString("window._scribaHeavyDelay=%1").arg(heavyDelay));
+        applyAcceptedPreferences();
     } else {
         m_cssConfig->setActiveStylesheet(oldStylesheet);
         m_cssLoader->invalidateCache();
@@ -1526,6 +1501,58 @@ void MainWindow::showPreferences()
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
         applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
     }
+}
+
+void MainWindow::applyAcceptedPreferences()
+{
+    QSettings s;
+
+    // Synchronous, editor-affecting applies. These never touch QtWebEngine and
+    // must take effect immediately so the visible editor matches the dialog.
+    applyStyleSheetToAllEditors();
+    applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
+    applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
+
+    int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
+    if (interval > 0)
+        m_autoSaveTimer->start(interval * kMsPerMinute);
+    else
+        m_autoSaveTimer->stop();
+
+    for (const auto &tab : m_tabs) {
+        if (tab.editor) {
+            tab.editor->invalidateEmojiIconCache();
+            tab.editor->updateGutterSettings();
+            tab.editor->recheckSpelling();
+            applyEditorContentWidth(tab.editor);
+        }
+    }
+
+    // Everything below escalates into QtWebEngine (runJavaScript/scribaUpdate).
+    // Issued synchronously right after QDialog::exec() unwinds, the renderer IPC
+    // that the modal event loop starved the renderer process of all lands at once
+    // and blocks the GUI thread for seconds. Defer the preview work one
+    // event-loop turn so the modal unwind and pending renderer messages drain
+    // first; coalesce so rapid OK-clicking schedules at most one deferred tail.
+    if (m_deferredPrefsTailPending)
+        return;
+    m_deferredPrefsTailPending = true;
+    QTimer::singleShot(0, this, [this]() {
+        m_deferredPrefsTailPending = false;
+        syncCssWatcher();
+        refreshPreviewCss();
+        applyStripeSetting();
+        applyCodeLangSetting();
+        updateStats();
+        applyPreviewSplitWidth();
+        updatePreview();
+        if (m_previewInitialized) {
+            QSettings prefs;
+            int heavyDelay = prefs.value(Preferences::HeavyRenderDelay,
+                Preferences::DefaultHeavyRenderDelay).toInt();
+            m_preview->page()->runJavaScript(QString("window._scribaHeavyDelay=%1").arg(heavyDelay));
+        }
+    });
 }
 
 void MainWindow::showChartBuilder()

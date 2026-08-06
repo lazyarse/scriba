@@ -113,6 +113,24 @@ const QString setImgTitlesJs = QStringLiteral(
     "}"
 );
 
+// Footnote reference links get the text of their definition as a native title
+// tooltip, so hovering `<sup><a href="#fn-N">` shows the note. The definition
+// is cloned and its backref (`↶`) removed before reading the text.
+const QString setFootnoteTitlesJs = QStringLiteral(
+    "function setFootnoteTitles(){"
+    "document.querySelectorAll('a[href^=\"#fn-\"]').forEach(function(a){"
+    "var m=/^#fn-(\\d+)$/.exec(a.getAttribute('href'));"
+    "if(!m)return;"
+    "var li=document.getElementById('fn-'+m[1]);"
+    "if(!li)return;"
+    "var cl=li.cloneNode(true);"
+    "cl.querySelectorAll('.footnote-backref').forEach(function(b){b.remove();});"
+    "var t=(cl.innerText||cl.textContent||'').replace(/\\s+/g,' ').replace(/^\\s+|\\s+$/g,'');"
+    "if(t)a.title=t;"
+    "});"
+    "}"
+);
+
 const QString katexToImageJs = QStringLiteral(
     "function convertKatexToImages(){"
     "var elements=document.querySelectorAll('.katex');"

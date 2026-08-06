@@ -266,20 +266,3 @@ section.footnotes a.footnote-backref {
     text-decoration: none;
     font-weight: bold;
 }
-
-/* Spoiler (`||hidden text||` → <span class="spoiler">); content is covered
-   until the reader hovers over it. */
-span.spoiler {
-    background-color: #b0b0b0;
-    color: #b0b0b0;
-    border-radius: 3px;
-    padding: 0 0.2em;
-    cursor: pointer;
-    user-select: none;
-    transition: color 0.15s ease, background-color 0.15s ease;
-}
-
-span.spoiler:hover {
-    color: inherit;
-    background-color: transparent;
-}

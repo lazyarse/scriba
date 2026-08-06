@@ -368,13 +368,6 @@ TEST(MarkdownParserTest, Subscript) {
     EXPECT_TRUE(html.contains("2"));
 }
 
-TEST(MarkdownParserTest, Spoiler) {
-    QString html = MarkdownParser::toHtml("Reveal ||the surprise||.");
-    EXPECT_TRUE(html.contains("<span class=\"spoiler\">"));
-    EXPECT_TRUE(html.contains("</span>"));
-    EXPECT_TRUE(html.contains("the surprise"));
-}
-
 TEST(MarkdownParserTest, HardSoftBreaksDefaultOff) {
     QString html = MarkdownParser::toHtml("line one\nline two");
     EXPECT_FALSE(html.contains("<br"));

@@ -138,16 +138,6 @@ Use `<>` angle brackets for explicit autolinks as usual: <https://example.com>.
 - Math-style exponents: 2^10^ = 1024, e^ix^ + 1 = 0
 - Units and footnotes-style markers: 10 m^2^, x~1~ + x~2~
 
-### Spoilers
-
-Wrap text in `||...||` to cover it until hovered (useful for quiz answers):
-
-The capital of France is ||Paris||, not ||Berlin||.
-
-> [!note]
-> Spoilers are covered with a solid block in the preview; hover to reveal.
-> In PDF exports (no hover), the content is shown with a neutral background.
-
 ### Hard line breaks
 
 By default a single newline inside a paragraph is a soft break — rendered as a

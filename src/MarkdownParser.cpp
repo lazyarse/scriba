@@ -27,7 +27,7 @@ QString MarkdownParser::toHtml(const QString &markdown, bool noHtml)
                               | MD_FLAG_TASKLISTS | MD_FLAG_PERMISSIVEAUTOLINKS
                               | MD_FLAG_ADMONITIONS | MD_FLAG_HIGHLIGHT
                               | MD_FLAG_SUPERSCRIPTS | MD_FLAG_SUBSCRIPTS
-                              | MD_FLAG_SPOILERS | MD_FLAG_FOOTNOTES;
+                              | MD_FLAG_FOOTNOTES;
 
     QSettings settings;
     if (settings.value(Preferences::HardSoftBreaks, false).toBool())

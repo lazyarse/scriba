@@ -22,5 +22,6 @@ extern const QString anchorNavJs;
 extern const QString katexInitJs;
 extern const QString echartsInitJs;
 extern const QString setImgTitlesJs;
+extern const QString setFootnoteTitlesJs;
 extern const QString katexToImageJs;
 extern const QString imageOverlayJs;

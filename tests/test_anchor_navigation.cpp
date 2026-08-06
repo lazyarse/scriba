@@ -352,6 +352,34 @@ TEST_F(AnchorNavigationTest, MissingImageLinkShowsNoOverlay)
     EXPECT_NE("flex", state.value("display").toString());
 }
 
+TEST_F(AnchorNavigationTest, FootnoteLinkHoverTitleShowsNoteText)
+{
+    loadDoc(QStringLiteral("foot.md"),
+        "Water is H2O.[^1]\n\n[^1]: Two hydrogen atoms and one oxygen.\n");
+
+    QString title;
+    window->preview()->page()->runJavaScript(
+        "(function(){var a=document.querySelector('a[href=\"#fn-1\"]');"
+        "return a?(a.title||'no-title'):'no-link';})()",
+        [&](const QVariant &r) { title = r.toString(); });
+    QTest::qWait(500);
+    EXPECT_EQ(QStringLiteral("Two hydrogen atoms and one oxygen."), title);
+}
+
+TEST_F(AnchorNavigationTest, FootnoteBackrefGetsNoTitle)
+{
+    loadDoc(QStringLiteral("foot2.md"),
+        "Note here.[^a]\n\n[^a]: Body text.\n");
+
+    QString title;
+    window->preview()->page()->runJavaScript(
+        "(function(){var a=document.querySelector('.footnote-backref');"
+        "return a?(a.title||'no-title'):'no-backref';})()",
+        [&](const QVariant &r) { title = r.toString(); });
+    QTest::qWait(500);
+    EXPECT_EQ(QStringLiteral("no-title"), title);
+}
+
 } // namespace
 
 int main(int argc, char **argv)

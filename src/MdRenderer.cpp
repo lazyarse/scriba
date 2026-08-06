@@ -273,10 +273,6 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
         if (!self->m_img.inside)
             self->writeHtml("<sub>");
         break;
-    case MD_SPAN_SPOILER:
-        if (!self->m_img.inside)
-            self->writeHtml("<span class=\"spoiler\">");
-        break;
     case MD_SPAN_FOOTNOTE_REF: {
         // Self-contained span: no MD_TEXT callbacks fire between enter and
         // leave, so the whole <sup><a>...</a></sup> is emitted here.
@@ -355,10 +351,6 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
     case MD_SPAN_SUBSCRIPT:
         if (self->m_img.inside) break;
         self->writeHtml("</sub>");
-        break;
-    case MD_SPAN_SPOILER:
-        if (self->m_img.inside) break;
-        self->writeHtml("</span>");
         break;
     case MD_SPAN_FOOTNOTE_REF:
         /* enter_span already emitted the full <sup><a>…</a></sup> */
