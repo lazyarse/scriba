@@ -447,7 +447,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
         QString line = cursor.block().text();
 
         // Table cell navigation
-        if (line.startsWith('|') && !line.contains("---")) {
+        if (line.startsWith('|')) {
             int pos = cursor.positionInBlock();
             int cellPos = tableNavCell(line, pos, !shift);
             if (cellPos >= 0) {
@@ -474,7 +474,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                     QString newRow = makeEmptyTableRow(cols);
                     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
                     bool hasSep = false;
-                    QTextBlock b = cursor.block().previous();
+                    QTextBlock b = cursor.block();
                     while (b.isValid() && b.text().startsWith('|')) {
                         if (b.text().contains("---")) { hasSep = true; break; }
                         b = b.previous();

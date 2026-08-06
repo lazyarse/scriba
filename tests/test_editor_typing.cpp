@@ -462,6 +462,38 @@ TEST_F(EditorTestHarness, TabFromLastCellJumpsToNextRow)
     assertCursor(1, 2);
 }
 
+TEST_F(EditorTestHarness, TabMovesToNextCellInSeparatorRow)
+{
+    setContent("| a | b |\n|---|---|\n| x | y |");
+    placeCursor(1, 1);
+    press(Qt::Key_Tab);
+    assertCursor(1, 5);
+}
+
+TEST_F(EditorTestHarness, ShiftTabMovesToPreviousCellInSeparatorRow)
+{
+    setContent("| a | b |\n|---|---|\n| x | y |");
+    placeCursor(1, 5);
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    assertCursor(1, 1);
+}
+
+TEST_F(EditorTestHarness, TabFromLastSeparatorCellJumpsToFirstDataRow)
+{
+    setContent("| a | b |\n|---|---|\n| x | y |");
+    placeCursor(1, 5);
+    press(Qt::Key_Tab);
+    assertCursor(2, 2);
+}
+
+TEST_F(EditorTestHarness, TabFromSeparatorLastCellWithoutDataRowCreatesRow)
+{
+    setContent("| a | b |\n|---|---|");
+    placeCursor(1, 5);
+    press(Qt::Key_Tab);
+    assertCursor(2, 2);
+}
+
 TEST_F(EditorTestHarness, CtrlDDuplicatesCurrentLine)
 {
     setContent("alpha\nbeta\ngamma");
