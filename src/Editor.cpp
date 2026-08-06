@@ -967,34 +967,31 @@ bool Editor::isInsideEmojiContext(const QTextCursor &cursor, QString &partialCod
 
 bool Editor::showEmojiCompletion(const QString &partialCode)
 {
-    QStringList matchedCodes;
+    QVector<QPair<QString, FuzzyScore>> scored;
     for (const QString &sc : m_emojiShortcodes) {
-        if (sc.contains(partialCode, Qt::CaseInsensitive))
-            matchedCodes.append(sc);
+        FuzzyScore score = fuzzyMatchScore(sc, partialCode);
+        if (score.matched)
+            scored.append({sc, score});
     }
 
-    if (matchedCodes.isEmpty()) {
+    if (scored.isEmpty()) {
         if (m_completer)
             m_completer->popup()->hide();
         return false;
     }
 
-    std::sort(matchedCodes.begin(), matchedCodes.end(),
-        [&partialCode](const QString &a, const QString &b) {
-            bool aPrefix = a.startsWith(partialCode, Qt::CaseInsensitive);
-            bool bPrefix = b.startsWith(partialCode, Qt::CaseInsensitive);
-            if (aPrefix != bPrefix)
-                return aPrefix;
-            return a < b;
+    std::sort(scored.begin(), scored.end(),
+        [](const QPair<QString, FuzzyScore> &a, const QPair<QString, FuzzyScore> &b) {
+            if (a.second.gaps != b.second.gaps)
+                return a.second.gaps < b.second.gaps;
+            if (a.second.firstPos != b.second.firstPos)
+                return a.second.firstPos < b.second.firstPos;
+            return a.first < b.first;
         });
 
     int limit = QSettings().value(Preferences::EmojiCompletionLimit, 100).toInt();
-    if (matchedCodes.size() > limit)
-        matchedCodes = matchedCodes.mid(0, limit);
-
-    QStringList matches;
-    for (const QString &sc : matchedCodes)
-        matches.append(QString(":%1:").arg(sc));
+    if (scored.size() > limit)
+        scored = scored.mid(0, limit);
 
     if (!m_completer) {
         m_completer = new QCompleter(this);
@@ -1007,9 +1004,9 @@ bool Editor::showEmojiCompletion(const QString &partialCode)
     }
 
     QStandardItemModel *model = new QStandardItemModel(m_completer);
-    for (const QString &sc : matchedCodes) {
-        auto *item = new QStandardItem(QString(":%1:").arg(sc));
-        item->setIcon(QIcon(renderEmojiIcon(m_emojiUnicode.value(sc))));
+    for (const auto &match : scored) {
+        auto *item = new QStandardItem(QString(":%1:").arg(match.first));
+        item->setIcon(QIcon(renderEmojiIcon(m_emojiUnicode.value(match.first))));
         model->appendRow(item);
     }
 

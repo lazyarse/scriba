@@ -107,6 +107,19 @@ struct FileCompletionResult
 FileCompletionResult matchFileEntries(const QString &partialPath, const QDir &baseDir,
                                       int limit = 20);
 
+// Fuzzy (sequential) subsequence match. Every character of `fragment` appears
+// in `entry` in order, possibly with skipped characters in between. Subsumes
+// plain substring containment, so "scrsvg" matches "scriba.svg" and "prt"
+// matches "pirate". An empty fragment matches everything. Lower `gaps` (chars
+// skipped between matched chars) and lower `firstPos` rank a match as tighter,
+// so a prefix match always scores {true, 0, 0} and ranks first.
+struct FuzzyScore {
+    bool matched = false;
+    int gaps = 0;
+    int firstPos = 0;
+};
+FuzzyScore fuzzyMatchScore(const QString &entry, const QString &fragment);
+
 QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28);
 
 void stripButtonIcon(QAbstractButton *btn);

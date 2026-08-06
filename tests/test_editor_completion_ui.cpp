@@ -149,6 +149,37 @@ TEST_F(EditorCompletionHarness, EmojiEnterAcceptsTopItem)
     EXPECT_GT(result.length(), 3);
 }
 
+TEST_F(EditorCompletionHarness, EmojiFuzzySubsequenceSingleMatchAccepts)
+{
+    // "emph" is a subsequence of "female_superhero" (e,m,p,h in order), not a
+    // substring, so only fuzzy matching can surface it.
+    typeText(":emph");
+    enter();
+    EXPECT_EQ(text(), ":female_superhero:");
+}
+
+TEST_F(EditorCompletionHarness, EmojiFuzzySubsequenceSurfacesMatches)
+{
+    typeText(":hap");
+    QApplication::processEvents();
+
+    ASSERT_NE(editor->completer(), nullptr);
+    ASSERT_TRUE(editor->completer()->popup()->isVisible());
+    auto *model = editor->completer()->completionModel();
+
+    QStringList labels;
+    for (int i = 0; i < model->rowCount(); ++i)
+        labels << model->index(i, 0).data().toString();
+
+    // Contiguous "hap" ranks top...
+    EXPECT_EQ(labels.first(), ":diamond_shape_with_a_dot_inside:");
+    // ...and subsequence-only matches (no "hap" substring) appear.
+    EXPECT_TRUE(labels.contains(":harp:"));
+    EXPECT_TRUE(labels.contains(":champagne:"));
+    EXPECT_TRUE(labels.contains(":shocked_face_with_exploding_head:"));
+    EXPECT_TRUE(labels.contains(":raised_hand_with_fingers_splayed:"));
+}
+
 TEST_F(EditorCompletionHarness, FileCompletionLimitsResults)
 {
     // Create 25 files matching prefix "zzfile"

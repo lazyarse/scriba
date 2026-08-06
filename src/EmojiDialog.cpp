@@ -117,9 +117,32 @@ void EmojiDialog::filterEmoji(const QString &text)
     QColor bg = palette().window().color();
     bool darkBg = bg.lightness() < 128;
 
-    for (const auto &entry : m_all) {
-        if (!filter.isEmpty() && !entry.shortcode.contains(filter))
-            continue;
+    // Empty search keeps the catalog's alphabetical grid; otherwise fuzzy-match
+    // and rank by relevance (tighter subsequence matches first).
+    QList<EmojiEntry> ordered;
+    if (filter.isEmpty()) {
+        ordered = m_all;
+    } else {
+        QVector<QPair<const EmojiEntry *, FuzzyScore>> scored;
+        for (const EmojiEntry &entry : m_all) {
+            FuzzyScore score = fuzzyMatchScore(entry.shortcode, filter);
+            if (score.matched)
+                scored.append({&entry, score});
+        }
+        std::sort(scored.begin(), scored.end(),
+            [](const QPair<const EmojiEntry *, FuzzyScore> &a,
+               const QPair<const EmojiEntry *, FuzzyScore> &b) {
+                if (a.second.gaps != b.second.gaps)
+                    return a.second.gaps < b.second.gaps;
+                if (a.second.firstPos != b.second.firstPos)
+                    return a.second.firstPos < b.second.firstPos;
+                return a.first->shortcode < b.first->shortcode;
+            });
+        for (const auto &match : scored)
+            ordered.append(*match.first);
+    }
+
+    for (const EmojiEntry &entry : ordered) {
 
         QPixmap pix(iconSize, iconSize);
         pix.fill(Qt::transparent);

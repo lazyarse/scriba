@@ -374,5 +374,44 @@ TEST(EmojiTwemojiPathTest, UnknownReturnsEmpty) {
     EXPECT_TRUE(emojiTwemojiPath("not-an-emoji").isEmpty());
 }
 
+TEST(FuzzyMatchScoreTest, EmptyFragmentMatchesEverything) {
+    EXPECT_TRUE(fuzzyMatchScore("abc", "").matched);
+    EXPECT_EQ(fuzzyMatchScore("abc", "").gaps, 0);
+    EXPECT_EQ(fuzzyMatchScore("abc", "").firstPos, 0);
+}
+
+TEST(FuzzyMatchScoreTest, SubstringMatchesWithZeroGaps) {
+    FuzzyScore s = fuzzyMatchScore("scriba.svg", "scrsvg");
+    ASSERT_TRUE(s.matched);
+    EXPECT_EQ(s.gaps, 4);       // skips i, b, a, . between r and s
+    EXPECT_EQ(s.firstPos, 0);
+}
+
+TEST(FuzzyMatchScoreTest, PrefixScoreIsZeroZero) {
+    FuzzyScore s = fuzzyMatchScore("happy", "hap");
+    ASSERT_TRUE(s.matched);
+    EXPECT_EQ(s.gaps, 0);
+    EXPECT_EQ(s.firstPos, 0);
+}
+
+TEST(FuzzyMatchScoreTest, ScatteredMatchCountsGaps) {
+    // "prt" in "pirate": p(0), r(2), t(4) -> gaps = 1 + 1 = 2.
+    FuzzyScore s = fuzzyMatchScore("pirate", "prt");
+    ASSERT_TRUE(s.matched);
+    EXPECT_EQ(s.gaps, 2);
+    EXPECT_EQ(s.firstPos, 0);
+}
+
+TEST(FuzzyMatchScoreTest, CaseInsensitive) {
+    FuzzyScore s = fuzzyMatchScore("HAPPY", "hap");
+    ASSERT_TRUE(s.matched);
+    EXPECT_EQ(s.gaps, 0);
+}
+
+TEST(FuzzyMatchScoreTest, NoSequentialMatch) {
+    EXPECT_FALSE(fuzzyMatchScore("abc", "cba").matched);
+    EXPECT_FALSE(fuzzyMatchScore("smiley", "smilz").matched);
+}
+
 
 

@@ -769,14 +769,7 @@ QString autoCorrectWord(const QString &line, int cursorPos, const QStringList &p
 // substring containment, so "scrsvg" matches "scriba.svg". The score ranks
 // matches: fewer skipped characters and an earlier first-match position make a
 // match feel tighter (a prefix match scores 0/0 and always ranks first).
-struct FileMatchScore
-{
-    bool matched = false;
-    int gaps = 0;      // characters skipped between matched fragment chars
-    int firstPos = 0;  // position of the first matched character
-};
-
-static FileMatchScore scoreFileMatch(const QString &entry, const QString &fragment)
+FuzzyScore fuzzyMatchScore(const QString &entry, const QString &fragment)
 {
     if (fragment.isEmpty())
         return {true, 0, 0};
@@ -815,18 +808,18 @@ FileCompletionResult matchFileEntries(const QString &partialPath, const QDir &ba
     if (!search.exists())
         return {};
 
-    QVector<QPair<QString, FileMatchScore>> scored;
+    QVector<QPair<QString, FuzzyScore>> scored;
     QStringList all = search.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
     for (const QString &entry : all) {
         if (entry.startsWith('.') && !filePart.startsWith('.'))
             continue;
-        FileMatchScore score = scoreFileMatch(entry, filePart);
+        FuzzyScore score = fuzzyMatchScore(entry, filePart);
         if (score.matched)
             scored.append({entry, score});
     }
 
     std::sort(scored.begin(), scored.end(),
-        [](const QPair<QString, FileMatchScore> &a, const QPair<QString, FileMatchScore> &b) {
+        [](const QPair<QString, FuzzyScore> &a, const QPair<QString, FuzzyScore> &b) {
             if (a.second.gaps != b.second.gaps)
                 return a.second.gaps < b.second.gaps;
             if (a.second.firstPos != b.second.firstPos)
