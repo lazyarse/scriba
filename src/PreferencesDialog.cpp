@@ -1021,8 +1021,9 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QGroupBox *underlineGroup = new QGroupBox("Override underline colors");
         underlineGroup->setCheckable(true);
         underlineGroup->setChecked(settings.value(Preferences::UnderlineColorOverride, false).toBool());
-        auto *underlineLayout = new QHBoxLayout(underlineGroup);
+        auto *underlineLayout = new QVBoxLayout(underlineGroup);
         underlineLayout->setContentsMargins(6, 18, 6, 6);
+        underlineLayout->setSpacing(6);
 
         auto makeUnderlineSwatchBtn = [](const QString &hex) {
             auto *btn = new QPushButton;
@@ -1044,18 +1045,26 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_markdownColorBtn = makeUnderlineSwatchBtn(
             settings.value(Preferences::MarkdownUnderlineColor, "#3b82f6").toString());
 
-        underlineLayout->addWidget(new QLabel("Spelling:"));
-        underlineLayout->addWidget(m_spellColorBtn);
-        underlineLayout->addSpacing(12);
-        underlineLayout->addWidget(new QLabel("Grammar:"));
-        underlineLayout->addWidget(m_grammarColorBtn);
-        underlineLayout->addSpacing(12);
-        underlineLayout->addWidget(new QLabel("Links:"));
-        underlineLayout->addWidget(m_linkColorBtn);
-        underlineLayout->addSpacing(12);
-        underlineLayout->addWidget(new QLabel("Markdown:"));
-        underlineLayout->addWidget(m_markdownColorBtn);
-        underlineLayout->addStretch();
+        auto *underlineRow1 = new QHBoxLayout;
+        underlineRow1->setSpacing(6);
+        underlineRow1->addWidget(new QLabel("Spelling:"));
+        underlineRow1->addWidget(m_spellColorBtn);
+        underlineRow1->addSpacing(12);
+        underlineRow1->addWidget(new QLabel("Grammar:"));
+        underlineRow1->addWidget(m_grammarColorBtn);
+        underlineRow1->addStretch();
+
+        auto *underlineRow2 = new QHBoxLayout;
+        underlineRow2->setSpacing(6);
+        underlineRow2->addWidget(new QLabel("Links:"));
+        underlineRow2->addWidget(m_linkColorBtn);
+        underlineRow2->addSpacing(12);
+        underlineRow2->addWidget(new QLabel("Markdown:"));
+        underlineRow2->addWidget(m_markdownColorBtn);
+        underlineRow2->addStretch();
+
+        underlineLayout->addLayout(underlineRow1);
+        underlineLayout->addLayout(underlineRow2);
         layout->addWidget(underlineGroup);
 
         auto emitUnderlineColorsChanged = [this]() { emit underlineColorsChanged(); };
