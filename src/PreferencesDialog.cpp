@@ -588,22 +588,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QVBoxLayout *renderLayout = new QVBoxLayout(renderGroup);
         renderLayout->addSpacing(8);
 
-        auto *renderLabel = new QLabel("Diagrams, equations and charts in the preview only "
-            "re-render after you pause typing for this long. Lower values make the preview "
-            "feel more responsive on small documents; higher values save CPU on large ones.");
-        renderLabel->setWordWrap(true);
-        renderLayout->addWidget(renderLabel);
-
-        m_heavyRenderDelaySpin = new QSpinBox();
-        m_heavyRenderDelaySpin->setRange(200, 5000);
-        m_heavyRenderDelaySpin->setSingleStep(150);
-        m_heavyRenderDelaySpin->setSuffix(" ms");
-        m_heavyRenderDelaySpin->setValue(settings.value(Preferences::HeavyRenderDelay,
-            Preferences::DefaultHeavyRenderDelay).toInt());
-        auto *renderForm = new QFormLayout;
-        renderForm->addRow("Heavy render delay:", m_heavyRenderDelaySpin);
-        renderLayout->addLayout(renderForm);
-
         m_hardSoftBreaksCheck = new QCheckBox(
             "Treat single line breaks as hard breaks (<br>) in the preview and exports");
         m_hardSoftBreaksCheck->setToolTip(tr("By default a single newline in a paragraph is a "
@@ -620,7 +604,52 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_pageList->addItem("Preview");
     }
 
-    /* --- Page 4: Writing --- */
+    /* --- Page 4: Advanced --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *renderGroup = new QGroupBox("Preview Render Timing");
+        QVBoxLayout *renderLayout = new QVBoxLayout(renderGroup);
+        renderLayout->addSpacing(8);
+
+        auto *renderLabel = new QLabel("The initial render delay is how long the live preview "
+            "waits after an edit before re-rendering the document. The heavy render delay is "
+            "how long you must pause typing before diagrams, equations and charts are "
+            "re-rendered. Lower values feel more responsive on small documents; higher values "
+            "save CPU on large ones.");
+        renderLabel->setWordWrap(true);
+        renderLayout->addWidget(renderLabel);
+
+        m_previewUpdateDelaySpin = new QSpinBox();
+        m_previewUpdateDelaySpin->setRange(10, 1000);
+        m_previewUpdateDelaySpin->setSingleStep(10);
+        m_previewUpdateDelaySpin->setSuffix(" ms");
+        m_previewUpdateDelaySpin->setValue(settings.value(Preferences::PreviewUpdateDelay,
+            Preferences::DefaultPreviewUpdateDelay).toInt());
+
+        m_heavyRenderDelaySpin = new QSpinBox();
+        m_heavyRenderDelaySpin->setRange(200, 5000);
+        m_heavyRenderDelaySpin->setSingleStep(150);
+        m_heavyRenderDelaySpin->setSuffix(" ms");
+        m_heavyRenderDelaySpin->setValue(settings.value(Preferences::HeavyRenderDelay,
+            Preferences::DefaultHeavyRenderDelay).toInt());
+
+        auto *renderForm = new QFormLayout;
+        renderForm->addRow("Initial preview render delay:", m_previewUpdateDelaySpin);
+        renderForm->addRow("Heavy render delay:", m_heavyRenderDelaySpin);
+        renderLayout->addLayout(renderForm);
+
+        layout->addWidget(renderGroup);
+        layout->addStretch();
+
+        m_pages->addWidget(wrapPage(page));
+        m_pageList->addItem("Advanced");
+    }
+
+    /* --- Page 5: Writing --- */
     {
         QWidget *page = new QWidget;
         QVBoxLayout *layout = new QVBoxLayout(page);
@@ -1520,6 +1549,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::GutterBgColor, m_gutterBgBtn->text());
         settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());
         settings.setValue(Preferences::HeavyRenderDelay, m_heavyRenderDelaySpin->value());
+        settings.setValue(Preferences::PreviewUpdateDelay, m_previewUpdateDelaySpin->value());
         settings.setValue(Preferences::HardSoftBreaks, m_hardSoftBreaksCheck->isChecked());
         settings.setValue(Preferences::SpellCheckEnabled, m_spellCheckCheck->isChecked());
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());

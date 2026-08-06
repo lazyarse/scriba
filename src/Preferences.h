@@ -61,6 +61,8 @@ namespace Preferences {
 
     constexpr const char *HeavyRenderDelay = "heavyRenderDelay";
     constexpr int DefaultHeavyRenderDelay = Debounce::HeavyRender;
+    constexpr const char *PreviewUpdateDelay = "previewUpdateDelay";
+    constexpr int DefaultPreviewUpdateDelay = Debounce::PreviewUpdate;
 
     constexpr const char *HardSoftBreaks = "hardSoftBreaks";
 

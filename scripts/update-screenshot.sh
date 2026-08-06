@@ -10,7 +10,7 @@ OUT_DIR="$PROJECT_DIR/docs/images"
 # is selected by clicking the list; each Down moves to the next page (see
 # shot_preference_page). When adding a new page, extend this list AND the
 # idx mapping in shot_preference_page.
-PREF_PAGES=(general themes editor preview writing typography replacements spelling security)
+PREF_PAGES=(general themes editor preview advanced writing typography replacements spelling security)
 
 # Table of available targets: <argument> -> "<shot function>|<one-line help>".
 # This is the single source of truth for --help, argument validation, the full
@@ -55,8 +55,8 @@ EOF
         ((${#t} > w)) && w=${#t}
     done
     printf '  %-*s  %s\n' "$w" "preferences-<page>" "one Preferences page; <page> one of:"
-    printf '  %-*s  %s\n' "$w" "" "general themes editor preview writing"
-    printf '  %-*s  %s\n' "$w" "" "typography replacements spelling security"
+    printf '  %-*s  %s\n' "$w" "" "general themes editor preview advanced"
+    printf '  %-*s  %s\n' "$w" "" "writing typography replacements spelling security"
     printf '  %-*s  %s\n' "$w" "" "(a bare <page> name also works, e.g. \"spelling\")"
     for t in "${TARGET_ORDER[@]}"; do
         printf '  %-*s  %s\n' "$w" "$t" "${TARGETS[$t]#*|}"
@@ -234,11 +234,12 @@ shot_preference_page() {
         themes) idx=1 ;;
         editor) idx=2 ;;
         preview) idx=3 ;;
-        writing) idx=4 ;;
-        typography) idx=5 ;;
-        replacements) idx=6 ;;
-        spelling) idx=7 ;;
-        security) idx=8 ;;
+        advanced) idx=4 ;;
+        writing) idx=5 ;;
+        typography) idx=6 ;;
+        replacements) idx=7 ;;
+        spelling) idx=8 ;;
+        security) idx=9 ;;
         *) echo "WARN: unknown preferences page \"$page\""; return 1 ;;
     esac
     open ctrl+alt+p

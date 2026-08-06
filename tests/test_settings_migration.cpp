@@ -86,3 +86,28 @@ TEST_F(SettingsMigrationTest, AlreadyMigratedConfigIsUntouched)
     EXPECT_TRUE(settings.contains("reopenLastFile"));
     EXPECT_FALSE(settings.contains(Preferences::ReopenLastSession));
 }
+
+TEST_F(SettingsMigrationTest, PreviewRenderDelayDefaultsMatchDebounceConstants)
+{
+    EXPECT_EQ(Preferences::DefaultPreviewUpdateDelay, Debounce::PreviewUpdate);
+    EXPECT_EQ(Preferences::DefaultHeavyRenderDelay, Debounce::HeavyRender);
+}
+
+TEST_F(SettingsMigrationTest, PreviewUpdateDelayKeyRoundTrips)
+{
+    QSettings settings;
+    settings.setValue(Preferences::PreviewUpdateDelay, 240);
+
+    EXPECT_EQ(settings.value(Preferences::PreviewUpdateDelay,
+              Preferences::DefaultPreviewUpdateDelay).toInt(), 240);
+}
+
+TEST_F(SettingsMigrationTest, PreviewUpdateDelayDefaultsToDebounceConstant)
+{
+    QSettings settings;
+    settings.clear();
+
+    EXPECT_EQ(settings.value(Preferences::PreviewUpdateDelay,
+              Preferences::DefaultPreviewUpdateDelay).toInt(),
+              Debounce::PreviewUpdate);
+}

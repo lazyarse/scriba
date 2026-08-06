@@ -205,7 +205,8 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
 
     setWindowTitle("Scriba");
 
-    m_updateTimer = new DebounceTimer(Debounce::PreviewUpdate, this);
+    m_updateTimer = new DebounceTimer(QSettings().value(Preferences::PreviewUpdateDelay,
+        Preferences::DefaultPreviewUpdateDelay).toInt(), this);
     connect(m_updateTimer, &QTimer::timeout, this,
         static_cast<void (MainWindow::*)()>(&MainWindow::updatePreview));
 
@@ -1519,6 +1520,9 @@ void MainWindow::showPreferences()
             Preferences::DefaultHeavyRenderDelay).toInt();
         if (m_previewInitialized)
             m_preview->page()->runJavaScript(QString("window._scribaHeavyDelay=%1").arg(heavyDelay));
+
+        m_updateTimer->setInterval(s.value(Preferences::PreviewUpdateDelay,
+            Preferences::DefaultPreviewUpdateDelay).toInt());
     } else {
         m_cssConfig->setActiveStylesheet(oldStylesheet);
         m_cssLoader->invalidateCache();

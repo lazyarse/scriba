@@ -141,8 +141,11 @@ private:
     QCheckBox *m_autoAlignTablesCheck;
 
     // Preview
-    QSpinBox *m_heavyRenderDelaySpin;
     QCheckBox *m_hardSoftBreaksCheck;
+
+    // Advanced
+    QSpinBox *m_previewUpdateDelaySpin;
+    QSpinBox *m_heavyRenderDelaySpin;
 
     // Gutter
     QCheckBox *m_showLineNumbersCheck;
