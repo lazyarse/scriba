@@ -403,6 +403,37 @@ TEST(MarkdownParserTest, Subscript) {
     EXPECT_TRUE(html.contains("2"));
 }
 
+TEST(MarkdownParserTest, InlineMathProducesKatexSpanNoSupSub) {
+    // Math spans must protect their body from superscript/subscript parsing:
+    // md4c recognizes $...$ and disables inner marks (e.g. ^2 must not become
+    // <sup>), and the renderer emits a semantic .katex span with the raw TeX.
+    QString html = MarkdownParser::toHtml("Inline $a^2$ and $b_3$.");
+    EXPECT_TRUE(html.contains("<span class=\"katex\" data-tex=\"a^2\""));
+    EXPECT_TRUE(html.contains("<span class=\"katex\" data-tex=\"b_3\""));
+    EXPECT_FALSE(html.contains("<sup>")) << "^ inside math must not become <sup>";
+    EXPECT_FALSE(html.contains("<sub>")) << "_ inside math must not become <sub>";
+    EXPECT_TRUE(html.contains("data-line=\"1\""));
+}
+
+TEST(MarkdownParserTest, InlineMathPreservesDelimiterFreeTex) {
+    // The data-tex value must be the inner TeX without $ delimiters.
+    QString html = MarkdownParser::toHtml("$E = mc^2$");
+    EXPECT_TRUE(html.contains("data-tex=\"E = mc^2\""));
+}
+
+TEST(MarkdownParserTest, DisplayMathWrapsKatexDisplay) {
+    QString html = MarkdownParser::toHtml("$$E=mc^2$$");
+    EXPECT_TRUE(html.contains("<span class=\"katex-display\">"));
+    EXPECT_TRUE(html.contains("<span class=\"katex\" data-tex=\"E=mc^2\""));
+}
+
+TEST(MarkdownParserTest, SuperscriptOutsideMathUnchanged) {
+    QString html = MarkdownParser::toHtml("Volume m^3^ without math.");
+    EXPECT_TRUE(html.contains("<sup>"));
+    EXPECT_TRUE(html.contains("</sup>"));
+    EXPECT_TRUE(html.contains("3"));
+}
+
 TEST(MarkdownParserTest, HardSoftBreaksDefaultOff) {
     QString html = MarkdownParser::toHtml("line one\nline two");
     EXPECT_FALSE(html.contains("<br"));

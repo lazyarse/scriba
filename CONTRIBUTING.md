@@ -38,7 +38,7 @@ scriba/
 │   ├── themes/                 — Built-in CSS themes (15 themes)
 │   ├── fonts/                  — KaTeX web fonts
 │   ├── icons/                  — Editor icons
-│   └── contrib/                — Third-party JS (auto-render)
+│   └── contrib/                — Third-party JS (mhchem for \ce chemistry)
 ├── tests/
 │   ├── test_markdown_parser.cpp
 │   ├── test_md_renderer_helpers.cpp

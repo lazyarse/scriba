@@ -273,6 +273,20 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
         if (!self->m_img.inside)
             self->writeHtml("<sub>");
         break;
+    case MD_SPAN_LATEXMATH:
+        self->m_mathType = 1;
+        self->m_mathBuf.clear();
+        self->m_mathLine = self->m_currentLine;
+        if (!self->m_img.inside)
+            self->m_typoState.inMath = true;
+        break;
+    case MD_SPAN_LATEXMATH_DISPLAY:
+        self->m_mathType = 2;
+        self->m_mathBuf.clear();
+        self->m_mathLine = self->m_currentLine;
+        if (!self->m_img.inside)
+            self->m_typoState.inDisplayMath = true;
+        break;
     case MD_SPAN_FOOTNOTE_REF: {
         // Self-contained span: no MD_TEXT callbacks fire between enter and
         // leave, so the whole <sup><a>...</a></sup> is emitted here.
@@ -352,6 +366,10 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
         if (self->m_img.inside) break;
         self->writeHtml("</sub>");
         break;
+    case MD_SPAN_LATEXMATH:
+    case MD_SPAN_LATEXMATH_DISPLAY:
+        self->leaveMathSpan();
+        break;
     case MD_SPAN_FOOTNOTE_REF:
         /* enter_span already emitted the full <sup><a>…</a></sup> */
         break;
@@ -405,6 +423,17 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
     case MD_TEXT_HTML:
         if (!self->m_img.inside)
             self->writeHtml(QString::fromUtf8(text, size));
+        break;
+    case MD_TEXT_LATEXMATH:
+        for (MD_SIZE i = 0; i < size; i++) {
+            if (text[i] == '\n')
+                self->m_currentLine++;
+        }
+        if (self->m_img.inside) {
+            self->m_img.alt += QString::fromUtf8(text, size);
+        } else if (self->m_mathType != 0) {
+            self->m_mathBuf += QString::fromUtf8(text, size);
+        }
         break;
     case MD_TEXT_ENTITY:
         if (self->m_img.inside) {
@@ -477,6 +506,28 @@ void MdRenderer::enterAlignedCell(void *detail, const char *tag)
         writeHtml(QString("<%1>").arg(tag));
     else
         writeHtml(QString("<%1 style=\"text-align: %2\">").arg(tag, align));
+}
+
+void MdRenderer::leaveMathSpan()
+{
+    if (m_img.inside) {
+        m_mathType = 0;
+        m_mathBuf.clear();
+        return;
+    }
+    QString tex = escapeAttr(m_mathBuf);
+    QString line = QString::number(m_mathLine);
+    if (m_mathType == 2)
+        writeHtml("<span class=\"katex-display\">"
+                  "<span class=\"katex\" data-tex=\"" + tex + "\" data-line=\"" + line + "\">"
+                  "</span></span>");
+    else
+        writeHtml("<span class=\"katex\" data-tex=\"" + tex + "\" data-line=\"" + line + "\">"
+                  "</span>");
+    m_mathType = 0;
+    m_mathBuf.clear();
+    m_typoState.inMath = false;
+    m_typoState.inDisplayMath = false;
 }
 
 void MdRenderer::writeHtml(const char *data, MD_SIZE size)

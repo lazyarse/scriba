@@ -44,9 +44,10 @@ TEST(MchemQrc, QrcListsMchemFile) {
     EXPECT_TRUE(qrc.contains("contrib/mhchem.min.js"));
 }
 
-TEST(MchemQrc, QrcStillListsAutoRender) {
+TEST(MchemQrc, QrcOmitsAutoRender) {
     QString qrc = readFile(resourcePath("scriba.qrc"));
-    EXPECT_TRUE(qrc.contains("contrib/auto-render.min.js"));
+    EXPECT_FALSE(qrc.contains("contrib/auto-render.min.js"))
+        << "auto-render should no longer be bundled (math is rendered from data-tex nodes)";
 }
 
 TEST(MchemQrc, QrcStillListsKatex) {

@@ -266,8 +266,8 @@ TEST_F(HtmlExportTest, BuildFullHtmlNoOutputSvgOption)
 
 TEST_F(HtmlExportTest, RenderSyncKaTeXInlineMath)
 {
-    // Markdown with inline LaTeX should render to KaTeX HTML spans
-    QString bodyHtml = "<p>Inline math: $x^2$</p>";
+    // Semantic math spans (as produced by MdRenderer) should render to KaTeX
+    QString bodyHtml = "<p>Inline math: <span class=\"katex\" data-tex=\"x^2\"></span></p>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
     QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString());
@@ -275,14 +275,15 @@ TEST_F(HtmlExportTest, RenderSyncKaTeXInlineMath)
 
     // KaTeX wraps rendered math in <span class="katex">
     EXPECT_TRUE(rendered.contains("katex")) << "KaTeX should produce .katex spans";
-    // The original dollar-sign delimiter should be gone
-    EXPECT_FALSE(rendered.contains("$x^2$")) << "LaTeX delimiters should be consumed by KaTeX";
+    // The semantic span's source attribute survives; no raw $...$ is introduced
+    EXPECT_FALSE(rendered.contains("$x^2$")) << "LaTeX delimiters should not be emitted";
 }
 
 TEST_F(HtmlExportTest, RenderSyncKaTeXDisplayMath)
 {
-    // Markdown with display LaTeX
-    QString bodyHtml = "<p>Display math:</p><p>$$E=mc^2$$</p>";
+    // Display math with the .katex-display wrapper MdRenderer emits
+    QString bodyHtml =
+        "<div class=\"katex-display\"><span class=\"katex\" data-tex=\"E=mc^2\"></span></div>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
     QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString());
@@ -368,7 +369,7 @@ TEST_F(HtmlExportTest, ExportHtmlStructureIncludesKatexCss)
 TEST_F(HtmlExportTest, RenderSyncKaTeXNoSvgOutput)
 {
     // KaTeX should produce HTML spans, not SVG elements
-    QString bodyHtml = "<p>$x^2$</p>";
+    QString bodyHtml = "<p><span class=\"katex\" data-tex=\"x^2\"></span></p>";
     QString fullHtml = JsRenderEngine::buildFullHtml(bodyHtml, "body{}", "bw", "default");
 
     QString rendered = JsRenderEngine::renderSync(fullHtml, QUrl::fromLocalFile(QDir::tempPath() + "/").toString());

@@ -41,12 +41,6 @@ TEST(KaTeXResources, KatexCssExists) {
     EXPECT_GT(f.size(), 10000);
 }
 
-TEST(KaTeXResources, AutoRenderExists) {
-    QFile f(resourcePath("contrib/auto-render.min.js"));
-    ASSERT_TRUE(f.open(QIODevice::ReadOnly));
-    EXPECT_GT(f.size(), 1000);
-}
-
 TEST(KaTeXResources, FontsExist) {
     QStringList fonts = {
         "KaTeX_AMS-Regular.woff2",
@@ -69,16 +63,12 @@ TEST(KaTeXResources, KatexJsContainsRenderToString) {
     EXPECT_TRUE(js.contains("renderToString"));
 }
 
-TEST(KaTeXResources, AutoRenderContainsDelimiters) {
-    QString js = readFile(resourcePath("contrib/auto-render.min.js"));
-    EXPECT_TRUE(js.contains("delimiters"));
-}
-
 TEST(KaTexQrc, QrcListsKatexFiles) {
     QString qrc = readFile(resourcePath("scriba.qrc"));
     EXPECT_TRUE(qrc.contains("katex.min.js"));
     EXPECT_TRUE(qrc.contains("katex.min.css"));
-    EXPECT_TRUE(qrc.contains("contrib/auto-render.min.js"));
+    EXPECT_FALSE(qrc.contains("contrib/auto-render.min.js"))
+        << "auto-render should no longer be bundled (math is rendered from data-tex nodes)";
 }
 
 TEST(KaTexQrc, QrcListsFontFiles) {
@@ -92,6 +82,7 @@ TEST(KaTeXIntegration, KatexInitJsHasDisplayDelimiter) {
     Q_UNUSED(js);
     QString qrc = readFile(resourcePath("scriba.qrc"));
     EXPECT_TRUE(qrc.contains("katex.min.js"));
+    EXPECT_TRUE(qrc.contains("fonts/KaTeX_Size1-Regular.woff2"));
 }
 
 TEST(KaTeXIntegration, SampleMdHasLatexSection) {

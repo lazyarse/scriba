@@ -1438,7 +1438,6 @@ void MainWindow::updatePreview(bool tabSwitch)
             "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
             "<script src=\"qrc:///katex.min.js\"></script>"
             "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
-            "<script src=\"qrc:///contrib/auto-render.min.js\"></script>"
             "<script src=\"qrc:///echarts.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"

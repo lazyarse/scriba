@@ -34,12 +34,12 @@ protected:
     {
         m_htmlBody = QStringLiteral(
             "<h1>Math Test</h1>"
-            "<p>Inline: <span class=\"math inline\">$x^2$</span></p>"
+            "<p>Inline: <span class=\"katex\" data-tex=\"x^2\"></span></p>"
             "<p>Display:</p>"
-            "<p><span class=\"math display\">$$"
+            "<span class=\"katex-display\"><span class=\"katex\" data-tex=\""
             "\\\\frac{n!}{k!(n-k)!} = \\\\binom{n}{k}"
-            "$$</span></p>"
-            "<p>Chemistry: <span class=\"math inline\">$\\\\ce{H2O}$</span></p>"
+            "\"></span></span>"
+            "<p>Chemistry: <span class=\"katex\" data-tex=\"\\\\ce{H2O}\"></span></p>"
         );
         m_css = QStringLiteral(
             "body { font-size: 16px; line-height: 1.5; }"

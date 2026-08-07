@@ -213,3 +213,5 @@ JS console messages are captured via the Debug Log window (Tools → Debug Log).
 ## License
 
 Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.
+
+

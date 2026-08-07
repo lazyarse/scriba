@@ -55,6 +55,12 @@ private:
     void enterListItem(void *detail);
     void enterAdmonition(void *detail);
     void enterAlignedCell(void *detail, const char *tag);
+    void leaveMathSpan();
+
+    // 0 = not in math, 1 = inline ($...$), 2 = display ($$...$$)
+    int m_mathType = 0;
+    QString m_mathBuf;
+    int m_mathLine = 1;
 
     QString m_output;
     int m_currentLine = 1;
