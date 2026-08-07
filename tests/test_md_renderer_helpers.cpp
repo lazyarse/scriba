@@ -99,6 +99,58 @@ TEST(MdRendererImageTest, ImageDimensionWidthOnly) {
     EXPECT_TRUE(html.contains("img.png"));
 }
 
+TEST(MdRendererImageTest, SvgDimensionWidthUpscales) {
+    MdRenderer renderer;
+    QString input = R"(![upscaled](img.svg#400x))";
+    QByteArray utf8 = input.toUtf8();
+    unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("style=\""));
+    EXPECT_TRUE(html.contains("width: 400px"));
+    EXPECT_FALSE(html.contains("max-width"));
+    EXPECT_TRUE(html.contains("img.svg"));
+}
+
+TEST(MdRendererImageTest, SvgDimensionHeightOnly) {
+    MdRenderer renderer;
+    QString input = R"(![hsvg](img.svg#x100))";
+    QByteArray utf8 = input.toUtf8();
+    unsigned int flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("height: 100px"));
+    EXPECT_FALSE(html.contains("max-height"));
+    EXPECT_FALSE(html.contains("width"));
+    EXPECT_TRUE(html.contains("img.svg"));
+}
+
+TEST(MdRendererImageTest, SvgDimensionBoth) {
+    MdRenderer renderer;
+    QString input = R"(![both](img.svg#400x100))";
+    QByteArray utf8 = input.toUtf8();
+    unsigned int flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("width: 400px"));
+    EXPECT_TRUE(html.contains("height: 100px"));
+    EXPECT_FALSE(html.contains("max-"));
+    EXPECT_TRUE(html.contains("img.svg"));
+}
+
+TEST(MdRendererImageTest, SvgNoDimension) {
+    MdRenderer renderer;
+    QString input = R"(![plain](img.svg))";
+    QByteArray utf8 = input.toUtf8();
+    unsigned int flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_FALSE(html.contains("style=\""));
+    EXPECT_FALSE(html.contains("width:"));
+    EXPECT_FALSE(html.contains("height:"));
+    EXPECT_TRUE(html.contains("img.svg"));
+}
+
 TEST(MdRendererImageTest, ImageNoDimension) {
     MdRenderer renderer;
     QString input = R"(![plain](img.png))";

@@ -330,11 +330,23 @@ int MdRenderer::leaveSpan(MD_SPANTYPE type, void *detail, void *userdata)
             .arg(escapeAttr(cleanSrc), escapeAttr(self->m_img.alt));
         if (!self->m_img.title.isEmpty())
             tag += QString(" title=\"%1\"").arg(escapeAttr(self->m_img.title));
+        // SVG is vector, so a #WxH suffix sets an exact width/height and can
+        // scale an image UP past its natural size crisply. Raster formats only
+        // cap (`max-width`/`max-height`), since upscaling them would blur.
+        const bool isSvg = cleanSrc.endsWith(QStringLiteral(".svg"),
+            Qt::CaseInsensitive);
         QStringList dimStyles;
-        if (width >= 0)
-            dimStyles += QString("max-width: %1px").arg(width);
-        if (height >= 0)
-            dimStyles += QString("max-height: %1px").arg(height);
+        if (isSvg) {
+            if (width >= 0)
+                dimStyles += QString("width: %1px").arg(width);
+            if (height >= 0)
+                dimStyles += QString("height: %1px").arg(height);
+        } else {
+            if (width >= 0)
+                dimStyles += QString("max-width: %1px").arg(width);
+            if (height >= 0)
+                dimStyles += QString("max-height: %1px").arg(height);
+        }
         if (!dimStyles.isEmpty())
             tag += " style=\"" + dimStyles.join("; ") + "\"";
         tag += ">";

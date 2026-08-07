@@ -23,6 +23,34 @@
 #include "JsRenderEngine.h"
 #include "TestConfig.h"
 
+// A tiny 200x100 SVG with intrinsic dimensions.
+static QString testSvgData()
+{
+    return QStringLiteral(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"100\" "
+        "viewBox=\"0 0 200 100\">"
+        "<rect x=\"0\" y=\"0\" width=\"200\" height=\"100\" fill=\"#3366cc\"/>"
+        "</svg>");
+}
+
+// Build the data URI the DOCX export path produces for an embedded file image
+// (see JsRenderEngine::embedImages): data:<mime>;base64,<bytes>.
+static QString svgDataUri()
+{
+    return QStringLiteral("data:image/svg+xml;base64,")
+        + QString::fromLatin1(testSvgData().toUtf8().toBase64());
+}
+
+// Extract the first <wp:extent cx=".." cy=".."> from OOXML body XML.
+static QPair<int, int> firstExtent(const QString &bodyXml)
+{
+    QRegularExpression re(QStringLiteral("wp:extent cx=\"(\\d+)\" cy=\"(\\d+)\""));
+    auto m = re.match(bodyXml);
+    if (m.hasMatch())
+        return {m.captured(1).toInt(), m.captured(2).toInt()};
+    return {0, 0};
+}
+
 class DocxImageExportTest : public testing::Test
 {
 protected:
@@ -116,6 +144,57 @@ TEST_F(DocxImageExportTest, KaTeXImageConversionProducesImgTags)
         EXPECT_GT(docPrIds.size(), 0)
             << "Must have at least one unique docPr id";
     }
+}
+
+TEST_F(DocxImageExportTest, SvgImageWithUpscaleDimension)
+{
+    // A 200px-natural SVG asked to render at 400px via the #400x suffix.
+    // SVG is vector, so it must scale UP past its natural size. The OOXML
+    // extent must match the requested 400 CSS px, not the natural 200.
+    QString html = QStringLiteral(
+        "<p><img src=\"%1\" alt=\"svg\" style=\"width: 400px\"></p>")
+            .arg(svgDataUri());
+
+    OoxmlResult result = HtmlToOoxml::convert(html);
+    EXPECT_FALSE(result.bodyXml.isEmpty());
+
+    // EMUs: 400 CSS px at 96 DPI, 914400 EMUs/inch, but the canvas is
+    // rasterized at 2x -> kPxToEmu = 914400/192.
+    static constexpr double kPxToEmu = 914400.0 / 192.0;
+    int expectedW = qMax(1, static_cast<int>(400 * 2 * kPxToEmu));
+    auto [cx, cy] = firstExtent(result.bodyXml);
+
+    // The upscaled width must be substantially larger than the natural 200px
+    // size, i.e. the SVG actually scaled up.
+    int naturalW = qMax(1, static_cast<int>(200 * 2 * kPxToEmu));
+    EXPECT_GT(cx, naturalW) << "SVG must scale up past natural 200px";
+    EXPECT_NEAR(cx, expectedW, expectedW * 0.02)
+        << "Upscaled SVG extent should match the #400x target width";
+    EXPECT_GT(cy, 0);
+
+    // The image must actually be registered (SVG rasterized to PNG)
+    EXPECT_TRUE(result.images.isEmpty() == false)
+        << "SVG image must be embedded as a rasterized PNG";
+}
+
+TEST_F(DocxImageExportTest, SvgImageWithoutDimensionKeepsNaturalSize)
+{
+    QString html = QStringLiteral(
+        "<p><img src=\"%1\" alt=\"svg\"></p>").arg(svgDataUri());
+
+    OoxmlResult result = HtmlToOoxml::convert(html);
+    EXPECT_FALSE(result.bodyXml.isEmpty());
+
+    static constexpr double kPxToEmu = 914400.0 / 192.0;
+    int naturalW = qMax(1, static_cast<int>(200 * 2 * kPxToEmu));
+    int naturalH = qMax(1, static_cast<int>(100 * 2 * kPxToEmu));
+    auto [cx, cy] = firstExtent(result.bodyXml);
+
+    EXPECT_NEAR(cx, naturalW, naturalW * 0.02)
+        << "Natural-size SVG should keep its intrinsic width";
+    EXPECT_NEAR(cy, naturalH, naturalH * 0.02)
+        << "Natural-size SVG should keep its intrinsic height";
+    EXPECT_FALSE(result.images.isEmpty());
 }
 
 int main(int argc, char **argv)

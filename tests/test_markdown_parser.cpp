@@ -201,6 +201,30 @@ TEST(MarkdownParserTest, ImageWithoutDimensions) {
     EXPECT_FALSE(html.contains("max-height"));
 }
 
+TEST(MarkdownParserTest, SvgWithDimensionUpscales) {
+    QString html = MarkdownParser::toHtml("![alt](img.svg#400x)");
+    EXPECT_TRUE(html.contains("src=\"img.svg\""));
+    EXPECT_TRUE(html.contains("style=\""));
+    EXPECT_TRUE(html.contains("width: 400px"));
+    EXPECT_FALSE(html.contains("max-width"));
+    EXPECT_TRUE(html.contains("alt=\"alt\""));
+}
+
+TEST(MarkdownParserTest, SvgWithDimensions) {
+    QString html = MarkdownParser::toHtml("![alt](img.svg#400x100)");
+    EXPECT_TRUE(html.contains("width: 400px"));
+    EXPECT_TRUE(html.contains("height: 100px"));
+    EXPECT_FALSE(html.contains("max-"));
+}
+
+TEST(MarkdownParserTest, SvgWithoutDimensions) {
+    QString html = MarkdownParser::toHtml("![alt](img.svg)");
+    EXPECT_TRUE(html.contains("src=\"img.svg\""));
+    EXPECT_FALSE(html.contains("style=\""));
+    EXPECT_FALSE(html.contains("width:"));
+    EXPECT_FALSE(html.contains("height:"));
+}
+
 TEST(MarkdownParserTest, ImageWithDimensionsAndTitle) {
     QString html = MarkdownParser::toHtml("![alt](img.png#400x200 \"title\")");
     EXPECT_TRUE(html.contains("src=\"img.png\""));

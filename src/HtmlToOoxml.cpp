@@ -632,67 +632,120 @@ static void handleImgTag(const HtmlToken &tok)
     // Parse "data:<mime>;base64,<data>"
     int b64Pos = src.indexOf(QStringLiteral(";base64,"));
     if (b64Pos < 0) return;
+    QString mime = src.mid(5, b64Pos - 5);
     QByteArray imgData = QByteArray::fromBase64(src.mid(b64Pos + 8).toLatin1());
     if (imgData.isEmpty()) return;
 
+    // Sizing from style attribute (set by the #WxH markdown suffix).
+    // SVG uses exact `width`/`height` (target, may scale UP past natural size),
+    // raster uses `max-width`/`max-height` (cap only, never blur-upscales).
+    static const QRegularExpression dimRe(
+        QStringLiteral("(max-)?(?:width|height)\\s*:\\s*(\\d+)px"),
+        QRegularExpression::CaseInsensitiveOption);
+    int targetW = -1, targetH = -1, maxW = -1, maxH = -1;
+    QString style = tok.attrs.value(QStringLiteral("style"));
+    auto styleIt = dimRe.globalMatch(style);
+    while (styleIt.hasNext()) {
+        auto m = styleIt.next();
+        bool isMax = !m.captured(1).isEmpty();
+        bool isWidth = m.captured(0).contains(QStringLiteral("width"),
+                                              Qt::CaseInsensitive);
+        int val = m.captured(2).toInt();
+        if (isMax)
+            (isWidth ? maxW : maxH) = val;
+        else
+            (isWidth ? targetW : targetH) = val;
+    }
+
+    int imgW = 0;
+    int imgH = 0;
     QImage image;
-    if (!image.loadFromData(imgData))
-        return;
+    QByteArray pngData;
 
-    int imgW = image.width();
-    int imgH = image.height();
-    if (imgW <= 0 || imgH <= 0) return;
+    const bool isSvg = mime == QStringLiteral("image/svg+xml")
+        || imgData.startsWith("<svg") || imgData.startsWith("<?xml");
 
-    // Crop transparent margins (display math often has large transparent padding
-    // from KaTeX block elements stretching to the full container width)
-    {
-        int firstX = imgW, lastX = 0, firstY = imgH, lastY = 0;
-        for (int y = 0; y < imgH; ++y) {
-            const QRgb *line = reinterpret_cast<const QRgb *>(image.constScanLine(y));
-            for (int x = 0; x < imgW; ++x) {
-                if (qAlpha(line[x]) > 0) {
-                    if (x < firstX) firstX = x;
-                    if (x > lastX)  lastX = x;
-                    if (y < firstY) firstY = y;
-                    if (y > lastY)  lastY = y;
+    if (isSvg) {
+        // Rasterize vector image so DOCX can embed it. Target size lets a
+        // #400x upscale a 200px-natural SVG crisply (vector).
+        QSvgRenderer renderer(imgData);
+        if (!renderer.isValid())
+            return;
+        QSizeF vb = renderer.defaultSize();
+        if (vb.isEmpty())
+            vb = (renderer.viewBox().isEmpty()
+                ? QSizeF(300.0, 150.0)
+                : renderer.viewBox().size());
+
+        // Compute display size in pixels. Aspect ratio preserved when only one
+        // dimension given. Natural size uses the SVG's intrinsic dimensions.
+        qreal ar = vb.height() > 0 ? vb.width() / vb.height() : 1.0;
+        qreal dispW = targetW >= 0 ? targetW : vb.width();
+        qreal dispH = targetH >= 0 ? targetH : vb.height();
+        if (targetW >= 0 && targetH < 0)
+            dispH = dispW / ar;
+        else if (targetW < 0 && targetH >= 0)
+            dispW = dispH * ar;
+        if (maxW > 0 && dispW > maxW) dispW = maxW;
+        if (maxH > 0 && dispH > maxH) dispH = maxH;
+        if (dispW <= 0 || dispH <= 0)
+            return;
+
+        // Rasterize at 2× CSS pixels for HiDPI print quality (matches the
+        // 192 px/inch convention used below for EMU conversion).
+        imgW = qMax(1, static_cast<int>(dispW * 2));
+        imgH = qMax(1, static_cast<int>(dispH * 2));
+        QImage svgImage(imgW, imgH, QImage::Format_ARGB32);
+        svgImage.fill(Qt::white);
+        QPainter painter(&svgImage);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        renderer.render(&painter, QRectF(0, 0, imgW, imgH));
+        painter.end();
+        image = svgImage;
+    } else {
+        if (!image.loadFromData(imgData))
+            return;
+        imgW = image.width();
+        imgH = image.height();
+        if (imgW <= 0 || imgH <= 0) return;
+
+        // Crop transparent margins (display math often has large transparent
+        // padding from KaTeX blocks stretching to the full container width)
+        {
+            int firstX = imgW, lastX = 0, firstY = imgH, lastY = 0;
+            for (int y = 0; y < imgH; ++y) {
+                const QRgb *line = reinterpret_cast<const QRgb *>(image.constScanLine(y));
+                for (int x = 0; x < imgW; ++x) {
+                    if (qAlpha(line[x]) > 0) {
+                        if (x < firstX) firstX = x;
+                        if (x > lastX)  lastX = x;
+                        if (y < firstY) firstY = y;
+                        if (y > lastY)  lastY = y;
+                    }
+                }
+            }
+            if (firstX <= lastX && firstY <= lastY) {
+                int cropW = lastX - firstX + 1;
+                int cropH = lastY - firstY + 1;
+                if (cropW < imgW || cropH < imgH) {
+                    image = image.copy(firstX, firstY, cropW, cropH);
+                    imgW = cropW;
+                    imgH = cropH;
                 }
             }
         }
-        if (firstX <= lastX && firstY <= lastY) {
-            int cropW = lastX - firstX + 1;
-            int cropH = lastY - firstY + 1;
-            if (cropW < imgW || cropH < imgH) {
-                image = image.copy(firstX, firstY, cropW, cropH);
-                imgW = cropW;
-                imgH = cropH;
-            }
-        }
-    }
 
-    // Apply max-width / max-height from style attribute (set by #WxH markdown suffix)
-    static const QRegularExpression maxRe(
-        QStringLiteral("max-(?:width|height)\\s*:\\s*(\\d+)px"));
-    int maxW = -1, maxH = -1;
-    QString style = tok.attrs.value(QStringLiteral("style"));
-    auto styleIt = maxRe.globalMatch(style);
-    while (styleIt.hasNext()) {
-        auto m = styleIt.next();
-        if (m.captured(0).contains(QStringLiteral("width")))
-            maxW = m.captured(1).toInt();
-        else
-            maxH = m.captured(1).toInt();
-    }
-    if (maxW > 0 && imgW > maxW) {
-        imgH = static_cast<int>(static_cast<qint64>(imgH) * maxW / imgW);
-        imgW = maxW;
-    }
-    if (maxH > 0 && imgH > maxH) {
-        imgW = static_cast<int>(static_cast<qint64>(imgW) * maxH / imgH);
-        imgH = maxH;
+        // Cap only (max-width/max-height) — never upscale raster pixels
+        if (maxW > 0 && imgW > maxW)
+            imgH = static_cast<int>(static_cast<qint64>(imgH) * maxW / imgW),
+            imgW = maxW;
+        if (maxH > 0 && imgH > maxH)
+            imgW = static_cast<int>(static_cast<qint64>(imgW) * maxH / imgH),
+            imgH = maxH;
     }
 
     // Convert to PNG for DOCX registration
-    QByteArray pngData;
     QBuffer buf(&pngData);
     buf.open(QIODevice::WriteOnly);
     image.save(&buf, "PNG");

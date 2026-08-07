@@ -44,6 +44,8 @@ Resize with `#WIDTHxHEIGHT` suffix appended to the image URL:
 - Width only:  `![](icons/scriba.svg#200x)`
 - Height only: `![](icons/scriba.svg#x100)`
 
+For **SVG** (vector) images the size is an exact target, so you can scale an image *up* past its natural size (`#400x` on a 200px-wide SVG renders at 400px, crisply). For bitmap images (PNG, JPG, GIF) `#WxH` only *caps* the size — it never upscales, to avoid blurry enlargement.
+
 Tool tips for title, alt text in that priority. Hover over the below images
 
 - ![Alt A](../resources/icons/fullscreen.svg) Alt A
