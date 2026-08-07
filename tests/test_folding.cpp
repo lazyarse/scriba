@@ -464,6 +464,114 @@ TEST_F(FoldingTest, FoldsMarkedDirtyAfterFold)
     EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
 }
 
+TEST_F(FoldingTest, FoldsTableToBlockStart)
+{
+    setText(
+        "| H1 | H2 |\n"
+        "|---|---|\n"
+        "| a | b |\n"
+        "| c | d |\n"
+        "# Next Section\n"
+    );
+
+    // Header=0, separator=1 (anchor), rows=2,3; # header=4 must stay visible.
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_TRUE(doc->findBlockByNumber(0).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(3).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible()) << "following header not folded away";
+    EXPECT_EQ(editor->foldedBlockNumbers(), QList<int>({1}));
+}
+
+TEST_F(FoldingTest, TableStopsAtBlankLine)
+{
+    setText(
+        "| H1 | H2 |\n"
+        "|---|---|\n"
+        "| a | b |\n"
+        "| c | d |\n"
+        "\n"
+        "tail paragraph\n"
+    );
+
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(3).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible()); // blank line
+    EXPECT_TRUE(doc->findBlockByNumber(5).isVisible()); // paragraph after blank
+}
+
+TEST_F(FoldingTest, FoldsHtmlTableToClosingTag)
+{
+    setText(
+        "<table>\n"
+        "<tr><td>a</td></tr>\n"
+        "<tr><td>b</td></tr>\n"
+        "</table>\n"
+        "tail\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_TRUE(doc->findBlockByNumber(0).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(3).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible());
+    EXPECT_EQ(editor->foldedBlockNumbers(), QList<int>({0}));
+}
+
+TEST_F(FoldingTest, IgnoresTableRowsInsideCodeFence)
+{
+    setText(
+        "```\n"
+        "| H1 | H2 |\n"
+        "|---|---|\n"
+        "| a | b |\n"
+        "```\n"
+        "tail\n"
+    );
+
+    // The separator-like row (block 2) sits inside a fence: not foldable.
+    editor->restoreFolds({2});
+    QApplication::processEvents();
+
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+    EXPECT_TRUE(editor->document()->findBlockByNumber(2).isVisible());
+}
+
+TEST_F(FoldingTest, TableFoldRoundtrip)
+{
+    setText(
+        "| H1 | H2 |\n"
+        "|---|---|\n"
+        "| a | b |\n"
+        "| c | d |\n"
+        "# End\n"
+    );
+
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+    QList<int> folded = editor->foldedBlockNumbers();
+    EXPECT_TRUE(folded.contains(1));
+    EXPECT_EQ(folded.size(), 1);
+
+    editor->restoreFolds({});
+    QApplication::processEvents();
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+    EXPECT_TRUE(editor->document()->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(editor->document()->findBlockByNumber(3).isVisible());
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

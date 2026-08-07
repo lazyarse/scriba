@@ -195,6 +195,8 @@ private:
     QMap<int, int> m_headerLevel; // blockNumber → heading level 1-6
     QSet<int> m_codeFences;        // blockNumber of each opening ``` fence (foldable)
     QSet<int> m_chartFences;       // blockNumber of each opening ```mermaid/```ec fence
+    QSet<int> m_mdTableSeparators; // blockNumber of each markdown table separator row (foldable)
+    QSet<int> m_htmlTables;        // blockNumber of each line opening a multi-line <table…</table>
     QSet<int> m_foldedBlocks;
     QMap<int, qsizetype> m_foldEndPins; // folded header blockNumber → pinned fold-bottom character position
     bool m_updatingFolds = false;

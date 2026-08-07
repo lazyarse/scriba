@@ -2205,11 +2205,15 @@ void Editor::scanHeadersAndFolds()
     m_headerLevel.clear();
     m_codeFences.clear();
     m_chartFences.clear();
+    m_mdTableSeparators.clear();
+    m_htmlTables.clear();
 
     QTextBlock block = document()->firstBlock();
     int codeDepth = 0;
     QRegularExpression atxRe("^(#{1,6})\\s");
     QRegularExpression setextUnderlineRe("^(={3,}|-{3,})\\s*$");
+    QRegularExpression mdTableSepRe(
+        "^\\s*\\|?\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)+\\|?\\s*$");
 
     // First pass: detect headers and fenced-code openings
     QTextBlock prevBlock;
@@ -2253,6 +2257,20 @@ void Editor::scanHeadersAndFolds()
                     m_headerLevel[prevBlock.blockNumber()] = level;
                 }
             }
+
+            // Markdown table separator row (the fold anchor). Must be a line of
+            // dashes/colons delimited by pipes, preceded by a non-blank header
+            // row (so it is really a table delimiter, not a stray line).
+            if (mdTableSepRe.match(text).hasMatch()
+                && prevBlock.isValid() && !prevBlock.text().trimmed().isEmpty()) {
+                m_mdTableSeparators.insert(bn);
+            }
+
+            // HTML table opening line: foldable only when multi-line, i.e. the
+            // closing </table> is NOT on the same line.
+            const QString t = text.trimmed();
+            if (t.startsWith("<table") && !t.contains("</table>"))
+                m_htmlTables.insert(bn);
         }
 
         prevBlock = block;
@@ -2264,6 +2282,8 @@ void Editor::scanHeadersAndFolds()
     for (auto it = m_headerLevel.constBegin(); it != m_headerLevel.constEnd(); ++it)
         foldableSet.insert(it.key());
     foldableSet.unite(m_codeFences);
+    foldableSet.unite(m_mdTableSeparators);
+    foldableSet.unite(m_htmlTables);
     if (m_gutter) {
         m_gutter->setFoldableBlocks(foldableSet);
         m_gutter->setChartBlocks(m_chartFences);
@@ -2292,7 +2312,8 @@ void Editor::scanHeadersAndFolds()
 
 bool Editor::isFoldableBlock(int blockNumber) const
 {
-    return m_headerLevel.contains(blockNumber) || m_codeFences.contains(blockNumber);
+    return m_headerLevel.contains(blockNumber) || m_codeFences.contains(blockNumber)
+        || m_mdTableSeparators.contains(blockNumber) || m_htmlTables.contains(blockNumber);
 }
 
 bool Editor::foldRegionContains(int startBlock, int blockNumber) const
@@ -2321,6 +2342,41 @@ int Editor::foldEnd(int startBlock) const
         }
         return document()->blockCount();
     }
+
+    // Markdown table: the separator row is the anchor; the table continues over
+    // each following non-blank, non-block-start line (mirrors the GFM table
+    // termination md4c now implements: the fold stops at the same boundaries
+    // that end a rendered table).
+    if (m_mdTableSeparators.contains(startBlock)) {
+        QTextBlock block = document()->findBlockByNumber(startBlock + 1);
+        static const QRegularExpression blockStartRe(
+            "^\\s*(?:(?:#{1,6})\\s|```|~~~|[>\\-+*]\\s|\\d+[.)]\\s|</?[a-zA-Z#]|<!--|---+\\s*$|\\*{3,}\\s*$|_{3,}\\s*$)");
+        while (block.isValid()) {
+            const QString t = block.text();
+            if (t.trimmed().isEmpty()
+                || blockStartRe.match(t).hasMatch()
+                || m_headerLevel.contains(block.blockNumber())
+                || m_codeFences.contains(block.blockNumber())
+                || m_htmlTables.contains(block.blockNumber()))
+            {
+                return block.blockNumber();
+            }
+            block = block.next();
+        }
+        return document()->blockCount();
+    }
+
+    // HTML table: fold to the matching </table> (if any), else to EOF.
+    if (m_htmlTables.contains(startBlock)) {
+        QTextBlock block = document()->findBlockByNumber(startBlock + 1);
+        while (block.isValid()) {
+            if (block.text().contains("</table>"))
+                return block.blockNumber() + 1;
+            block = block.next();
+        }
+        return document()->blockCount();
+    }
+
     int end = sectionEndBlock(startBlock, m_headerLevel.value(startBlock));
     auto pinIt = m_foldEndPins.find(startBlock);
     if (pinIt != m_foldEndPins.end()) {

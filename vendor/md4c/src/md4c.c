@@ -6802,12 +6802,6 @@ md_analyze_line(MD_CTX* ctx, OFF beg, OFF* p_end,
             }
         }
 
-        /* Check whether we are table continuation. */
-        if(pivot_line->type == MD_LINE_TABLE  &&  n_parents == ctx->n_containers) {
-            line->type = MD_LINE_TABLE;
-            break;
-        }
-
         /* Check for ATX header. */
         if(line->indent < ctx->code_indent_offset  &&
                 off < ctx->size  &&  CH(off) == _T('#'))
@@ -6854,6 +6848,12 @@ md_analyze_line(MD_CTX* ctx, OFF beg, OFF* p_end,
                 line->type = MD_LINE_HTML;
                 break;
             }
+        }
+
+        /* Check whether we are table continuation. */
+        if(pivot_line->type == MD_LINE_TABLE  &&  n_parents == ctx->n_containers) {
+            line->type = MD_LINE_TABLE;
+            break;
         }
 
         /* Check for table underline. */

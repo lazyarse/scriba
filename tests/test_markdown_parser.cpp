@@ -82,6 +82,41 @@ TEST(MarkdownParserTest, Table) {
     EXPECT_TRUE(html.contains("2"));
 }
 
+TEST(MarkdownParserTest, TableEndsAtAtxHeader) {
+    // GFM: a table is broken at the start of another block-level structure.
+    // A "# " line following table rows must become a header, not a table row.
+    QString md = "| A | B |\n|---|---|\n| 1 | 2 |\n# Next Section";
+    QString html = MarkdownParser::toHtml(md);
+    EXPECT_TRUE(html.contains("<table>"));
+    EXPECT_TRUE(html.contains("<h1"));
+    EXPECT_TRUE(html.contains("Next Section"));
+    // The header must NOT be swallowed into a 3rd table row.
+    EXPECT_FALSE(html.contains("<td>1</td><td>2</td>\n<td>Next"));
+}
+
+TEST(MarkdownParserTest, TableEndsAtFencedCodeBlock) {
+    QString md = "| A | B |\n|---|---|\n| 1 | 2 |\n```\ncode\n```";
+    QString html = MarkdownParser::toHtml(md);
+    EXPECT_TRUE(html.contains("<table>"));
+    EXPECT_TRUE(html.contains("<code"));
+    EXPECT_FALSE(html.contains("<td>NextTest"));
+}
+
+TEST(MarkdownParserTest, TableEndsAtHtmlBlock) {
+    QString md = "| A | B |\n|---|---|\n| 1 | 2 |\n<div>x</div>";
+    QString html = MarkdownParser::toHtml(md);
+    EXPECT_TRUE(html.contains("<table>"));
+    EXPECT_TRUE(html.contains("<div>"));
+}
+
+TEST(MarkdownParserTest, TableEndsAtBlankLine) {
+    QString md = "| A | B |\n|---|---|\n| 1 | 2 |\n\ntext after";
+    QString html = MarkdownParser::toHtml(md);
+    EXPECT_TRUE(html.contains("<table>"));
+    EXPECT_TRUE(html.contains("<p"));
+    EXPECT_FALSE(html.contains("<td>NextTest"));
+}
+
 TEST(MarkdownParserTest, TaskList) {
     QString md = "- [x] done\n- [ ] todo";
     QString html = MarkdownParser::toHtml(md);
