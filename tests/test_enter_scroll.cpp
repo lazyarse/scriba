@@ -106,6 +106,23 @@ TEST_F(EditorTestHarness, EnterKeepsLineHeightFormatOnBothBlocks)
     EXPECT_EQ(current.blockFormat().lineHeight(), wantHeight) << "new block gets line height";
 }
 
+TEST_F(EditorTestHarness, EnterAtDocumentEndScrollsCaretFullyIntoView)
+{
+    setContent(longProseDoc());
+    applyFormatsToAllBlocks(editor);
+    placeCursorAtEnd();
+    int before = scrollValue(editor);
+    ASSERT_GT(before, 0) << "test setup: editor must be scrolled down";
+
+    enter();
+
+    EXPECT_GE(scrollValue(editor), before) << "Enter at the bottom must not collapse the viewport to the top";
+    QRect caret = editor->cursorRect();
+    QRect vp = editor->viewport()->rect();
+    EXPECT_GE(caret.top(), vp.top()) << "caret top must be inside the viewport";
+    EXPECT_LE(caret.bottom(), vp.bottom()) << "caret must be fully visible, not half-clipped below the viewport";
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

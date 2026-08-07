@@ -191,6 +191,11 @@ void Editor::insertParagraphWithLineHeight(QKeyEvent *event)
     edit.movePosition(QTextCursor::PreviousBlock);
     edit.mergeBlockFormat(lineHeightFmt);
     edit.endEditBlock();
+    // Re-applying the line height above grows the previous block and pushes
+    // the caret's block down past the point Qt scrolled to during the key
+    // press; a minimal ensureCursorVisible re-scroll keeps the caret fully on
+    // screen (no-op when it already is, e.g. an Enter mid-document).
+    ensureCursorVisible();
 }
 
 void Editor::keyPressEvent(QKeyEvent *event)
