@@ -21,6 +21,7 @@ PREF_PAGES=(general themes editor preview advanced writing typography replacemen
 declare -A TARGETS=(
     [screenshot]="shot_main|main window (docs/kitchensink.md loaded)"
     [tabbar]="shot_tabbar|tab bar with three open tabs"
+    [gutter-pencil]="shot_gutter_pencil|small crop: chart-edit pencil beside the mermaid fence"
     [preferences]="shot_preferences|all Preferences dialog pages (general ... security)"
     [table-dialog]="shot_table_dialog|Insert Table helper"
     [emoji-picker]="shot_emoji_picker|Emoji picker"
@@ -36,7 +37,7 @@ declare -A TARGETS=(
 
 # Display order for --help rows and the full-suite run (assoc arrays don't
 # preserve insertion order).
-TARGET_ORDER=(screenshot tabbar preferences table-dialog emoji-picker katex-dialog
+TARGET_ORDER=(screenshot tabbar gutter-pencil preferences table-dialog emoji-picker katex-dialog
               mchem-dialog chart-dialog stock-chart-dialog mermaid-dialog
               check-spelling validation-report print-pdf-dialog)
 
@@ -220,6 +221,32 @@ shot_tabbar() {
     echo "  -> $OUT_DIR/tabbar.png"
     open ctrl+w
     sleep 1
+    open ctrl+w
+    sleep 1
+}
+
+# Small gutter crop: the chart-edit pencil in the gutter beside the mermaid
+# fence lines. Open a dedicated doc whose mermaid block is the first thing, so
+# the pencil (drawn on the first content line, the row right after the opening
+# fence) sits at the top of the active document. The crop band covers just the
+# gutter strip and the first couple of source lines — nothing of the tab bar,
+# preview pane or the rest of the document.
+shot_gutter_pencil() {
+    printf '```mermaid\nflowchart LR\n  A[Write] --> B{Preview?}\n  B --> |Yes| C[Live render]\n  B --> |No| D[Keep typing]\n  C --> D\n```\n' > /tmp/scriba-gutter.md
+    open ctrl+o
+    sleep 2
+    xdotool type -- "/tmp/scriba-gutter.md"
+    sleep 1
+    xdotool key Return
+    sleep 5
+    import -window "$WID" "$OUT_DIR/_gutter-full.png"
+    # crop width = gutter strip (~45px) + ~295px of editor source (the fence +
+    # one chart line); slim vertical band around the pencil row so nothing of
+    # the tab bar (above) or preview panes leaks in. Y tuned to the fence +
+    # pencil + one chart line.
+    convert "$OUT_DIR/_gutter-full.png" -crop 340x68+0+74 +repage "$OUT_DIR/gutter-pencil.png"
+    rm -f "$OUT_DIR/_gutter-full.png"
+    echo "  -> $OUT_DIR/gutter-pencil.png"
     open ctrl+w
     sleep 1
 }

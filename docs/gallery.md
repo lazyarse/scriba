@@ -6,6 +6,12 @@
 
 [![Three tabs — the divider runs under the inactive tabs, while the active tab merges into the content](images/tabbar.png)](images/tabbar.png)
 
+## Gutter — chart edit pencil
+
+The pencil in the gutter edits the mermaid/ECharts code block it sits beside using a visual chart assistant.
+
+[![Chart-edit pencil in the gutter beside the mermaid fence](images/gutter-pencil.png)](images/gutter-pencil.png)
+
 ## Auto Complete Examples
 ![Auto complete Demo](images/autocomplete-demo.gif)
 

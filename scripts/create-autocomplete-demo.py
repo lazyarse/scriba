@@ -17,7 +17,8 @@ OUTPUT = PROJECT_DIR / "docs" / "images" / "autocomplete-demo.gif"
 class DemoScribeApp(DemoScribe):
     def _scene_file_autocomplete(self):
         self.header("Local Filenames")
-        self.press("Return"); self.capture()
+        #self.press("Return"); self.capture()
+        self.capture()
 
         self.type_with_meta(["exclam", "bracketleft", "bracketright", "parenleft"])
         self.type_with_meta(["r", "e", "s", "o"])
@@ -74,11 +75,12 @@ class DemoScribeApp(DemoScribe):
     def _scene_code_block(self):
         self.header("Code Blocks")
 
-        text = 'Type ``` and the first letters of a language, <enter> to accept'
-        self.type_str(text)
+#        text = 'Type ``` and the first letters of a language, <enter> to accept'
+#        self.type_str(text)
+#        self.capture()
+#        self.press("Return"); self.capture()
+#        self.press("Return"); self.capture()
         self.capture()
-        self.press("Return"); self.capture()
-        self.press("Return"); self.capture()
 
         self.type_with_meta(["grave", "grave", "grave", "p", "y"])
         time.sleep(0.3)
