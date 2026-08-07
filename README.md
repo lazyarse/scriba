@@ -6,40 +6,52 @@
 
 # Scriba Markdown Editor
 
-**A privacy-first, no-nonsense, full-featured, configurable Markdown editor for technical people.** Designed to *actually* do what you need without plugin hell. No node, react, angular, or bloat; just a binary which sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
+**A privacy-first, no-nonsense, full-featured, and configurable Markdown editor for technical people.** 
+
+Designed to *actually* do what you need without a plugin ecosystem. No node, react, angular, or bloat; a single application on your computer that respects your privacy. Get ready to leave your Google Docs trauma behind.
 
 ---
 
 ## Features
 
 - Load / Save multiple documents in a `session` with a tabbed interface
-- Pick up exactly where you left off with cursor and view-port restore in documents
-- Privacy-first 100% offline, in-editor spell and grammar check with various dialects. Import audience-specific word sets with ease: legal, medical, technical, etc.
-- Print and PDF export using print-specific CSS style sheets and many type-setting and orphan prevention features 
-- Readability metrics to keep your writing audience-focused: sentence / word / character / paragraph / syllable counts; reading and speaking times and more. Only view what metrics are important to you
+- Pick up exactly where you left-off with cursor and view-port restore
+- Offline, in-editor spell and grammar check with various dialects. Import your custom audience-specific word sets with ease: legal, medical, technical, etc.
+- Print and PDF export using print-specific CSS style sheets 
+- Type-setting options including orphan and hanging-line prevention features 
+- Readability metrics to keep your writing audience-focused: sentence / word / character / paragraph / syllable counts; estimated reading and speaking times, and more. Choose what metrics are important to you --- we don't force any upon you
+- Create and edit charts with ease - numerous two-way [chart assistants](docs/chart-assistants.md) for ECharts and [mermaid](docs/mermaid.md) diagrams with manual data-entry or CSV import with field mappings; extra assistants for LaTeX, MChem, and tables
 - Find and Replace with optional regex search and replacement back-references
 - Export: PDF, DOCX, and HTML; Import: HTML
-- Useful in-editor sugar such as: auto complete suggestions to assist in creating tables, lists, links to local filenames, and yes, even emojis; fold up headers and fenced-code blocks to reduce vertical space; auto-correct for commonly mis-spelt words like 'teh', 'and'; duplicate / delete a whole line without highlighting it; an optional gutter to show line numbers; optional auto-save;  
-- Real-time verification of your source files: typos, poor grammar, malformed urls, broken links to local files, and non-existing links to sections are all obnoxiously underlined.
+- Useful in-editor auto complete features: suggestions to assist in creating tables, lists, links to local filenames, and even emojis; 
+- Fold up headers and fenced-code blocks to reduce vertical space
+- Auto-correct for commonly mis-spelt words like 'hte' and 'nad' to help you concentrate on subject matter
+- Auto-save features  
+- Real-time verification of your source files with in-editor underlining for:
+  - typos 
+  - grammar 
+  - malformed urls, broken links to local files and header sections 
+  - markdown issues
 - Validation reports to check all documents in a `session` according to your needs
-- Numerous [chart helpers](docs/chart-helpers.md) for ECharts charts (including stock/candlestick) and [mermaid](docs/mermaid.md) diagrams with manual data-entry and CSV import with field mappings, and extra helpers for LaTeX, MChem, and tables
-- Speed enhancements: open the most-used documents quickly with ALT+[0-9], [keyboard shortcuts](docs/shortcuts.md) for everything (or maybe, nearly everything); a [kitchensink.md](docs/kitchensink.md) with full feature examples to get you up and running quickly; and, an internal cache of page renders to prevent preview regeneration when switching tabs; leap between headers with a simple keyboard shortcut
-- Accessibility support to help you use Scriba the way you need, with CSS-based GUI themes: preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family and size, line-height, change the caret width, and more. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
+- Various Speed enhancements to make you more productive: open the most-used documents quickly with ALT+[0-9], [keyboard shortcuts](docs/shortcuts.md) for amost everything; a [kitchensink.md](docs/kitchensink.md) with full feature examples that isn't a 101 on Markdown; an internal cache of page renders to prevent preview regeneration when switching tabs; and, jump up and down the document from header to header with a simple keyboard shortcut
+- Accessibility support to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family, size, and line-height. Change the caret width to improve visibility, and more. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
 - [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and other injection vectors to protect you and your audience.
 
 ### Standing on the Shoulders of Giants:
 
 - Our [Stoppard](https://www.github.com/lazyarse/stoppard) engine for fast, privacy-first spell and grammar checking, 2x faster than Hunspell, and 7x faster than Harper
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
-- [LaTeX mathematics rendering](https://katex.org/) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/) and helpers
-- [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.) and helper
-- [Apache ECharts](https://echarts.apache.org/) data visualisation (bar, scatter, line, pie, candlestick/stock with volume, zoom and moving averages) and helper
+- [KaTeX mathematics rendering](https://katex.org/) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/)
+- [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.)
+- [Apache ECharts](https://echarts.apache.org/) data visualisation (bar, scatter, line, pie, candlestick/stock with volume, zoom and moving averages)
 - [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with GitHub Flavour Markdown support
 - [turndown.js](https://github.com/mixmark-io/turndown) — the counterpart to md4c: HTML-to-Markdown conversion (with the [GFM plugin](https://github.com/mixmark-io/turndown-plugin-gfm)) for importing HTML files and pasting content copied from the web
 
+---
+
 ## Custom CSS / Themes
 
-See [themes.md](docs/themes.md) for how to write themes, customise admonition icons, and understand the selector structure.
+Make Scriba pretty! See [themes.md](docs/themes.md) for how to write themes, customise admonition icons, and understand the selector structure.
 
 ## Security
 
