@@ -6,18 +6,18 @@
 
 # Scriba Markdown Editor
 
-**A privacy-first, no-nonsense, full-featured, and configurable Markdown editor for technical people.** 
+**A privacy-first, no-nonsense, full-featured, and configurable Markdown editor for  people who write.** 
 
-Designed to *actually* do what you need without a plugin ecosystem. No node, react, angular, or bloat; a single application on your computer that respects your privacy. Get ready to leave your Google Docs trauma behind.
+Designed to *actually* do what you need without a plugin ecosystem. No node, react, angular, or bloat; instead, a single binary on your computer that respects your privacy and that of your client. Get ready to leave your Google Docs trauma behind.
 
 ---
 
 ## Features
 
 - Load / Save multiple documents in a `session` with a tabbed interface
-- Pick up exactly where you left-off with cursor and view-port restore
+- Pick up exactly where you left-off with cursor and view-port restore on restart
 - Offline, in-editor spell and grammar check with various dialects. Import your custom audience-specific word sets with ease: legal, medical, technical, etc.
-- Print and PDF export using print-specific CSS style sheets 
+- Print and PDF export use print-specific CSS stylesheets that you define
 - Type-setting options including orphan and hanging-line prevention features 
 - Readability metrics to keep your writing audience-focused: sentence / word / character / paragraph / syllable counts; estimated reading and speaking times, and more. Choose what metrics are important to you --- we don't force any upon you
 - Create and edit charts with ease - numerous two-way [chart assistants](docs/chart-assistants.md) for ECharts and [mermaid](docs/mermaid.md) diagrams with manual data-entry or CSV import with field mappings; extra assistants for LaTeX, MChem, and tables
@@ -94,7 +94,7 @@ cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs af
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
-The post-build step automatically removes cached base style sheets (`~/.config/scriba/*.css`), so no manual cleanup needed on rebuild.
+The post-build step automatically removes cached base stylesheets (`~/.config/scriba/*.css`), so no manual cleanup needed on rebuild.
 
 ### Build on Windows
 

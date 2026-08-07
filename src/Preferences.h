@@ -85,7 +85,6 @@ namespace Preferences {
     constexpr int DefaultUiFontSize = 10;
 
     constexpr const char *ShowLineNumbers = "showLineNumbers";
-    constexpr const char *ShowGutter = "showGutter";
     constexpr const char *GutterColorOverride = "gutterColorOverride";
     constexpr const char *GutterBgColor = "gutterBgColor";
     constexpr const char *GutterTextColor = "gutterTextColor";

@@ -27,6 +27,7 @@
 #include <QSet>
 #include <QHash>
 #include <QJsonObject>
+#include <QActionGroup>
 
 #include "ValidationReport.h"
 
@@ -110,6 +111,7 @@ private:
     void setupMenuBar();
     void updatePreview(bool tabSwitch);
     void saveFile(const QString &filePath);
+    void renameCurrentFile();
     void importHtmlFromFile();
     void pasteAsMarkdown();
     void exportPdf();
@@ -130,6 +132,8 @@ private:
     void applyCodeLangSetting();
     void applyEditorContentWidth(Editor *editor);
     void applyPreviewSplitWidth();
+    void setPreviewState(int state);
+    void syncPreviewLayout();
     void showCenteredWarning(const QString &title, const QString &text, const QString &informative);
     void notifyStaleBaseCss();
     static bool s_notifyStaleCss;
@@ -188,6 +192,7 @@ private:
     QTimer *m_reportProgressTimer = nullptr;
     QTimer *m_autoSaveTimer = nullptr;
     int m_previewState = 1;
+    QActionGroup *m_layoutActions = nullptr;
     FindDialog *m_findDialog = nullptr;
     QList<QAction *> m_insertActions;
     QAction *m_mermaidAction;

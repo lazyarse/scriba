@@ -871,6 +871,9 @@ void MainWindow::setupMenuBar()
         if (!file.isEmpty()) saveFile(file);
     });
 
+    QAction *renameAction = fileMenu->addAction("Re&name...");
+    connect(renameAction, &QAction::triggered, this, &MainWindow::renameCurrentFile);
+
     fileMenu->addSeparator();
 
     QAction *closeTabAction = fileMenu->addAction("&Close Tab");
@@ -884,8 +887,6 @@ void MainWindow::setupMenuBar()
     QAction *importHtmlAction = importMenu->addAction("Import &HTML...");
     importHtmlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
     connect(importHtmlAction, &QAction::triggered, this, &MainWindow::importHtmlFromFile);
-
-    fileMenu->addSeparator();
 
     QMenu *exportMenu = fileMenu->addMenu("&Export");
 
@@ -963,13 +964,41 @@ void MainWindow::setupMenuBar()
 
     viewMenu->addSeparator();
 
-    QAction *gutterAction = viewMenu->addAction("Show &Gutter");
-    gutterAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
-    connect(gutterAction, &QAction::triggered, this, [this]() {
-        Editor *ed = currentEditor();
-        if (ed)
-            ed->toggleGutter();
+    QAction *lineNumbersAction = viewMenu->addAction("Show &Line Numbers");
+    lineNumbersAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
+    lineNumbersAction->setCheckable(true);
+    lineNumbersAction->setChecked(QSettings().value(Preferences::ShowLineNumbers, true).toBool());
+    connect(lineNumbersAction, &QAction::toggled, this, [this](bool checked) {
+        QSettings s;
+        s.setValue(Preferences::ShowLineNumbers, checked);
+        s.sync();
+        for (const auto &tab : m_tabs)
+            if (tab.editor)
+                tab.editor->updateGutterSettings();
     });
+
+    viewMenu->addSeparator();
+
+    m_layoutActions = new QActionGroup(this);
+    m_layoutActions->setExclusive(true);
+
+    const auto addLayoutAction = [this, viewMenu](const QString &text, int state) {
+        QAction *a = viewMenu->addAction(text);
+        a->setCheckable(true);
+        a->setData(state);
+        m_layoutActions->addAction(a);
+        connect(a, &QAction::triggered, this, [this, state]() {
+            setPreviewState(state);
+        });
+    };
+
+    addLayoutAction("Editor | Pre&view", 1);
+    addLayoutAction("Preview | Ed&itor", 2);
+    addLayoutAction("&Editor", 0);
+    addLayoutAction("&Preview", 3);
+    syncPreviewLayout();
+
+    viewMenu->addSeparator();
 
     QAction *fullScreenAction = viewMenu->addAction("&Full Screen");
     fullScreenAction->setShortcut(QKeySequence(Qt::Key_F11));
@@ -1011,6 +1040,8 @@ void MainWindow::setupMenuBar()
         });
         dlg.exec();
     });
+
+    toolsMenu->addSeparator();
 
     QAction *katexAction = toolsMenu->addAction("&KaTeX Equation...");
     katexAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
@@ -2153,10 +2184,13 @@ void MainWindow::toggleFullscreen()
         showFullScreen();
 }
 
-void MainWindow::togglePreview()
+void MainWindow::setPreviewState(int state)
 {
-    m_previewState = (m_previewState + 1) % 4;
-    QSettings().setValue(Preferences::PreviewState, m_previewState);
+    if (state < 0 || state > 3)
+        return;
+    m_previewState = state;
+    QSettings().setValue(Preferences::PreviewState, state);
+    syncPreviewLayout();
 
     QSettings settings;
     bool centre = settings.value(Preferences::CentreSingleViewContent, true).toBool();
@@ -2206,6 +2240,19 @@ void MainWindow::togglePreview()
     int w = m_splitter->width();
     if (w <= 0) w = 1200;
     m_splitter->setSizes({w / 2, w / 2});
+}
+
+void MainWindow::togglePreview()
+{
+    setPreviewState((m_previewState + 1) % 4);
+}
+
+void MainWindow::syncPreviewLayout()
+{
+    if (!m_layoutActions)
+        return;
+    for (QAction *a : m_layoutActions->actions())
+        a->setChecked(a->data().toInt() == m_previewState);
 }
 
 void MainWindow::updateStats()
@@ -2424,6 +2471,65 @@ void MainWindow::saveFile(const QString &filePath)
     QSettings settings;
     if (pathChanged)
         settings.setValue(Preferences::LastSessionName, filePath);
+}
+
+void MainWindow::renameCurrentFile()
+{
+    TabInfo *info = activeTabInfo();
+    if (!info)
+        return;
+
+    if (info->filePath.isEmpty()) {
+        QMessageBox::information(this, "Rename",
+            "Save the file first; unsaved tabs cannot be renamed.");
+        return;
+    }
+
+    const QFileInfo finfo(info->filePath);
+    bool ok = false;
+    QString input = QInputDialog::getText(this, "Rename File", "New filename:",
+                                          QLineEdit::Normal, finfo.fileName(), &ok);
+    if (!ok)
+        return;
+    input = input.trimmed();
+    if (input.isEmpty())
+        return;
+
+    QString newPath;
+    if (QDir::isAbsolutePath(input) || input.contains(QLatin1Char('/'))
+        || input.contains(QLatin1Char('\\'))) {
+        newPath = input;
+    } else {
+        newPath = finfo.absolutePath() + QLatin1Char('/') + input;
+    }
+
+    if (newPath == info->filePath)
+        return;
+
+    if (QFileInfo::exists(newPath)) {
+        QMessageBox::warning(this, "Rename",
+            "Cannot rename: a file with that name already exists.");
+        return;
+    }
+
+    if (!QFile::rename(info->filePath, newPath)) {
+        QMessageBox::warning(this, "Rename", "Could not rename file: " + info->filePath);
+        return;
+    }
+
+    Editor *ed = currentEditor();
+    if (!ed)
+        return;
+    info->filePath = newPath;
+    ed->setCurrentFile(newPath);
+
+    int idx = m_tabBar->currentIndex();
+    updateTabLabel(idx);
+    m_tabBar->setTabToolTip(idx, newPath);
+
+    setWindowTitle("Scriba - " + newPath);
+    m_preview->setDocumentPath(newPath);
+    statusBar()->showMessage("Renamed to " + newPath, 2000);
 }
 
 void MainWindow::autoSave()

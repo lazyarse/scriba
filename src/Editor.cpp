@@ -2123,24 +2123,9 @@ void Editor::updateGutterSettings()
     if (!m_gutter)
         return;
     QSettings s;
-    bool showGutter = s.value(Preferences::ShowGutter, true).toBool();
     m_gutter->setLineNumbersVisible(s.value(Preferences::ShowLineNumbers, true).toBool());
     applyGutterColors();
-    if (showGutter) {
-        updateGutterWidth();
-    } else {
-        m_gutter->setFixedWidth(0);
-        updateViewportMargins();
-    }
-}
-
-void Editor::toggleGutter()
-{
-    QSettings s;
-    bool show = !s.value(Preferences::ShowGutter, true).toBool();
-    s.setValue(Preferences::ShowGutter, show);
-    s.sync();
-    updateGutterSettings();
+    updateGutterWidth();
 }
 
 void Editor::refreshGutter()
@@ -2174,11 +2159,7 @@ void Editor::updateGutterWidth()
 {
     if (!m_gutter)
         return;
-    QSettings s;
-    if (s.value(Preferences::ShowGutter, true).toBool())
-        m_gutter->updateWidth();
-    else
-        m_gutter->setFixedWidth(0);
+    m_gutter->updateWidth();
     updateViewportMargins();
     updateGutterDelayed();
 }

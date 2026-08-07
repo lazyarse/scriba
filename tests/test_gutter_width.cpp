@@ -28,11 +28,10 @@
 
 namespace {
 
-void setGutterPreferences(bool lineNumbers, bool showGutter)
+void setGutterPreferences(bool lineNumbers)
 {
     QSettings s;
     s.setValue(Preferences::ShowLineNumbers, lineNumbers);
-    s.setValue(Preferences::ShowGutter, showGutter);
     s.setValue(Preferences::GutterColorOverride, false);
     s.sync();
 }
@@ -82,7 +81,7 @@ protected:
 
 TEST_F(GutterWidthTest, WidthStableAcrossSettingsReload)
 {
-    setGutterPreferences(true, true);
+    setGutterPreferences(true);
     fillDocument(editor, 150);
 
     editor->updateGutterSettings();
@@ -97,7 +96,7 @@ TEST_F(GutterWidthTest, WidthStableAcrossSettingsReload)
 
 TEST_F(GutterWidthTest, AutoWidensAsLineCountCrossesDigitBoundary)
 {
-    setGutterPreferences(true, true);
+    setGutterPreferences(true);
     fillDocument(editor, 5);
     QTest::qWait(10);
     QApplication::processEvents();
@@ -119,7 +118,7 @@ TEST_F(GutterWidthTest, AutoWidensAsLineCountCrossesDigitBoundary)
 
 TEST_F(GutterWidthTest, WidthWithoutLineNumbersIsFoldIconsOnly)
 {
-    setGutterPreferences(false, true);
+    setGutterPreferences(false);
     fillDocument(editor, 150);
 
     editor->updateGutterSettings();
@@ -130,81 +129,9 @@ TEST_F(GutterWidthTest, WidthWithoutLineNumbersIsFoldIconsOnly)
     EXPECT_EQ(editor->gutter()->width(), 14);
 }
 
-TEST_F(GutterWidthTest, ToggleGutterHidesAndShows)
-{
-    setGutterPreferences(true, true);
-    fillDocument(editor, 150);
-    editor->updateGutterSettings();
-    QApplication::processEvents();
-    QTest::qWait(10);
-    QApplication::processEvents();
-
-    int visibleWidth = editor->gutter()->width();
-    EXPECT_GT(visibleWidth, 0);
-
-    editor->toggleGutter();
-    QApplication::processEvents();
-    QTest::qWait(10);
-    QApplication::processEvents();
-    EXPECT_EQ(editor->gutter()->width(), 0);
-
-    editor->toggleGutter();
-    QApplication::processEvents();
-    QTest::qWait(10);
-    QApplication::processEvents();
-    EXPECT_EQ(editor->gutter()->width(), visibleWidth);
-
-    setGutterPreferences(true, true);
-}
-
-TEST_F(GutterWidthTest, GutterStaysHiddenWhenLineCountChanges)
-{
-    setGutterPreferences(true, true);
-    fillDocument(editor, 5);
-    editor->updateGutterSettings();
-    editor->toggleGutter();
-    QApplication::processEvents();
-    QTest::qWait(10);
-    QApplication::processEvents();
-    EXPECT_EQ(editor->gutter()->width(), 0);
-
-    QTextCursor cursor(editor->document());
-    cursor.movePosition(QTextCursor::End);
-    for (int i = 0; i < 50; ++i)
-        cursor.insertText("extra line\n");
-    QApplication::processEvents();
-    QTest::qWait(10);
-    QApplication::processEvents();
-    EXPECT_EQ(editor->gutter()->width(), 0);
-
-    editor->toggleGutter();
-    QApplication::processEvents();
-    QTest::qWait(10);
-    QApplication::processEvents();
-    EXPECT_GT(editor->gutter()->width(), 0);
-
-    setGutterPreferences(true, true);
-}
-
-TEST_F(GutterWidthTest, FoldingStillWorksWhenGutterHidden)
-{
-    setGutterPreferences(true, true);
-    fillDocument(editor, 150);
-    editor->updateGutterSettings();
-    editor->toggleGutter();
-    QApplication::processEvents();
-
-    auto *doc = editor->document();
-    doc->findBlockByNumber(0).setVisible(false);
-    doc->markContentsDirty(0, doc->characterCount());
-    EXPECT_FALSE(doc->findBlockByNumber(0).isVisible());
-
-    setGutterPreferences(true, true);
-}
-
 TEST_F(GutterWidthTest, GutterStylesheetColorReachesPalette)
 {
-    setGutterPreferences(true, true);
+    setGutterPreferences(true);
     editor->setStyleSheet("QTextEdit { background-color: #282a36; color: #f8f8f2; }\n"
                           "#gutter { background-color: #21232d; color: #a0a0a0; }");
     QApplication::processEvents();
@@ -222,7 +149,7 @@ TEST_F(GutterWidthTest, GutterIsChildOfEditor)
 
 TEST_F(GutterWidthTest, ChartPencilClickEmitsEditForMermaidFence)
 {
-    setGutterPreferences(true, true);
+    setGutterPreferences(true);
     // Block 0: fence, block 1: content line, block 2: closing fence.
     editor->setPlainText("```mermaid\npie title Pets\n```");
     QApplication::processEvents();
@@ -249,7 +176,7 @@ TEST_F(GutterWidthTest, ChartPencilClickEmitsEditForMermaidFence)
 
 TEST_F(GutterWidthTest, ChartPencilClickDoesNotFireOnPlainLines)
 {
-    setGutterPreferences(true, true);
+    setGutterPreferences(true);
     editor->setPlainText("plain line\n```mermaid\npie title Pets\n```");
     QApplication::processEvents();
     QTest::qWait(400); // let the debounced fold/chart scan run
@@ -265,7 +192,7 @@ TEST_F(GutterWidthTest, ChartPencilClickDoesNotFireOnPlainLines)
 
 TEST_F(GutterWidthTest, PointerCursorOverFoldAndChartIcons)
 {
-    setGutterPreferences(true, true);
+    setGutterPreferences(true);
     // Block 0 is a header (foldable), blocks 1-2 form a mermaid chart whose
     // pencil sits on block 2 (its first content line).
     editor->setPlainText("# Heading\n```mermaid\npie title Pets\n```");
