@@ -2000,6 +2000,7 @@ bool MainWindow::findText(const QString &text, bool backward, bool useRegex, boo
 
     QScrollBar *scrollBar = ed->verticalScrollBar();
     const int scrollBefore = scrollBar->value();
+    const QTextCursor caretBefore = ed->textCursor();
 
     QTextDocument::FindFlags flags;
     if (caseSensitive)
@@ -2025,6 +2026,10 @@ bool MainWindow::findText(const QString &text, bool backward, bool useRegex, boo
 
         if (found)
             statusBar()->showMessage("Search wrapped around", 3000);
+        else {
+            ed->setTextCursor(caretBefore);
+            scrollBar->setValue(scrollBefore);
+        }
     }
 
     if (!found)

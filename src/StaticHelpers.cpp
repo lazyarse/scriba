@@ -55,13 +55,13 @@ bool isSafePreviewImage(const QString &filePath)
 
 static const QRegularExpression &unorderedListRe()
 {
-    static QRegularExpression re(R"(^(\s*)([-*+])\s?)");
+    static QRegularExpression re(R"(^(\s*)([-*+])(?=\s|$))");
     return re;
 }
 
 static const QRegularExpression &orderedListRe()
 {
-    static QRegularExpression re(R"(^(\s*)(\d+)([.)])\s?)");
+    static QRegularExpression re(R"(^(\s*)(\d+)([.)])(?=\s|$))");
     return re;
 }
 

@@ -239,6 +239,14 @@ TEST(HandleListReturn, DashItemStillContinues) {
     EXPECT_EQ(handleListReturn("- item"), "- ");
 }
 
+TEST(HandleListReturn, BoldMarkerDoesNotContinueList) {
+    EXPECT_EQ(handleListReturn("**bold**"), QString());
+}
+
+TEST(HandleListReturn, BoldMarkerMidLineDoesNotContinueList) {
+    EXPECT_EQ(handleListReturn("**bold** tail"), QString());
+}
+
 TEST(ListSplitReturn, MidLineContinuesDash) {
     EXPECT_EQ(handleListSplitReturn("- hello", 3), "- ");
 }
@@ -273,6 +281,22 @@ TEST(ListSplitReturn, OnlyTrailingWhitespaceSplitsNormally) {
 
 TEST(ListSplitReturn, PlainTextReturnsEmpty) {
     EXPECT_EQ(handleListSplitReturn("just text", 5), QString());
+}
+
+TEST(ListSplitReturn, BoldMarkerDoesNotContinueList) {
+    EXPECT_EQ(handleListSplitReturn("**bold here** followed", 14), QString());
+}
+
+TEST(ListSplitReturn, BoldMarkerAtLineStartDoesNotContinueList) {
+    EXPECT_EQ(handleListSplitReturn("**bold**", 2), QString());
+}
+
+TEST(ListSplitReturn, PlusMarkerDoesNotContinueList) {
+    EXPECT_EQ(handleListSplitReturn("+clap+ trailing", 7), QString());
+}
+
+TEST(ListSplitReturn, DecimalWithDotDoesNotContinueList) {
+    EXPECT_EQ(handleListSplitReturn("1.5 lbs", 3), QString());
 }
 
 TEST(ListSplitReturn, ThematicBreakReturnsEmpty) {

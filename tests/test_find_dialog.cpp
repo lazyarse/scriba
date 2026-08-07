@@ -612,6 +612,39 @@ clickButton(dialog, "&Next >");
               editor->document()->findBlockByNumber(40).position());
 }
 
+TEST_F(FindDialogIntegrationTest, NoMatchKeepsCaretAndScrollPosition)
+{
+    auto *editor = window->editor();
+    QString text;
+    for (int i = 0; i < 300; ++i)
+        text += "line " + QString::number(i) + "\n";
+    editor->setPlainText(text);
+    QApplication::processEvents();
+
+    QTextCursor c(editor->document()->findBlockByNumber(150));
+    editor->setTextCursor(c);
+    QApplication::processEvents();
+    auto *sb = editor->verticalScrollBar();
+    int absY = editor->cursorRect().top() + sb->value();
+    sb->setValue(qMax(0, absY - editor->viewport()->height() / 3));
+    QApplication::processEvents();
+    const int posBefore = editor->textCursor().position();
+    const int scrollBefore = sb->value();
+
+    window->toggleFindDialog();
+    QApplication::processEvents();
+
+    auto *dialog = window->findChild<FindDialog *>();
+    ASSERT_NE(dialog, nullptr);
+    dialog->focusSearchInput();
+    QTest::keyClicks(dialog->focusWidget(), "no-such-term-zzz");
+    clickButton(dialog, "&Next >");
+    QApplication::processEvents();
+
+    EXPECT_EQ(editor->textCursor().position(), posBefore);
+    EXPECT_EQ(editor->verticalScrollBar()->value(), scrollBefore);
+}
+
 TEST_F(FindDialogIntegrationTest, ReturnInSearchInputDoesNotFirePrev)
 {
     window->toggleFindDialog();

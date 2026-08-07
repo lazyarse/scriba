@@ -218,6 +218,24 @@ TEST_F(EditorTestHarness, StarThematicBreakDoesNotContinueList)
     assertCursor(1, 0);
 }
 
+TEST_F(EditorTestHarness, EnterAfterBoldTextDoesNotCreateListItem)
+{
+    setContent("**some bold text** followed by more text");
+    placeCursor(0, 19);
+    enter();
+    EXPECT_EQ(text(), "**some bold text** \nfollowed by more text");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, EnterAtEndOfBoldTextDoesNotCreateListItem)
+{
+    setContent("**some bold text**");
+    placeCursorAtEnd();
+    enter();
+    EXPECT_EQ(text(), "**some bold text**\n");
+    assertCursor(1, 0);
+}
+
 TEST_F(EditorTestHarness, UnderscoreThematicBreakDoesNotContinueList)
 {
     typeLine("___");
