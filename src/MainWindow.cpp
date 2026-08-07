@@ -698,7 +698,24 @@ void MainWindow::updateTabLabel(int index)
                                        : QFileInfo(info.filePath).fileName();
     if (info.dirty)
         name += QStringLiteral(" *");
+    if (index == m_tabBar->currentIndex())
+        updateWindowTitle();
     m_tabBar->setTabText(index, name);
+}
+
+void MainWindow::updateWindowTitle()
+{
+    TabInfo *info = activeTabInfo();
+    if (!info) {
+        setWindowTitle(QStringLiteral("Scriba"));
+        return;
+    }
+    QString title = info->filePath.isEmpty()
+        ? QStringLiteral("Scriba - Untitled")
+        : QStringLiteral("Scriba - ") + info->filePath;
+    if (info->dirty)
+        title += QStringLiteral(" *");
+    setWindowTitle(title);
 }
 
 void MainWindow::setTabDirty(int index, bool dirty)
@@ -720,9 +737,7 @@ void MainWindow::onTabChanged(int index)
 
     TabInfo *info = activeTabInfo();
     if (info) {
-        setWindowTitle(info->filePath.isEmpty()
-            ? QStringLiteral("Scriba - Untitled")
-            : QStringLiteral("Scriba - ") + info->filePath);
+        updateWindowTitle();
         m_preview->setDocumentPath(info->filePath);
         if (m_previewInitialized) {
             // The preview page stays alive across tab switches: push the new
@@ -759,7 +774,7 @@ void MainWindow::onTabCloseRequested(int index)
             m_tabs[0].previewHtmlValid = false;
             m_tabs[0].dirty = false;
             updateTabLabel(0);
-            setWindowTitle("Scriba - Untitled");
+            updateWindowTitle();
             m_preview->setDocumentPath(QString());
             m_previewInitialized = false;
             updatePreview();
@@ -1061,7 +1076,7 @@ void MainWindow::setupMenuBar()
     stockAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
     connect(stockAction, &QAction::triggered, this, &MainWindow::showStockChartBuilder);
 
-    QAction *mermaidAction = toolsMenu->addAction("&Mermaid Chart...");
+    QAction *mermaidAction = toolsMenu->addAction("&Mermaid Diagrams...");
     mermaidAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
     connect(mermaidAction, &QAction::triggered, this, [this]() {
         MermaidDialog dlg(QString(), m_cssLoader->themeCss(), this);
@@ -2432,7 +2447,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
         }
     }
 
-    setWindowTitle("Scriba - " + filePath);
+    updateWindowTitle();
     m_preview->setDocumentPath(filePath);
     m_previewInitialized = false;
     updatePreview();
@@ -2468,7 +2483,7 @@ void MainWindow::saveFile(const QString &filePath)
     updateTabLabel(idx);
     m_tabBar->setTabToolTip(idx, filePath);
 
-    setWindowTitle("Scriba - " + filePath);
+    updateWindowTitle();
     m_preview->setDocumentPath(filePath);
     statusBar()->showMessage("Saved", 2000);
 
@@ -2490,22 +2505,14 @@ void MainWindow::renameCurrentFile()
     }
 
     const QFileInfo finfo(info->filePath);
-    bool ok = false;
-    QString input = QInputDialog::getText(this, "Rename File", "New filename:",
-                                          QLineEdit::Normal, finfo.fileName(), &ok);
-    if (!ok)
+    // Use a file dialog so the user can pick a new name/location like a save.
+    // DontConfirmOverwrite defers the existing-file check to our own warning
+    // (a rename must never silently replace another file).
+    QString newPath = QFileDialog::getSaveFileName(
+        this, "Rename File", info->filePath, QString::fromLatin1(kMdFilter),
+        nullptr, QFileDialog::DontConfirmOverwrite);
+    if (newPath.isEmpty())
         return;
-    input = input.trimmed();
-    if (input.isEmpty())
-        return;
-
-    QString newPath;
-    if (QDir::isAbsolutePath(input) || input.contains(QLatin1Char('/'))
-        || input.contains(QLatin1Char('\\'))) {
-        newPath = input;
-    } else {
-        newPath = finfo.absolutePath() + QLatin1Char('/') + input;
-    }
 
     if (newPath == info->filePath)
         return;
@@ -2531,7 +2538,7 @@ void MainWindow::renameCurrentFile()
     updateTabLabel(idx);
     m_tabBar->setTabToolTip(idx, newPath);
 
-    setWindowTitle("Scriba - " + newPath);
+    updateWindowTitle();
     m_preview->setDocumentPath(newPath);
     statusBar()->showMessage("Renamed to " + newPath, 2000);
 }

@@ -1,4 +1,4 @@
-![Scriba Icon](resources/icons/scriba.svg#150x)
+![Scriba Icon](resources/icons/scriba.svg#120x)
 
 ![C++23 Badge](docs/images/badge-cpp23.svg)
 ![Qt6 Badge](docs/images/badge-qt6.svg)

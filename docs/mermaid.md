@@ -349,6 +349,107 @@ packet
 
 ---
 
+## Xychart
+
+Line and bar charts with explicit categorical or numeric axes.
+
+```mermaid
+xychart-beta
+  title "Sales by Month"
+  x-axis [Jan, Feb, Mar, Apr, May]
+  y-axis "Revenue" 0 --> 25000
+  bar [17200, 19800, 23500, 21300, 24800]
+  line [20000, 21500, 23000, 22500, 24500]
+```
+
+---
+
+## Quadrant Chart
+
+Positional categorization against two axes.
+
+```mermaid
+quadrantChart
+  title Task Priority
+  x-axis "Urgent" --> "Not Urgent"
+  y-axis "Important" --> "Not Important"
+  quadrant-1 Do First
+  quadrant-2 Schedule
+  quadrant-3 Delegate
+  quadrant-4 Eliminate
+  Fix outage: [0.15, 0.8]
+  Ship release: [0.3, 0.7]
+  Pay invoices: [0.75, 0.35]
+  Reorganize pantry: [0.85, 0.9]
+```
+
+---
+
+## Requirement Diagram
+
+Requirement traceability and relationships.
+
+```mermaid
+requirementDiagram
+  requirement LogIn as req1 {
+    id: 1
+    text: "Users shall be able to log in."
+    risk: high
+    verifymethod: test
+  }
+  requirement AuthedApi as req2 {
+    id: 2
+    text: "API calls shall require authentication."
+    risk: medium
+    verifymethod: test
+  }
+  element LoginForm as ef {
+    type: component
+  }
+  element AuthService as es {
+    type: service
+  }
+  req1 - contains -> ef
+  req1 - traces -> req2
+  req2 - satisfiedBy -> es
+```
+
+---
+
+## Sankey
+
+Flows of quantity between nodes.
+
+```mermaid
+sankey-beta
+  Coal, Pulverized, 78
+  Pulverized, Heat, 58
+  Heat, Steam, 50
+  Steam, Electricity, 22
+  Electricity, Grid, 20
+  Electricity, Self, 2
+```
+
+---
+
+## Architecture
+
+Software/hardware components and the edges between them.
+
+```mermaid
+architecture-beta
+  group net[Network]
+  group cloud[Cloud]
+  service db[Database] in cloud
+  service api[API Server] in cloud
+  webWeb[Web Client] in net
+
+  edge db -> api
+  edge api -> webWeb
+```
+
+---
+
 ## Styled Example
 
 Using Mermaid configuration directives for custom theming.

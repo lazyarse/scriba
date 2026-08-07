@@ -146,6 +146,7 @@ private:
     void connectTabEditor(int index);
     void disconnectTabEditor(int index);
     void updateTabLabel(int index);
+    void updateWindowTitle();
     void setTabDirty(int index, bool dirty);
     void connectActiveEditor();
     void disconnectActiveEditor();

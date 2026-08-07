@@ -20,7 +20,7 @@
 // unit-testable without WebEngine.
 //
 // The parsers target the exact output formats of the Chart Builder
-// (ChartDialog), Stock Chart (StockChartDialog) and Mermaid Chart
+// (ChartDialog), Stock Chart (StockChartDialog) and Mermaid Diagrams
 // (MermaidDialog) dialogs. Diagrams that were not produced by those dialogs
 // (or are too free-form) fail to parse; callers then fall back to editing the
 // raw source.

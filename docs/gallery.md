@@ -38,9 +38,9 @@ The pencil in the gutter edits the mermaid/ECharts code block it sits beside usi
 | --- | --- | --- | --- |
 | [![Insert Table](images/table-dialog.png)](images/table-dialog.png) | [![Emoji Picker](images/emoji-picker.png)](images/emoji-picker.png) | [![KaTeX Equation](images/katex-dialog.png)](images/katex-dialog.png) | [![Chemistry Notation](images/mchem-dialog.png)](images/mchem-dialog.png) |
 
-| Chart Builder | Stock Chart Builder | Mermaid Chart | Check Spelling |
+| Chart Builder | Stock Chart Builder | Mermaid Diagrams | Check Spelling |
 | --- | --- | --- | --- |
-| [![Chart Builder](images/chart-dialog.png)](images/chart-dialog.png) | [![Stock Chart Builder](images/stock-chart-dialog.png)](images/stock-chart-dialog.png) | [![Mermaid Chart](images/mermaid-dialog.png)](images/mermaid-dialog.png) | [![Check Spelling](images/check-spelling.png)](images/check-spelling.png) |
+| [![Chart Builder](images/chart-dialog.png)](images/chart-dialog.png) | [![Stock Chart Builder](images/stock-chart-dialog.png)](images/stock-chart-dialog.png) | [![Mermaid Diagrams](images/mermaid-dialog.png)](images/mermaid-dialog.png) | [![Check Spelling](images/check-spelling.png)](images/check-spelling.png) |
 
 | Validation Report Options |
 | --- |

@@ -193,7 +193,7 @@ TEST_F(GutterWidthTest, ChartPencilClickDoesNotFireOnPlainLines)
 TEST_F(GutterWidthTest, PointerCursorOverFoldAndChartIcons)
 {
     setGutterPreferences(true);
-    // Block 0 is a header (foldable), blocks 1-2 form a mermaid chart whose
+    // Block 0 is a header (foldable), blocks 1-2 form a mermaid diagram whose
     // pencil sits on block 2 (its first content line).
     editor->setPlainText("# Heading\n```mermaid\npie title Pets\n```");
     QApplication::processEvents();

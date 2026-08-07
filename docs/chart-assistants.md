@@ -1,12 +1,12 @@
-# Chart Helpers
+# Chart Assistants
 
-Scriba includes form-based helpers for building **Mermaid** diagrams and **ECharts** charts without writing code by hand. Each helper provides a split-pane UI: form controls on the left, a live preview on the right, and Insert/Copy buttons at the bottom.
+Scriba includes form-based assistants for building **Mermaid** diagrams and **ECharts** charts without writing code by hand. Each assistant provides a split-pane UI: form controls on the left, a live preview on the right, and Insert/Copy buttons at the bottom.
 
-## Mermaid Helpers (12 diagram types)
+## Mermaid Assistants (12 diagram types)
 
-Accessed from **Tools > Mermaid Charts**. Each helper generates a fenced ` ```mermaid ` code block.
+Accessed from **Tools > Mermaid Diagrams**. Each assistant generates a fenced ` ```mermaid ` code block.
 
-Every table-based helper has per-row delete buttons (trash icon) and an add-row button.
+Every table-based assistant has per-row delete buttons (trash icon) and an add-row button.
 
 ### Pie Chart
 
@@ -88,7 +88,7 @@ Flow quantity diagrams. A table of **Source** / **Target** / **Value** triples. 
 
 ## Mermaid Types NOT Covered
 
-The following Mermaid diagram types have no helper in Scriba. They can still be written by hand in a ` ```mermaid ` code block:
+The following Mermaid diagram types have no assistant in Scriba. They can still be written by hand in a ` ```mermaid ` code block:
 
 | Type | Keyword | Notes |
 |---|---|---|
@@ -108,7 +108,7 @@ The following Mermaid diagram types have no helper in Scriba. They can still be 
 | Wardley Map | `wardley-beta` | Strategy/value-chain mapping (beta) |
 | ZenUML | `zenuml` | Code-style sequence diagrams (plugin) |
 
-Additionally, the existing helpers do not cover some advanced features within supported diagram types (e.g., subgraphs in flowcharts, notes in sequence diagrams, lifecycle pseudostates in state diagrams).
+Additionally, the existing assistants do not cover some advanced features within supported diagram types (e.g., subgraphs in flowcharts, notes in sequence diagrams, lifecycle pseudostates in state diagrams).
 
 ---
 

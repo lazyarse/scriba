@@ -65,18 +65,23 @@ void ExportDocxDialog::setupUi()
 {
     auto *layout = new QVBoxLayout(this);
 
-    auto *mathLabel = new QLabel("Math equations:", this);
-    layout->addWidget(mathLabel);
+    auto *mathGroup = new QGroupBox(tr("Math equations"), this);
+    auto *mathVbox = new QVBoxLayout(mathGroup);
 
     auto *mathDesc = new QLabel(
-        "Choose how to render LaTeX math equations in the exported document:", this);
+        tr("Choose how to render LaTeX math equations in the exported document:"),
+        mathGroup);
     mathDesc->setWordWrap(true);
-    layout->addWidget(mathDesc);
+    mathVbox->addWidget(mathDesc);
 
-    m_imagesRadio = new QRadioButton("Static images (pixel-perfect, non-editable)", this);
-    m_ommlRadio = new QRadioButton("Native Word math (editable in equation editor)", this);
-    layout->addWidget(m_imagesRadio);
-    layout->addWidget(m_ommlRadio);
+    m_imagesRadio = new QRadioButton(
+        tr("Static images (pixel-perfect, non-editable)"), mathGroup);
+    m_ommlRadio = new QRadioButton(
+        tr("Native Word math (editable in equation editor)"), mathGroup);
+    mathVbox->addWidget(m_imagesRadio);
+    mathVbox->addWidget(m_ommlRadio);
+
+    layout->addWidget(mathGroup);
 
     // Restore last used mode
     QSettings s;

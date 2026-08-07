@@ -133,7 +133,7 @@ QString MermaidDialog::mermaidBlock() const
 
 void MermaidDialog::setupUi()
 {
-    setWindowTitle(tr("Mermaid Chart"));
+    setWindowTitle(tr("Mermaid Diagrams"));
 
     auto *mainLayout = new QVBoxLayout(this);
 
