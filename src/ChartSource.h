@@ -14,15 +14,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-#include <QString>
+// Reverse-parse the source Scriba's chart helpers emit back into the data the
+// helper dialogs consume, so an existing rendered chart can be re-opened in
+// its dialog with the fields pre-filled. Pure logic — no Qt widgets — so it is
+// unit-testable without WebEngine.
+//
+// The parsers target the exact output formats of the Chart Builder
+// (ChartDialog), Stock Chart (StockChartDialog) and Mermaid Chart
+// (MermaidDialog) dialogs. Diagrams that were not produced by those dialogs
+// (or are too free-form) fail to parse; callers then fall back to editing the
+// raw source.
 
-extern const QString mermaidInitJs;
-extern const QString headingIdJs;
-extern const QString anchorNavJs;
-extern const QString katexInitJs;
-extern const QString echartsInitJs;
-extern const QString setImgTitlesJs;
-extern const QString setFootnoteTitlesJs;
-extern const QString katexToImageJs;
-extern const QString imageOverlayJs;
-extern const QString chartEditJs;
+#include "EChartsParser.h"
+#include "MermaidParser.h"

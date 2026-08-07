@@ -21,6 +21,7 @@
 #include "SpellChecker.h"
 #include "StaticHelpers.h"
 #include <algorithm>
+#include <climits>
 #include <QAbstractItemView>
 #include <QCompleter>
 #include <QContextMenuEvent>
@@ -2152,6 +2153,7 @@ void Editor::setupGutter()
 {
     m_gutter = new Gutter(this);
     connect(m_gutter, &Gutter::foldToggled, this, &Editor::toggleFold);
+    connect(m_gutter, &Gutter::chartEditRequested, this, &Editor::chartEditRequested);
     connect(this, &Editor::cursorPositionChanged, this, [this]() {
         if (m_gutter)
             m_gutter->update();
@@ -2197,6 +2199,7 @@ void Editor::scanHeadersAndFolds()
 {
     m_headerLevel.clear();
     m_codeFences.clear();
+    m_chartFences.clear();
 
     QTextBlock block = document()->firstBlock();
     int codeDepth = 0;
@@ -2210,8 +2213,16 @@ void Editor::scanHeadersAndFolds()
         int bn = block.blockNumber();
 
         if (text.trimmed().startsWith("```")) {
-            if (codeDepth == 0)
+            if (codeDepth == 0) {
                 m_codeFences.insert(bn);
+                // A chart block is a fence whose language is mermaid or ec;
+                // the gutter pencil makes it editable without leaving the editor.
+                const QString lang = text.trimmed().mid(3).trimmed()
+                                         .section(QRegularExpression("[\\s{].*"), 0, 0)
+                                         .toLower();
+                if (lang == QLatin1String("mermaid") || lang == QLatin1String("ec"))
+                    m_chartFences.insert(bn);
+            }
             codeDepth ^= 1;
             prevBlock = block;
             block = block.next();
@@ -2250,6 +2261,7 @@ void Editor::scanHeadersAndFolds()
     foldableSet.unite(m_codeFences);
     if (m_gutter) {
         m_gutter->setFoldableBlocks(foldableSet);
+        m_gutter->setChartBlocks(m_chartFences);
     }
 
     // Re-apply folds
@@ -2304,7 +2316,6 @@ int Editor::foldEnd(int startBlock) const
         }
         return document()->blockCount();
     }
-
     int end = sectionEndBlock(startBlock, m_headerLevel.value(startBlock));
     auto pinIt = m_foldEndPins.find(startBlock);
     if (pinIt != m_foldEndPins.end()) {
@@ -2313,6 +2324,195 @@ int Editor::foldEnd(int startBlock) const
             end = pinned.blockNumber();
     }
     return end;
+}
+
+QPair<int, int> Editor::fencedCodeBlockRange(int blockNumber) const
+{
+    if (!m_codeFences.contains(blockNumber))
+        return {-1, -1};
+    return {blockNumber, foldEnd(blockNumber)};
+}
+
+QString Editor::blockRangeText(int firstBlock, int endExclusive) const
+{
+    QStringList parts;
+    QTextBlock block = document()->findBlockByNumber(firstBlock);
+    while (block.isValid() && block.blockNumber() < endExclusive) {
+        parts.append(block.text());
+        block = block.next();
+    }
+    return parts.join('\n');
+}
+
+void Editor::replaceBlockRange(int firstBlock, int endExclusive, const QString &text)
+{
+    QTextDocument *doc = document();
+    if (firstBlock < 0 || firstBlock >= doc->blockCount())
+        return;
+    QTextCursor cur(doc);
+    cur.beginEditBlock();
+    QTextBlock first = doc->findBlockByNumber(firstBlock);
+    cur.setPosition(first.position());
+    cur.movePosition(QTextCursor::StartOfBlock);
+    int last = endExclusive - 1;
+    if (last >= doc->blockCount())
+        last = doc->blockCount() - 1;
+    if (last < firstBlock)
+        last = firstBlock;
+    QTextBlock endBlock = doc->findBlockByNumber(last);
+    // Select through the last line's content but not its paragraph separator.
+    cur.setPosition(endBlock.position() + qMax(0, endBlock.length() - 1),
+                    QTextCursor::KeepAnchor);
+    cur.removeSelectedText();
+    cur.insertText(text);
+    cur.endEditBlock();
+    scanHeadersAndFolds();
+}
+
+// Matches `$$…$$` (display) before `$…$` (inline, single line, non-empty).
+static const QRegularExpression &inlineMathRe()
+{
+    static const QRegularExpression re(
+        QStringLiteral(R"(\$\$[\s\S]+?\$\$|\$[^$\n]+\$)"));
+    return re;
+}
+
+int Editor::findNthInlineMath(int blockNumber, int index) const
+{
+    if (blockNumber < 0 || blockNumber >= document()->blockCount())
+        return -1;
+    const QString line = document()->findBlockByNumber(blockNumber).text();
+    int i = 0;
+    QRegularExpressionMatchIterator it = inlineMathRe().globalMatch(line);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        if (i++ == index)
+            return document()->findBlockByNumber(blockNumber).position() + m.capturedStart();
+    }
+    return -1;
+}
+
+void Editor::replaceInlineMath(int blockNumber, int index, const QString &replacement)
+{
+    if (blockNumber < 0 || blockNumber >= document()->blockCount())
+        return;
+    const QString line = document()->findBlockByNumber(blockNumber).text();
+    int i = 0;
+    QRegularExpressionMatchIterator it = inlineMathRe().globalMatch(line);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        if (i++ == index) {
+            QTextBlock block = document()->findBlockByNumber(blockNumber);
+            QTextCursor cur(document());
+            cur.setPosition(block.position() + m.capturedStart());
+            cur.setPosition(block.position() + m.capturedEnd(), QTextCursor::KeepAnchor);
+            cur.insertText(replacement);
+            return;
+        }
+    }
+}
+
+QString Editor::fenceBody(int blockNumber) const
+{
+    const QPair<int, int> range = fencedCodeBlockRange(blockNumber);
+    if (range.first < 0)
+        return QString();
+    QStringList lines = blockRangeText(range.first, range.second).split(QLatin1Char('\n'));
+    if (lines.size() < 3)
+        return QString();
+    lines.removeFirst(); // opening fence
+    lines.removeLast();  // closing fence
+    return lines.join(QLatin1Char('\n'));
+}
+
+// The preview's `<code>` text ends with a line terminator that the editor's
+// block range does not carry; tolerate that when comparing.
+static bool chartBodiesMatch(const QString &a, const QString &b)
+{
+    return a == b || a == b + QLatin1Char('\n') || b == a + QLatin1Char('\n');
+}
+
+int Editor::findFenceByBody(const QString &body, int hintLine) const
+{
+    if (body.isEmpty())
+        return -1;
+    QList<int> fences = m_codeFences.values();
+    std::sort(fences.begin(), fences.end());
+    int best = -1;
+    int bestDist = INT_MAX;
+    for (int bn : fences) {
+        if (!chartBodiesMatch(body, fenceBody(bn)))
+            continue;
+        const int dist = qAbs(bn - (hintLine - 1));
+        if (dist < bestDist) {
+            bestDist = dist;
+            best = bn;
+        }
+    }
+    return best;
+}
+
+QString Editor::fenceLanguage(int blockNumber) const
+{
+    QTextBlock block = document()->findBlockByNumber(blockNumber);
+    if (!block.isValid())
+        return QString();
+    const QString text = block.text().trimmed();
+    if (!text.startsWith(QLatin1String("```")))
+        return QString();
+    return text.mid(3).trimmed().section(QRegularExpression("[\\s{].*"), 0, 0).toLower();
+}
+
+// Strips the `$$` / `$` delimiters the regex captures, matching the inner
+// text the preview's edit anchors carry.
+static QString mathInnerText(const QString &match)
+{
+    if (match.startsWith(QLatin1String("$$")))
+        return match.mid(2, match.size() - 4);
+    if (match.size() >= 2)
+        return match.mid(1, match.size() - 2);
+    return QString();
+}
+
+int Editor::findMathByContent(const QString &innerTex, int hintLine, int index,
+                              int *outIndex) const
+{
+    if (innerTex.isEmpty())
+        return -1;
+    int best = -1, bestOutIndex = -1, bestDist = INT_MAX;
+    int exactBest = -1, exactOutIndex = -1, exactDist = INT_MAX;
+    QTextBlock block = document()->firstBlock();
+    while (block.isValid()) {
+        const QString line = block.text();
+        int i = 0;
+        QRegularExpressionMatchIterator it = inlineMathRe().globalMatch(line);
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            if (mathInnerText(m.captured(0)) != innerTex) {
+                ++i;
+                continue;
+            }
+            const int dist = qAbs(block.blockNumber() - (hintLine - 1));
+            if (i == index && dist < exactDist) {
+                exactBest = block.blockNumber();
+                exactOutIndex = i;
+                exactDist = dist;
+            }
+            if (dist < bestDist) {
+                best = block.blockNumber();
+                bestOutIndex = i;
+                bestDist = dist;
+            }
+            ++i;
+        }
+        block = block.next();
+    }
+    if (exactBest >= 0) {
+        if (outIndex) *outIndex = exactOutIndex;
+        return exactBest;
+    }
+    if (best >= 0 && outIndex) *outIndex = bestOutIndex;
+    return best;
 }
 
 int Editor::sectionEndBlock(int fromBlock, int level) const

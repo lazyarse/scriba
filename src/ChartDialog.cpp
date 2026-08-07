@@ -16,6 +16,7 @@
 #include "StaticHelpers.h"
 #include "CsvReader.h"
 #include "Preview.h"
+#include "ChartSource.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -69,6 +70,62 @@ ChartDialog::ChartDialog(QWidget *parent)
     else if (m_fieldY->count() > 1) m_fieldY->setCurrentIndex(1);
     onChartTypeChanged();
     updatePreview();
+}
+
+ChartDialog::ChartDialog(const QString &existingSpecJson, QWidget *parent)
+    : QDialog(parent)
+{
+    setWindowTitle("Chart Builder");
+    resize(1100, 700);
+
+    m_previewTimer = new DebounceTimer(Debounce::DialogPreview, this);
+    connect(m_previewTimer, &QTimer::timeout, this, &ChartDialog::updatePreview);
+
+    setupUi();
+    updateFieldComboBoxes();
+    if (m_fieldX->count() > 1) m_fieldX->setCurrentIndex(1);
+    if (m_fieldY->count() > 2) m_fieldY->setCurrentIndex(2);
+    else if (m_fieldY->count() > 1) m_fieldY->setCurrentIndex(1);
+    prefillFromSpec(existingSpecJson);
+    onChartTypeChanged();
+    updatePreview();
+}
+
+void ChartDialog::prefillFromSpec(const QString &specJson)
+{
+    ChartSource::ChartSpecData data;
+    if (!ChartSource::parseChartSpec(specJson.toUtf8(), data))
+        return;
+
+    const ChartSeries series =
+        data.type == QLatin1String("bar") ? ChartSeries::Bar
+        : data.type == QLatin1String("line") ? ChartSeries::Line
+        : data.type == QLatin1String("area") ? ChartSeries::Area
+        : data.type == QLatin1String("scatter") ? ChartSeries::Scatter
+        : ChartSeries::Pie;
+    int typeIdx = m_chartTypeCombo->findData(static_cast<int>(series));
+    if (typeIdx >= 0)
+        m_chartTypeCombo->setCurrentIndex(typeIdx);
+
+    m_titleEdit->setText(data.title);
+    m_tooltipCheck->setChecked(data.tooltip);
+    m_animateCheck->setChecked(data.animate);
+
+    m_table->blockSignals(true);
+    m_table->setColumnCount(data.headers.size());
+    m_table->setRowCount(data.rows.size());
+    m_table->setHorizontalHeaderLabels(data.headers);
+    for (int r = 0; r < data.rows.size(); ++r) {
+        for (int c = 0; c < data.rows[r].size() && c < data.headers.size(); ++c)
+            m_table->setItem(r, c, new QTableWidgetItem(data.rows[r][c]));
+    }
+    m_table->blockSignals(false);
+
+    updateFieldComboBoxes();
+    if (m_fieldX->findText(data.headers.value(0)) >= 0)
+        m_fieldX->setCurrentText(data.headers.value(0));
+    if (m_fieldY->findText(data.headers.value(1)) >= 0)
+        m_fieldY->setCurrentText(data.headers.value(1));
 }
 
 void ChartDialog::setupUi()

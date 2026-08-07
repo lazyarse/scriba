@@ -28,7 +28,8 @@ class KatexHelperDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit KatexHelperDialog(const QString &themeCss = QString(), QWidget *parent = nullptr);
+    explicit KatexHelperDialog(const QString &themeCss = QString(), const QString &existingLatex = QString(),
+                               QWidget *parent = nullptr);
     QString generatedLatex() const;
 
 private slots:

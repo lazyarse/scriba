@@ -88,6 +88,8 @@ private slots:
     void showMchemHelper();
     void showSpellCheckDialog();
     void generateValidationReport();
+    void handleChartEdit(const QString &kind, int line, int index, const QString &tex);
+    void editChartBlock(Editor *ed, int blockNumber);
 
     void onFindNext();
     void onFindPrev();

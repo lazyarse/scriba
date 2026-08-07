@@ -30,6 +30,10 @@ class ChartDialog : public QDialog
 
 public:
     explicit ChartDialog(QWidget *parent = nullptr);
+    // Opens the dialog pre-filled from an existing ` ```ec ` spec block's JSON
+    // (as produced by generatedSpec()). When the block isn't a Chart Builder
+    // spec the dialog is left in its default empty state.
+    explicit ChartDialog(const QString &existingSpecJson, QWidget *parent = nullptr);
     QString generatedSpec() const;
     static QString previewPageHtml(const QString &spec);
     QList<QMap<QString, QString>> parseCsvData(const QString &text) const;
@@ -49,6 +53,7 @@ private:
     void setupLeftPanel(QWidget *panel);
     void updateFieldComboBoxes();
     void populateTableFromCsvData(const struct CsvData &data);
+    void prefillFromSpec(const QString &specJson);
     QString buildSpec() const;
     static bool allNumeric(const QStringList &values);
 

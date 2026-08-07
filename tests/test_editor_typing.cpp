@@ -681,6 +681,83 @@ TEST_F(EditorTestHarness, DeleteLineEditorDoesNotBreakDuplicate)
     EXPECT_EQ(text(), "one\ntwo\ntwo\nthree");
 }
 
+TEST_F(EditorTestHarness, FenceByBodyFindsFencedBlockAndReadsBody)
+{
+    setContent("Before\n\n```mermaid\npie title Pets\n    \"Dogs\" : 10\n```\n\nAfter");
+    waitForFolds();
+
+    const QString body = "pie title Pets\n    \"Dogs\" : 10";
+    EXPECT_EQ(editor->fenceBody(2), body);
+    EXPECT_EQ(editor->findFenceByBody(body, 3), 2);
+    // Tolerates the trailing newline the preview's <code> text carries.
+    EXPECT_EQ(editor->findFenceByBody(body + "\n", 3), 2);
+    // The hint line is only approximate; a lone match still resolves.
+    EXPECT_EQ(editor->findFenceByBody(body, 50), 2);
+    EXPECT_EQ(editor->findFenceByBody("no such chart", 3), -1);
+    EXPECT_EQ(editor->findFenceByBody("", 3), -1);
+}
+
+TEST_F(EditorTestHarness, FenceByBodyPrefersNearestDuplicate)
+{
+    setContent("```mermaid\npie title Same\n```\n\ntext\n\n```mermaid\npie title Same\n```");
+    waitForFolds();
+
+    const QString body = "pie title Same";
+    EXPECT_EQ(editor->findFenceByBody(body, 1), 0);
+    EXPECT_EQ(editor->findFenceByBody(body, 8), 6);
+}
+
+TEST_F(EditorTestHarness, FenceLanguageReportsChartAndNonChartLanguages)
+{
+    setContent("Before\n\n```mermaid\npie title Pets\n```\n\n```ec\n{}\n```\n\n```python\nx=1\n```");
+    waitForFolds();
+
+    EXPECT_EQ(editor->fenceLanguage(2), "mermaid");
+    EXPECT_EQ(editor->fenceLanguage(6), "ec");
+    EXPECT_EQ(editor->fenceLanguage(10), "python");
+    // A plain fence with no language token.
+    setContent("```\nplain\n```");
+    waitForFolds();
+    EXPECT_EQ(editor->fenceLanguage(0), QString());
+}
+
+TEST_F(EditorTestHarness, MathByContentFindsInlineAndDisplayEquations)
+{
+    setContent("Use $x^2$ here.\n\n$$\\int f$$");
+    waitForFolds();
+
+    int out = -1;
+    EXPECT_EQ(editor->findMathByContent("x^2", 0, 0, &out), 0);
+    EXPECT_EQ(out, 0);
+    EXPECT_EQ(editor->findMathByContent("\\int f", 2, 0, &out), 2);
+    EXPECT_EQ(out, 0);
+}
+
+TEST_F(EditorTestHarness, MathByContentDistinguishesNthOccurrence)
+{
+    setContent("a $x$ b $y$ c");
+    waitForFolds();
+
+    int out = -1;
+    EXPECT_EQ(editor->findMathByContent("x", 0, 0, &out), 0);
+    EXPECT_EQ(out, 0);
+    EXPECT_EQ(editor->findMathByContent("y", 0, 1, &out), 0);
+    EXPECT_EQ(out, 1);
+    EXPECT_EQ(editor->findMathByContent("z", 0, 0, &out), -1);
+}
+
+TEST_F(EditorTestHarness, MathByContentPrefersExactIndexThenNearestLine)
+{
+    setContent("$x$\n\ntext\n\n$x$");
+    waitForFolds();
+
+    int out = -1;
+    EXPECT_EQ(editor->findMathByContent("x", 1, 0, &out), 0);
+    EXPECT_EQ(out, 0);
+    EXPECT_EQ(editor->findMathByContent("x", 5, 0, &out), 4);
+    EXPECT_EQ(out, 0);
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

@@ -1,18 +1,12 @@
 ![Scriba Icon](resources/icons/scriba.svg)
 
-# Scriba Markdown Editor
-
-**A privacy-first, no-nonsense, full-featured, configurable Markdown editor for technical people.** Designed to *actually* do what you need without plugin hell. No node, react, angular, or bloat; just a binary which sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
-
 ![C++23 Badge](docs/images/badge-cpp23.svg)
 ![Qt6 Badge](docs/images/badge-qt6.svg)
 ![Tests Badge](docs/images/badge-tests.svg)
 
----
+# Scriba Markdown Editor
 
-![Screenshot](docs/images/screenshot.png)
-
-See the [Gallery](docs/gallery.md) for more screenshots.
+**A privacy-first, no-nonsense, full-featured, configurable Markdown editor for technical people.** Designed to *actually* do what you need without plugin hell. No node, react, angular, or bloat; just a binary which sits on your computer and doesn't phone home. Get ready to leave your Google Docs trauma behind.
 
 ---
 
@@ -50,6 +44,14 @@ See [themes.md](docs/themes.md) for how to write themes, customise admonition ic
 ## Security
 
 Due to Chromium sandbox issues, it's inherently unsafe to run this as `root` in case you inadvertently run crafted HTML code.
+
+---
+
+_See the [Gallery](docs/gallery.md) for more screenshots..._
+
+![Screenshot](docs/images/screenshot.png)
+
+---
 
 ## Prerequisites
 

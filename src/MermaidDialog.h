@@ -21,6 +21,7 @@ class QCheckBox;
 class QComboBox;
 class QDialogButtonBox;
 class QLineEdit;
+class QPlainTextEdit;
 class QPushButton;
 class QSpinBox;
 class QStackedWidget;
@@ -29,6 +30,8 @@ class QTreeWidget;
 class QTreeWidgetItem;
 class QTimer;
 class QWebEngineView;
+
+namespace ChartSource { struct MermaidData; }
 
 class MermaidDialog : public QDialog
 {
@@ -42,6 +45,12 @@ public:
     Q_ENUM(ChartType)
 
     explicit MermaidDialog(const QString &themeCss, QWidget *parent = nullptr);
+    // Opens the dialog pre-filled from an existing ` ```mermaid ` diagram. The
+    // diagram is reverse-parsed into the matching panel when possible;
+    // otherwise (unknown/class/er/legacy syntax) a pre-filled raw-source panel
+    // is shown instead.
+    explicit MermaidDialog(const QString &existingDiagram, const QString &themeCss,
+                           QWidget *parent = nullptr);
     QString mermaidBlock() const;
 
     static QString mermaidPreviewHtml(const QString &escaped, const QString &theme,
@@ -52,6 +61,10 @@ private:
     void onChartTypeChanged(int index);
     void schedulePreviewUpdate();
     void updatePreview();
+    void prefillFromSource(const QString &diagram);
+    void applyPrefill(const ChartSource::MermaidData &data);
+    void setChartType(int index);
+    bool sourceMode() const;
 
     QWidget *createPiePanel();
     QWidget *createFlowchartPanel();
@@ -171,4 +184,8 @@ private:
 
     // Sankey
     QTableWidget *m_sankeyTable;
+
+    // Raw-source fallback panel (index kSourcePanelIndex). Active when an
+    // existing diagram could not be reverse-parsed into a structured panel.
+    QPlainTextEdit *m_sourceEdit = nullptr;
 };

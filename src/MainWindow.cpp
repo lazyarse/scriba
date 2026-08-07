@@ -42,6 +42,7 @@
 #include "StoppardEngine.h"
 #include "KatexHelperDialog.h"
 #include "MchemHelperDialog.h"
+#include "ChartSource.h"
 #include "HtmlToMarkdown.h"
 #include "ValidationReportDialog.h"
 
@@ -168,6 +169,29 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
 
     connect(m_preview->page(), &QWebEnginePage::urlChanged, this, [this](const QUrl &url) {
         QString frag = url.fragment(QUrl::FullyDecoded);
+        if (frag.startsWith("scriba-edit:")) {
+            // Edit-button bridge: #scriba-edit:<kind>:<line>:<index>:<tex>.
+            QString rest = frag.mid(12);
+            int c1 = rest.indexOf(QLatin1Char(':'));
+            if (c1 <= 0)
+                return;
+            int c2 = rest.indexOf(QLatin1Char(':'), c1 + 1);
+            if (c2 <= c1)
+                return;
+            int c3 = rest.indexOf(QLatin1Char(':'), c2 + 1);
+            if (c3 <= c2)
+                return;
+            const QString kind = rest.left(c1);
+            const int line = rest.mid(c1 + 1, c2 - c1 - 1).toInt();
+            const int index = rest.mid(c2 + 1, c3 - c2 - 1).toInt();
+            const QString tex = rest.mid(c3 + 1);
+            if (line <= 0)
+                return;
+            handleChartEdit(kind, line, index, tex);
+            m_preview->page()->runJavaScript(
+                "history.replaceState(null,'',location.href.split('#')[0])");
+            return;
+        }
         if (frag.startsWith("scriba-open:")) {
             QUrl target(frag.mid(12));
             const QString anchor = target.fragment(QUrl::FullyDecoded);
@@ -453,6 +477,11 @@ int MainWindow::addTab(const QString &filePath)
                 }
             }
         });
+
+    // The gutter pencil opens the chart's helper dialog directly (the editor
+    // knows the exact fence block, so no preview body-matching is needed).
+    connect(editor, &Editor::chartEditRequested, this,
+        [this, editor](int blockNumber) { editChartBlock(editor, blockNumber); });
 
     if (!m_cachedFullCss.isEmpty()) {
         editor->setStyleSheet(m_cachedFullCss + applyEditorSettings());
@@ -1004,7 +1033,7 @@ void MainWindow::setupMenuBar()
     QAction *mermaidAction = toolsMenu->addAction("&Mermaid Chart...");
     mermaidAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
     connect(mermaidAction, &QAction::triggered, this, [this]() {
-        MermaidDialog dlg(m_cssLoader->themeCss(), this);
+        MermaidDialog dlg(QString(), m_cssLoader->themeCss(), this);
         if (dlg.exec() == QDialog::Accepted) {
             QString block = dlg.mermaidBlock();
             Editor *ed = editor();
@@ -1371,6 +1400,7 @@ void MainWindow::updatePreview(bool tabSwitch)
             "<style id=\"code-lang-css\">%7</style>"
             "<style id=\"render-css\">%8</style>"
             "<style id=\"image-overlay-css\">#scriba-image-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9999;display:none;align-items:center;justify-content:center}#scriba-image-overlay .scriba-image-box{position:relative;max-width:92%;max-height:92%;display:flex;flex-direction:column;align-items:center}#scriba-image-overlay .scriba-image-view{max-width:92vw;max-height:85vh;object-fit:contain;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.5)}#scriba-image-overlay .scriba-image-caption{color:#eee;font-size:13px;margin-top:8px;max-width:92vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#scriba-image-overlay .scriba-image-close{position:absolute;top:-14px;right:-14px;width:28px;height:28px;border-radius:50%;border:none;background:#333;color:#fff;font-size:16px;line-height:1;cursor:pointer}#scriba-image-overlay .scriba-image-close:hover{background:#555}</style>"
+            "<style id=\"edit-btn-css\">.scriba-chart-wrap{position:relative;display:block}.scriba-mathbox{position:relative;white-space:normal}.scriba-math{white-space:normal}.scriba-edit-btn{position:absolute;top:4px;right:4px;z-index:6;display:inline-block;padding:2px 7px;font-size:12px;line-height:1.3;color:#fff;background:rgba(60,60,60,.75);border:1px solid rgba(255,255,255,.35);border-radius:4px;text-decoration:none;cursor:pointer;opacity:0;transition:opacity .15s ease}.scriba-chart-wrap:hover .scriba-edit-btn,.scriba-mathbox:hover .scriba-edit-btn{opacity:1}@media print{.scriba-edit-btn{display:none!important}}</style>"
             "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
             "<script src=\"qrc:///highlight.min.js\"></script>"
             "<script src=\"qrc:///mermaid.min.js\"></script>"
@@ -1381,12 +1411,17 @@ void MainWindow::updatePreview(bool tabSwitch)
             "<script src=\"qrc:///echarts.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
-            "<script>window._scribaHeavyDelay=" + QString::number(heavyRenderDelay) + ";" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + echartsInitJs + setImgTitlesJs + setFootnoteTitlesJs + imageOverlayJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode,delay,baseUrl){if(!document.body)return false;try{window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss){var tc=document.getElementById('theme-css');if(tc)tc.textContent=themeCss;}if(baseUrl){var b=document.getElementById('scriba-base');if(!b){b=document.createElement('base');b.id='scriba-base';var hd=document.head;hd.insertBefore(b,hd.firstChild);}b.href=baseUrl;}else{var b2=document.getElementById('scriba-base');if(b2)b2.remove();}window._scribaBasePath=baseUrl?new URL(baseUrl).pathname:location.pathname;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initECharts();hljs.highlightAll();generateHeadingIds();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},(typeof delay==='number'&&delay>=0)?delay:window._scribaHeavyDelay);return true;}catch(e){scribaShowRenderError(e&&e.message?e.message:e);scribaEndRender();return false;}}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}function scribaShowRenderError(m){var c=document.getElementById('scriba-content');if(!c&&document.body){c=document.createElement('div');c.id='scriba-content';document.body.appendChild(c);}if(!c)return;m=String(m==null?'Unknown render error':m);var t=document.createElement('div');t.style.cssText='margin:2rem auto;max-width:720px;padding:1.2rem 1.4rem;border:1px solid #d33;border-radius:6px;background:#fdf0f0;color:#8b0000;font-family:system-ui,sans-serif;';t.innerHTML='<strong>Preview error</strong><pre style=\"white-space:pre-wrap;word-break:break-word;font-family:monospace;margin:0.5rem 0 0;color:#6b0000;\">'+String(m).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';c.innerHTML='';c.appendChild(t);}document.addEventListener('DOMContentLoaded',function(){window._scribaBasePath=location.pathname;mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.echartsReady=initECharts();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
+            "<script>window._scribaHeavyDelay=" + QString::number(heavyRenderDelay) + ";" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + echartsInitJs + setImgTitlesJs + setFootnoteTitlesJs + imageOverlayJs + chartEditJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode,delay,baseUrl){if(!document.body)return false;try{window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss){var tc=document.getElementById('theme-css');if(tc)tc.textContent=themeCss;}if(baseUrl){var b=document.getElementById('scriba-base');if(!b){b=document.createElement('base');b.id='scriba-base';var hd=document.head;hd.insertBefore(b,hd.firstChild);}b.href=baseUrl;}else{var b2=document.getElementById('scriba-base');if(b2)b2.remove();}window._scribaBasePath=baseUrl?new URL(baseUrl).pathname:location.pathname;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initECharts();hljs.highlightAll();generateHeadingIds();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},(typeof delay==='number'&&delay>=0)?delay:window._scribaHeavyDelay);return true;}catch(e){scribaShowRenderError(e&&e.message?e.message:e);scribaEndRender();return false;}}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}function scribaShowRenderError(m){var c=document.getElementById('scriba-content');if(!c&&document.body){c=document.createElement('div');c.id='scriba-content';document.body.appendChild(c);}if(!c)return;m=String(m==null?'Unknown render error':m);var t=document.createElement('div');t.style.cssText='margin:2rem auto;max-width:720px;padding:1.2rem 1.4rem;border:1px solid #d33;border-radius:6px;background:#fdf0f0;color:#8b0000;font-family:system-ui,sans-serif;';t.innerHTML='<strong>Preview error</strong><pre style=\"white-space:pre-wrap;word-break:break-word;font-family:monospace;margin:0.5rem 0 0;color:#6b0000;\">'+String(m).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';c.innerHTML='';c.appendChild(t);}document.addEventListener('DOMContentLoaded',function(){window._scribaBasePath=location.pathname;mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.echartsReady=initECharts();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
             "</head><body id=\"preview\">"
             "<div id=\"scriba-rendering-overlay\">Rendering…</div>"
             "<div id=\"scriba-content\">%3</div>"
             "<script>document.addEventListener('click',function(e){"
             "var l=e.target.closest('a');if(!l)return;"
+            "if(l.hash&&l.hash.indexOf('#scriba-edit:')===0){"
+            "e.preventDefault();"
+            "history.replaceState(null,'','#'+l.hash.slice(1));"
+            "return;"
+            "}"
             "if(l.hash&&l.hash.length>1&&l.pathname===window._scribaBasePath){"
             "e.preventDefault();"
             "scribaScrollToSlugRetry(l.hash);"
@@ -1556,7 +1591,7 @@ void MainWindow::showStockChartBuilder()
 
 void MainWindow::showKatexHelper()
 {
-    KatexHelperDialog dlg(m_cssLoader->themeCss(), this);
+    KatexHelperDialog dlg(m_cssLoader->themeCss(), QString(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString latex = dlg.generatedLatex();
         Editor *ed = currentEditor();
@@ -1567,12 +1602,112 @@ void MainWindow::showKatexHelper()
 
 void MainWindow::showMchemHelper()
 {
-    MchemHelperDialog dlg(m_cssLoader->themeCss(), this);
+    MchemHelperDialog dlg(m_cssLoader->themeCss(), QString(), this);
     if (dlg.exec() == QDialog::Accepted) {
         QString notation = dlg.generatedNotation();
         Editor *ed = currentEditor();
         if (!notation.isEmpty() && ed)
             ed->insertPlainText(notation);
+    }
+}
+
+void MainWindow::editChartBlock(Editor *ed, int blockNumber)
+{
+    if (!ed || blockNumber < 0)
+        return;
+    const QPair<int, int> range = ed->fencedCodeBlockRange(blockNumber);
+    if (range.first < 0)
+        return;
+    const QString body = ed->fenceBody(blockNumber);
+    const QString lang = ed->fenceLanguage(blockNumber);
+
+    if (lang == QLatin1String("mermaid")) {
+        MermaidDialog dlg(body, m_cssLoader->themeCss(), this);
+        if (dlg.exec() != QDialog::Accepted)
+            return;
+        QString replacement = dlg.mermaidBlock().trimmed();
+        if (!replacement.isEmpty())
+            ed->replaceBlockRange(range.first, range.second, replacement);
+        return;
+    }
+    if (lang == QLatin1String("ec")) {
+        const QByteArray json = body.toUtf8();
+        switch (ChartSource::detectEcType(json)) {
+        case ChartSource::EcType::Stock: {
+            StockChartDialog dlg(body, this);
+            if (dlg.exec() != QDialog::Accepted)
+                return;
+            QString replacement = dlg.generatedSpec().trimmed();
+            if (!replacement.isEmpty())
+                ed->replaceBlockRange(range.first, range.second, replacement);
+            break;
+        }
+        case ChartSource::EcType::Chart: {
+            ChartDialog dlg(body, this);
+            if (dlg.exec() != QDialog::Accepted)
+                return;
+            QString replacement = dlg.generatedSpec().trimmed();
+            if (!replacement.isEmpty())
+                ed->replaceBlockRange(range.first, range.second, replacement);
+            break;
+        }
+        default:
+            QMessageBox::warning(this, tr("Chart"),
+                tr("This chart was not created by Scriba's chart helpers and "
+                   "cannot be reopened for editing."));
+        }
+        return;
+    }
+
+    QMessageBox::warning(this, tr("Chart"),
+        tr("This chart was not created by Scriba's chart helpers and "
+           "cannot be reopened for editing."));
+}
+
+void MainWindow::handleChartEdit(const QString &kind, int line, int index, const QString &tex)
+{
+    Editor *ed = currentEditor();
+    if (!ed)
+        return;
+
+    if (kind == QLatin1String("mermaid") || kind == QLatin1String("ec")) {
+        // The preview's line numbers are only approximate; the anchor carries
+        // the fenced block's body, so match on that (the line only breaks
+        // ties between identical charts).
+        int blockNumber = ed->findFenceByBody(tex, line);
+        if (blockNumber < 0) {
+            QMessageBox::warning(this, tr("Edit"),
+                tr("Could not locate this diagram in the document."));
+            return;
+        }
+        editChartBlock(ed, blockNumber);
+        return;
+    }
+
+    // Math: katex or mchem. The preview's line/index are only approximate, so
+    // resolve the equation by its inner text (line/index break ties).
+    bool mchem = tex.contains(QLatin1String("\\ce{"));
+    int matchIndex = -1;
+    int blockNumber = ed->findMathByContent(tex, line, index, &matchIndex);
+    if (blockNumber < 0) {
+        QMessageBox::warning(this, tr("Edit"),
+            tr("Could not locate this equation in the document."));
+        return;
+    }
+    if (mchem) {
+        MchemHelperDialog dlg(m_cssLoader->themeCss(), tex, this);
+        if (dlg.exec() != QDialog::Accepted)
+            return;
+        QString replacement = dlg.generatedNotation().trimmed();
+        if (!replacement.isEmpty())
+            ed->replaceInlineMath(blockNumber, matchIndex, replacement);
+    } else {
+        KatexHelperDialog dlg(m_cssLoader->themeCss(), tex, this);
+        if (dlg.exec() != QDialog::Accepted)
+            return;
+        QString replacement = dlg.generatedLatex().trimmed();
+        if (!replacement.isEmpty())
+            ed->replaceInlineMath(blockNumber, matchIndex, replacement);
     }
 }
 

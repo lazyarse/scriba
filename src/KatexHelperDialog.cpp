@@ -158,7 +158,7 @@ static const CheatSection kCheatSections[] = {
 };
 static const int kCheatSectionCount = sizeof(kCheatSections) / sizeof(CheatSection);
 
-KatexHelperDialog::KatexHelperDialog(const QString &themeCss, QWidget *parent)
+KatexHelperDialog::KatexHelperDialog(const QString &themeCss, const QString &existingLatex, QWidget *parent)
     : QDialog(parent)
 {
     CssUtils::ThemeColors colors = CssUtils::themeColors(themeCss);
@@ -174,6 +174,19 @@ KatexHelperDialog::KatexHelperDialog(const QString &themeCss, QWidget *parent)
     connect(m_previewTimer, &QTimer::timeout, this, &KatexHelperDialog::updatePreview);
 
     setupUi();
+    if (!existingLatex.isEmpty()) {
+        const QString trimmed = existingLatex.trimmed();
+        bool block = trimmed.startsWith(QLatin1String("$$")) && trimmed.endsWith(QLatin1String("$$"))
+            && trimmed.size() >= 4;
+        QString body = trimmed;
+        if (block)
+            body = body.mid(2).chopped(2);
+        else if (body.startsWith(QLatin1String("$")) && body.endsWith(QLatin1String("$")) && body.size() >= 2)
+            body = body.mid(1).chopped(1);
+        m_blockRadio->setChecked(block);
+        m_inlineRadio->setChecked(!block);
+        m_input->setPlainText(body);
+    }
     updatePreview();
     m_input->setFocus();
 }

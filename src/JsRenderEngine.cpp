@@ -50,7 +50,7 @@ QString JsRenderEngine::buildFullHtml(const QString &bodyHtml, const QString &cs
         "replaceEmoji(document.body);twemojiParse('%6');"
         "});</script>"
         "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml);
+    ).arg(css, chartEditJs + mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml);
 }
 
 QString JsRenderEngine::buildFullHtmlForDocx(const QString &bodyHtml, const QString &css,
@@ -78,7 +78,7 @@ QString JsRenderEngine::buildFullHtmlForDocx(const QString &bodyHtml, const QStr
         "replaceEmoji(document.body);twemojiParse('%6');"
         "});</script>"
         "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml, katexToImageJs);
+    ).arg(css, chartEditJs + mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml, katexToImageJs);
 }
 
 QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const QString &css,
@@ -119,7 +119,7 @@ QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const 
 "replaceEmoji(document.body);twemojiParse('%6');"
 "}catch(e){}});</script>"
         "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml);
+    ).arg(css, chartEditJs + mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml);
 }
 
 QString JsRenderEngine::replaceQrcUrls(const QString &html)

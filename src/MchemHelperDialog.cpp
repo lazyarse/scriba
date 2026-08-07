@@ -128,7 +128,7 @@ static const ChemSection kCheatSections[] = {
 };
 static const int kCheatSectionCount = sizeof(kCheatSections) / sizeof(ChemSection);
 
-MchemHelperDialog::MchemHelperDialog(const QString &themeCss, QWidget *parent)
+MchemHelperDialog::MchemHelperDialog(const QString &themeCss, const QString &existingNotation, QWidget *parent)
     : QDialog(parent)
 {
     CssUtils::ThemeColors colors = CssUtils::themeColors(themeCss);
@@ -144,6 +144,19 @@ MchemHelperDialog::MchemHelperDialog(const QString &themeCss, QWidget *parent)
     connect(m_previewTimer, &QTimer::timeout, this, &MchemHelperDialog::updatePreview);
 
     setupUi();
+    if (!existingNotation.isEmpty()) {
+        const QString trimmed = existingNotation.trimmed();
+        bool block = trimmed.startsWith(QLatin1String("$$")) && trimmed.endsWith(QLatin1String("$$"))
+            && trimmed.size() >= 4;
+        QString body = trimmed;
+        if (block)
+            body = body.mid(2).chopped(2);
+        else if (body.startsWith(QLatin1String("$")) && body.endsWith(QLatin1String("$")) && body.size() >= 2)
+            body = body.mid(1).chopped(1);
+        m_blockRadio->setChecked(block);
+        m_inlineRadio->setChecked(!block);
+        m_input->setPlainText(body);
+    }
     updatePreview();
     m_input->setFocus();
 }

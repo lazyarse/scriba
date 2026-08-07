@@ -28,7 +28,8 @@ class MchemHelperDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit MchemHelperDialog(const QString &themeCss = QString(), QWidget *parent = nullptr);
+    explicit MchemHelperDialog(const QString &themeCss = QString(), const QString &existingNotation = QString(),
+                               QWidget *parent = nullptr);
     QString generatedNotation() const;
 
 private slots:

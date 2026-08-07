@@ -9,6 +9,8 @@ A quick tour of what Scriba can do.
 **Bold**, *italic*, ~~strike through~~, ==highlighted text==, `inline code`, and a [link](#). Emojis: :rocket: :heart: :sparkles: :smile: :tada:
 
 > Block quote with **inline** styling.
+> > Level 1
+> > > Level 2
 
 ### Smart Typography
 

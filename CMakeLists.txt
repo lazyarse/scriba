@@ -41,6 +41,8 @@ add_executable(scriba WIN32
     src/TableDialog.cpp
     src/ChartDialog.cpp
     src/StockChartDialog.cpp
+    src/EChartsParser.cpp
+    src/MermaidParser.cpp
     src/EmojiDialog.cpp
     src/AboutDialog.cpp
     src/LogWindow.cpp
@@ -185,6 +187,8 @@ if(BUILD_TESTS)
         src/Readability.cpp
         src/JsSnippets.cpp
         src/CsvReader.cpp
+        src/EChartsParser.cpp
+        src/MermaidParser.cpp
         vendor/md4c/src/md4c.c
         vendor/md4c/src/entity.c
     )
@@ -238,6 +242,10 @@ if(BUILD_TESTS)
     add_executable(test_md_renderer_helpers tests/test_md_renderer_helpers.cpp)
     target_link_libraries(test_md_renderer_helpers PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_md_renderer_helpers COMMAND ${_TEST_PREFIX} ./test_md_renderer_helpers)
+
+    add_executable(test_chartsource tests/test_chartsource.cpp)
+    target_link_libraries(test_chartsource PRIVATE scriba_core GTest::gtest_main)
+    add_test(NAME test_chartsource COMMAND ${_TEST_PREFIX} ./test_chartsource)
 
     add_executable(test_typography tests/test_typography.cpp)
     target_link_libraries(test_typography PRIVATE scriba_core scriba_test_main)
@@ -396,14 +404,14 @@ if(BUILD_TESTS)
 
     add_executable(test_underline_overlay tests/test_underline_overlay.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_underline_overlay PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_underline_overlay PRIVATE GTest::gtest scriba_spell)
+    target_link_libraries(test_underline_overlay PRIVATE GTest::gtest scriba_core scriba_spell)
     add_test(NAME test_underline_overlay COMMAND ${_TEST_PREFIX} ./test_underline_overlay)
 
     add_executable(test_spell_check_dialog tests/test_spell_check_dialog.cpp
         src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp resources/scriba.qrc)
     target_include_directories(test_spell_check_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_spell_check_dialog PRIVATE
-        GTest::gtest scriba_spell Qt6::Test Qt6::Widgets)
+        GTest::gtest scriba_core scriba_spell Qt6::Test Qt6::Widgets)
     add_test(NAME test_spell_check_dialog COMMAND ${_TEST_PREFIX} ./test_spell_check_dialog)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp

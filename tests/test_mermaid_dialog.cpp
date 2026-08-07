@@ -31,7 +31,7 @@ protected:
     static QComboBox *chartTypeCombo(MermaidDialog &dlg) {
         const auto combos = dlg.findChildren<QComboBox*>();
         for (auto *c : combos)
-            if (c->count() == 12) return c;
+            if (c->count() == 13) return c;
         return nullptr;
     }
 
@@ -129,6 +129,33 @@ TEST_F(MermaidDialogTest, StateDiagram)
     EXPECT_TRUE(block.contains("stateDiagram-v2"));
     EXPECT_TRUE(block.contains("[*]"));
     EXPECT_TRUE(block.contains("-->"));
+}
+
+TEST_F(MermaidDialogTest, StateDiagramCompositeSectionRoundTrip)
+{
+    // A state diagram whose inner flow lives in a composite `state X { }`
+    // block must round-trip: the section survives prefill and is re-emitted as
+    // a nested block (not flattened into top-level transitions).
+    const QString diagram =
+        "stateDiagram-v2\n"
+        "  [*] --> Idle\n"
+        "  Idle --> Processing : start\n"
+        "  state Processing {\n"
+        "    [*] --> FetchData\n"
+        "    FetchData --> Validate\n"
+        "    Validate --> [*]\n"
+        "  }\n"
+        "  Processing --> Done\n";
+    MermaidDialog dlg{diagram, QString()};
+    QString block = dlg.mermaidBlock();
+    EXPECT_TRUE(block.contains("stateDiagram-v2"));
+    EXPECT_TRUE(block.contains("state Processing {"));
+    EXPECT_TRUE(block.contains("        [*] --> FetchData"));
+    EXPECT_TRUE(block.contains("        FetchData --> Validate"));
+    EXPECT_TRUE(block.contains("        Validate --> [*]"));
+    EXPECT_TRUE(block.contains("    }"));
+    EXPECT_TRUE(block.contains("Idle --> Processing : start"));
+    EXPECT_TRUE(block.contains("Processing --> Done"));
 }
 
 TEST_F(MermaidDialogTest, Mindmap)

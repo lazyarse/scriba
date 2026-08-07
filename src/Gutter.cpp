@@ -26,6 +26,8 @@
 #include <QEvent>
 #include <QCoreApplication>
 #include <QAbstractTextDocumentLayout>
+#include <QPixmap>
+#include "StaticHelpers.h"
 #include "Preferences.h"
 
 Gutter::Gutter(Editor *editor)
@@ -34,6 +36,7 @@ Gutter::Gutter(Editor *editor)
 {
     setObjectName(QStringLiteral("gutter"));
     setCursor(Qt::ArrowCursor);
+    setMouseTracking(true);
     updateWidth();
     connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged,
             this, [this]() { update(); });
@@ -56,6 +59,25 @@ void Gutter::setFoldedBlocks(const QSet<int> &folded)
 {
     m_foldedBlocks = folded;
     update();
+}
+
+void Gutter::setChartBlocks(const QSet<int> &chartBlocks)
+{
+    m_chartBlocks = chartBlocks;
+    update();
+}
+
+// Renders the pencil icon tinted to `color` via StaticHelpers::themedIcon and
+// caches the result until the requested color changes, so we don't re-read and
+// re-render the SVG on every paint.
+QPixmap Gutter::pencilPixmap(const QColor &color, int size)
+{
+    if (m_pencilPixmap.isNull() || m_pencilColor != color || m_pencilPixmap.size() != QSize(size, size)) {
+        m_pencilPixmap = themedIcon(QStringLiteral(":/icons/edit-pencil.svg"), color, size)
+                             .pixmap(size, size);
+        m_pencilColor = color;
+    }
+    return m_pencilPixmap;
 }
 
 void Gutter::changeEvent(QEvent *event)
@@ -94,6 +116,35 @@ int Gutter::headerAtPos(int y) const
         if (y >= y0 && y < y0 + blockH) {
             if (m_foldableBlocks.contains(block.blockNumber()))
                 return block.blockNumber();
+            return -1;
+        }
+        block = next;
+    }
+    return -1;
+}
+
+int Gutter::chartFenceAtPos(int y) const
+{
+    QTextCursor cursor0(m_editor->document());
+    cursor0.setPosition(0);
+    int docTopY = m_editor->viewport()->mapTo(m_editor, m_editor->cursorRect(cursor0).topLeft()).y()
+                  - (int)m_editor->document()->documentMargin();
+
+    QTextBlock block = m_editor->document()->firstBlock();
+    while (block.isValid()) {
+        QTextBlock next = block.next();
+        if (!block.isVisible()) {
+            block = next;
+            continue;
+        }
+        QRectF r = m_editor->document()->documentLayout()->blockBoundingRect(block);
+        int y0 = docTopY + (int)r.y();
+        int blockH = (int)r.height();
+        if (y >= y0 && y < y0 + blockH) {
+            // The pencil sits on the chart block's first content line, one
+            // below its opening fence.
+            if (m_chartBlocks.contains(block.blockNumber() - 1))
+                return block.blockNumber() - 1;
             return -1;
         }
         block = next;
@@ -211,6 +262,18 @@ void Gutter::paintEvent(QPaintEvent *)
             }
         }
 
+        // A chart (mermaid/ec) whose opening fence is the block directly above
+        // gets a pencil on this, its first content line. The pencil sits one
+        // line inside the block so it never overlaps the fold triangle on the
+        // opening-fence row.
+        if (m_chartBlocks.contains(blockNum - 1)) {
+            int cx = m_showLineNumbers ? width() - iconW - 2 : (width() - iconW) / 2;
+            int cy = qRound(textCenterY - iconH / 2.0);
+            const QPixmap pencil = pencilPixmap(foldPen.color(), iconW);
+            if (!pencil.isNull())
+                painter.drawPixmap(cx, cy, iconW, iconH, pencil);
+        }
+
         block = next;
     }
 
@@ -220,9 +283,30 @@ void Gutter::paintEvent(QPaintEvent *)
 
 void Gutter::mousePressEvent(QMouseEvent *event)
 {
-    int blockNum = headerAtPos((int)event->position().y());
+    int y = (int)event->position().y();
+    int chartFence = chartFenceAtPos(y);
+    if (chartFence >= 0) {
+        emit chartEditRequested(chartFence);
+        return;
+    }
+    int blockNum = headerAtPos(y);
     if (blockNum >= 0)
         emit foldToggled(blockNum);
+}
+
+void Gutter::mouseMoveEvent(QMouseEvent *event)
+{
+    const int y = (int)event->position().y();
+    // Finger pointer over the fold triangles and the chart pencil — both are
+    // clickable, so indicate that a click will do something.
+    const bool overActionable = headerAtPos(y) >= 0 || chartFenceAtPos(y) >= 0;
+    setCursor(overActionable ? Qt::PointingHandCursor : Qt::ArrowCursor);
+}
+
+void Gutter::leaveEvent(QEvent *event)
+{
+    setCursor(Qt::ArrowCursor);
+    QWidget::leaveEvent(event);
 }
 
 void Gutter::wheelEvent(QWheelEvent *event)

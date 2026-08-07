@@ -29,6 +29,9 @@ class StockChartDialog : public QDialog
 
 public:
     explicit StockChartDialog(QWidget *parent = nullptr);
+    // Opens the dialog pre-filled from an existing ` ```ec ` candlestick spec
+    // (as produced by generatedSpec()). Non-stock specs leave it empty.
+    explicit StockChartDialog(const QString &existingSpecJson, QWidget *parent = nullptr);
     QString generatedSpec() const;
     static QString previewPageHtml(const QString &spec);
     static QList<double> movingAverage(const QList<double> &values, int period);
@@ -44,6 +47,7 @@ private:
     void setupLeftPanel(QWidget *panel);
     void populateFromRows(const QStringList &headers, const QList<QStringList> &rows);
     void updateVolumeEnabled();
+    void prefillFromSpec(const QString &specJson);
     QString buildSpec() const;
 
     struct Ohlc {

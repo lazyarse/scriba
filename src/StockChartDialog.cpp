@@ -16,6 +16,7 @@
 #include "StaticHelpers.h"
 #include "CsvReader.h"
 #include "Preview.h"
+#include "ChartSource.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -79,6 +80,55 @@ StockChartDialog::StockChartDialog(QWidget *parent)
                      });
     updateVolumeEnabled();
     updatePreview();
+}
+
+StockChartDialog::StockChartDialog(const QString &existingSpecJson, QWidget *parent)
+    : QDialog(parent)
+{
+    setWindowTitle("Stock Chart Builder");
+    resize(1100, 700);
+
+    m_previewTimer = new DebounceTimer(Debounce::DialogPreview, this);
+    connect(m_previewTimer, &QTimer::timeout, this, &StockChartDialog::updatePreview);
+
+    setupUi();
+    prefillFromSpec(existingSpecJson);
+    updateVolumeEnabled();
+    updatePreview();
+}
+
+void StockChartDialog::prefillFromSpec(const QString &specJson)
+{
+    ChartSource::StockSpecData data;
+    if (!ChartSource::parseStockSpec(specJson.toUtf8(), data))
+        return;
+
+    QList<QStringList> rows;
+    rows.reserve(data.dates.size());
+    for (int i = 0; i < data.dates.size(); ++i) {
+        const QList<double> &o = data.ohlc[i];
+        QStringList row;
+        row.append(data.dates[i]);
+        row.append(QString::number(o[0]));
+        row.append(QString::number(o[3]));
+        row.append(QString::number(o[2]));
+        row.append(QString::number(o[1]));
+        if (data.hasVolume && i < data.volumes.size() && data.volumes[i] != 0.0)
+            row.append(QString::number(data.volumes[i]));
+        else
+            row.append(QString());
+        rows.append(row);
+    }
+    populateFromRows({"Date", "Open", "High", "Low", "Close", "Volume"}, rows);
+
+    m_titleEdit->setText(data.title);
+    m_volumeCheck->setChecked(data.volume);
+    m_zoomCheck->setChecked(data.zoom);
+    m_animateCheck->setChecked(data.animate);
+    m_ma5Check->setChecked(data.ma5);
+    m_ma10Check->setChecked(data.ma10);
+    m_ma20Check->setChecked(data.ma20);
+    m_ma50Check->setChecked(data.ma50);
 }
 
 void StockChartDialog::setupUi()

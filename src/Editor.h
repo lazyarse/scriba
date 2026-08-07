@@ -60,6 +60,36 @@ public:
     SpellChecker *spellChecker() const { return m_spellChecker.get(); }
     SpellHighlighter *spellHighlighter() const { return m_spellHighlighter; }
 
+    // Helpers for the preview "edit chart/equation" feature: locate a fenced
+    // code block (` ``` `) by its opening-fence block number and read or
+    // replace it, and locate/replace inline math (`$…$` / `$$…$$`) occurrences
+    // within a single block.
+    QPair<int, int> fencedCodeBlockRange(int blockNumber) const;
+    QString blockRangeText(int firstBlock, int endExclusive) const;
+    void replaceBlockRange(int firstBlock, int endExclusive, const QString &text);
+    int findNthInlineMath(int blockNumber, int index) const;
+    void replaceInlineMath(int blockNumber, int index, const QString &replacement);
+
+    // Preview "edit" bridge helpers. The preview's data-line attributes are
+    // only approximate (see MdRenderer), so the anchor fragment carries the
+    // chart source / equation text and these resolve it back to a real block:
+    //  - fenceBody(): the code block's inner text (fence lines stripped).
+    //  - findFenceByBody(): the fenced block whose inner text matches `body`
+    //    (trailing-newline tolerant), preferring the one nearest `hintLine`
+    //    (1-based) when several match; returns -1 when nothing matches.
+    //  - findMathByContent(): the block containing an inline/display math
+    //    span whose inner text equals `innerTex`; prefers a match whose index
+    //    on the line equals `index` and, among ties, the one nearest
+    //    `hintLine`. On success sets *outIndex to the span's index on the
+    //    returned block and returns its block number; otherwise -1.
+    QString fenceBody(int blockNumber) const;
+    int findFenceByBody(const QString &body, int hintLine) const;
+    // The language token of the fenced block whose opening fence is
+    // `blockNumber` (e.g. "mermaid", "ec"); empty when not a fence.
+    QString fenceLanguage(int blockNumber) const;
+    int findMathByContent(const QString &innerTex, int hintLine, int index,
+                          int *outIndex = nullptr) const;
+
     // Highlights the given range with a background highlight (not an
     // underline) and moves the cursor there — used by the Check Spelling
     // dialog to point at the current error. Cleared on document edits.
@@ -74,6 +104,11 @@ public:
 
     static constexpr int kUnderlineDropPx = 2;     // extra px below fm.underlinePos()
     static constexpr int kUnderlinePenWidthPx = 3; // thickness of painted underlines
+
+signals:
+    // The gutter's pencil for a chart block (```mermaid/```ec) was clicked.
+    // `blockNumber` is the opening-fence block of that chart.
+    void chartEditRequested(int blockNumber);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -159,6 +194,7 @@ private:
     Gutter *m_gutter = nullptr;
     QMap<int, int> m_headerLevel; // blockNumber → heading level 1-6
     QSet<int> m_codeFences;        // blockNumber of each opening ``` fence (foldable)
+    QSet<int> m_chartFences;       // blockNumber of each opening ```mermaid/```ec fence
     QSet<int> m_foldedBlocks;
     QMap<int, qsizetype> m_foldEndPins; // folded header blockNumber → pinned fold-bottom character position
     bool m_updatingFolds = false;

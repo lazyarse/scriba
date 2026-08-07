@@ -18,11 +18,13 @@
 #include "CssUtils.h"
 #include "CsvReader.h"
 #include "CsvColumnMapDialog.h"
+#include "ChartSource.h"
 
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QFontDatabase>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QGuiApplication>
@@ -30,6 +32,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QSplitter>
@@ -39,6 +42,13 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QWebEngineView>
+#include <functional>
+
+namespace {
+
+constexpr int kSourcePanelIndex = 12; // index of the raw-source fallback panel
+
+}
 
 struct ArrowInfo {
     QString display;
@@ -72,13 +82,31 @@ MermaidDialog::MermaidDialog(const QString &themeCss, QWidget *parent)
     schedulePreviewUpdate();
 }
 
+MermaidDialog::MermaidDialog(const QString &existingDiagram, const QString &themeCss, QWidget *parent)
+    : QDialog(parent)
+    , m_mermaidTheme(CssUtils::isDarkTheme(themeCss) ? QStringLiteral("dark")
+                                                     : QStringLiteral("default"))
+{
+    auto colors = CssUtils::themeColors(themeCss);
+    m_bgColor = colors.background.name();
+    m_iconColor = colors.text;
+    m_themeCss = themeCss;
+
+    setupUi();
+    prefillFromSource(existingDiagram);
+    updatePreview();
+    schedulePreviewUpdate();
+}
+
 QString MermaidDialog::mermaidPreviewHtml(const QString &escaped, const QString &theme,
                                            const QString &bgColor)
 {
     return QString(
         "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
         "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;background-color:%3;}"
-        ".error{color:#d32f2f;padding:16px;}</style>"
+        ".error{color:#d32f2f;padding:16px;}"
+        ".mermaid{width:100%;}"
+        ".mermaid svg[aria-roledescription=\"gantt\"]{width:100% !important;max-width:100% !important;height:auto;}</style>"
         "<script src=\"qrc:///mermaid.min.js\"></script>"
         "</head><body><div class=\"mermaid\">%1</div>"
         "<script>mermaid.initialize({startOnLoad:false,theme:'%2'});"
@@ -93,6 +121,8 @@ QString MermaidDialog::mermaidBlock() const
     QString diagram = buildDiagram();
     if (diagram.isEmpty())
         return {};
+    if (sourceMode())
+        return QStringLiteral("\n```mermaid\n%1\n```\n").arg(diagram);
     int w = m_widthCheck && m_widthCheck->isChecked() && m_widthSpin ? m_widthSpin->value() : 0;
     if (w > 0)
         return QStringLiteral("\n<div style=\"max-width:%1px\">\n\n```mermaid\n%2\n```\n\n</div>\n")
@@ -131,6 +161,7 @@ void MermaidDialog::setupUi()
     m_chartTypeCombo->addItem(tr("User Journey"),          static_cast<int>(ChartType::Journey));
     m_chartTypeCombo->addItem(tr("Quadrant Chart"),        static_cast<int>(ChartType::Quadrant));
     m_chartTypeCombo->addItem(tr("Sankey Diagram"),        static_cast<int>(ChartType::Sankey));
+    m_chartTypeCombo->addItem(tr("Diagram Source"),        kSourcePanelIndex);
     leftLayout->addWidget(m_chartTypeCombo);
 
     // Stacked widget for chart panels
@@ -147,6 +178,24 @@ void MermaidDialog::setupUi()
     m_panels->addWidget(createJourneyPanel());   // 9
     m_panels->addWidget(createQuadrantPanel());  // 10
     m_panels->addWidget(createSankeyPanel());    // 11
+
+    // 12 — raw-source fallback panel
+    auto *sourcePanel = new QWidget(this);
+    auto *sourceLayout = new QVBoxLayout(sourcePanel);
+    sourceLayout->setContentsMargins(12, 12, 12, 12);
+    auto *sourceNote = new QLabel(
+        tr("This diagram could not be read back into the form, so it is shown "
+           "as source. Edit the Mermaid source directly; it is inserted "
+           "unchanged."), sourcePanel);
+    sourceNote->setWordWrap(true);
+    sourceLayout->addWidget(sourceNote);
+    m_sourceEdit = new QPlainTextEdit(sourcePanel);
+    m_sourceEdit->setLineWrapMode(QPlainTextEdit::NoWrap);
+    m_sourceEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    connect(m_sourceEdit, &QPlainTextEdit::textChanged, this, &MermaidDialog::schedulePreviewUpdate);
+    sourceLayout->addWidget(m_sourceEdit, 1);
+    m_panels->addWidget(sourcePanel);
+
     leftLayout->addWidget(m_panels, 1);
 
     // Right panel (preview)
@@ -300,6 +349,8 @@ void MermaidDialog::csvImportForChart(QTableWidget *table, const QStringList &ch
 
 QString MermaidDialog::buildDiagram() const
 {
+    if (sourceMode())
+        return m_sourceEdit ? m_sourceEdit->toPlainText() : QString();
     switch (static_cast<ChartType>(m_chartTypeCombo->currentData().toInt())) {
     case ChartType::Pie:        return buildPieDiagram();
     case ChartType::Flowchart:  return buildFlowchartDiagram();
@@ -315,6 +366,240 @@ QString MermaidDialog::buildDiagram() const
     case ChartType::Sankey:     return buildSankeyDiagram();
     }
     return {};
+}
+
+bool MermaidDialog::sourceMode() const
+{
+    return m_chartTypeCombo && m_chartTypeCombo->currentData().toInt() == kSourcePanelIndex;
+}
+
+void MermaidDialog::setChartType(int index)
+{
+    int i = m_chartTypeCombo->findData(index);
+    if (i >= 0)
+        m_chartTypeCombo->setCurrentIndex(i);
+}
+
+void MermaidDialog::prefillFromSource(const QString &diagram)
+{
+    ChartSource::MermaidData data;
+    if (!ChartSource::parseMermaid(diagram, data)) {
+        if (m_sourceEdit)
+            m_sourceEdit->setPlainText(diagram);
+        setChartType(kSourcePanelIndex);
+        return;
+    }
+    applyPrefill(data);
+}
+
+void MermaidDialog::applyPrefill(const ChartSource::MermaidData &d)
+{
+    switch (d.type) {
+    case ChartSource::MermaidType::Pie:
+        if (m_pieTitle) m_pieTitle->setText(d.pieTitle);
+        m_pieTable->setRowCount(d.pieEntries.size());
+        for (int r = 0; r < d.pieEntries.size(); ++r) {
+            m_pieTable->setItem(r, 0, new QTableWidgetItem(d.pieEntries[r].first));
+            m_pieTable->setItem(r, 1, new QTableWidgetItem(QString::number(d.pieEntries[r].second)));
+        }
+        setChartType(static_cast<int>(ChartType::Pie));
+        break;
+
+    case ChartSource::MermaidType::Flowchart: {
+        int di = m_fcDirection->findData(d.fcDirection);
+        if (di >= 0) m_fcDirection->setCurrentIndex(di);
+        m_fcNodeTable->setRowCount(d.fcNodes.size());
+        for (int r = 0; r < d.fcNodes.size(); ++r) {
+            m_fcNodeTable->setItem(r, 0, new QTableWidgetItem(d.fcNodes[r][0]));
+            m_fcNodeTable->setItem(r, 1, new QTableWidgetItem(d.fcNodes[r][1]));
+            auto *shape = qobject_cast<QComboBox*>(m_fcNodeTable->cellWidget(r, 2));
+            if (!shape) {
+                shape = new QComboBox(m_fcNodeTable);
+                shape->addItems({"Box", "Round", "Stadium", "Diamond", "Hexagon"});
+                m_fcNodeTable->setCellWidget(r, 2, shape);
+                connect(shape, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                        this, &MermaidDialog::schedulePreviewUpdate);
+            }
+            int si = shape->findText(d.fcNodes[r][2]);
+            if (si >= 0) shape->setCurrentIndex(si);
+        }
+        m_fcEdgeTable->setRowCount(d.fcEdges.size());
+        for (int r = 0; r < d.fcEdges.size(); ++r)
+            m_fcEdgeTable->setItem(r, 2, new QTableWidgetItem(d.fcEdges[r][2]));
+        refreshEdgeNodeCombos();
+        for (int r = 0; r < d.fcEdges.size(); ++r) {
+            if (auto *from = qobject_cast<QComboBox*>(m_fcEdgeTable->cellWidget(r, 0)))
+                from->setCurrentText(d.fcEdges[r][0]);
+            if (auto *to = qobject_cast<QComboBox*>(m_fcEdgeTable->cellWidget(r, 1)))
+                to->setCurrentText(d.fcEdges[r][1]);
+            if (auto *arrow = qobject_cast<QComboBox*>(m_fcEdgeTable->cellWidget(r, 3)))
+                arrow->setCurrentText(d.fcEdges[r][3]);
+        }
+        setChartType(static_cast<int>(ChartType::Flowchart));
+        break;
+    }
+
+    case ChartSource::MermaidType::Sequence:
+        m_seqParticipantTable->setRowCount(d.seqParticipants.size());
+        for (int r = 0; r < d.seqParticipants.size(); ++r) {
+            m_seqParticipantTable->setItem(r, 0, new QTableWidgetItem(d.seqParticipants[r][0]));
+            m_seqParticipantTable->setItem(r, 1, new QTableWidgetItem(d.seqParticipants[r][1]));
+        }
+        m_seqMessageTable->setRowCount(d.seqMessages.size());
+        for (int r = 0; r < d.seqMessages.size(); ++r)
+            m_seqMessageTable->setItem(r, 2, new QTableWidgetItem(d.seqMessages[r][2]));
+        refreshMessageCombos();
+        for (int r = 0; r < d.seqMessages.size(); ++r) {
+            if (auto *from = qobject_cast<QComboBox*>(m_seqMessageTable->cellWidget(r, 0)))
+                from->setCurrentText(d.seqMessages[r][0]);
+            if (auto *to = qobject_cast<QComboBox*>(m_seqMessageTable->cellWidget(r, 1)))
+                to->setCurrentText(d.seqMessages[r][1]);
+            if (auto *arrow = qobject_cast<QComboBox*>(m_seqMessageTable->cellWidget(r, 3)))
+                arrow->setCurrentText(d.seqMessages[r][3]);
+        }
+        setChartType(static_cast<int>(ChartType::Sequence));
+        break;
+
+    case ChartSource::MermaidType::Gantt:
+        if (m_ganttTitle) m_ganttTitle->setText(d.ganttTitle);
+        if (m_ganttWeekend) m_ganttWeekend->setChecked(d.ganttWeekend);
+        {
+            int di = m_ganttDateFormat->findText(d.ganttDateFormat);
+            if (di >= 0) m_ganttDateFormat->setCurrentIndex(di);
+        }
+        m_ganttTaskTable->setRowCount(d.ganttTasks.size());
+        for (int r = 0; r < d.ganttTasks.size(); ++r) {
+            const QStringList &t = d.ganttTasks[r];
+            m_ganttTaskTable->setItem(r, 0, new QTableWidgetItem(t[0]));
+            m_ganttTaskTable->setItem(r, 1, new QTableWidgetItem(t[1]));
+            m_ganttTaskTable->setItem(r, 2, new QTableWidgetItem(t[2]));
+            m_ganttTaskTable->setItem(r, 3, new QTableWidgetItem(t[3]));
+            m_ganttTaskTable->setItem(r, 5, new QTableWidgetItem(t[5]));
+            auto *status = new QComboBox(m_ganttTaskTable);
+            status->addItem("", "");
+            status->addItem("Done", "done");
+            status->addItem("Active", "active");
+            status->addItem("Crit", "crit");
+            status->addItem("Milestone", "milestone");
+            int si = status->findData(t[4]);
+            if (si >= 0) status->setCurrentIndex(si);
+            m_ganttTaskTable->setCellWidget(r, 4, status);
+            connect(status, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                    this, &MermaidDialog::schedulePreviewUpdate);
+        }
+        setChartType(static_cast<int>(ChartType::Gantt));
+        break;
+
+    case ChartSource::MermaidType::State: {
+        QStringList states;
+        for (const QStringList &t : d.stateTransitions) {
+            for (const QString &s : {t[0], t[1]})
+                if (!states.contains(s))
+                    states.append(s);
+        }
+        m_stateTable->setRowCount(states.size());
+        for (int r = 0; r < states.size(); ++r) {
+            m_stateTable->setItem(r, 0, new QTableWidgetItem(states[r]));
+            m_stateTable->setItem(r, 1, new QTableWidgetItem(QString()));
+        }
+        m_stateTransitionTable->setRowCount(d.stateTransitions.size());
+        for (int r = 0; r < d.stateTransitions.size(); ++r) {
+            m_stateTransitionTable->setItem(r, 2, new QTableWidgetItem(d.stateTransitions[r][2]));
+            m_stateTransitionTable->setItem(r, 3,
+                new QTableWidgetItem(d.stateTransitions[r].size() > 3 ? d.stateTransitions[r][3] : QString()));
+        }
+        refreshStateCombos();
+        for (int r = 0; r < d.stateTransitions.size(); ++r) {
+            if (auto *from = qobject_cast<QComboBox*>(m_stateTransitionTable->cellWidget(r, 0)))
+                from->setCurrentText(d.stateTransitions[r][0]);
+            if (auto *to = qobject_cast<QComboBox*>(m_stateTransitionTable->cellWidget(r, 1)))
+                to->setCurrentText(d.stateTransitions[r][1]);
+        }
+        setChartType(static_cast<int>(ChartType::State));
+        break;
+    }
+
+    case ChartSource::MermaidType::Mindmap: {
+        m_mindmapTree->clear();
+        for (const ChartSource::MermaidData::TreeNode &root : d.mindmapRoots) {
+            std::function<QTreeWidgetItem*(const ChartSource::MermaidData::TreeNode&, QTreeWidgetItem*)> addNode;
+            addNode = [&](const ChartSource::MermaidData::TreeNode &node, QTreeWidgetItem *parent) {
+                auto *item = new QTreeWidgetItem(
+                    parent ? parent : m_mindmapTree->invisibleRootItem());
+                item->setText(0, node.text);
+                item->setExpanded(true);
+                for (const auto &child : node.children)
+                    addNode(child, item);
+                return item;
+            };
+            addNode(root, nullptr);
+        }
+        setChartType(static_cast<int>(ChartType::Mindmap));
+        break;
+    }
+
+    case ChartSource::MermaidType::Timeline:
+        if (m_timelineTitle) m_timelineTitle->setText(d.timelineTitle);
+        m_timelineTable->setRowCount(d.timelineEntries.size());
+        for (int r = 0; r < d.timelineEntries.size(); ++r) {
+            m_timelineTable->setItem(r, 0, new QTableWidgetItem(d.timelineEntries[r][0]));
+            m_timelineTable->setItem(r, 1, new QTableWidgetItem(d.timelineEntries[r][1]));
+        }
+        setChartType(static_cast<int>(ChartType::Timeline));
+        break;
+
+    case ChartSource::MermaidType::Journey:
+        if (m_journeyTitle) m_journeyTitle->setText(d.journeyTitle);
+        m_journeyTable->setRowCount(d.journeyEntries.size());
+        for (int r = 0; r < d.journeyEntries.size(); ++r) {
+            m_journeyTable->setItem(r, 0, new QTableWidgetItem(d.journeyEntries[r][0]));
+            m_journeyTable->setItem(r, 1, new QTableWidgetItem(d.journeyEntries[r][1]));
+            auto *spin = new QSpinBox(m_journeyTable);
+            spin->setRange(1, 7);
+            spin->setValue(d.journeyEntries[r][2].toInt());
+            m_journeyTable->setCellWidget(r, 2, spin);
+            m_journeyTable->setItem(r, 3, new QTableWidgetItem(d.journeyEntries[r][3]));
+            connect(spin, QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, &MermaidDialog::schedulePreviewUpdate);
+        }
+        setChartType(static_cast<int>(ChartType::Journey));
+        break;
+
+    case ChartSource::MermaidType::Quadrant:
+        if (m_quadTitle) m_quadTitle->setText(d.quadTitle);
+        if (m_quadXLeft) m_quadXLeft->setText(d.quadXLeft);
+        if (m_quadXRight) m_quadXRight->setText(d.quadXRight);
+        if (m_quadYBottom) m_quadYBottom->setText(d.quadYBottom);
+        if (m_quadYTop) m_quadYTop->setText(d.quadYTop);
+        if (m_quadQ1) m_quadQ1->setText(d.quadQ1);
+        if (m_quadQ2) m_quadQ2->setText(d.quadQ2);
+        if (m_quadQ3) m_quadQ3->setText(d.quadQ3);
+        if (m_quadQ4) m_quadQ4->setText(d.quadQ4);
+        m_quadTable->setRowCount(d.quadPoints.size());
+        for (int r = 0; r < d.quadPoints.size(); ++r) {
+            m_quadTable->setItem(r, 0, new QTableWidgetItem(d.quadPoints[r][0]));
+            m_quadTable->setItem(r, 1, new QTableWidgetItem(d.quadPoints[r][1]));
+            m_quadTable->setItem(r, 2, new QTableWidgetItem(d.quadPoints[r][2]));
+        }
+        setChartType(static_cast<int>(ChartType::Quadrant));
+        break;
+
+    case ChartSource::MermaidType::Sankey:
+        m_sankeyTable->setRowCount(d.sankeyLinks.size());
+        for (int r = 0; r < d.sankeyLinks.size(); ++r) {
+            m_sankeyTable->setItem(r, 0, new QTableWidgetItem(d.sankeyLinks[r][0]));
+            m_sankeyTable->setItem(r, 1, new QTableWidgetItem(d.sankeyLinks[r][1]));
+            m_sankeyTable->setItem(r, 2, new QTableWidgetItem(d.sankeyLinks[r][2]));
+        }
+        setChartType(static_cast<int>(ChartType::Sankey));
+        break;
+
+    case ChartSource::MermaidType::Class:
+    case ChartSource::MermaidType::ER:
+    case ChartSource::MermaidType::Unknown:
+        // Handled by prefillFromSource's raw-source fallback.
+        break;
+    }
 }
 
 // ============================================================
@@ -1573,9 +1858,9 @@ QWidget *MermaidDialog::createStatePanel()
     transBtnLayout->addStretch();
     layout->addLayout(transBtnLayout);
 
-    const int transDelCol = 3;
-    m_stateTransitionTable = new QTableWidget(4, 4, panel);
-    m_stateTransitionTable->setHorizontalHeaderLabels({"From", "To", "Label", "Del"});
+    const int transDelCol = 4;
+    m_stateTransitionTable = new QTableWidget(4, 5, panel);
+    m_stateTransitionTable->setHorizontalHeaderLabels({"From", "To", "Label", "Section", "Del"});
     m_stateTransitionTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     m_stateTransitionTable->horizontalHeader()->setSectionResizeMode(transDelCol, QHeaderView::Fixed);
     m_stateTransitionTable->setColumnWidth(transDelCol, 32);
@@ -1599,7 +1884,8 @@ QWidget *MermaidDialog::createStatePanel()
     connect(addTransBtn, &QPushButton::clicked, this, [this]() {
         int row = m_stateTransitionTable->rowCount();
         m_stateTransitionTable->insertRow(row);
-        addDeleteButton(m_stateTransitionTable, 3, row);
+        m_stateTransitionTable->setItem(row, 3, new QTableWidgetItem(QString()));
+        addDeleteButton(m_stateTransitionTable, 4, row);
         refreshStateCombos();
         schedulePreviewUpdate();
     });
@@ -1623,6 +1909,17 @@ void MermaidDialog::refreshStateCombos()
 QString MermaidDialog::buildStateDiagram() const
 {
     QString out = "stateDiagram-v2\n";
+    // Rows with a Section (composite state) are emitted inside `state X { ... }`
+    // blocks; the block opens when the section first appears and closes when the
+    // section changes (or at the end), mirroring the parsed source structure.
+    int openSection = -1; // index into sections, -1 when no block is open
+    QList<QString> sections;
+    auto closeSection = [&out, &openSection]() {
+        if (openSection >= 0) {
+            out += "    }\n";
+            openSection = -1;
+        }
+    };
     for (int r = 0; r < m_stateTransitionTable->rowCount(); ++r) {
         auto *fromBox = qobject_cast<QComboBox*>(m_stateTransitionTable->cellWidget(r, 0));
         auto *toBox = qobject_cast<QComboBox*>(m_stateTransitionTable->cellWidget(r, 1));
@@ -1630,11 +1927,30 @@ QString MermaidDialog::buildStateDiagram() const
         QString to = toBox ? toBox->currentText() : QString();
         auto *labelItem = m_stateTransitionTable->item(r, 2);
         QString label = labelItem ? labelItem->text().trimmed() : QString();
+        auto *sectionItem = m_stateTransitionTable->item(r, 3);
+        QString section = sectionItem ? sectionItem->text().trimmed() : QString();
         if (from.isEmpty() || to.isEmpty()) continue;
-        out += "    " + from + " --> " + to;
+
+        int sectionIdx = -1;
+        if (!section.isEmpty()) {
+            sectionIdx = sections.indexOf(section);
+            if (sectionIdx < 0) {
+                sections.append(section);
+                sectionIdx = sections.size() - 1;
+            }
+        }
+        if (sectionIdx != openSection) {
+            closeSection();
+            if (sectionIdx >= 0)
+                out += "    state " + section + " {\n";
+            openSection = sectionIdx;
+        }
+        out += sectionIdx >= 0 ? "        " : "    ";
+        out += from + " --> " + to;
         if (!label.isEmpty()) out += " : " + label;
         out += "\n";
     }
+    closeSection();
     return out;
 }
 
