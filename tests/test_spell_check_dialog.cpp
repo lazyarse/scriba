@@ -29,6 +29,8 @@
 #include <QFile>
 #include <QLineEdit>
 #include <QSettings>
+#include <QTest>
+#include <QTextCursor>
 #include <QTextDocument>
 
 namespace {
@@ -223,6 +225,7 @@ TEST_F(SpellCheckDialogTest, ChangeReplacesWordAndAdvances)
     dlg.changeCurrent();
     EXPECT_EQ(m_editor->toPlainText(), QStringLiteral("hello world\n"));
     EXPECT_TRUE(dlg.issues().isEmpty());
+    // The fix came from a dialog action, so the panel reports check complete.
     EXPECT_EQ(dlg.statusText(), QStringLiteral("Spelling check complete."));
     EXPECT_EQ(dlg.currentIndex(), -1);
 }
@@ -281,6 +284,133 @@ TEST_F(SpellCheckDialogTest, NoErrorsShowsFoundNoneState)
     SpellCheckDialog dlg(m_editor);
     EXPECT_TRUE(dlg.issues().isEmpty());
     EXPECT_EQ(dlg.statusText(), QStringLiteral("No spelling errors found."));
+}
+
+// The panel is modeless: edits in the editor flow back through the
+// highlighter's incremental rescan into the issue list.
+TEST_F(SpellCheckDialogTest, EditingDocumentRescansTheList)
+{
+    m_editor->setPlainText(QStringLiteral("hello\n"));
+    SpellCheckDialog dlg(m_editor);
+    EXPECT_TRUE(dlg.issues().isEmpty());
+
+    QTextCursor cursor(m_editor->document());
+    cursor.movePosition(QTextCursor::End);
+    m_editor->setTextCursor(cursor);
+    QTest::keyClicks(m_editor, QStringLiteral(" helo"));
+    QTest::qWait(700); // debounce (400 ms) fires
+
+    ASSERT_EQ(dlg.issues().size(), 1);
+    EXPECT_EQ(dlg.issues().at(0).word, QStringLiteral("helo"));
+}
+
+TEST_F(SpellCheckDialogTest, EditingOutTheCurrentErrorDropsItFromList)
+{
+    m_editor->setPlainText(QStringLiteral("helo\n"));
+    SpellCheckDialog dlg(m_editor);
+    ASSERT_EQ(dlg.issues().size(), 1);
+
+    // Select the word in the editor and retype it: the fix falls out of the list.
+    QTextCursor cursor(m_editor->document());
+    cursor.movePosition(QTextCursor::Start);
+    cursor.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+    m_editor->setTextCursor(cursor);
+    QTest::keyClicks(m_editor, QStringLiteral("hello"));
+    QTest::qWait(700);
+
+    EXPECT_TRUE(dlg.issues().isEmpty());
+    // The fix came from editing the document (not a dialog action), so the
+    // panel reports the (now clean) document state.
+    EXPECT_EQ(dlg.statusText(), QStringLiteral("No spelling errors found."));
+}
+
+TEST_F(SpellCheckDialogTest, PanelReactivatesWhenNewErrorsAppear)
+{
+    m_editor->setPlainText(QStringLiteral("hello\n"));
+    SpellCheckDialog dlg(m_editor);
+    EXPECT_TRUE(dlg.issues().isEmpty());
+    EXPECT_EQ(dlg.statusText(), QStringLiteral("No spelling errors found."));
+
+    QTextCursor cursor(m_editor->document());
+    cursor.movePosition(QTextCursor::End);
+    m_editor->setTextCursor(cursor);
+    QTest::keyClicks(m_editor, QStringLiteral(" helo"));
+    QTest::qWait(700);
+
+    ASSERT_EQ(dlg.issues().size(), 1);
+    EXPECT_EQ(dlg.currentIndex(), 0);
+    EXPECT_NE(dlg.statusText(), QStringLiteral("No spelling errors found."));
+}
+
+// "Ignore once" is a session filter keyed (block, word): it survives the
+// rescans reparsing the document, but an edit to the word itself re-flags it.
+TEST_F(SpellCheckDialogTest, IgnoreOnceSurvivesRescanUntilWordEdited)
+{
+    m_editor->setPlainText(QStringLiteral("helo helo\n"));
+    SpellCheckDialog dlg(m_editor);
+    ASSERT_EQ(dlg.issues().size(), 2);
+    dlg.ignoreOnceCurrent();
+    ASSERT_EQ(dlg.issues().size(), 1);
+
+    // An edit elsewhere rescans the document; the suppressed occurrence stays out.
+    QTextCursor cursor(m_editor->document());
+    cursor.movePosition(QTextCursor::End);
+    m_editor->setTextCursor(cursor);
+    QTest::keyClicks(m_editor, QStringLiteral(" world"));
+    QTest::qWait(700);
+    ASSERT_EQ(dlg.issues().size(), 1);
+    EXPECT_EQ(dlg.issues().at(0).word, QStringLiteral("helo"));
+
+    // Editing that very word changes its text, so it is no longer suppressed.
+    cursor.setPosition(0);
+    cursor.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+    m_editor->setTextCursor(cursor);
+    QTest::keyClicks(m_editor, QStringLiteral("hllo"));
+    QTest::qWait(700);
+    ASSERT_EQ(dlg.issues().size(), 2);
+    EXPECT_EQ(dlg.issues().at(0).word, QStringLiteral("hllo"));
+    EXPECT_EQ(dlg.issues().at(1).word, QStringLiteral("helo"));
+}
+
+TEST_F(SpellCheckDialogTest, RetargetSwitchesEditors)
+{
+    m_editor->setPlainText(QStringLiteral("helo\n"));
+    SpellCheckDialog dlg(m_editor);
+    ASSERT_EQ(dlg.issues().size(), 1);
+
+    Editor second;
+    second.resize(800, 600);
+    second.show();
+    second.setPlainText(QStringLiteral("speling\n"));
+    dlg.retarget(&second);
+    ASSERT_EQ(dlg.issues().size(), 1);
+    EXPECT_EQ(dlg.issues().at(0).word, QStringLiteral("speling"));
+
+    // The original editor no longer drives the panel.
+    QTextCursor cursor(m_editor->document());
+    cursor.movePosition(QTextCursor::End);
+    m_editor->setTextCursor(cursor);
+    QTest::keyClicks(m_editor, QStringLiteral(" more"));
+    QTest::qWait(700);
+    ASSERT_EQ(dlg.issues().size(), 1);
+    EXPECT_EQ(dlg.issues().at(0).word, QStringLiteral("speling"));
+
+    second.close();
+}
+
+TEST_F(SpellCheckDialogTest, EditingClearsTheBackgroundHighlight)
+{
+    m_editor->setPlainText(QStringLiteral("helo speling\n"));
+    SpellCheckDialog dlg(m_editor);
+    ASSERT_EQ(dlg.issues().size(), 2);
+    EXPECT_FALSE(m_editor->extraSelections().isEmpty()); // pointed at the current error
+
+    // Any edit drops the stale pointer so it never sits over shifted text.
+    QTextCursor cursor(m_editor->document());
+    cursor.movePosition(QTextCursor::End);
+    m_editor->setTextCursor(cursor);
+    QTest::keyClicks(m_editor, QStringLiteral(" "));
+    EXPECT_TRUE(m_editor->extraSelections().isEmpty());
 }
 
 } // namespace

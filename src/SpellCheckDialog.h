@@ -17,6 +17,7 @@
 #include "SpellHighlighter.h"
 #include <QDialog>
 #include <QLabel>
+#include <QPointer>
 #include <QVector>
 
 class Editor;
@@ -24,13 +25,18 @@ class QLineEdit;
 class QListWidget;
 class QLabel;
 class QPushButton;
-// Modal full-document spelling check (Tools → Check Spelling). Scans the
-// editor with the same markdown-aware logic the underlines use
-// (SpellHighlighter::scanDocument), then lets the user work through each
-// misspelled word: apply a stoppard suggestion (or a typed correction),
-// ignore the single occurrence, ignore the word always (persisted), or add
-// it to the custom dictionary. The current error is highlighted in the
-// editor with a background highlight (not an underline).
+// Modeless spelling check panel (Tools → Check Spelling). Unlike a classic
+// modal check-spelling walk, the panel stays open while the user edits: the
+// error list follows the document through the SpellHighlighter's incremental
+// per-block rescans (spellHitsChanged), so a word fixed in the editor drops
+// out of the list and a new typo appears without a full rescan. The current
+// error is highlighted in the editor with a background highlight (not an
+// underline); editing clears the highlight and navigation re-points it.
+//
+// "Ignore once" is a session filter keyed on (editor, block, offset, word) —
+// exactly the suppressed occurrence — so it stays hidden across rescans until
+// that line's text is edited (the offset shifts). "Ignore always" and "Add to
+// dictionary" persist like before.
 class SpellCheckDialog : public QDialog
 {
     Q_OBJECT
@@ -38,6 +44,13 @@ class SpellCheckDialog : public QDialog
 public:
     explicit SpellCheckDialog(Editor *editor, QWidget *parent = nullptr);
     ~SpellCheckDialog() override;
+
+    // Points the panel at a (possibly different) editor: disconnects the old
+    // editor's signals, connects the new one's, and rescans. Used by
+    // MainWindow to follow the active tab. The per-editor "ignore once" set
+    // is preserved so switching back keeps earlier suppressions.
+    void retarget(Editor *editor);
+    Editor *targetEditor() const { return m_editor; }
 
     // Test-facing state: the current error list (document order).
     QVector<SpellHighlighter::SpellIssue> issues() const { return m_issues; }
@@ -57,13 +70,31 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
-    void rebuildIssues();
+    // A session "ignore once": the occurrence (block + offset + word) stays out
+    // of the list for this dialog, for this editor, until its line's text is
+    // edited (the offset then shifts and no longer matches).
+    struct IgnoredOnce {
+        Editor *editor = nullptr;
+        int block = 0;
+        int start = 0;
+        QString word;
+    };
+
+    void rebuildIssuesFromCache();
+    void onSpellHitsChanged();
+    void onDocumentEdited(int position, int charsRemoved, int charsAdded);
+    bool isIgnoredOnce(int block, int start, const QString &word) const;
     void showCurrent();
+    void refreshDisplay();
+    void pointAtCurrent();
     void setDone(bool foundAny);
     void updateButtons();
 
-    Editor *m_editor = nullptr;
+    // The targeted editor. QPointer so a closed/deleted editor nulls it and
+    // the panel (and its destructor) never dereferences freed memory.
+    QPointer<Editor> m_editor;
     QVector<SpellHighlighter::SpellIssue> m_issues;
+    QVector<IgnoredOnce> m_ignoredOnce;
     int m_index = -1;
     bool m_done = false;
     bool m_handledAny = false;

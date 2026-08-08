@@ -15,6 +15,7 @@
 #include "SpellCheckDialog.h"
 #include "Editor.h"
 #include "SpellChecker.h"
+#include "SpellHighlighter.h"
 #include "StaticHelpers.h"
 #include <QCloseEvent>
 #include <QGridLayout>
@@ -22,6 +23,9 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextDocument>
 #include <QVBoxLayout>
 
 SpellCheckDialog::SpellCheckDialog(Editor *editor, QWidget *parent)
@@ -29,7 +33,10 @@ SpellCheckDialog::SpellCheckDialog(Editor *editor, QWidget *parent)
     , m_editor(editor)
 {
     setWindowTitle(tr("Check Spelling"));
-    setModal(true);
+    // Modeless: the user keeps the editor editable while the panel is open.
+    // The error list stays in sync with the document via the spell
+    // highlighter's incremental rescans (see onSpellHitsChanged()).
+    setModal(false);
 
     auto *layout = new QVBoxLayout(this);
 
@@ -92,14 +99,41 @@ SpellCheckDialog::SpellCheckDialog(Editor *editor, QWidget *parent)
         changeCurrent();
     });
 
-    rebuildIssues();
-    showCurrent();
+    retarget(editor);
 }
 
 SpellCheckDialog::~SpellCheckDialog()
 {
     if (m_editor)
         m_editor->clearSpellCheckHighlight();
+}
+
+void SpellCheckDialog::retarget(Editor *editor)
+{
+    if (m_editor) {
+        m_editor->clearSpellCheckHighlight();
+        if (SpellHighlighter *hl = m_editor->spellHighlighter())
+            disconnect(hl, &SpellHighlighter::spellHitsChanged,
+                       this, &SpellCheckDialog::onSpellHitsChanged);
+        disconnect(m_editor->document(), &QTextDocument::contentsChange,
+                   this, &SpellCheckDialog::onDocumentEdited);
+    }
+
+    m_editor = editor;
+    m_done = false;
+    m_handledAny = false;
+    m_index = 0;
+
+    if (m_editor) {
+        if (SpellHighlighter *hl = m_editor->spellHighlighter())
+            connect(hl, &SpellHighlighter::spellHitsChanged,
+                    this, &SpellCheckDialog::onSpellHitsChanged);
+        connect(m_editor->document(), &QTextDocument::contentsChange,
+                this, &SpellCheckDialog::onDocumentEdited);
+    }
+
+    rebuildIssuesFromCache();
+    showCurrent();
 }
 
 void SpellCheckDialog::closeEvent(QCloseEvent *event)
@@ -110,13 +144,78 @@ void SpellCheckDialog::closeEvent(QCloseEvent *event)
     QDialog::closeEvent(event);
 }
 
-void SpellCheckDialog::rebuildIssues()
+// The dialog's issue list is derived from the highlighter's per-block cache
+// (only the blocks an edit touched are re-checked), so keeping the list in
+// sync while the user edits costs no full-document rescan.
+void SpellCheckDialog::rebuildIssuesFromCache()
 {
-    if (m_editor && m_editor->spellChecker())
-        m_issues = SpellHighlighter::scanDocument(m_editor->document(),
-                                                  m_editor->spellChecker());
-    else
-        m_issues.clear();
+    m_issues.clear();
+    if (!m_editor || !m_editor->spellChecker() || !m_editor->spellChecker()->isLoaded())
+        return;
+    SpellHighlighter *hl = m_editor->spellHighlighter();
+    if (!hl)
+        return;
+
+    QTextDocument *doc = m_editor->document();
+    for (QTextBlock block = doc->firstBlock(); block.isValid(); block = block.next()) {
+        const int blockNumber = block.blockNumber();
+        for (const SpellHighlighter::GrammarHit &hit : hl->spellHitsInBlock(blockNumber)) {
+            const QString word = block.text().mid(hit.start, hit.length);
+            if (word.isEmpty() || isIgnoredOnce(blockNumber, hit.start, word))
+                continue;
+            m_issues.append({blockNumber, hit.start, hit.length, word});
+        }
+    }
+}
+
+bool SpellCheckDialog::isIgnoredOnce(int block, int start, const QString &word) const
+{
+    for (const IgnoredOnce &ignored : m_ignoredOnce) {
+        if (ignored.editor == m_editor && ignored.block == block
+            && ignored.start == start && ignored.word == word)
+            return true;
+    }
+    return false;
+}
+
+// The highlighter rescanned (an edit, a change/ignore action, a dictionary
+// update...). Rebuild the list, but never move the editor's cursor or
+// highlight on a background rescan — that would interrupt typing. Navigation
+// and the action buttons re-point explicitly.
+void SpellCheckDialog::onSpellHitsChanged()
+{
+    if (!m_editor)
+        return;
+    rebuildIssuesFromCache();
+
+    if (SpellHighlighter *hl = m_editor->spellHighlighter())
+        if (!hl->spellCheckingEnabled())
+            m_editor->clearSpellCheckHighlight();
+
+    if (m_issues.isEmpty()) {
+        setDone(m_handledAny);
+        return;
+    }
+    // The document changed under us: drop the "complete" state and re-enter
+    // the list. Edit-related pointer invalidation was handled by
+    // onDocumentEdited(); a rescan purely from an ignore/add action leaves a
+    // stale highlight, so clear it and let navigation re-point.
+    m_done = false;
+    m_index = qBound(0, m_index, m_issues.size() - 1);
+    m_editor->clearSpellCheckHighlight();
+    refreshDisplay();
+    updateButtons();
+}
+
+// A real edit (skip the (0,0) format-only emissions from highlighting).
+// The background highlight may now point at shifted text — drop it; the
+// rescan that follows will re-sync the list and navigation re-points.
+void SpellCheckDialog::onDocumentEdited(int, int charsRemoved, int charsAdded)
+{
+    if (charsRemoved == 0 && charsAdded == 0)
+        return;
+    if (m_editor)
+        m_editor->clearSpellCheckHighlight();
 }
 
 void SpellCheckDialog::showCurrent()
@@ -129,8 +228,14 @@ void SpellCheckDialog::showCurrent()
         setDone(m_handledAny);
         return;
     }
-
     m_index = qBound(0, m_index, m_issues.size() - 1);
+    refreshDisplay();
+    pointAtCurrent();
+    updateButtons();
+}
+
+void SpellCheckDialog::refreshDisplay()
+{
     const SpellHighlighter::SpellIssue &issue = m_issues.at(m_index);
     m_changeTo->setText(issue.word);
     m_suggestions->clear();
@@ -141,11 +246,15 @@ void SpellCheckDialog::showCurrent()
     m_statusLabel->setText(tr("Error %1 of %2")
                                .arg(m_index + 1)
                                .arg(m_issues.size()));
-    if (m_editor) {
-        m_editor->setSpellCheckHighlight(issue.blockNumber, issue.start, issue.length);
-        m_editor->centerCursor();
-    }
-    updateButtons();
+}
+
+void SpellCheckDialog::pointAtCurrent()
+{
+    if (m_done || !m_editor || m_index < 0 || m_index >= m_issues.size())
+        return;
+    const SpellHighlighter::SpellIssue &issue = m_issues.at(m_index);
+    m_editor->setSpellCheckHighlight(issue.blockNumber, issue.start, issue.length);
+    m_editor->centerCursor();
 }
 
 void SpellCheckDialog::setDone(bool foundAny)
@@ -213,9 +322,11 @@ void SpellCheckDialog::changeCurrent()
     cursor.endEditBlock();
 
     m_handledAny = true;
-    rebuildIssues();
-    // The changed word is gone (or the slot now holds the next error).
-    m_index = qMin(m_index, m_issues.size());
+    // Force an immediate synchronous rescan (the replacement may not end in
+    // a word separator, so the debounce alone would lag the list), then point
+    // at the next error.
+    if (SpellHighlighter *hl = m_editor->spellHighlighter())
+        hl->refresh();
     showCurrent();
 }
 
@@ -223,7 +334,11 @@ void SpellCheckDialog::ignoreOnceCurrent()
 {
     if (m_done || m_index < 0 || m_index >= m_issues.size())
         return;
-    // Session-local: the occurrence is skipped, the squiggle stays.
+    // Session-local: the occurrence is skipped, the squiggle stays. Keyed on
+    // (editor, block, offset, word) so it survives later rescans until that
+    // line's text changes.
+    const SpellHighlighter::SpellIssue &issue = m_issues.at(m_index);
+    m_ignoredOnce.append({m_editor, issue.blockNumber, issue.start, issue.word});
     m_issues.removeAt(m_index);
     showCurrent();
 }
@@ -238,7 +353,6 @@ void SpellCheckDialog::ignoreAlwaysCurrent()
             m_editor->spellHighlighter()->refresh();
     }
     m_handledAny = true;
-    rebuildIssues();
     showCurrent();
 }
 
@@ -252,6 +366,5 @@ void SpellCheckDialog::addToDictionaryCurrent()
             m_editor->spellHighlighter()->refresh();
     }
     m_handledAny = true;
-    rebuildIssues();
     showCurrent();
 }

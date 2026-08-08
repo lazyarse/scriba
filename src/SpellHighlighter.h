@@ -127,6 +127,7 @@ public:
     void setChecker(SpellChecker *checker);
     void setGrammarChecker(GrammarChecker *checker);
     void setSpellCheckingEnabled(bool enabled);
+    bool spellCheckingEnabled() const { return m_spellEnabled; }
     void setGrammarCheckingEnabled(bool enabled);
     void setLinkCheckingEnabled(bool enabled);
     // Markdown-consistency underlines (heading-level skips, duplicate

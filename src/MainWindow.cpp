@@ -520,6 +520,15 @@ void MainWindow::removeTab(int index)
     m_tabs.removeAt(index);
     m_editorStack->removeWidget(editor);
     m_tabBar->removeTab(index);
+
+    // The spelling panel must never point at a deleted editor. Removing the
+    // current tab re-targets it via currentChanged → connectTabEditor; any
+    // other removal that deletes the panel's editor needs an explicit rebind.
+    // This runs after removeTab(), so currentEditor() is valid.
+    if (m_spellCheckDlg && m_spellCheckDlg->targetEditor() == editor) {
+        if (Editor *next = currentEditor())
+            m_spellCheckDlg->retarget(next);
+    }
     delete editor;
 
     // Removing a tab renumbers every following tab: shift report-tab titles
@@ -638,6 +647,10 @@ void MainWindow::connectTabEditor(int index)
 
     connect(editor->verticalScrollBar(), &QScrollBar::valueChanged,
             this, &MainWindow::onEditorScroll);
+
+    // The modeless spelling panel follows the active tab.
+    if (m_spellCheckDlg && m_spellCheckDlg->isVisible())
+        m_spellCheckDlg->retarget(editor);
 }
 
 void MainWindow::disconnectTabEditor(int index)
@@ -1784,8 +1797,17 @@ void MainWindow::showSpellCheckDialog()
                "page of Preferences."));
         return;
     }
-    SpellCheckDialog dlg(ed, this);
-    dlg.exec();
+    if (!m_spellCheckDlg) {
+        m_spellCheckDlg = new SpellCheckDialog(ed, this);
+        m_spellCheckDlg->setAttribute(Qt::WA_DeleteOnClose, false);
+    }
+    // A modeless panel that follows the active tab: re-point at the current
+    // editor each time it is summoned (or after a tab switch) and bring it
+    // to the front.
+    m_spellCheckDlg->retarget(ed);
+    m_spellCheckDlg->show();
+    m_spellCheckDlg->raise();
+    m_spellCheckDlg->activateWindow();
 }
 
 void MainWindow::generateValidationReport()

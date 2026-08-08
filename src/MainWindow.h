@@ -195,6 +195,7 @@ private:
     int m_previewState = 1;
     QActionGroup *m_layoutActions = nullptr;
     FindDialog *m_findDialog = nullptr;
+    SpellCheckDialog *m_spellCheckDlg = nullptr;
     QList<QAction *> m_insertActions;
     QAction *m_mermaidAction;
     QAction *m_wrapTextAction = nullptr;
