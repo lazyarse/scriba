@@ -615,6 +615,20 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
                 cursor.insertText(outdented);
+                // Only renumber when the outdent actually moved the item to a
+                // shallower level — an already-top-level line stays untouched.
+                int oldIndent = 0;
+                for (QChar c : line) {
+                    if (c == ' ') ++oldIndent;
+                    else break;
+                }
+                int newIndent = 0;
+                for (QChar c : outdented) {
+                    if (c == ' ') ++newIndent;
+                    else break;
+                }
+                if (newIndent < oldIndent)
+                    renumberOutdentedOrderedList(cursor.block().blockNumber());
                 return;
             }
         } else {
@@ -624,6 +638,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
                 cursor.insertText(indented);
+                renumberNestedOrderedList(cursor.block().blockNumber());
                 return;
             }
             insertPlainText("    ");
@@ -2518,6 +2533,109 @@ bool Editor::listAnchorHasContent(int blockNumber) const
             return true;
     }
     return false;
+}
+
+// CommonMark only nests an *ordered* list whose first item is numbered 1 — a
+// "nested" marker like 2. or 3. under an item is lazily-continued as paragraph
+// text instead. After Tab indents an ordered item, renumber the consecutive
+// run of same-indent ordered items starting at `startBlock` to 1, 2, 3... so
+// the new sublist actually renders. Top-level lists (indent 0) are untouched,
+// preserving intentional start numbers like "2024.".
+void Editor::renumberNestedOrderedList(int startBlock)
+{
+    static const QRegularExpression orderedRe(R"(^(\s*)(\d+)([.)]))");
+    QTextBlock start = document()->findBlockByNumber(startBlock);
+    QRegularExpressionMatch head = orderedRe.match(start.text());
+    if (!head.hasMatch())
+        return;
+    const int newIndent = head.captured(1).length();
+    if (newIndent == 0)
+        return;
+
+    // Walk back to the head of the contiguous same-indent ordered run so the
+    // nested list is numbered 1..n as a whole, not each freshly-tabbed line
+    // independently.
+    QTextBlock block = start;
+    QTextBlock prev = block.previous();
+    while (prev.isValid()) {
+        const QRegularExpressionMatch m = orderedRe.match(prev.text());
+        if (!m.hasMatch() || m.captured(1).length() != newIndent)
+            break;
+        block = prev;
+        prev = prev.previous();
+    }
+
+    int counter = 1;
+    while (block.isValid()) {
+        const QRegularExpressionMatch m = orderedRe.match(block.text());
+        if (!m.hasMatch() || m.captured(1).length() != newIndent)
+            break;
+        QTextCursor c(block);
+        c.movePosition(QTextCursor::StartOfBlock);
+        c.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, newIndent);
+        c.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, m.captured(2).length());
+        c.insertText(QString::number(counter));
+        block = block.next();
+        ++counter;
+    }
+}
+
+// Mirror of renumberNestedOrderedList for Shift+Tab: when an ordered item is
+// outdented it rejoins the list at a shallower level, so renumber it (and its
+// contiguous same-indent ordered run) to continue the enclosing sequence. The
+// base is the nearest preceding ordered item at the new indent + 1; when none
+// precedes it (blank line, paragraph, new list context), the item's own number
+// is preserved so intentional starts like "2024." survive.
+void Editor::renumberOutdentedOrderedList(int startBlock)
+{
+    static const QRegularExpression orderedRe(R"(^(\s*)(\d+)([.)]))");
+    QTextBlock start = document()->findBlockByNumber(startBlock);
+    QRegularExpressionMatch head = orderedRe.match(start.text());
+    if (!head.hasMatch())
+        return;
+    const int newIndent = head.captured(1).length();
+
+    int base = head.captured(2).toInt();
+    QTextBlock prev = start.previous();
+    while (prev.isValid()) {
+        const QString text = prev.text();
+        if (text.trimmed().isEmpty()) {
+            prev = prev.previous();
+            continue;
+        }
+        int indent = 0;
+        for (QChar c : text) {
+            if (c == ' ') ++indent;
+            else break;
+        }
+        const QRegularExpressionMatch m = orderedRe.match(text);
+        if (indent <= newIndent && m.hasMatch()) {
+            base = m.captured(2).toInt() + 1;
+            break;
+        }
+        // At or above the target level but not an ordered item (paragraph,
+        // bullet, heading, ...) — the outdented item starts its own context.
+        if (indent <= newIndent)
+            break;
+        // Deeper-indented block: part of a sub-list, skip up toward the
+        // enclosing (shallower) list the outdented item rejoins.
+        prev = prev.previous();
+    }
+
+    QTextBlock block = start;
+    int counter = base;
+    while (block.isValid()) {
+        const QRegularExpressionMatch m = orderedRe.match(block.text());
+        if (!m.hasMatch() || m.captured(1).length() != newIndent)
+            break;
+        QTextCursor c(block);
+        c.movePosition(QTextCursor::StartOfBlock);
+        c.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, newIndent);
+        c.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, m.captured(2).length());
+        c.insertText(QString::number(counter));
+        block = block.next();
+        ++counter;
+    }
 }
 
 int Editor::listFoldEnd(int startBlock) const

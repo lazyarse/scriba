@@ -482,6 +482,74 @@ TEST_F(EditorTestHarness, TabNestsOrderedListThreeLevels)
     EXPECT_EQ(text(), "      1. item one");
 }
 
+TEST_F(EditorTestHarness, TabRenumbersOrderedItemIntoNestedSublist)
+{
+    setContent("1. asdf\n2. asdf\n3. adsf\n4. asdf\n5. asdf\n6. asdf");
+    placeCursor(2, 0);
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "1. asdf\n2. asdf\n   1. adsf\n4. asdf\n5. asdf\n6. asdf");
+    placeCursor(3, 0);
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "1. asdf\n2. asdf\n   1. adsf\n   2. asdf\n5. asdf\n6. asdf");
+}
+
+TEST_F(EditorTestHarness, TabThenEnterContinuesNestedOrderedList)
+{
+    setContent("1. asdf\n2. asdf\n3. adsf");
+    placeCursor(2, 0);
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "1. asdf\n2. asdf\n   1. adsf");
+    enter();
+    EXPECT_EQ(text(), "1. asdf\n2. asdf\n   1. adsf\n   2. ");
+}
+
+TEST_F(EditorTestHarness, TabRenumbersMultiDigitNestedItem)
+{
+    setContent("7. seventh\n10. tenth");
+    placeCursor(1, 0);
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "7. seventh\n    1. tenth");
+}
+
+TEST_F(EditorTestHarness, ShiftTabRenumbersOutOfNestedList)
+{
+    setContent("1. first\n2. second\n   1. a\n   2. b\n   3. c\n4. foo\n5. bar");
+    placeCursor(2, 0);
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    EXPECT_EQ(text(), "1. first\n2. second\n3. a\n   2. b\n   3. c\n4. foo\n5. bar");
+    placeCursor(3, 0);
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    EXPECT_EQ(text(), "1. first\n2. second\n3. a\n4. b\n   3. c\n4. foo\n5. bar");
+    placeCursor(4, 0);
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    EXPECT_EQ(text(), "1. first\n2. second\n3. a\n4. b\n5. c\n6. foo\n7. bar");
+}
+
+TEST_F(EditorTestHarness, ShiftTabRenumbersEnterContinuationToOuterSequence)
+{
+    setContent("1. a\n2. b\n3. c\n4. d\n5. e\n   1. aa\n   2. bb\n   3. cc\n   4. dd\n   5. ee\n   6. ff\n   7. gg\n   8. hh");
+    placeCursorAtEnd();
+    enter();
+    EXPECT_EQ(text(), "1. a\n2. b\n3. c\n4. d\n5. e\n   1. aa\n   2. bb\n   3. cc\n   4. dd\n   5. ee\n   6. ff\n   7. gg\n   8. hh\n   9. ");
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    EXPECT_EQ(text(), "1. a\n2. b\n3. c\n4. d\n5. e\n   1. aa\n   2. bb\n   3. cc\n   4. dd\n   5. ee\n   6. ff\n   7. gg\n   8. hh\n6. ");
+    typeText("blah");
+    EXPECT_EQ(text(), "1. a\n2. b\n3. c\n4. d\n5. e\n   1. aa\n   2. bb\n   3. cc\n   4. dd\n   5. ee\n   6. ff\n   7. gg\n   8. hh\n6. blah");
+    enter();
+    EXPECT_EQ(text(), "1. a\n2. b\n3. c\n4. d\n5. e\n   1. aa\n   2. bb\n   3. cc\n   4. dd\n   5. ee\n   6. ff\n   7. gg\n   8. hh\n6. blah\n7. ");
+}
+
+TEST_F(EditorTestHarness, ShiftTabPreservesIntentionalOuterStart)
+{
+    setContent("2024. a\n2025. b\n   1. c");
+    placeCursor(2, 0);
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    EXPECT_EQ(text(), "2024. a\n2025. b\n2026. c");
+    placeCursor(0, 0);
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    EXPECT_EQ(text(), "2024. a\n2025. b\n2026. c");
+}
+
 TEST_F(EditorTestHarness, TabIndentsSelectedLines)
 {
     setContent("alpha\nbeta\ngamma");

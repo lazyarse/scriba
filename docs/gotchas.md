@@ -57,3 +57,28 @@ pin the widths.)
 
 Nesting depth with Tab therefore steps by the marker width per level:
 bullets 2 → 4 → 6, ordered single-digit 3 → 6 → 9.
+
+## Nested ordered lists must start at 1
+
+Indentation alone isn't enough for a nested ordered list to render. CommonMark
+only opens an indented ordered sub-list when its **first marker is numbered `1`**;
+an indented `2.`, `3.`, ... under an item is *lazy continuation text* and renders
+as plain paragraph lines inside the parent item (`<li>asdf\n3. adsf\n4. asdf</li>`),
+not as a nested `<ol>`. Verified empirically with cmark: `   1.` nests, `   2.`/
+`   3.`/`   4.` do not — under both ordered and bullet parents.
+
+So Scriba renumbers on Tab: when you indent an ordered item,
+`Editor::renumberNestedOrderedList` (Editor.cpp) rewrites the contiguous
+same-indent ordered run that includes it to 1, 2, 3... — that's what turns a
+Tab on the `3.` line into a real, renderable sublist. Top-level lists (indent 0)
+are never renumbered, so intentional start numbers like `2024.` survive; manual
+`   2.`+ indents in existing files still render flat (paragraph text) and must
+be typed as `1.`+ to nest.
+
+Shift+Tab mirrors this: `Editor::renumberOutdentedOrderedList` renumbers the
+outdented item (and its contiguous same-indent ordered run) to continue the
+enclosing list, so a nested `9.` outdented after `5. e` becomes `6.`, and
+detaching a whole sublist re-cascades the following items
+(`4. foo/5. bar` → `6. foo/7. bar`). When no same-level ordered item precedes
+the outdented line, its own number is kept (so `2024.`-style lists survive).
+Outdenting an already-top-level line never touches numbers.

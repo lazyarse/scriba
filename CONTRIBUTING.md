@@ -284,6 +284,14 @@ Suites with their own `main()` call `setupTestConfig()` right after creating the
 
 Tests run in parallel under `ctest -jN`: `setupTestConfig()` keys each suite's config dir on its PID so non-WebEngine suites never collide. Any test that spawns QtWebEngine (links `Qt6::WebEngineWidgets`, constructs a `QWebEngineView`/`QWebEnginePage`, or pulls in `src/Preview.cpp`/`MainWindow.cpp`/a dialog `.cpp` that creates one) MUST be added to the `set_tests_properties(... PROPERTIES RESOURCE_LOCK webkit)` block in `CMakeLists.txt`, serializing it against the other WebEngine suites — concurrent WebEngine processes cause flaky failures.
 
+Running a single test binary directly (e.g. `build-dbg/test_editor_typing --gtest_filter=...`) bypasses ctest's `xvfb-run` auto-wrap. Optionally, the user can run it in the background on a virtual screen instead of the foreground/main display:
+
+```bash
+xvfb-run -a bash -c 'build-dbg/test_editor_typing --gtest_filter=...'
+```
+
+Otherwise it opens on the main display, where real keystrokes can land in the focused test window and masquerade as typing/tab flakiness. For repeated runs, keep one Xvfb across the whole loop so only one virtual server is spun up.
+
 ## Base CSS Versioning
 
 `preview-base.css` and `print-base.css` are both bundled in qrc and copyable to the config dir via the CSS editor dialog (`CssLoader::setPreviewBaseCss`/`setPrintBaseCss`). Because a stale saved copy would shadow the bundled stylesheet globally (breaking rendering after app updates), each saved copy carries a version marker:

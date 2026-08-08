@@ -225,6 +225,8 @@ private:
     int listFoldEnd(int startBlock) const;
     bool listItemIsFirst(int startBlock, int quoteDepth, int indent) const;
     bool listAnchorHasContent(int blockNumber) const;
+    void renumberNestedOrderedList(int startBlock);
+    void renumberOutdentedOrderedList(int startBlock);
     bool foldRegionContains(int startBlock, int blockNumber) const;
     void toggleFold(int blockNumber);
     int findPrevHeader(int fromBlock) const;
