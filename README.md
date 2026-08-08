@@ -31,7 +31,7 @@ Designed to *actually* do what you need without a plugin ecosystem. No node, rea
 - **Auto-correct for commonly mis-spelt words that you define** like "_hte_" / "_the_", "_nad_" / "_and_" to keep you focused on content meaning
 - **Auto-save**  
 - **Keyboard shortcuts to make you more productive**: [keyboard shortcuts](docs/shortcuts.md) for amost everything; a [kitchensink.md](docs/kitchensink.md) with full feature examples that isn't a Markdown 101; an internal cache of page renders to prevent preview regeneration when switching tabs; and, jump up and down the document from header to header with a simple keyboard shortcut
-- Accessibility support to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview and chrome all styled from one file whilst the editor's colours stay in sync. Override the editor's font family, size, and line-height. Change the caret width to improve visibility, and more. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
+- **Accessibility support** to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview and chrome all styled from one file whilst the editor's colours stay in sync. **Override the editor's font family, size, and line-height, change the caret width to improve visibility, and more**. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
 - [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and other injection vectors to protect you and your audience.
 
 ### Standing on the Shoulders of Giants:
