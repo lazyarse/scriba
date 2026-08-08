@@ -988,7 +988,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
             "word in the Replaces column whenever the word before the caret matches the Typo "
             "column. Matching ignores case and the case of your typing is preserved, so \"Teh\" "
             "becomes \"The\". Corrections are skipped inside code blocks, inline code and link "
-            "URLs, and Ctrl+Z undoes one."));
+            "URLs, and Ctrl+Z undoes one. Unlike Smart Typography, these replacements edit the Markdown source itself."));
         note->setWordWrap(true);
         note->setStyleSheet("color: gray; padding: 8px;");
         groupLayout->addWidget(note);
