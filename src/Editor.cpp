@@ -56,6 +56,47 @@ namespace {
 // the autocompletion popup. Kept small so the suggestions hug the text.
 constexpr int kCompletionPopupGap = 4;
 
+// Normalized view of a line for list folding: quoteDepth counts leading '>'
+// blockquote markers, indent is the content column after stripping them, and
+// isList is true when a list marker (bullet, ordered, or task) begins the
+// content. Used by both the fold scan and the list fold-range walk.
+struct ListFoldInfo
+{
+    int quoteDepth = 0;
+    int indent = 0;
+    QString content;
+    bool isList = false;
+};
+
+ListFoldInfo listFoldInfo(const QString &line)
+{
+    ListFoldInfo info;
+    QString rem = line;
+    static const QRegularExpression quotePrefixRe(R"(^(?:[ ]{0,3}>[ \t]?)+)");
+    QRegularExpressionMatch m = quotePrefixRe.match(rem);
+    if (m.hasMatch()) {
+        info.quoteDepth = m.captured(0).count('>');
+        rem = rem.mid(m.capturedLength());
+    }
+    int i = 0;
+    while (i < rem.size()) {
+        const QChar c = rem[i];
+        if (c == ' ') {
+            ++info.indent;
+            ++i;
+        } else if (c == '\t') {
+            info.indent += 4;
+            ++i;
+        } else {
+            break;
+        }
+    }
+    info.content = rem.mid(i);
+    static const QRegularExpression listMarkerRe(R"(^[-*+](?=\s|$)|\d+[.)](?=\s|$))");
+    info.isList = !isThematicBreak(info.content) && listMarkerRe.match(info.content).hasMatch();
+    return info;
+}
+
 // StoppardEngine is stateless and cheap to construct (no dictionary load), so
 // each Editor tab gets its own instance.
 GrammarChecker *sharedGrammarChecker()
@@ -226,11 +267,22 @@ void Editor::keyPressEvent(QKeyEvent *event)
 
         QTextCursor cursor = textCursor();
         QString line = cursor.block().text();
+        // The fold whose hidden region holds the caret block, or -1. Inside a
+        // folded region Enter redirects below the fold (headers and list items)
+        // instead of auto-continuing a list marker into hidden text.
+        int foldedRegion = -1;
+        {
+            int bn = cursor.blockNumber();
+            for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
+                if (foldRegionContains(*it, bn) && (foldedRegion < 0 || *it > foldedRegion))
+                    foldedRegion = *it;
+            }
+        }
         // Only auto-continue list markers when the caret is at the end of the
         // block; pressing Enter mid-line (or at the start) should split normally.
         if (cursor.positionInBlock() == line.length()) {
             QString result = handleListReturn(line);
-            if (!result.isEmpty()) {
+            if (!result.isEmpty() && foldedRegion < 0) {
                 if (result == QString(clearSentinel)) {
                     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
                     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
@@ -246,7 +298,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
             // Splitting a list item mid-line should carry the list marker onto
             // the new line instead of leaving a bare paragraph split.
             QString marker = handleListSplitReturn(line, cursor.positionInBlock());
-            if (!marker.isEmpty()) {
+            if (!marker.isEmpty() && foldedRegion < 0) {
                 QTextEdit::keyPressEvent(event);
                 insertPlainText(marker);
                 return;
@@ -362,7 +414,8 @@ void Editor::keyPressEvent(QKeyEvent *event)
             bool atStartEnd = onStart && cursor.positionInBlock() == cursor.block().text().length();
             if ((atStartEnd || (!onStart && bn < end)) && bn < end) {
                 QTextCursor target = textCursor();
-                if (end == document()->blockCount() && m_headerLevel.contains(folded)
+                if (end == document()->blockCount()
+                    && (m_headerLevel.contains(folded) || m_listItems.contains(folded))
                     && !m_foldEndPins.contains(folded)) {
                     // Fold runs to EOF: pin the bottom here so the new paragraph
                     // (and anything typed below it) stays visible past the re-scan.
@@ -2233,6 +2286,7 @@ void Editor::scanHeadersAndFolds()
     m_chartFences.clear();
     m_mdTableSeparators.clear();
     m_htmlTables.clear();
+    m_listItems.clear();
 
     QTextBlock block = document()->firstBlock();
     int codeDepth = 0;
@@ -2297,6 +2351,11 @@ void Editor::scanHeadersAndFolds()
             const QString t = text.trimmed();
             if (t.startsWith("<table") && !t.contains("</table>"))
                 m_htmlTables.insert(bn);
+
+            // List item marker line (bullet, ordered, task): a fold anchor whose
+            // range runs to the next sibling/shallower item or the list end.
+            if (listFoldInfo(text).isList)
+                m_listItems.insert(bn);
         }
 
         prevBlock = block;
@@ -2310,6 +2369,7 @@ void Editor::scanHeadersAndFolds()
     foldableSet.unite(m_codeFences);
     foldableSet.unite(m_mdTableSeparators);
     foldableSet.unite(m_htmlTables);
+    foldableSet.unite(m_listItems);
     if (m_gutter) {
         m_gutter->setFoldableBlocks(foldableSet);
         m_gutter->setChartBlocks(m_chartFences);
@@ -2326,7 +2386,8 @@ void Editor::scanHeadersAndFolds()
     }
     m_foldedBlocks = stillValid;
     for (auto it = m_foldEndPins.begin(); it != m_foldEndPins.end();) {
-        if (!m_headerLevel.contains(it.key()) || !document()->findBlock(it.value()).isValid())
+        if ((!m_headerLevel.contains(it.key()) && !m_listItems.contains(it.key()))
+            || !document()->findBlock(it.value()).isValid())
             it = m_foldEndPins.erase(it);
         else
             ++it;
@@ -2339,7 +2400,8 @@ void Editor::scanHeadersAndFolds()
 bool Editor::isFoldableBlock(int blockNumber) const
 {
     return m_headerLevel.contains(blockNumber) || m_codeFences.contains(blockNumber)
-        || m_mdTableSeparators.contains(blockNumber) || m_htmlTables.contains(blockNumber);
+        || m_mdTableSeparators.contains(blockNumber) || m_htmlTables.contains(blockNumber)
+        || m_listItems.contains(blockNumber);
 }
 
 bool Editor::foldRegionContains(int startBlock, int blockNumber) const
@@ -2403,6 +2465,17 @@ int Editor::foldEnd(int startBlock) const
         return document()->blockCount();
     }
 
+    if (m_listItems.contains(startBlock)) {
+        int end = listFoldEnd(startBlock);
+        auto pinIt = m_foldEndPins.find(startBlock);
+        if (pinIt != m_foldEndPins.end()) {
+            QTextBlock pinned = document()->findBlock(pinIt.value());
+            if (pinned.isValid() && pinned.blockNumber() > startBlock && pinned.blockNumber() <= end)
+                end = pinned.blockNumber();
+        }
+        return end;
+    }
+
     int end = sectionEndBlock(startBlock, m_headerLevel.value(startBlock));
     auto pinIt = m_foldEndPins.find(startBlock);
     if (pinIt != m_foldEndPins.end()) {
@@ -2411,6 +2484,74 @@ int Editor::foldEnd(int startBlock) const
             end = pinned.blockNumber();
     }
     return end;
+}
+
+bool Editor::listItemIsFirst(int startBlock, int anchorQuoteDepth, int anchorIndent) const
+{
+    QTextBlock block = document()->findBlockByNumber(startBlock).previous();
+    while (block.isValid()) {
+        const QString text = block.text();
+        if (text.trimmed().isEmpty()) {
+            block = block.previous();
+            continue;
+        }
+        const ListFoldInfo info = listFoldInfo(text);
+        if (info.quoteDepth < anchorQuoteDepth)
+            break;
+        if (info.isList && info.quoteDepth == anchorQuoteDepth && info.indent <= anchorIndent)
+            return false;
+        if (!info.isList)
+            break;
+        block = block.previous();
+    }
+    return true;
+}
+
+int Editor::listFoldEnd(int startBlock) const
+{
+    const ListFoldInfo anchor = listFoldInfo(document()->findBlockByNumber(startBlock).text());
+    const bool firstItem = listItemIsFirst(startBlock, anchor.quoteDepth, anchor.indent);
+    const int contentColumn = anchor.indent + 2;
+    auto terminatesList = [&](const ListFoldInfo &info) {
+        const bool sameLevel = info.quoteDepth == anchor.quoteDepth
+                               && info.indent <= anchor.indent;
+        return sameLevel && (!firstItem || info.indent < anchor.indent);
+    };
+    QTextBlock block = document()->findBlockByNumber(startBlock + 1);
+    while (block.isValid()) {
+        const QString text = block.text();
+        if (text.trimmed().isEmpty()) {
+            QTextBlock next = block.next();
+            while (next.isValid() && next.text().trimmed().isEmpty())
+                next = next.next();
+            if (!next.isValid())
+                return document()->blockCount();
+            const ListFoldInfo info = listFoldInfo(next.text());
+            if (info.quoteDepth < anchor.quoteDepth || terminatesList(info)
+                || (!info.isList && info.indent < contentColumn))
+                return block.blockNumber();
+            block = next;
+            continue;
+        }
+
+        const ListFoldInfo info = listFoldInfo(text);
+        if (info.quoteDepth < anchor.quoteDepth)
+            return block.blockNumber();
+        if (info.isList) {
+            if (terminatesList(info))
+                return block.blockNumber();
+            block = block.next();
+            continue;
+        }
+        if (info.indent < contentColumn) {
+            static const QRegularExpression outerBlockStartRe(
+                "^(?:#{1,6}\\s|```|~~~|>\\s|[-*+]\\s|\\d+[.)]\\s|</?[a-zA-Z#]|<!--|---+\\s*$|\\*{3,}\\s*$|_{3,}\\s*$)");
+            if (outerBlockStartRe.match(info.content).hasMatch())
+                return block.blockNumber();
+        }
+        block = block.next();
+    }
+    return document()->blockCount();
 }
 
 QPair<int, int> Editor::fencedCodeBlockRange(int blockNumber) const

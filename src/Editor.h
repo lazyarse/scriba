@@ -210,6 +210,7 @@ private:
     QSet<int> m_chartFences;       // blockNumber of each opening ```mermaid/```ec fence
     QSet<int> m_mdTableSeparators; // blockNumber of each markdown table separator row (foldable)
     QSet<int> m_htmlTables;        // blockNumber of each line opening a multi-line <table…</table>
+    QSet<int> m_listItems;         // blockNumber of each list-item marker line (foldable)
     QSet<int> m_foldedBlocks;
     QMap<int, qsizetype> m_foldEndPins; // folded header blockNumber → pinned fold-bottom character position
     bool m_updatingFolds = false;
@@ -221,6 +222,8 @@ private:
     void applyFold(int startBlock, bool hide);
     bool isFoldableBlock(int blockNumber) const;
     int foldEnd(int startBlock) const;
+    int listFoldEnd(int startBlock) const;
+    bool listItemIsFirst(int startBlock, int quoteDepth, int indent) const;
     bool foldRegionContains(int startBlock, int blockNumber) const;
     void toggleFold(int blockNumber);
     int findPrevHeader(int fromBlock) const;

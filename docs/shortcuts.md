@@ -45,6 +45,7 @@
 | Ctrl+Down | Jump cursor down to next header or rule |
 | Ctrl+Alt+Up | Scroll viewport up |
 | Ctrl+Alt+Down | Scroll viewport down |
+| Alt+[1-0] | Quick tab open|
 
 ## Tables
 

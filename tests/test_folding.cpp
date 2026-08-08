@@ -572,6 +572,283 @@ TEST_F(FoldingTest, TableFoldRoundtrip)
     EXPECT_TRUE(editor->document()->findBlockByNumber(3).isVisible());
 }
 
+TEST_F(FoldingTest, FoldFirstListItemToEndOfList)
+{
+    setText(
+        "- a\n"
+        "- b\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_TRUE(doc->findBlockByNumber(0).isVisible());
+    // Folding the first item collapses the rest of the list.
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_EQ(editor->foldedBlockNumbers(), QList<int>({0}));
+}
+
+TEST_F(FoldingTest, FoldListStopsAtNextHeading)
+{
+    setText(
+        "- a\n"
+        "- b\n"
+        "- c\n"
+        "# Heading\n"
+        "text\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()) << "heading not folded away";
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible());
+}
+
+TEST_F(FoldingTest, FoldNonFirstItemHidesOnlySubtree)
+{
+    setText(
+        "- a\n"
+        "- b\n"
+        "  - b1\n"
+        "- c\n"
+    );
+
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_TRUE(doc->findBlockByNumber(0).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()) << "sibling stays visible";
+}
+
+TEST_F(FoldingTest, NestedItemFoldStopsAtSibling)
+{
+    setText(
+        "- a\n"
+        "  - a1\n"
+        "    content\n"
+        "  - a2\n"
+        "- b\n"
+    );
+
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()) << "nested sibling stays visible";
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible());
+}
+
+TEST_F(FoldingTest, BlankLineTerminatesFoldBeforeNewParagraph)
+{
+    setText(
+        "- a\n"
+        "  cont\n"
+        "\n"
+        "para\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(2).isVisible()); // blank line
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()); // paragraph after blank
+}
+
+TEST_F(FoldingTest, OrderedAndTaskListItemsFoldable)
+{
+    setText(
+        "1. one\n"
+        "2. two\n"
+        "- [ ] task\n"
+        "- done\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(3).isVisible());
+
+    // A task item is its own fold anchor; folding it keeps the last item.
+    editor->restoreFolds({2});
+    QApplication::processEvents();
+    EXPECT_TRUE(editor->foldedBlockNumbers().contains(2));
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible());
+}
+
+TEST_F(FoldingTest, FoldsQuotedListItems)
+{
+    setText(
+        "> - a\n"
+        "> - b\n"
+        "- c\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(2).isVisible()) << "fold stops when the quote ends";
+}
+
+TEST_F(FoldingTest, QuotedNestedItemFoldStopsAtQuoteSibling)
+{
+    setText(
+        "> - a\n"
+        ">   - a1\n"
+        ">     text\n"
+        "> - b\n"
+    );
+
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()) << "quote sibling stays visible";
+}
+
+TEST_F(FoldingTest, DoubleQuotedListItemFoldsToQuoteEnd)
+{
+    setText(
+        "> - a\n"
+        "> > - n1\n"
+        "> > - n2\n"
+        "> - b\n"
+    );
+
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible()) << "shallower quote line stays visible";
+}
+
+TEST_F(FoldingTest, ThematicBreakIsNotListAnchor)
+{
+    setText(
+        "- - -\n"
+        "text\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+    EXPECT_TRUE(editor->document()->findBlockByNumber(0).isVisible());
+}
+
+TEST_F(FoldingTest, IgnoresListMarkersInsideCodeFence)
+{
+    setText(
+        "```\n"
+        "- not a list\n"
+        "- also not\n"
+        "```\n"
+    );
+
+    editor->restoreFolds({1});
+    QApplication::processEvents();
+
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+    EXPECT_TRUE(editor->document()->findBlockByNumber(1).isVisible());
+}
+
+TEST_F(FoldingTest, KeyboardFoldUnfoldList)
+{
+    setText(
+        "- a\n"
+        "  - a1\n"
+        "  - a2\n"
+    );
+
+    QTextCursor cursor(editor->document()->findBlockByNumber(0));
+    editor->setTextCursor(cursor);
+    QApplication::processEvents();
+
+    QTest::keyClick(editor, Qt::Key_Minus, Qt::ControlModifier);
+    QApplication::processEvents();
+
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
+    EXPECT_TRUE(editor->foldedBlockNumbers().contains(0));
+
+    QTest::keyClick(editor, Qt::Key_Equal, Qt::ControlModifier);
+    QApplication::processEvents();
+
+    EXPECT_TRUE(doc->findBlockByNumber(1).isVisible());
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+}
+
+TEST_F(FoldingTest, ListFoldRoundtrip)
+{
+    setText(
+        "- a\n"
+        "- b\n"
+        "- c\n"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+    QList<int> folded = editor->foldedBlockNumbers();
+    EXPECT_TRUE(folded.contains(0));
+    EXPECT_EQ(folded.size(), 1);
+
+    editor->restoreFolds({});
+    QApplication::processEvents();
+    EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+
+    editor->restoreFolds(folded);
+    QApplication::processEvents();
+    EXPECT_FALSE(editor->document()->findBlockByNumber(1).isVisible());
+    EXPECT_FALSE(editor->document()->findBlockByNumber(2).isVisible());
+}
+
+TEST_F(FoldingTest, EnterOnFoldedListInsertsVisibleBelowFold)
+{
+    setText(
+        "- a\n"
+        "  - a1\n"
+        "  - a2"
+    );
+
+    editor->restoreFolds({0});
+    QApplication::processEvents();
+    auto *doc = editor->document();
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible());
+
+    QTextCursor cursor(doc->findBlockByNumber(0));
+    cursor.movePosition(QTextCursor::EndOfLine);
+    editor->setTextCursor(cursor);
+    QApplication::processEvents();
+
+    QTest::keyClick(editor, Qt::Key_Return);
+    QApplication::processEvents();
+    QTest::qWait(500); // let the fold re-scan run
+
+    EXPECT_TRUE(editor->foldedBlockNumbers().contains(0));
+    QTextBlock newLine = doc->findBlockByNumber(doc->blockCount() - 1);
+    EXPECT_TRUE(newLine.isVisible()) << "typed line below a folded list stays visible";
+    EXPECT_FALSE(doc->findBlockByNumber(1).isVisible())
+        << "hidden items below a folded list stay hidden";
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
