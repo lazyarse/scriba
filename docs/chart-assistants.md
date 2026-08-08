@@ -116,7 +116,7 @@ Additionally, the existing assistants do not cover some advanced features within
 
 Accessed from **Tools > Chart Builder**. Generates an ECharts option object wrapped in a fenced ` ```ec ` code block. Charts render in the preview via the bundled Apache ECharts library (SVG renderer).
 
-### Supported Chart Types (5)
+### Supported Chart Types (7)
 
 | Type | Description |
 |---|---|
@@ -124,7 +124,13 @@ Accessed from **Tools > Chart Builder**. Generates an ECharts option object wrap
 | Line | Connected data points |
 | Area | Line with filled area |
 | Scatter | Numeric X/Y point pairs |
+| Effect Scatter | Scatter with animated ripples around each point (ripple toggle) |
+| Pictorial Bar | Bar built from repeated symbols like `rect` (repeat toggle) |
 | Pie | Categorical name/value slices (no axes) |
+| Donut | Pie via the `radius` option (not exposed in the dialog) |
+| Funnel / Gauge | Categorical name/value or single-value gauges |
+| Radar | Indicator/value/max table over a radar grid |
+| Heatmap (matrix + calendar) | X/Y/Value triples, or Date/Value pairs on a calendar |
 
 ### Features
 
@@ -135,6 +141,8 @@ Accessed from **Tools > Chart Builder**. Generates an ECharts option object wrap
 - **Options**: Chart title.
 - **Preview**: Live rendering via ECharts (SVG renderer) in QWebEngineView.
 - **Output**: Insert or copy a fenced ` ```ec ` JSON block.
+- **Type-specific toggles**: `Effect Scatter` gains a "Ripple" checkbox (emits `rippleEffect`/`symbolSize`); `Pictorial Bar` gains a "Repeat" checkbox (emits `symbolRepeat` styling). Both round-trip through the spec: unchecking writes the spec without the key, so re-opening sees it off.
+- **Pencil edit**: A rendered chart whose type matches a builder type opens **pre-filled** (data + title + toggles recovered) — see `docs/gotchas.md` for what is *not* preserved.
 
 ### Chart Builder Features NOT Covered
 
@@ -166,3 +174,47 @@ Accessed from **Tools > Stock Chart**. Builds candlestick charts from OHLC data 
 ### Stock Chart Builder Features NOT Covered
 
 No chart-type indicators beyond moving averages (no RSI, MACD, Bollinger bands), no intraday scale handling, and no data transformations — prices are used as pasted.
+
+---
+
+## Advanced Charts Builder (ECharts)
+
+Accessed from **Tools > Advanced Charts**. One-panel-per-type builder for the
+chart families that don't fit the Chart Builder's X/Y cartesian model. Each
+panel has its own table editor, a live ECharts preview (SVG renderer), and
+wraps the result in a fenced ` ```ec ` JSON block.
+
+### Supported Chart Types (7)
+
+| Type | Table columns | Panel |
+|---|---|---|
+| Sankey Flow | Source / Target / Weight | single links table |
+| Box Plot | Category + Min / Q1 / Median / Q3 / Max | one row per category |
+| Parallel Coordinates | one numeric column per dimension | `+Col` adds a dimension |
+| Theme River | Date / Value / Category | one row per triplet |
+| Treemap | Level 1 / Level 2 / ... / Value | shared tree editor |
+| Sunburst | Level 1 / Level 2 / ... / Value | same tree editor |
+| Graph (Network) | Nodes (Name/Value) + Links (Source/Target/Value) | two tables |
+
+For the tree editor (Treemap/Sunburst) each table row is one *leaf*: the Level
+columns name the path from the root and the final cell is the leaf value. Add
+more levels with +Col; `-Col` drops the deepest non-value column.
+
+### Features
+
+- **+Row / -Row / +Col / -Col**: add/remove table rows and columns (Parallel and
+  the tree editor grow extra dimensions/levels).
+- **Options**: Chart title and an animation toggle.
+- **Preview**: live rendering via ECharts (SVG renderer) in QWebEngineView.
+- **Output**: Insert or copy a fenced ` ```ec ` JSON block.
+- **Pencil edit**: an existing chart re-opens in the matching panel with its
+  data recovered into the table (see `docs/gotchas.md` for what is *not*
+  preserved).
+
+### Advanced Charts Builder Features NOT Covered
+
+No node/edge attributes beyond name+value (no graph categories, `draggable`,
+`label` settings, `layout` control beyond force, or `edgeLabel`), no boxplot
+outliers or live box statistics (the five numbers are entered directly), no
+parallel axis types/ranges/inverted dims, and no Sankey node sizing by value.
+Only the tablular data survives re-opening hand-written charts.

@@ -52,6 +52,7 @@ private:
     void setupUi();
     void setupLeftPanel(QWidget *panel);
     void updateFieldComboBoxes();
+    void updateTypeOptions();
     void populateTableFromCsvData(const struct CsvData &data);
     void prefillFromSpec(const QString &specJson);
     QString buildSpec() const;
@@ -64,6 +65,8 @@ private:
     QComboBox *m_fieldZ;
     QCheckBox *m_tooltipCheck;
     QCheckBox *m_animateCheck;
+    QCheckBox *m_rippleCheck;
+    QCheckBox *m_repeatCheck;
     QLineEdit *m_titleEdit;
     QWebEngineView *m_preview;
     QTimer *m_previewTimer;

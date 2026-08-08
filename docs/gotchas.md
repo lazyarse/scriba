@@ -130,3 +130,41 @@ treemap, sunburst, graph, pictorialBar, themeRiver, parallel) don't even open
 the dialog — the pencil shows the "cannot be reopened" warning and you edit the
 raw JSON. The doc-driven round-trip corpus in `docs/echarts.md` pins exactly
 which types parse-and-rebuild (`tests/test_chartsource_docs.cpp`).
+
+## Advanced Charts pencil-edit recovers data, not chart styling
+
+The Advanced Charts dialog (sankey, boxplot, parallel, themeRiver, graph,
+treemap, sunburst) reverses an existing ` ```ec ` block back into its table
+rows (see `ChartSource::parse{...}Spec` in `src/EChartsParser.cpp`). As with
+the Chart Builder, only the tabular data plus title/animate are recovered;
+everything else about a hand-written chart is dropped when the block is
+re-inserted through `generatedSpec()`:
+
+- **Sankey** — an internal node's own `value` (when it has children) is not
+  recoverable: only the link table is restored, and node names are re-derived
+  from the links.
+- **Treemap / Sunburst** — the table is a flattened leaf view (`Level 1 /
+  Level 2 / ... / Value`). An internal node that also carries a `value` loses
+  that value on rebuild (the parser only keeps the *leaf* path + value; see
+  `TreeSpecData`). Deep nesting beyond the dialog's current column count
+  recovers as far as the columns allow.
+- **Graph** — `nodeValues` default to `0` when absent, and links without a
+  `value` come back as `value: 0`.
+- **Parallel** — dimension headers are read from `parallelAxis` in `dim`
+  order (a sparse/out-of-order `dim` array is re-sorted by `dim`).
+- **Boxplot** — requires one five-number row per x-axis category; a mismatch
+  makes the block "cannot be reopened".
+- Everything else (layout options, `force`/`roam`, `symbolSize`,
+  `rippleEffect` scale, `dataZoom`, `tooltip`, grid padding) is discarded; only
+  the data and the type survive the round-trip. The 21-block corpus in
+  `docs/echarts.md` and its serializers in `tests/test_chartsource_docs.cpp`
+  pin the round-trip behaviour.
+
+## Chart Builder ripple / repeat toggles round-trip through the spec
+
+`effectScatter` and `pictorialBar` re-obey toggles from the Chart Builder.
+`ChartSpecData::rippleEffect` and `ChartSpecData::repeatSymbol` are the
+*presence* of the `rippleEffect` / `symbolRepeat` keys in the original spec, so
+disabling the toggle in the dialog and re-inserting writes a spec without those
+keys — which round-trips back as "off", not as a guessed default, on the next
+pencil-edit.

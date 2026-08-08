@@ -453,6 +453,331 @@ TEST(ChartSourceStock, NoVolumeNoZoom) {
 }
 
 // ---------------------------------------------------------------------------
+// Folded cartesian types: effectScatter + pictorialBar
+// ---------------------------------------------------------------------------
+
+TEST(ChartSourceChart, EffectScatterDetectedAsChart) {
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "effectScatter";
+    s["data"] = QJsonArray{QJsonArray{1.0, 2.0}, QJsonArray{3.0, 4.0}};
+    spec["series"] = QJsonArray{s};
+    EXPECT_EQ(ChartSource::detectEcType(json(spec)), ChartSource::EcType::Chart);
+}
+
+TEST(ChartSourceChart, EffectScatterRoundTrip) {
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "effectScatter";
+    s["symbolSize"] = 28;
+    s["rippleEffect"] = QJsonObject{{"scale", 4}};
+    s["data"] = QJsonArray{QJsonArray{10.0, 20.0}, QJsonArray{30.0, 45.0}};
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_EQ(out.type, "effectScatter");
+    EXPECT_TRUE(out.rippleEffect);
+    EXPECT_EQ(out.headers, (QStringList{"X", "Y"}));
+    ASSERT_EQ(out.rows.size(), 2);
+    EXPECT_EQ(out.rows[0], (QStringList{"10", "20"}));
+    EXPECT_EQ(out.rows[1], (QStringList{"30", "45"}));
+}
+
+TEST(ChartSourceChart, EffectScatterNamedValueItems) {
+    // Docs example wraps points in {value:[x,y], name:"..."} objects.
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "effectScatter";
+    s["rippleEffect"] = QJsonObject{{"scale", 4}};
+    s["data"] = QJsonArray{
+        QJsonObject{{"value", QJsonArray{10.0, 20.0}}, {"name", "Site A"}},
+        QJsonObject{{"value", QJsonArray{30.0, 45.0}}, {"name", "Site B"}},
+    };
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_EQ(out.headers, (QStringList{"X", "Y"}));
+    ASSERT_EQ(out.rows.size(), 2);
+    EXPECT_EQ(out.rows[0], (QStringList{"10", "20"}));
+}
+
+TEST(ChartSourceChart, EffectScatterWithoutRippleIsFalse) {
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "effectScatter";
+    s["data"] = QJsonArray{QJsonArray{1.0, 2.0}};
+    spec["series"] = QJsonArray{s};
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_FALSE(out.rippleEffect);
+}
+
+TEST(ChartSourceChart, PictorialBarDetectedAsChart) {
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "pictorialBar";
+    s["data"] = QJsonArray{60, 80, 50};
+    spec["series"] = QJsonArray{s};
+    EXPECT_EQ(ChartSource::detectEcType(json(spec)), ChartSource::EcType::Chart);
+}
+
+TEST(ChartSourceChart, PictorialBarRoundTrip) {
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "pictorialBar";
+    s["symbol"] = "rect";
+    s["symbolRepeat"] = true;
+    s["symbolSize"] = QJsonArray{12, 16};
+    s["data"] = QJsonArray{60.0, 80.0, 50.0};
+    QJsonObject xAxis;
+    xAxis["type"] = "category";
+    xAxis["data"] = QJsonArray{"Mon", "Tue", "Wed"};
+    spec["xAxis"] = xAxis;
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_EQ(out.type, "pictorialBar");
+    EXPECT_TRUE(out.repeatSymbol);
+    EXPECT_EQ(out.headers, (QStringList{"Category", "Value"}));
+    ASSERT_EQ(out.rows.size(), 3);
+    EXPECT_EQ(out.rows[0], (QStringList{"Mon", "60"}));
+}
+
+// ---------------------------------------------------------------------------
+// Advanced Charts types (sankey / boxplot / parallel / themeRiver / graph /
+// treemap / sunburst) — JSON mirrors of AdvancedChartDialog::build*
+// ---------------------------------------------------------------------------
+
+TEST(ChartSourceDetect, AdvancedTypes) {
+    struct Pair { const char *type; ChartSource::EcType expected; };
+    const Pair pairs[] = {
+        {"sankey",   ChartSource::EcType::Sankey},
+        {"boxplot",  ChartSource::EcType::Boxplot},
+        {"parallel", ChartSource::EcType::Parallel},
+        {"themeRiver", ChartSource::EcType::ThemeRiver},
+        {"graph",    ChartSource::EcType::Graph},
+        {"treemap",  ChartSource::EcType::Treemap},
+        {"sunburst", ChartSource::EcType::Sunburst},
+    };
+    for (const Pair &p : pairs) {
+        QJsonObject spec;
+        QJsonObject s;
+        s["type"] = p.type;
+        s["data"] = QJsonArray{};
+        spec["series"] = QJsonArray{s};
+        EXPECT_EQ(ChartSource::detectEcType(json(spec)), p.expected) << p.type;
+    }
+}
+
+TEST(ChartSourceSankey, RoundTrip) {
+    QJsonObject spec;
+    QJsonArray data;
+    for (const char *n : {"a", "b", "a1", "b1", "c", "e"})
+        data.append(QJsonObject{{"name", n}});
+    QJsonObject s;
+    s["type"] = "sankey";
+    s["data"] = data;
+    s["links"] = QJsonArray{
+        QJsonObject{{"source", "a"}, {"target", "a1"}, {"value", 5}},
+        QJsonObject{{"source", "e"}, {"target", "b"}, {"value", 3}},
+        QJsonObject{{"source", "b1"}, {"target", "c"}, {"value", 2}},
+    };
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::SankeySpecData out;
+    ASSERT_TRUE(ChartSource::parseSankeySpec(json(spec), out));
+    EXPECT_TRUE(out.title.isEmpty());
+    ASSERT_EQ(out.links.size(), 3);
+    EXPECT_EQ(out.links[0], (QStringList{"a", "a1", "5"}));
+    EXPECT_EQ(out.links[1], (QStringList{"e", "b", "3"}));
+    EXPECT_EQ(out.links[2], (QStringList{"b1", "c", "2"}));
+}
+
+TEST(ChartSourceBoxplot, RoundTrip) {
+    QJsonObject spec;
+    QJsonObject xAxis;
+    xAxis["type"] = "category";
+    xAxis["data"] = QJsonArray{"Class A", "Class B", "Class C"};
+    QJsonObject s;
+    s["type"] = "boxplot";
+    s["data"] = QJsonArray{QJsonArray{40, 56, 72, 88, 96},
+                           QJsonArray{32, 51, 68, 84, 95},
+                           QJsonArray{28, 46, 62, 80, 91}};
+    spec["xAxis"] = xAxis;
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::BoxplotSpecData out;
+    ASSERT_TRUE(ChartSource::parseBoxplotSpec(json(spec), out));
+    EXPECT_EQ(out.categories, (QStringList{"Class A", "Class B", "Class C"}));
+    ASSERT_EQ(out.stats.size(), 3);
+    ASSERT_EQ(out.stats[0].size(), 5);
+    EXPECT_DOUBLE_EQ(out.stats[0][0], 40);
+    EXPECT_DOUBLE_EQ(out.stats[0][4], 96);
+    EXPECT_DOUBLE_EQ(out.stats[2][2], 62);
+}
+
+TEST(ChartSourceBoxplot, MismatchedCountsRejected) {
+    QJsonObject spec;
+    QJsonObject xAxis;
+    xAxis["data"] = QJsonArray{"A", "B"};
+    QJsonObject s;
+    s["type"] = "boxplot";
+    s["data"] = QJsonArray{QJsonArray{1, 2, 3, 4, 5}};
+    spec["xAxis"] = xAxis;
+    spec["series"] = QJsonArray{s};
+    ChartSource::BoxplotSpecData out;
+    EXPECT_FALSE(ChartSource::parseBoxplotSpec(json(spec), out));
+}
+
+TEST(ChartSourceParallel, RoundTrip) {
+    QJsonObject spec;
+    spec["parallelAxis"] = QJsonArray{
+        QJsonObject{{"dim", 0}, {"name", "Dim 0"}},
+        QJsonObject{{"dim", 1}, {"name", "Dim 1"}},
+        QJsonObject{{"dim", 2}, {"name", "Dim 2"}},
+        QJsonObject{{"dim", 3}, {"name", "Dim 3"}},
+    };
+    QJsonObject s;
+    s["type"] = "parallel";
+    s["data"] = QJsonArray{QJsonArray{1, 3, 2, 4}, QJsonArray{2, 4, 1, 3}};
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::ParallelSpecData out;
+    ASSERT_TRUE(ChartSource::parseParallelSpec(json(spec), out));
+    EXPECT_EQ(out.dimensions,
+              (QStringList{"Dim 0", "Dim 1", "Dim 2", "Dim 3"}));
+    ASSERT_EQ(out.lines.size(), 2);
+    ASSERT_EQ(out.lines[0].size(), 4);
+    EXPECT_DOUBLE_EQ(out.lines[0][3], 4);
+    EXPECT_DOUBLE_EQ(out.lines[1][1], 4);
+}
+
+TEST(ChartSourceParallel, SparseDimArray) {
+    // parallelAxis may omit dim indices; the parser must re-sort by dim.
+    QJsonObject spec;
+    spec["parallelAxis"] = QJsonArray{
+        QJsonObject{{"dim", 2}, {"name", "Z"}},
+        QJsonObject{{"dim", 0}, {"name", "A"}},
+        QJsonObject{{"dim", 1}, {"name", "M"}},
+    };
+    QJsonObject s;
+    s["type"] = "parallel";
+    s["data"] = QJsonArray{QJsonArray{1, 2, 3}};
+    spec["series"] = QJsonArray{s};
+    ChartSource::ParallelSpecData out;
+    ASSERT_TRUE(ChartSource::parseParallelSpec(json(spec), out));
+    EXPECT_EQ(out.dimensions, (QStringList{"A", "M", "Z"}));
+    EXPECT_DOUBLE_EQ(out.lines[0][2], 3);
+}
+
+TEST(ChartSourceThemeRiver, RoundTrip) {
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "themeRiver";
+    s["data"] = QJsonArray{QJsonArray{"2026-01-01", 5, "Apple"},
+                           QJsonArray{"2026-01-02", 6, "Banana"}};
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::ThemeRiverSpecData out;
+    ASSERT_TRUE(ChartSource::parseThemeRiverSpec(json(spec), out));
+    ASSERT_EQ(out.rows.size(), 2);
+    EXPECT_EQ(out.rows[0], (QStringList{"2026-01-01", "5", "Apple"}));
+    EXPECT_EQ(out.rows[1], (QStringList{"2026-01-02", "6", "Banana"}));
+}
+
+TEST(ChartSourceGraph, RoundTrip) {
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "graph";
+    s["data"] = QJsonArray{
+        QJsonObject{{"name", "N1"}, {"value", 10}},
+        QJsonObject{{"name", "N2"}, {"value", 20}},
+    };
+    s["links"] = QJsonArray{
+        QJsonObject{{"source", "N1"}, {"target", "N2"}},
+    };
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::GraphSpecData out;
+    ASSERT_TRUE(ChartSource::parseGraphSpec(json(spec), out));
+    EXPECT_EQ(out.nodeNames, (QStringList{"N1", "N2"}));
+    ASSERT_EQ(out.nodeValues.size(), 2);
+    EXPECT_DOUBLE_EQ(out.nodeValues[0], 10);
+    ASSERT_EQ(out.links.size(), 1);
+    EXPECT_EQ(out.links[0], (QStringList{"N1", "N2", "0"}));
+}
+
+TEST(ChartSourceGraph, MissingNodesRejected) {
+    QJsonObject spec;
+    QJsonObject s;
+    s["type"] = "graph";
+    s["links"] = QJsonArray{QJsonObject{{"source", "N1"}, {"target", "N2"}}};
+    spec["series"] = QJsonArray{s};
+    ChartSource::GraphSpecData out;
+    EXPECT_FALSE(ChartSource::parseGraphSpec(json(spec), out));
+}
+
+TEST(ChartSourceTree, TreemapLeafFlattening) {
+    QJsonObject spec;
+    QJsonObject a;
+    a["name"] = "nodeA";
+    a["value"] = 10;
+    a["children"] = QJsonArray{
+        QJsonObject{{"name", "nodeAa"}, {"value", 4}},
+        QJsonObject{{"name", "nodeAb"}, {"value", 6}},
+    };
+    QJsonObject b;
+    b["name"] = "nodeB";
+    b["value"] = 20;
+    b["children"] = QJsonArray{
+        QJsonObject{{"name", "nodeBa"}, {"value", 12}},
+        QJsonObject{{"name", "nodeBb"}, {"value", 8}},
+    };
+    QJsonObject s;
+    s["type"] = "treemap";
+    s["data"] = QJsonArray{a, b};
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::TreeSpecData out;
+    ASSERT_TRUE(ChartSource::parseTreeSpec(json(spec), out));
+    ASSERT_EQ(out.rows.size(), 4);
+    EXPECT_EQ(out.rows[0], (QStringList{"nodeA", "nodeAa", "4"}));
+    EXPECT_EQ(out.rows[1], (QStringList{"nodeA", "nodeAb", "6"}));
+    EXPECT_EQ(out.rows[2], (QStringList{"nodeB", "nodeBa", "12"}));
+    EXPECT_EQ(out.rows[3], (QStringList{"nodeB", "nodeBb", "8"}));
+}
+
+TEST(ChartSourceTree, SunburstLeafFlatten) {
+    // Sunburst data is usually a single root whose children carry their own
+    // children — the parser must treat the outer array as the root set.
+    QJsonObject root;
+    root["name"] = "nodeA";
+    root["value"] = 10;
+    root["children"] = QJsonArray{
+        QJsonObject{{"name", "nodeAa"}, {"value", 4}},
+        QJsonObject{{"name", "nodeAb"},
+                    {"children", QJsonArray{
+                        QJsonObject{{"name", "nodeAb1"}, {"value", 3}},
+                        QJsonObject{{"name", "nodeAb2"}, {"value", 3}}}}},
+    };
+    QJsonObject s;
+    s["type"] = "sunburst";
+    s["data"] = QJsonArray{root};
+    QJsonObject spec;
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::TreeSpecData out;
+    ASSERT_TRUE(ChartSource::parseTreeSpec(json(spec), out));
+    ASSERT_EQ(out.rows.size(), 3);
+    EXPECT_EQ(out.rows[0], (QStringList{"nodeA", "nodeAa", "4"}));
+    EXPECT_EQ(out.rows[1], (QStringList{"nodeA", "nodeAb", "nodeAb1", "3"}));
+    EXPECT_EQ(out.rows[2], (QStringList{"nodeA", "nodeAb", "nodeAb2", "3"}));
+}
+
+// ---------------------------------------------------------------------------
 // Mermaid
 // ---------------------------------------------------------------------------
 

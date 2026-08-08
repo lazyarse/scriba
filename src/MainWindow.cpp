@@ -34,6 +34,7 @@
 #include "TableDialog.h"
 #include "ChartDialog.h"
 #include "StockChartDialog.h"
+#include "AdvancedChartDialog.h"
 #include "EmojiDialog.h"
 #include "AboutDialog.h"
 #include "LogWindow.h"
@@ -1088,6 +1089,9 @@ void MainWindow::setupMenuBar()
     stockAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
     connect(stockAction, &QAction::triggered, this, &MainWindow::showStockChartBuilder);
 
+    QAction *advancedAction = toolsMenu->addAction("&Advanced Charts...");
+    connect(advancedAction, &QAction::triggered, this, &MainWindow::showAdvancedChartBuilder);
+
     QAction *mermaidAction = toolsMenu->addAction("&Mermaid Diagrams...");
     mermaidAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
     connect(mermaidAction, &QAction::triggered, this, [this]() {
@@ -1662,6 +1666,17 @@ void MainWindow::showStockChartBuilder()
     }
 }
 
+void MainWindow::showAdvancedChartBuilder()
+{
+    AdvancedChartDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString spec = dlg.generatedSpec();
+        Editor *ed = currentEditor();
+        if (!spec.isEmpty() && ed)
+            ed->insertPlainText(spec);
+    }
+}
+
 void MainWindow::showKatexHelper()
 {
     KatexHelperDialog dlg(m_cssLoader->themeCss(), QString(), this);
@@ -1717,6 +1732,21 @@ void MainWindow::editChartBlock(Editor *ed, int blockNumber)
         }
         case ChartSource::EcType::Chart: {
             ChartDialog dlg(body, this);
+            if (dlg.exec() != QDialog::Accepted)
+                return;
+            QString replacement = dlg.generatedSpec().trimmed();
+            if (!replacement.isEmpty())
+                ed->replaceBlockRange(range.first, range.second, replacement);
+            break;
+        }
+        case ChartSource::EcType::Sankey:
+        case ChartSource::EcType::Boxplot:
+        case ChartSource::EcType::Parallel:
+        case ChartSource::EcType::ThemeRiver:
+        case ChartSource::EcType::Graph:
+        case ChartSource::EcType::Treemap:
+        case ChartSource::EcType::Sunburst: {
+            AdvancedChartDialog dlg(body, this);
             if (dlg.exec() != QDialog::Accepted)
                 return;
             QString replacement = dlg.generatedSpec().trimmed();

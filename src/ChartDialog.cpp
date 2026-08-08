@@ -42,7 +42,7 @@
 #include <algorithm>
 #include <cmath>
 
-enum class ChartSeries { Bar, Line, Area, Scatter, Pie, Funnel, Gauge, Radar, Heatmap, Calendar };
+enum class ChartSeries { Bar, Line, Area, Scatter, EffectScatter, PictorialBar, Pie, Funnel, Gauge, Radar, Heatmap, Calendar };
 
 static QString chartSeriesToString(ChartSeries series)
 {
@@ -51,6 +51,8 @@ static QString chartSeriesToString(ChartSeries series)
         case ChartSeries::Line: return QStringLiteral("line");
         case ChartSeries::Area: return QStringLiteral("line");
         case ChartSeries::Scatter: return QStringLiteral("scatter");
+        case ChartSeries::EffectScatter: return QStringLiteral("effectScatter");
+        case ChartSeries::PictorialBar: return QStringLiteral("pictorialBar");
         case ChartSeries::Pie: return QStringLiteral("pie");
         case ChartSeries::Funnel: return QStringLiteral("funnel");
         case ChartSeries::Gauge: return QStringLiteral("gauge");
@@ -172,6 +174,8 @@ void ChartDialog::prefillFromSpec(const QString &specJson)
         : data.type == QLatin1String("line") ? ChartSeries::Line
         : data.type == QLatin1String("area") ? ChartSeries::Area
         : data.type == QLatin1String("scatter") ? ChartSeries::Scatter
+        : data.type == QLatin1String("effectScatter") ? ChartSeries::EffectScatter
+        : data.type == QLatin1String("pictorialBar") ? ChartSeries::PictorialBar
         : data.type == QLatin1String("funnel") ? ChartSeries::Funnel
         : data.type == QLatin1String("gauge") ? ChartSeries::Gauge
         : data.type == QLatin1String("radar") ? ChartSeries::Radar
@@ -184,6 +188,9 @@ void ChartDialog::prefillFromSpec(const QString &specJson)
     m_titleEdit->setText(data.title);
     m_tooltipCheck->setChecked(data.tooltip);
     m_animateCheck->setChecked(data.animate);
+    m_rippleCheck->setChecked(data.rippleEffect);
+    m_repeatCheck->setChecked(data.repeatSymbol);
+    updateTypeOptions();
 
     m_table->blockSignals(true);
     m_table->setColumnCount(data.headers.size());
@@ -253,6 +260,8 @@ void ChartDialog::setupLeftPanel(QWidget *panel)
     addSeries("Line", ChartSeries::Line);
     addSeries("Area", ChartSeries::Area);
     addSeries("Scatter", ChartSeries::Scatter);
+    addSeries("Effect Scatter", ChartSeries::EffectScatter);
+    addSeries("Pictorial Bar", ChartSeries::PictorialBar);
     addSeries("Pie", ChartSeries::Pie);
     addSeries("Funnel", ChartSeries::Funnel);
     addSeries("Gauge", ChartSeries::Gauge);
@@ -323,6 +332,12 @@ void ChartDialog::setupLeftPanel(QWidget *panel)
     optLayout->addWidget(new QLabel("Title:", optGroup), 0, 0);
     m_titleEdit = new QLineEdit(optGroup);
     optLayout->addWidget(m_titleEdit, 0, 1);
+    m_rippleCheck = new QCheckBox("Ripple effect", optGroup);
+    m_rippleCheck->setChecked(true);
+    optLayout->addWidget(m_rippleCheck, 1, 0, 1, 2);
+    m_repeatCheck = new QCheckBox("Repeat symbol", optGroup);
+    m_repeatCheck->setChecked(true);
+    optLayout->addWidget(m_repeatCheck, 2, 0, 1, 2);
     optLayout->setColumnStretch(1, 1);
     layout->addWidget(optGroup);
 
@@ -356,6 +371,8 @@ void ChartDialog::setupLeftPanel(QWidget *panel)
     connect(m_titleEdit, &QLineEdit::textChanged, this, &ChartDialog::schedulePreviewUpdate);
     connect(m_tooltipCheck, &QCheckBox::toggled, this, &ChartDialog::schedulePreviewUpdate);
     connect(m_animateCheck, &QCheckBox::toggled, this, &ChartDialog::schedulePreviewUpdate);
+    connect(m_rippleCheck, &QCheckBox::toggled, this, &ChartDialog::schedulePreviewUpdate);
+    connect(m_repeatCheck, &QCheckBox::toggled, this, &ChartDialog::schedulePreviewUpdate);
 
     QComboBox *fieldBoxes[] = {m_fieldX, m_fieldY, m_fieldZ};
     for (QComboBox *combo : fieldBoxes)
@@ -365,7 +382,16 @@ void ChartDialog::setupLeftPanel(QWidget *panel)
 
 void ChartDialog::onChartTypeChanged()
 {
+    updateTypeOptions();
     schedulePreviewUpdate();
+}
+
+void ChartDialog::updateTypeOptions()
+{
+    const ChartSeries series =
+        static_cast<ChartSeries>(m_chartTypeCombo->currentData().toInt());
+    m_rippleCheck->setVisible(series == ChartSeries::EffectScatter);
+    m_repeatCheck->setVisible(series == ChartSeries::PictorialBar);
 }
 
 void ChartDialog::onDataChanged()
@@ -852,7 +878,8 @@ QString ChartDialog::buildSpec() const
         return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
     }
 
-    // Bar / Line / Area / Scatter: existing cartesian path.
+    // Bar / Line / Area / Scatter / Effect Scatter / Pictorial Bar: existing
+    // cartesian path.
     bool numericX = allNumeric(xValues);
     QJsonObject xAxis;
     xAxis["type"] = numericX ? "value" : "category";
@@ -865,6 +892,21 @@ QString ChartDialog::buildSpec() const
     if (series == ChartSeries::Area) {
         QJsonObject areaStyle;
         s["areaStyle"] = areaStyle;
+    }
+    if (series == ChartSeries::EffectScatter) {
+        s["symbolSize"] = 28;
+        if (m_rippleCheck->isChecked()) {
+            QJsonObject rippleEffect;
+            rippleEffect["scale"] = 4;
+            s["rippleEffect"] = rippleEffect;
+        }
+    }
+    if (series == ChartSeries::PictorialBar && m_repeatCheck->isChecked()) {
+        s["symbol"] = "rect";
+        s["symbolRepeat"] = true;
+        s["symbolSize"] = QJsonArray{12, 16};
+        s["symbolOffset"] = QJsonArray{0, 12};
+        s["barWidth"] = "50%";
     }
     if (numericX) {
         QJsonArray pairs;

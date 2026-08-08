@@ -29,6 +29,7 @@ declare -A TARGETS=(
     [mchem-dialog]="shot_mchem_dialog|Insert Chemistry Notation helper"
     [chart-dialog]="shot_chart_dialog|Chart builder (ECharts)"
     [stock-chart-dialog]="shot_stock_chart_dialog|Stock chart builder"
+    [advanced-charts]="shot_advanced_charts|Advanced Charts builder (sankey/treemap/...)"
     [mermaid-dialog]="shot_mermaid_dialog|Mermaid chart helper"
     [check-spelling]="shot_check_spelling|Check Spelling dialog"
     [validation-report]="shot_validation_report|Validation Report options"
@@ -38,7 +39,7 @@ declare -A TARGETS=(
 # Display order for --help rows and the full-suite run (assoc arrays don't
 # preserve insertion order).
 TARGET_ORDER=(screenshot tabbar gutter-pencil preferences table-dialog emoji-picker katex-dialog
-              mchem-dialog chart-dialog stock-chart-dialog mermaid-dialog
+              mchem-dialog chart-dialog stock-chart-dialog advanced-charts mermaid-dialog
               check-spelling validation-report print-pdf-dialog)
 
 usage() {
@@ -344,6 +345,20 @@ shot_chart_dialog() { open ctrl+g; capture "Chart Builder" "$OUT_DIR/chart-dialo
 
 # --- Stock chart builder (candlestick with volume + MAs) ---
 shot_stock_chart_dialog() { open ctrl+alt+s; capture "Stock Chart Builder" "$OUT_DIR/stock-chart-dialog.png"; }
+
+# --- Advanced Charts builder (sankey default, live preview) ---
+# The action has no shortcut; open the &Tools menu and pick "&Advanced
+# Charts..." by its Alt-mnemonic (a).
+shot_advanced_charts() {
+    xdotool windowfocus "$WID"
+    sleep 0.2
+    xdotool key alt+t
+    sleep 0.4
+    xdotool key a
+    sleep 0.4
+    xdotool key Return
+    capture "Advanced Charts" "$OUT_DIR/advanced-charts.png"
+}
 
 # --- Mermaid chart helper (default pie chart) ---
 shot_mermaid_dialog() { open ctrl+m; capture "Mermaid Diagrams" "$OUT_DIR/mermaid-dialog.png"; }

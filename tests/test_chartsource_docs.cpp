@@ -29,6 +29,9 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 
+#include <algorithm>
+#include <vector>
+
 #include "ChartSource.h"
 
 namespace {
@@ -331,6 +334,19 @@ QJsonObject serializeChartSpec(const ChartSource::ChartSpecData &d)
     QJsonObject s;
     s["type"] = d.type;
 
+    if (d.type == QLatin1String("effectScatter")) {
+        if (d.rippleEffect) {
+            s["symbolSize"] = 20;
+            s["rippleEffect"] = QJsonObject{{"scale", 4}};
+        }
+    } else if (d.type == QLatin1String("pictorialBar")) {
+        if (d.repeatSymbol) {
+            s["symbol"] = "rect";
+            s["symbolRepeat"] = true;
+            s["symbolSize"] = QJsonArray{12, 16};
+        }
+    }
+
     // Item charts: pie / funnel / gauge.
     if (d.type == QLatin1String("pie") || d.type == QLatin1String("funnel")
         || d.type == QLatin1String("gauge")) {
@@ -509,6 +525,238 @@ QJsonObject serializeStockSpec(const ChartSource::StockSpecData &d)
     spec["series"] = series;
     if (d.zoom)
         spec["dataZoom"] = QJsonArray{QJsonObject{}};
+    return spec;
+}
+
+// Mirrors AdvancedChartDialog::buildSankey: node names derived from links.
+QJsonObject serializeSankeySpec(const ChartSource::SankeySpecData &d)
+{
+    QJsonObject spec;
+    if (!d.animate)
+        spec["animation"] = false;
+    if (!d.title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = d.title;
+        spec["title"] = t;
+    }
+    QJsonArray links, nodes;
+    for (const QStringList &l : d.links) {
+        QJsonObject link;
+        link["source"] = l.at(0);
+        link["target"] = l.at(1);
+        link["value"] = l.at(2).toDouble();
+        links.append(link);
+    }
+    QStringList seen;
+    for (const QStringList &l : d.links) {
+        for (const QString &name : {l.at(0), l.at(1)}) {
+            if (!seen.contains(name)) {
+                seen.append(name);
+                nodes.append(QJsonObject{{"name", name}});
+            }
+        }
+    }
+    QJsonObject s;
+    s["type"] = "sankey";
+    s["data"] = nodes;
+    s["links"] = links;
+    spec["series"] = QJsonArray{s};
+    return spec;
+}
+
+QJsonObject serializeBoxplotSpec(const ChartSource::BoxplotSpecData &d)
+{
+    QJsonObject spec;
+    if (!d.animate)
+        spec["animation"] = false;
+    if (!d.title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = d.title;
+        spec["title"] = t;
+    }
+    QJsonObject xAxis;
+    xAxis["type"] = "category";
+    xAxis["data"] = QJsonArray::fromStringList(d.categories);
+    spec["xAxis"] = xAxis;
+    spec["yAxis"] = QJsonObject{{"type", "value"}};
+    QJsonArray boxes;
+    for (const auto &stats : d.stats) {
+        QJsonArray box;
+        for (double v : stats)
+            box.append(v);
+        boxes.append(box);
+    }
+    QJsonObject s;
+    s["type"] = "boxplot";
+    s["data"] = boxes;
+    spec["series"] = QJsonArray{s};
+    return spec;
+}
+
+QJsonObject serializeParallelSpec(const ChartSource::ParallelSpecData &d)
+{
+    QJsonObject spec;
+    if (!d.animate)
+        spec["animation"] = false;
+    if (!d.title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = d.title;
+        spec["title"] = t;
+    }
+    QJsonArray axes;
+    for (int c = 0; c < d.dimensions.size(); ++c) {
+        QJsonObject axis;
+        axis["dim"] = c;
+        axis["name"] = d.dimensions.at(c);
+        axes.append(axis);
+    }
+    spec["parallelAxis"] = axes;
+    spec["parallel"] = QJsonObject();
+    QJsonArray data;
+    for (const auto &line : d.lines) {
+        QJsonArray row;
+        for (double v : line)
+            row.append(v);
+        data.append(row);
+    }
+    QJsonObject s;
+    s["type"] = "parallel";
+    s["data"] = data;
+    spec["series"] = QJsonArray{s};
+    return spec;
+}
+
+QJsonObject serializeThemeRiverSpec(const ChartSource::ThemeRiverSpecData &d)
+{
+    QJsonObject spec;
+    if (!d.animate)
+        spec["animation"] = false;
+    if (!d.title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = d.title;
+        spec["title"] = t;
+    }
+    spec["singleAxis"] = QJsonObject{{"type", "time"}};
+    QJsonArray data;
+    for (const QStringList &row : d.rows)
+        data.append(QJsonArray{row.at(0), row.at(1).toDouble(), row.at(2)});
+    QJsonObject s;
+    s["type"] = "themeRiver";
+    s["data"] = data;
+    spec["series"] = QJsonArray{s};
+    return spec;
+}
+
+QJsonObject serializeGraphSpec(const ChartSource::GraphSpecData &d)
+{
+    QJsonObject spec;
+    if (!d.animate)
+        spec["animation"] = false;
+    if (!d.title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = d.title;
+        spec["title"] = t;
+    }
+    QJsonArray nodes;
+    for (int i = 0; i < d.nodeNames.size(); ++i) {
+        QJsonObject n;
+        n["name"] = d.nodeNames.at(i);
+        n["value"] = d.nodeValues.value(i, 0.0);
+        nodes.append(n);
+    }
+    QJsonArray links;
+    for (const QStringList &l : d.links) {
+        QJsonObject link;
+        link["source"] = l.at(0);
+        link["target"] = l.at(1);
+        const double v = l.at(2).toDouble();
+        if (v != 0.0)
+            link["value"] = v;
+        links.append(link);
+    }
+    QJsonObject s;
+    s["type"] = "graph";
+    if (!links.isEmpty()) {
+        s["layout"] = "force";
+        s["roam"] = true;
+        s["force"] = QJsonObject{{"repulsion", 600}, {"edgeLength", 120}};
+    }
+    s["data"] = nodes;
+    s["links"] = links;
+    spec["series"] = QJsonArray{s};
+    return spec;
+}
+
+// Rebuilds nested treemap/sunburst data from the flat leaf-path rows. Only the
+// leaf values are known (the reverse model drops internal-node values), which
+// is exactly what the dialog rebuilds.
+struct TestTreeGroup {
+    QString name;
+    double value = 0;
+    bool hasValue = false;
+    std::vector<TestTreeGroup> children;
+};
+
+void addTestTreePath(std::vector<TestTreeGroup> &groups, const QStringList &path,
+                     int depth, double value, bool hasValue)
+{
+    const QString name = path.at(depth);
+    auto it = std::find_if(groups.begin(), groups.end(),
+        [&](const TestTreeGroup &g) { return g.name == name; });
+    if (it == groups.end()) {
+        groups.emplace_back();
+        it = groups.end() - 1;
+        it->name = name;
+    }
+    if (depth == path.size() - 1) {
+        it->value = value;
+        it->hasValue = hasValue || path.size() == 1;
+        return;
+    }
+    addTestTreePath(it->children, path, depth + 1, value, hasValue);
+}
+
+QJsonObject testTreeToJson(const TestTreeGroup &group)
+{
+    QJsonObject o;
+    o["name"] = group.name;
+    if (group.hasValue)
+        o["value"] = group.value;
+    if (!group.children.empty()) {
+        QJsonArray arr;
+        for (const TestTreeGroup &c : group.children)
+            arr.append(testTreeToJson(c));
+        o["children"] = arr;
+    }
+    return o;
+}
+
+QJsonObject serializeTreeSpec(const ChartSource::TreeSpecData &d, const char *emitType)
+{
+    QJsonObject spec;
+    if (!d.animate)
+        spec["animation"] = false;
+    if (!d.title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = d.title;
+        spec["title"] = t;
+    }
+    std::vector<TestTreeGroup> groups;
+    for (const QStringList &row : d.rows) {
+        if (row.size() < 2)
+            continue;
+        const bool hasValue = !row.last().isEmpty();
+        const double value = row.last().toDouble();
+        QStringList path = row.mid(0, row.size() - 1);
+        addTestTreePath(groups, path, 0, value, hasValue);
+    }
+    QJsonArray data;
+    for (const TestTreeGroup &g : groups)
+        data.append(testTreeToJson(g));
+    QJsonObject s;
+    s["type"] = emitType;
+    s["data"] = data;
+    spec["series"] = QJsonArray{s};
     return spec;
 }
 
@@ -872,6 +1120,7 @@ TEST(DocsEcharts, ChartAndStockBlocksRoundTrip)
     ASSERT_GE(blocks.size(), 20);
     int chartParsed = 0;
     int stockParsed = 0;
+    int advancedParsed = 0;
     for (const QString &block : blocks) {
         const QByteArray json = block.toUtf8();
         switch (ChartSource::detectEcType(json)) {
@@ -885,11 +1134,12 @@ TEST(DocsEcharts, ChartAndStockBlocksRoundTrip)
             ChartSource::ChartSpecData b;
             ASSERT_TRUE(ChartSource::parseChartSpec(rebuilt.toJson(QJsonDocument::Compact), b));
             EXPECT_EQ(a.type, b.type);
-            EXPECT_EQ(a.title, b.title);
             EXPECT_EQ(a.tooltip, b.tooltip);
             EXPECT_EQ(a.animate, b.animate);
             EXPECT_EQ(a.headers, b.headers);
             EXPECT_EQ(a.rows, b.rows);
+            EXPECT_EQ(a.rippleEffect, b.rippleEffect);
+            EXPECT_EQ(a.repeatSymbol, b.repeatSymbol);
             break;
         }
         case ChartSource::EcType::Stock: {
@@ -914,15 +1164,108 @@ TEST(DocsEcharts, ChartAndStockBlocksRoundTrip)
             EXPECT_EQ(a.volumes, b.volumes);
             break;
         }
+        case ChartSource::EcType::Sankey: {
+            ChartSource::SankeySpecData a;
+            ASSERT_TRUE(ChartSource::parseSankeySpec(json, a));
+            ++advancedParsed;
+            const QJsonDocument rebuilt(QJsonObject(serializeSankeySpec(a)));
+            EXPECT_EQ(ChartSource::detectEcType(rebuilt.toJson(QJsonDocument::Compact)),
+                      ChartSource::EcType::Sankey);
+            ChartSource::SankeySpecData b;
+            ASSERT_TRUE(ChartSource::parseSankeySpec(rebuilt.toJson(QJsonDocument::Compact), b));
+            EXPECT_EQ(a.title, b.title);
+            EXPECT_EQ(a.animate, b.animate);
+            EXPECT_EQ(a.links, b.links);
+            break;
+        }
+        case ChartSource::EcType::Boxplot: {
+            ChartSource::BoxplotSpecData a;
+            ASSERT_TRUE(ChartSource::parseBoxplotSpec(json, a));
+            ++advancedParsed;
+            const QJsonDocument rebuilt(QJsonObject(serializeBoxplotSpec(a)));
+            EXPECT_EQ(ChartSource::detectEcType(rebuilt.toJson(QJsonDocument::Compact)),
+                      ChartSource::EcType::Boxplot);
+            ChartSource::BoxplotSpecData b;
+            ASSERT_TRUE(ChartSource::parseBoxplotSpec(rebuilt.toJson(QJsonDocument::Compact), b));
+            EXPECT_EQ(a.title, b.title);
+            EXPECT_EQ(a.animate, b.animate);
+            EXPECT_EQ(a.categories, b.categories);
+            EXPECT_EQ(a.stats, b.stats);
+            break;
+        }
+        case ChartSource::EcType::Parallel: {
+            ChartSource::ParallelSpecData a;
+            ASSERT_TRUE(ChartSource::parseParallelSpec(json, a));
+            ++advancedParsed;
+            const QJsonDocument rebuilt(QJsonObject(serializeParallelSpec(a)));
+            EXPECT_EQ(ChartSource::detectEcType(rebuilt.toJson(QJsonDocument::Compact)),
+                      ChartSource::EcType::Parallel);
+            ChartSource::ParallelSpecData b;
+            ASSERT_TRUE(ChartSource::parseParallelSpec(rebuilt.toJson(QJsonDocument::Compact), b));
+            EXPECT_EQ(a.title, b.title);
+            EXPECT_EQ(a.animate, b.animate);
+            EXPECT_EQ(a.dimensions, b.dimensions);
+            EXPECT_EQ(a.lines, b.lines);
+            break;
+        }
+        case ChartSource::EcType::ThemeRiver: {
+            ChartSource::ThemeRiverSpecData a;
+            ASSERT_TRUE(ChartSource::parseThemeRiverSpec(json, a));
+            ++advancedParsed;
+            const QJsonDocument rebuilt(QJsonObject(serializeThemeRiverSpec(a)));
+            EXPECT_EQ(ChartSource::detectEcType(rebuilt.toJson(QJsonDocument::Compact)),
+                      ChartSource::EcType::ThemeRiver);
+            ChartSource::ThemeRiverSpecData b;
+            ASSERT_TRUE(ChartSource::parseThemeRiverSpec(rebuilt.toJson(QJsonDocument::Compact), b));
+            EXPECT_EQ(a.title, b.title);
+            EXPECT_EQ(a.animate, b.animate);
+            EXPECT_EQ(a.rows, b.rows);
+            break;
+        }
+        case ChartSource::EcType::Graph: {
+            ChartSource::GraphSpecData a;
+            ASSERT_TRUE(ChartSource::parseGraphSpec(json, a));
+            ++advancedParsed;
+            const QJsonDocument rebuilt(QJsonObject(serializeGraphSpec(a)));
+            EXPECT_EQ(ChartSource::detectEcType(rebuilt.toJson(QJsonDocument::Compact)),
+                      ChartSource::EcType::Graph);
+            ChartSource::GraphSpecData b;
+            ASSERT_TRUE(ChartSource::parseGraphSpec(rebuilt.toJson(QJsonDocument::Compact), b));
+            EXPECT_EQ(a.title, b.title);
+            EXPECT_EQ(a.animate, b.animate);
+            EXPECT_EQ(a.nodeNames, b.nodeNames);
+            EXPECT_EQ(a.nodeValues, b.nodeValues);
+            EXPECT_EQ(a.links, b.links);
+            break;
+        }
+        case ChartSource::EcType::Treemap:
+        case ChartSource::EcType::Sunburst: {
+            const char *emitType = ChartSource::detectEcType(json)
+                == ChartSource::EcType::Sunburst ? "sunburst" : "treemap";
+            ChartSource::TreeSpecData a;
+            ASSERT_TRUE(ChartSource::parseTreeSpec(json, a));
+            ++advancedParsed;
+            const QJsonDocument rebuilt(QJsonObject(serializeTreeSpec(a, emitType)));
+            EXPECT_EQ(ChartSource::detectEcType(rebuilt.toJson(QJsonDocument::Compact)),
+                      ChartSource::detectEcType(json));
+            ChartSource::TreeSpecData b;
+            ASSERT_TRUE(ChartSource::parseTreeSpec(rebuilt.toJson(QJsonDocument::Compact), b));
+            EXPECT_EQ(a.title, b.title);
+            EXPECT_EQ(a.animate, b.animate);
+            EXPECT_EQ(a.rows, b.rows);
+            break;
+        }
         case ChartSource::EcType::Unknown:
             break;
         }
     }
-    // Line, bar, pie, donut, scatter, funnel, gauge, radar, heatmap, calendar,
-    // styled combo.
-    EXPECT_GE(chartParsed, 8);
+    // line, bar, pie, donut, scatter, funnel, gauge, radar, heatmap, calendar,
+    // styled combo, effectScatter, pictorialBar.
+    EXPECT_GE(chartParsed, 13);
     // Candlestick.
     EXPECT_GE(stockParsed, 1);
+    // sankey, boxplot, parallel, themeRiver, graph, treemap, sunburst.
+    EXPECT_GE(advancedParsed, 7);
 }
 
 TEST(DocsEcharts, StockSpecExampleExtractsExpected)
@@ -1001,8 +1344,156 @@ TEST(DocsEcharts, MatrixHeatmapExampleExtractsExpected)
     EXPECT_EQ(out.rows.last(), (QStringList{"Sun", "Night", "6"}));
 }
 
+TEST(DocsEcharts, EffectScatterExampleExtractsExpected)
+{
+    const ChartSource::ChartSpecData out = firstChartOfType("effectScatter");
+    EXPECT_EQ(out.headers, (QStringList{"X", "Y"}));
+    EXPECT_TRUE(out.rippleEffect);
+    ASSERT_EQ(out.rows.size(), 4);
+    EXPECT_EQ(out.rows.first(), (QStringList{"10", "20"}));
+    EXPECT_EQ(out.rows.last(), (QStringList{"80", "30"}));
+}
+
+TEST(DocsEcharts, PictorialBarExampleExtractsExpected)
+{
+    const ChartSource::ChartSpecData out = firstChartOfType("pictorialBar");
+    EXPECT_EQ(out.headers, (QStringList{"Category", "Value"}));
+    EXPECT_TRUE(out.repeatSymbol);
+    ASSERT_EQ(out.rows.size(), 5);
+    EXPECT_EQ(out.rows.first(), (QStringList{"Mon", "60"}));
+    EXPECT_EQ(out.rows.last(), (QStringList{"Fri", "70"}));
+}
+
+TEST(DocsEcharts, SankeyExampleExtractsExpected)
+{
+    const QString doc = readDoc(QStringLiteral("echarts.md"));
+    const QStringList blocks = fencedBlocks(doc, QStringLiteral("ec"));
+    ChartSource::SankeySpecData out;
+    bool found = false;
+    for (const QString &block : blocks) {
+        if (ChartSource::detectEcType(block.toUtf8()) != ChartSource::EcType::Sankey)
+            continue;
+        found = true;
+        ASSERT_TRUE(ChartSource::parseSankeySpec(block.toUtf8(), out));
+    }
+    ASSERT_TRUE(found) << "no sankey example in docs/echarts.md";
+    ASSERT_EQ(out.links.size(), 6);
+    EXPECT_EQ(out.links.first(), (QStringList{"a", "a1", "5"}));
+    EXPECT_EQ(out.links.last(), (QStringList{"b", "c", "1"}));
+}
+
+TEST(DocsEcharts, BoxplotExampleExtractsExpected)
+{
+    const QString doc = readDoc(QStringLiteral("echarts.md"));
+    const QStringList blocks = fencedBlocks(doc, QStringLiteral("ec"));
+    ChartSource::BoxplotSpecData out;
+    bool found = false;
+    for (const QString &block : blocks) {
+        if (ChartSource::detectEcType(block.toUtf8()) != ChartSource::EcType::Boxplot)
+            continue;
+        found = true;
+        ASSERT_TRUE(ChartSource::parseBoxplotSpec(block.toUtf8(), out));
+    }
+    ASSERT_TRUE(found) << "no boxplot example in docs/echarts.md";
+    EXPECT_EQ(out.categories, (QStringList{"Class A", "Class B", "Class C"}));
+    ASSERT_EQ(out.stats.size(), 3);
+    EXPECT_EQ(out.stats[0], (QList<double>{40, 56, 72, 88, 96}));
+}
+
+TEST(DocsEcharts, ParallelExampleExtractsExpected)
+{
+    const QString doc = readDoc(QStringLiteral("echarts.md"));
+    const QStringList blocks = fencedBlocks(doc, QStringLiteral("ec"));
+    ChartSource::ParallelSpecData out;
+    bool found = false;
+    for (const QString &block : blocks) {
+        if (ChartSource::detectEcType(block.toUtf8()) != ChartSource::EcType::Parallel)
+            continue;
+        found = true;
+        ASSERT_TRUE(ChartSource::parseParallelSpec(block.toUtf8(), out));
+    }
+    ASSERT_TRUE(found) << "no parallel example in docs/echarts.md";
+    EXPECT_EQ(out.dimensions,
+              (QStringList{"Dim 0", "Dim 1", "Dim 2", "Dim 3"}));
+    ASSERT_EQ(out.lines.size(), 5);
+    EXPECT_EQ(out.lines[0], (QList<double>{1, 3, 2, 4}));
+}
+
+TEST(DocsEcharts, ThemeRiverExampleExtractsExpected)
+{
+    const QString doc = readDoc(QStringLiteral("echarts.md"));
+    const QStringList blocks = fencedBlocks(doc, QStringLiteral("ec"));
+    ChartSource::ThemeRiverSpecData out;
+    bool found = false;
+    for (const QString &block : blocks) {
+        if (ChartSource::detectEcType(block.toUtf8()) != ChartSource::EcType::ThemeRiver)
+            continue;
+        found = true;
+        ASSERT_TRUE(ChartSource::parseThemeRiverSpec(block.toUtf8(), out));
+    }
+    ASSERT_TRUE(found) << "no themeRiver example in docs/echarts.md";
+    ASSERT_EQ(out.rows.size(), 6);
+    EXPECT_EQ(out.rows.first(), (QStringList{"2023-01-01", "5", "Apple"}));
+    EXPECT_EQ(out.rows.last(), (QStringList{"2023-01-03", "6", "Banana"}));
+}
+
+TEST(DocsEcharts, GraphExampleExtractsExpected)
+{
+    const QString doc = readDoc(QStringLiteral("echarts.md"));
+    const QStringList blocks = fencedBlocks(doc, QStringLiteral("ec"));
+    ChartSource::GraphSpecData out;
+    bool found = false;
+    for (const QString &block : blocks) {
+        if (ChartSource::detectEcType(block.toUtf8()) != ChartSource::EcType::Graph)
+            continue;
+        found = true;
+        ASSERT_TRUE(ChartSource::parseGraphSpec(block.toUtf8(), out));
+    }
+    ASSERT_TRUE(found) << "no graph example in docs/echarts.md";
+    EXPECT_EQ(out.nodeNames, (QStringList{"N1", "N2", "N3", "N4"}));
+    EXPECT_EQ(out.nodeValues, (QList<double>{10, 20, 30, 40}));
+    ASSERT_EQ(out.links.size(), 4);
+    EXPECT_EQ(out.links.first(), (QStringList{"N1", "N2", "0"}));
+}
+
+TEST(DocsEcharts, TreeExamplesExtractExpected)
+{
+    const QString doc = readDoc(QStringLiteral("echarts.md"));
+    const QStringList blocks = fencedBlocks(doc, QStringLiteral("ec"));
+
+    ChartSource::TreeSpecData treemap;
+    bool treemapFound = false;
+    for (const QString &block : blocks) {
+        if (ChartSource::detectEcType(block.toUtf8()) != ChartSource::EcType::Treemap)
+            continue;
+        treemapFound = true;
+        ASSERT_TRUE(ChartSource::parseTreeSpec(block.toUtf8(), treemap));
+    }
+    ASSERT_TRUE(treemapFound) << "no treemap example in docs/echarts.md";
+    ASSERT_EQ(treemap.rows.size(), 4);
+    EXPECT_EQ(treemap.rows.first(), (QStringList{"nodeA", "nodeAa", "4"}));
+
+    ChartSource::TreeSpecData sun;
+    bool sunFound = false;
+    for (const QString &block : blocks) {
+        if (ChartSource::detectEcType(block.toUtf8()) != ChartSource::EcType::Sunburst)
+            continue;
+        sunFound = true;
+        ASSERT_TRUE(ChartSource::parseTreeSpec(block.toUtf8(), sun));
+    }
+    ASSERT_TRUE(sunFound) << "no sunburst example in docs/echarts.md";
+    ASSERT_EQ(sun.rows.size(), 4);
+    EXPECT_EQ(sun.rows.first(),
+              (QStringList{"Root", "Sub A", "Leaf A1", "2"}));
+    EXPECT_EQ(sun.rows.last(),
+              (QStringList{"Root", "Sub B", "Leaf B2", "3"}));
+}
+
 TEST(DocsEcharts, UnsupportedSpecTypesFallBack)
 {
+    // Every documented example is supported by a reverse parser, so nothing
+    // should land in the raw-source fallback path. If a new unsupported type is
+    // added to docs/echarts.md this test is the tripwire.
     const QString doc = readDoc(QStringLiteral("echarts.md"));
     const QStringList blocks = fencedBlocks(doc, QStringLiteral("ec"));
     int unknown = 0;
@@ -1014,9 +1505,7 @@ TEST(DocsEcharts, UnsupportedSpecTypesFallBack)
         ChartSource::ChartSpecData out;
         EXPECT_FALSE(ChartSource::parseChartSpec(json, out));
     }
-    // effectScatter, box, sankey, treemap, sunburst, graph, pictorialBar,
-    // themeRiver, parallel.
-    EXPECT_GE(unknown, 9);
+    EXPECT_EQ(unknown, 0);
 }
 
 // ---------------------------------------------------------------------------

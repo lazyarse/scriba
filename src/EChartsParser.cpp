@@ -18,7 +18,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QHash>
 #include <QRegularExpression>
+#include <algorithm>
 
 namespace ChartSource {
 
@@ -41,14 +43,30 @@ EcType detectEcType(const QByteArray &specJson)
     const QJsonArray series = spec.value("series").toArray();
     if (series.isEmpty())
         return EcType::Unknown;
-    if (seriesType(spec, 0) == QLatin1String("candlestick"))
-        return EcType::Stock;
     const QString type = seriesType(spec, 0);
+    if (type == QLatin1String("candlestick"))
+        return EcType::Stock;
     if (type == QLatin1String("bar") || type == QLatin1String("line")
         || type == QLatin1String("scatter") || type == QLatin1String("pie")
         || type == QLatin1String("funnel") || type == QLatin1String("gauge")
-        || type == QLatin1String("radar") || type == QLatin1String("heatmap"))
+        || type == QLatin1String("radar") || type == QLatin1String("heatmap")
+        || type == QLatin1String("effectScatter")
+        || type == QLatin1String("pictorialBar"))
         return EcType::Chart;
+    if (type == QLatin1String("sankey"))
+        return EcType::Sankey;
+    if (type == QLatin1String("boxplot"))
+        return EcType::Boxplot;
+    if (type == QLatin1String("parallel"))
+        return EcType::Parallel;
+    if (type == QLatin1String("themeRiver"))
+        return EcType::ThemeRiver;
+    if (type == QLatin1String("graph"))
+        return EcType::Graph;
+    if (type == QLatin1String("treemap"))
+        return EcType::Treemap;
+    if (type == QLatin1String("sunburst"))
+        return EcType::Sunburst;
     return EcType::Unknown;
 }
 
@@ -86,6 +104,8 @@ bool parseChartSpec(const QByteArray &specJson, ChartSpecData &out)
         return false;
     if (type == QLatin1String("bar")) out.type = "bar";
     else if (type == QLatin1String("scatter")) out.type = "scatter";
+    else if (type == QLatin1String("effectScatter")) out.type = "effectScatter";
+    else if (type == QLatin1String("pictorialBar")) out.type = "pictorialBar";
     else if (type == QLatin1String("pie")) out.type = "pie";
     else if (type == QLatin1String("line"))
         out.type = s0.contains("areaStyle") ? "area" : "line";
@@ -98,6 +118,9 @@ bool parseChartSpec(const QByteArray &specJson, ChartSpecData &out)
             ? "calendar" : "heatmap";
     else
         return false;
+
+    out.rippleEffect = s0.contains("rippleEffect");
+    out.repeatSymbol = s0.contains("symbolRepeat");
 
     const QJsonValue s0data = s0.value("data");
 
@@ -200,6 +223,17 @@ bool parseChartSpec(const QByteArray &specJson, ChartSpecData &out)
                 out.rows.append({QString::number(pair.at(0).toDouble()),
                                  QString::number(pair.at(1).toDouble())});
             }
+        } else if (!data.isEmpty() && data.at(0).isObject()
+                   && data.at(0).toObject().value("value").isArray()) {
+            // {value: [x, y]} items (numeric x-axis, named points).
+            out.headers = {QStringLiteral("X"), QStringLiteral("Y")};
+            for (const QJsonValue &v : data) {
+                const QJsonArray pair = v.toObject().value("value").toArray();
+                if (pair.size() < 2)
+                    continue;
+                out.rows.append({QString::number(pair.at(0).toDouble()),
+                                 QString::number(pair.at(1).toDouble())});
+            }
         } else {
             // No x data and flat values: use the row index as the category.
             out.headers = {QStringLiteral("Category"), QStringLiteral("Value")};
@@ -278,6 +312,236 @@ bool parseStockSpec(const QByteArray &specJson, StockSpecData &out)
     if (out.hasVolume && out.volumes.size() != out.dates.size())
         return false;
     return !out.ohlc.isEmpty();
+}
+
+// ---------------------------------------------------------------------------
+// Advanced Charts Dialog types
+// ---------------------------------------------------------------------------
+
+static QJsonObject series0(const QJsonObject &spec)
+{
+    return spec.value("series").toArray().at(0).toObject();
+}
+
+bool parseSankeySpec(const QByteArray &specJson, SankeySpecData &out)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(specJson);
+    if (!doc.isObject())
+        return false;
+    const QJsonObject spec = doc.object();
+    const QJsonObject s0 = series0(spec);
+
+    if (!spec.value("animation").toBool(true))
+        out.animate = false;
+
+    const QJsonObject title = spec.value("title").toObject();
+    if (title.contains("text"))
+        out.title = title.value("text").toString();
+
+    const QJsonArray links = s0.value("links").toArray();
+    for (const QJsonValue &v : links) {
+        const QJsonObject l = v.toObject();
+        const QString source = l.value("source").toString();
+        const QString target = l.value("target").toString();
+        if (source.isEmpty() || target.isEmpty())
+            continue;
+        out.links.append({source, target,
+                          QString::number(l.value("value").toDouble())});
+    }
+    return !out.links.isEmpty();
+}
+
+bool parseBoxplotSpec(const QByteArray &specJson, BoxplotSpecData &out)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(specJson);
+    if (!doc.isObject())
+        return false;
+    const QJsonObject spec = doc.object();
+    const QJsonObject s0 = series0(spec);
+
+    if (!spec.value("animation").toBool(true))
+        out.animate = false;
+
+    const QJsonObject title = spec.value("title").toObject();
+    if (title.contains("text"))
+        out.title = title.value("text").toString();
+
+    const QJsonArray cats = axisObject(spec, "xAxis").value("data").toArray();
+    for (const QJsonValue &v : cats) {
+        const QString c = v.toString();
+        if (!c.isEmpty())
+            out.categories.append(c);
+    }
+    if (out.categories.isEmpty())
+        return false;
+
+    for (const QJsonValue &v : s0.value("data").toArray()) {
+        const QJsonArray box = v.toArray();
+        if (box.size() < 5)
+            continue;
+        QList<double> stats;
+        for (int i = 0; i < 5; ++i)
+            stats.append(box.at(i).toDouble());
+        out.stats.append(stats);
+    }
+    if (out.stats.isEmpty() || out.stats.size() != out.categories.size())
+        return false;
+    return true;
+}
+
+bool parseParallelSpec(const QByteArray &specJson, ParallelSpecData &out)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(specJson);
+    if (!doc.isObject())
+        return false;
+    const QJsonObject spec = doc.object();
+    const QJsonObject s0 = series0(spec);
+
+    if (!spec.value("animation").toBool(true))
+        out.animate = false;
+
+    const QJsonObject title = spec.value("title").toObject();
+    if (title.contains("text"))
+        out.title = title.value("text").toString();
+
+    // parallelAxis is a plain array of {dim, name} — read the names in dim order.
+    const QJsonArray axes = spec.value("parallelAxis").toArray();
+    QHash<int, QString> byDim;
+    for (const QJsonValue &v : axes) {
+        const QJsonObject a = v.toObject();
+        byDim.insert(a.value("dim").toInt(-1), a.value("name").toString());
+    }
+    if (byDim.isEmpty())
+        return false;
+    QList<int> dims = byDim.keys();
+    std::sort(dims.begin(), dims.end());
+    for (int d : dims) {
+        const QString name = byDim.value(d);
+        out.dimensions.append(name.isEmpty() ? QStringLiteral("Dim %1").arg(d)
+                                             : name);
+    }
+    if (out.dimensions.size() < 2)
+        return false;
+
+    for (const QJsonValue &v : s0.value("data").toArray()) {
+        const QJsonArray line = v.toArray();
+        if (line.size() != out.dimensions.size())
+            continue;
+        QList<double> row;
+        for (const QJsonValue &c : line)
+            row.append(c.toDouble());
+        out.lines.append(row);
+    }
+    return !out.lines.isEmpty();
+}
+
+bool parseThemeRiverSpec(const QByteArray &specJson, ThemeRiverSpecData &out)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(specJson);
+    if (!doc.isObject())
+        return false;
+    const QJsonObject spec = doc.object();
+    const QJsonObject s0 = series0(spec);
+
+    if (!spec.value("animation").toBool(true))
+        out.animate = false;
+
+    const QJsonObject title = spec.value("title").toObject();
+    if (title.contains("text"))
+        out.title = title.value("text").toString();
+
+    for (const QJsonValue &v : s0.value("data").toArray()) {
+        const QJsonArray triple = v.toArray();
+        if (triple.size() < 3)
+            continue;
+        const QString date = triple.at(0).toString();
+        if (date.isEmpty() || triple.at(2).toString().isEmpty())
+            continue;
+        out.rows.append({date, QString::number(triple.at(1).toDouble()),
+                         triple.at(2).toString()});
+    }
+    return !out.rows.isEmpty();
+}
+
+bool parseGraphSpec(const QByteArray &specJson, GraphSpecData &out)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(specJson);
+    if (!doc.isObject())
+        return false;
+    const QJsonObject spec = doc.object();
+    const QJsonObject s0 = series0(spec);
+
+    if (!spec.value("animation").toBool(true))
+        out.animate = false;
+
+    const QJsonObject title = spec.value("title").toObject();
+    if (title.contains("text"))
+        out.title = title.value("text").toString();
+
+    for (const QJsonValue &v : s0.value("data").toArray()) {
+        const QJsonObject n = v.toObject();
+        const QString name = n.value("name").toString();
+        if (!name.isEmpty()) {
+            out.nodeNames.append(name);
+            out.nodeValues.append(n.value("value").toDouble());
+        }
+    }
+    if (out.nodeNames.isEmpty())
+        return false;
+
+    for (const QJsonValue &v : s0.value("links").toArray()) {
+        const QJsonObject l = v.toObject();
+        const QString source = l.value("source").toString();
+        const QString target = l.value("target").toString();
+        if (source.isEmpty() || target.isEmpty())
+            continue;
+        out.links.append({source, target,
+                          QString::number(l.value("value").toDouble())});
+    }
+    return true;
+}
+
+static void flattenTreeNode(const QJsonObject &item, const QStringList &prefix,
+                            QList<QStringList> &rows)
+{
+    const QString name = item.value("name").toString();
+    if (name.isEmpty())
+        return;
+    const QStringList path = prefix + QStringList{name};
+    const QJsonArray children = item.value("children").toArray();
+    if (children.isEmpty()) {
+        QStringList row = path;
+        row.append(QString::number(item.value("value").toDouble()));
+        rows.append(row);
+        return;
+    }
+    for (const QJsonValue &c : children)
+        flattenTreeNode(c.toObject(), path, rows);
+}
+
+bool parseTreeSpec(const QByteArray &specJson, TreeSpecData &out)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(specJson);
+    if (!doc.isObject())
+        return false;
+    const QJsonObject spec = doc.object();
+    const QJsonObject s0 = series0(spec);
+
+    if (!spec.value("animation").toBool(true))
+        out.animate = false;
+
+    const QJsonObject title = spec.value("title").toObject();
+    if (title.contains("text"))
+        out.title = title.value("text").toString();
+
+    // Pre-order walk: a row per leaf (a node with children contributes no row
+    // of its own; its path is implied by the descendant rows).
+    out.rows.clear();
+    if (s0.value("data").isArray()) {
+        for (const QJsonValue &v : s0.value("data").toArray())
+            flattenTreeNode(v.toObject(), {}, out.rows);
+    }
+    return !out.rows.isEmpty();
 }
 
 } // namespace ChartSource

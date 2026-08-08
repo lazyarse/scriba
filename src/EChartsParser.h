@@ -19,8 +19,10 @@
 // dialog with the fields pre-filled. Pure logic — no Qt widgets — so it is
 // unit-testable without WebEngine.
 //
-// Handles Bar/Line/Area/Scatter/Pie/Funnel/Gauge (Chart Dialog), Radar and both
-// Heatmap flavours (matrix + calendar), plus candlestick (Stock Chart Dialog).
+// Handles Bar/Line/Area/Scatter/Effect Scatter/Pictorial Bar/Pie/Funnel/Gauge
+// (Chart Dialog), Radar and both Heatmap flavours (matrix + calendar), plus
+// candlestick (Stock Chart Dialog) and the Advanced Charts Dialog set
+// (sankey, boxplot, parallel, themeRiver, graph, treemap, sunburst).
 // Other series types fall back to raw-source editing.
 
 #include <QByteArray>
@@ -34,20 +36,25 @@ namespace ChartSource {
 // ECharts (` ```ec ` blocks)
 // ---------------------------------------------------------------------------
 
-enum class EcType { Unknown, Chart, Stock };
+enum class EcType { Unknown, Chart, Stock, Sankey, Boxplot, Parallel, ThemeRiver, Graph, Treemap, Sunburst };
 
-// Distinguishes a Stock Chart spec (series[0].type == "candlestick") from a
-// generic Chart Builder spec.
+// Distinguishes a generic Chart Builder spec from a Stock Chart spec
+// (series[0].type == "candlestick") or one of the Advanced Charts Dialog types
+// (series[0].type == "sankey" | "boxplot" | "parallel" | "themeRiver" | "graph"
+// | "treemap" | "sunburst").
 EcType detectEcType(const QByteArray &specJson);
 
 // Data for a generic Chart Builder spec, reconstructed so the dialog can
 // repopulate its table + options and rebuild an equivalent spec.
 struct ChartSpecData {
-    QString type;           // bar | line | area | scatter | pie | funnel | gauge
+    QString type;           // bar | line | area | scatter | effectScatter
+                            // | pictorialBar | pie | funnel | gauge
                             // | radar | heatmap (matrix) | calendar (heatmap)
     QString title;
     bool tooltip = false;
     bool animate = true;
+    bool rippleEffect = true;  // effectScatter only: emit rippleEffect/symbolSize
+    bool repeatSymbol = true;  // pictorialBar only: emit symbolRepeat styling
     QStringList headers;    // 2-3 column headers (Label/Value, Category/Value, X/Y, Date/Value, Indicator/Value/Max, X/Y/Value)
     QList<QStringList> rows; // data rows, one cell per header
 };
@@ -70,5 +77,67 @@ struct StockSpecData {
 };
 
 bool parseStockSpec(const QByteArray &specJson, StockSpecData &out);
+
+// ---------------------------------------------------------------------------
+// Advanced Charts Dialog types (sankey / boxplot / parallel / themeRiver /
+// graph / treemap / sunburst). Each reverses the ECharts JSON the dialog
+// emits back into the dialog's own table rows.
+// ---------------------------------------------------------------------------
+
+struct SankeySpecData {
+    QString title;
+    bool animate = true;
+    QList<QStringList> links; // {source, target, weight}
+};
+
+bool parseSankeySpec(const QByteArray &specJson, SankeySpecData &out);
+
+struct BoxplotSpecData {
+    QString title;
+    bool animate = true;
+    QStringList categories;      // x-axis category names
+    QList<QList<double>> stats;  // per category: [min, q1, median, q3, max]
+};
+
+bool parseBoxplotSpec(const QByteArray &specJson, BoxplotSpecData &out);
+
+struct ParallelSpecData {
+    QString title;
+    bool animate = true;
+    QStringList dimensions;      // parallel-axis dimension names, in axis order
+    QList<QList<double>> lines;   // per parallel line: one value per dimension
+};
+
+bool parseParallelSpec(const QByteArray &specJson, ParallelSpecData &out);
+
+struct ThemeRiverSpecData {
+    QString title;
+    bool animate = true;
+    QList<QStringList> rows; // {date, value, category}
+};
+
+bool parseThemeRiverSpec(const QByteArray &specJson, ThemeRiverSpecData &out);
+
+struct GraphSpecData {
+    QString title;
+    bool animate = true;
+    QStringList nodeNames;   // graph nodes, in order
+    QList<double> nodeValues; // parallel to nodeNames (0 when absent)
+    QList<QStringList> links; // {source, target, value}
+};
+
+bool parseGraphSpec(const QByteArray &specJson, GraphSpecData &out);
+
+// Reverse model for treemap + sunburst. `rows` holds one entry per leaf node:
+// the node-name path from the root (one cell per depth level) followed by the
+// value in the final cell. Internal nodes are inferred from the paths, so an
+// internal node's own value (when it also has children) is not recoverable.
+struct TreeSpecData {
+    QString title;
+    bool animate = true;
+    QList<QStringList> rows; // per leaf: [name, ..., name, value]
+};
+
+bool parseTreeSpec(const QByteArray &specJson, TreeSpecData &out);
 
 } // namespace ChartSource

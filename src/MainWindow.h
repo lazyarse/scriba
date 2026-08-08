@@ -86,6 +86,7 @@ private slots:
     void updateStats();
     void showChartBuilder();
     void showStockChartBuilder();
+    void showAdvancedChartBuilder();
     void showLogWindow();
     void showKatexHelper();
     void showMchemHelper();
