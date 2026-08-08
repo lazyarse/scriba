@@ -82,3 +82,24 @@ detaching a whole sublist re-cascades the following items
 (`4. foo/5. bar` → `6. foo/7. bar`). When no same-level ordered item precedes
 the outdented line, its own number is kept (so `2024.`-style lists survive).
 Outdenting an already-top-level line never touches numbers.
+
+## Typography arrows are render-time only
+
+The Smart Typography "Arrows" option converts `-> <- <-> => <= >= != +-` to
+`→ ← ↔ ⇒ ≤ ≥ ≠ ±` **in the preview and exports only** — the Markdown source in
+the editor keeps the ASCII form (see `Typography::apply` in `src/Typography.cpp`).
+Putting this in Typography (rather than the Replacements autocorrect list) is
+deliberate: pairs like `<=`/`>=`/`=>`/`!=` contain `=`, which the replacements
+table can't store (`typo=replacement` splits on `=`, and the save path rejects
+typos containing it), and the renderer sees `<->` as a single token, so the
+`<-`-prefix collision that would break keystroke-driven expansion doesn't apply.
+
+Behaviour to rely on when debugging:
+
+- The arrow rules run **before** the Dashes rules, so `a->b` becomes `a→b` even
+  when "Dashes" is also enabled, while `a--b` still becomes `a–b`. Order matters
+  only for the `-` trigger: keep the Arrows block ahead of the Dashes block in
+  `apply()`.
+- Math (`$...$`/`$$...$$`), code spans and fenced code never reach `apply()`:
+  `\ce{CH4 + 2O2 -> CO2}` inside `$...$` keeps `->` for KaTeX/mchem.
+- Like the other Typography toggles, `Arrows` defaults **off** and is opt-in.

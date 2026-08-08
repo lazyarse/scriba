@@ -913,11 +913,16 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_typographySymbolsCheck->setChecked(settings.value(Preferences::TypographySymbols, false).toBool());
         groupLayout->addWidget(m_typographySymbolsCheck);
 
+        m_typographyArrowsCheck = new QCheckBox(tr("Arrows"));
+        m_typographyArrowsCheck->setToolTip(tr("-> <- => <-> become \u2192 \u2190 \u21d2 \u2194; <= >= != +- become \u2264 \u2265 \u2260 \u00b1"));
+        m_typographyArrowsCheck->setChecked(settings.value(Preferences::TypographyArrows, false).toBool());
+        groupLayout->addWidget(m_typographyArrowsCheck);
+
         groupLayout->addSpacing(8);
         auto *exampleLabel = new QLabel(tr("<b>Example</b>"));
         groupLayout->addWidget(exampleLabel);
 
-        const QString sample = QStringLiteral("He said \"It's easy -- 3x4 ... 1/2 of 90oF in 10 kg (c) 2026\"");
+        const QString sample = QStringLiteral("He said \"It's easy -- 3x4 ... 1/2 of 90oF in 10 kg (c) 2026\", use x -> y or a <- b");
         m_typographyPlainLabel = new QLabel(sample);
         m_typographyPlainLabel->setWordWrap(true);
         m_typographyPlainLabel->setStyleSheet("color: gray;");
@@ -944,13 +949,15 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
                 opts |= Typography::Option::NonBreakingSpace;
             if (m_typographySymbolsCheck->isChecked())
                 opts |= Typography::Option::Symbols;
+            if (m_typographyArrowsCheck->isChecked())
+                opts |= Typography::Option::Arrows;
             Typography::State state;
             m_typographyExampleLabel->setText(Typography::apply(sample, opts, state));
         };
         for (auto *cb : { m_typographyQuotesCheck, m_typographyDashesCheck,
                           m_typographyEllipsisCheck, m_typographyMultiplicationCheck,
                           m_typographyDegreeFractionPrimeCheck, m_typographyNbspCheck,
-                          m_typographySymbolsCheck })
+                          m_typographySymbolsCheck, m_typographyArrowsCheck })
             connect(cb, &QCheckBox::toggled, this, updateExample);
         updateExample();
 
@@ -1542,6 +1549,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::TypographyDegreeFractionPrime, m_typographyDegreeFractionPrimeCheck->isChecked());
         settings.setValue(Preferences::TypographyNbsp, m_typographyNbspCheck->isChecked());
         settings.setValue(Preferences::TypographySymbols, m_typographySymbolsCheck->isChecked());
+        settings.setValue(Preferences::TypographyArrows, m_typographyArrowsCheck->isChecked());
         QStringList autoCorrectPairs;
         for (int r = 0; r < m_replacementsTable->rowCount(); ++r) {
             const QString typo = m_replacementsTable->item(r, 0)

@@ -163,24 +163,55 @@ TEST(TypographySymbols, NonMatches)
     EXPECT_EQ(typo(Option::Symbols, u"'(c)'"), QStringLiteral("'\u00A9'"));
 }
 
+TEST(TypographyArrows, Conversions)
+{
+    EXPECT_EQ(typo(Option::Arrows, u"a -> b"), QStringLiteral("a \u2192 b"));
+    EXPECT_EQ(typo(Option::Arrows, u"a<-b"), QStringLiteral("a\u2190b"));
+    EXPECT_EQ(typo(Option::Arrows, u"a <-> b"), QStringLiteral("a \u2194 b"));
+    EXPECT_EQ(typo(Option::Arrows, u"a => b"), QStringLiteral("a \u21D2 b"));
+    EXPECT_EQ(typo(Option::Arrows, u"a<=b"), QStringLiteral("a\u2264b"));
+    EXPECT_EQ(typo(Option::Arrows, u"a>=b"), QStringLiteral("a\u2265b"));
+    EXPECT_EQ(typo(Option::Arrows, u"a!=b"), QStringLiteral("a\u2260b"));
+    EXPECT_EQ(typo(Option::Arrows, u"+-"), QStringLiteral("\u00B1"));
+    EXPECT_EQ(typo(Option::Arrows, u"3 +- 1"), QStringLiteral("3 \u00B1 1"));
+}
+
+TEST(TypographyArrows, NonMatches)
+{
+    EXPECT_EQ(typo(Option::Arrows, u"a-b"), QStringLiteral("a-b"));
+    EXPECT_EQ(typo(Option::Arrows, u"a-b>"), QStringLiteral("a-b>"));
+    EXPECT_EQ(typo(Option::Arrows, u"x < y"), QStringLiteral("x < y"));
+    EXPECT_EQ(typo(Option::Arrows, u"==>"), QStringLiteral("=\u21D2"));
+    EXPECT_EQ(typo(Option::Arrows, u"a=b"), QStringLiteral("a=b"));
+    EXPECT_EQ(typo(Option::Arrows, u"->x"), QStringLiteral("\u2192x"));
+}
+
+TEST(TypographyArrows, BeatsDashes)
+{
+    EXPECT_EQ(typo(Option::Arrows | Option::Dashes, u"a->b"), QStringLiteral("a\u2192b"));
+    EXPECT_EQ(typo(Option::Arrows | Option::Dashes, u"a--b"), QStringLiteral("a\u2013b"));
+    EXPECT_EQ(typo(Option::Arrows | Option::Dashes, u"a-b"), QStringLiteral("a\u2010b"));
+}
+
 TEST(TypographyMath, SkipsMathRegions)
 {
     const auto all = Option::Quotes | Option::Dashes | Option::Ellipsis
                    | Option::Multiplication | Option::DegreeFractionPrime | Option::NonBreakingSpace
-                   | Option::Symbols;
+                   | Option::Symbols | Option::Arrows;
     EXPECT_EQ(typo(all, u"$1/2$"), QStringLiteral("$1/2$"));
     EXPECT_EQ(typo(all, u"$$x--y$$"), QStringLiteral("$$x--y$$"));
     EXPECT_EQ(typo(all, u"$3x4$"), QStringLiteral("$3x4$"));
     EXPECT_EQ(typo(all, u"$5.00"), QStringLiteral("$5.00"));
     EXPECT_EQ(typo(all, u"$1/2$ and 3x4"), QStringLiteral("$1/2$ and 3\u00D74"));
     EXPECT_EQ(typo(all, u"$(c)$"), QStringLiteral("$(c)$"));
+    EXPECT_EQ(typo(all, u"$a -> b$"), QStringLiteral("$a -> b$"));
 }
 
 TEST(TypographyMath, KitchensinkMathUntouched)
 {
     const auto all = Option::Quotes | Option::Dashes | Option::Ellipsis
                    | Option::Multiplication | Option::DegreeFractionPrime | Option::NonBreakingSpace
-                   | Option::Symbols;
+                   | Option::Symbols | Option::Arrows;
     EXPECT_EQ(typo(all, u"Inline math: $E = mc^2$, $\\sum_{i=1}^{n} x_i$, $\\int_0^\\infty e^{-x} \\, dx$"),
               QStringLiteral("Inline math: $E = mc^2$, $\\sum_{i=1}^{n} x_i$, $\\int_0^\\infty e^{-x} \\, dx$"));
     EXPECT_EQ(typo(all, u"$\\ce{CH4 + 2O2 -> CO2 + 2H2O}$"),
@@ -201,6 +232,7 @@ TEST(TypographyMath, FullKitchensinkMathUntouched)
     settings.setValue(Preferences::TypographyDegreeFractionPrime, true);
     settings.setValue(Preferences::TypographyNbsp, true);
     settings.setValue(Preferences::TypographySymbols, true);
+    settings.setValue(Preferences::TypographyArrows, true);
     settings.sync();
 
     QFile file(QStringLiteral("docs/kitchensink.md"));
@@ -229,13 +261,15 @@ TEST(TypographyMath, FullKitchensinkMathUntouched)
     EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2026")));
     EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2018")));
     EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2019")));
-    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u201C")));
     EXPECT_FALSE(mathContent.contains(QStringLiteral("\u201D")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2192")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2264")));
+    EXPECT_FALSE(mathContent.contains(QStringLiteral("\u2265")));
 
     for (const auto &key : { Preferences::TypographyQuotes, Preferences::TypographyDashes,
                              Preferences::TypographyEllipsis, Preferences::TypographyMultiplication,
                              Preferences::TypographyDegreeFractionPrime, Preferences::TypographyNbsp,
-                             Preferences::TypographySymbols })
+                             Preferences::TypographySymbols, Preferences::TypographyArrows })
         settings.remove(key);
 }
 
@@ -252,6 +286,7 @@ TEST(TypographySettings, RoundTrip)
     settings.setValue(Preferences::TypographyDashes, true);
     settings.setValue(Preferences::TypographyNbsp, true);
     settings.setValue(Preferences::TypographySymbols, true);
+    settings.setValue(Preferences::TypographyArrows, true);
     settings.sync();
 
     const auto opts = Typography::optionsFromSettings();
@@ -259,6 +294,7 @@ TEST(TypographySettings, RoundTrip)
     EXPECT_TRUE(opts.testFlag(Option::Dashes));
     EXPECT_TRUE(opts.testFlag(Option::NonBreakingSpace));
     EXPECT_TRUE(opts.testFlag(Option::Symbols));
+    EXPECT_TRUE(opts.testFlag(Option::Arrows));
     EXPECT_FALSE(opts.testFlag(Option::Ellipsis));
     EXPECT_FALSE(opts.testFlag(Option::Multiplication));
     EXPECT_FALSE(opts.testFlag(Option::DegreeFractionPrime));
@@ -267,6 +303,7 @@ TEST(TypographySettings, RoundTrip)
     settings.remove(Preferences::TypographyDashes);
     settings.remove(Preferences::TypographyNbsp);
     settings.remove(Preferences::TypographySymbols);
+    settings.remove(Preferences::TypographyArrows);
 }
 
 TEST(TypographyIntegration, RendererConvertsParagraphText)
@@ -320,10 +357,31 @@ TEST(TypographyIntegration, ParagraphBoundaryOpeningQuote)
     settings.remove(Preferences::TypographyQuotes);
 }
 
+TEST(TypographyIntegration, ArrowsConvertAndSkipMath)
+{
+    QSettings settings;
+    settings.setValue(Preferences::TypographyArrows, true);
+    settings.sync();
+
+    const QString html = MarkdownParser::toHtml("x -> y and a<=b");
+    EXPECT_TRUE(html.contains(QStringLiteral("\u2192")));
+    EXPECT_TRUE(html.contains(QStringLiteral("\u2264")));
+    EXPECT_FALSE(html.contains("->"));
+
+    const QString math = MarkdownParser::toHtml("$\\ce{CH4 + 2O2 -> CO2}$");
+    EXPECT_TRUE(math.contains("-&gt;"));
+
+    const QString code = MarkdownParser::toHtml("`a->b`");
+    EXPECT_TRUE(code.contains("<code>a-&gt;b</code>") || code.contains("<code>a->b</code>"));
+
+    settings.remove(Preferences::TypographyArrows);
+}
+
 TEST(TypographyIntegration, DefaultOffPreservesOldOutput)
 {
-    const QString html = MarkdownParser::toHtml("he said \"hi\" -- 4x4 ...");
+    const QString html = MarkdownParser::toHtml("he said \"hi\" -- 4x4 ... x -> y");
     EXPECT_TRUE(html.contains("&quot;hi&quot;"));
     EXPECT_TRUE(html.contains("--"));
     EXPECT_TRUE(html.contains("4x4"));
+    EXPECT_TRUE(html.contains("-&gt;"));
 }

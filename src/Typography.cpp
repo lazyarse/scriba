@@ -212,6 +212,52 @@ QString Typography::apply(QStringView text, Options opts, State &state)
             continue;
         }
 
+        // --- Arrows and comparison signs: -> <- <-> => <= >= != +- ---
+        if (opts.testFlag(Option::Arrows)) {
+            if (c == QLatin1Char('-') && i + 1 < n && text[i + 1] == QLatin1Char('>')) {
+                append(QChar(0x2192)); // →
+                i += 2;
+                continue;
+            }
+            if (c == QLatin1Char('<')) {
+                if (i + 2 < n && text[i + 1] == QLatin1Char('-') && text[i + 2] == QLatin1Char('>')) {
+                    append(QChar(0x2194)); // ↔
+                    i += 3;
+                    continue;
+                }
+                if (i + 1 < n && text[i + 1] == QLatin1Char('-')) {
+                    append(QChar(0x2190)); // ←
+                    i += 2;
+                    continue;
+                }
+                if (i + 1 < n && text[i + 1] == QLatin1Char('=')) {
+                    append(QChar(0x2264)); // ≤
+                    i += 2;
+                    continue;
+                }
+            }
+            if (c == QLatin1Char('=') && i + 1 < n && text[i + 1] == QLatin1Char('>')) {
+                append(QChar(0x21D2)); // ⇒
+                i += 2;
+                continue;
+            }
+            if (c == QLatin1Char('>') && i + 1 < n && text[i + 1] == QLatin1Char('=')) {
+                append(QChar(0x2265)); // ≥
+                i += 2;
+                continue;
+            }
+            if (c == QLatin1Char('!') && i + 1 < n && text[i + 1] == QLatin1Char('=')) {
+                append(QChar(0x2260)); // ≠
+                i += 2;
+                continue;
+            }
+            if (c == QLatin1Char('+') && i + 1 < n && text[i + 1] == QLatin1Char('-')) {
+                append(QChar(0x00B1)); // ±
+                i += 2;
+                continue;
+            }
+        }
+
         // --- Dashes: --- -> em dash, -- -> en dash, - -> hyphen ---
         if (opts.testFlag(Option::Dashes) && c == QLatin1Char('-')) {
             if (i + 2 < n && text[i + 1] == QLatin1Char('-') && text[i + 2] == QLatin1Char('-')) {
@@ -431,5 +477,7 @@ Typography::Options Typography::optionsFromSettings()
         opts |= Option::NonBreakingSpace;
     if (settings.value(Preferences::TypographySymbols, false).toBool())
         opts |= Option::Symbols;
+    if (settings.value(Preferences::TypographyArrows, false).toBool())
+        opts |= Option::Arrows;
     return opts;
 }

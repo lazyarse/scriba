@@ -58,6 +58,7 @@ namespace Preferences {
     constexpr const char *TypographyDegreeFractionPrime = "typographyDegreeFractionPrime";
     constexpr const char *TypographyNbsp = "typographyNbsp";
     constexpr const char *TypographySymbols = "typographySymbols";
+    constexpr const char *TypographyArrows = "typographyArrows";
 
     constexpr const char *HeavyRenderDelay = "heavyRenderDelay";
     constexpr int DefaultHeavyRenderDelay = Debounce::HeavyRender;
