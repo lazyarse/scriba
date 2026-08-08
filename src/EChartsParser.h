@@ -18,6 +18,10 @@
 // helper dialogs consume, so an existing rendered chart can be re-opened in its
 // dialog with the fields pre-filled. Pure logic — no Qt widgets — so it is
 // unit-testable without WebEngine.
+//
+// Handles Bar/Line/Area/Scatter/Pie/Funnel/Gauge (Chart Dialog), Radar and both
+// Heatmap flavours (matrix + calendar), plus candlestick (Stock Chart Dialog).
+// Other series types fall back to raw-source editing.
 
 #include <QByteArray>
 #include <QList>
@@ -39,12 +43,13 @@ EcType detectEcType(const QByteArray &specJson);
 // Data for a generic Chart Builder spec, reconstructed so the dialog can
 // repopulate its table + options and rebuild an equivalent spec.
 struct ChartSpecData {
-    QString type;           // bar | line | area | scatter | pie
+    QString type;           // bar | line | area | scatter | pie | funnel | gauge
+                            // | radar | heatmap (matrix) | calendar (heatmap)
     QString title;
     bool tooltip = false;
     bool animate = true;
-    QStringList headers;    // 2 column headers (Label/Value, Category/Value, X/Y…)
-    QList<QStringList> rows; // data rows, 2 cells each
+    QStringList headers;    // 2-3 column headers (Label/Value, Category/Value, X/Y, Date/Value, Indicator/Value/Max, X/Y/Value)
+    QList<QStringList> rows; // data rows, one cell per header
 };
 
 // Returns true when `specJson` is a Chart Builder-style spec (not candlestick)

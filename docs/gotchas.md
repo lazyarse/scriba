@@ -103,3 +103,30 @@ Behaviour to rely on when debugging:
 - Math (`$...$`/`$$...$$`), code spans and fenced code never reach `apply()`:
   `\ce{CH4 + 2O2 -> CO2}` inside `$...$` keeps `->` for KaTeX/mchem.
 - Like the other Typography toggles, `Arrows` defaults **off** and is opt-in.
+
+## ECharts pencil-edit degrades rich hand-written charts to the builder's canonical form
+
+Clicking the pencil on a rendered ` ```ec ` chart re-opens it in the Chart
+Builder (`ChartDialog`) / Stock Chart dialog (see `MainWindow::editChartBlock`
+and the reverse parsers in `src/EChartsParser.cpp`). Only charts the helpers
+themselves can produce round-trip faithfully. Hand-written variants that use
+features the builder doesn't expose *still parse* (the data is recovered into
+the table) but re-inserting them **rebuilds the chart in the dialog's canonical
+single-series form**, discarding the extra styling:
+
+- Pie vs **donut** — a `radius: ["40%","70%"]` pie re-opens as a plain pie.
+- **Multi-series radar** — only `series[0]` is recovered (its `value` array is
+  mapped against `radar.indicator`); sibling radar series are dropped.
+- **Gauge** min/max/unit (`detail.formatter`, `min: 0, max: 220`) — re-derived
+  automatically from the data; custom ranges/units are not restored.
+- **Calendar/heatmap** layout (`cellSize`, `top`/`left`, custom `visualMap`
+  bounds) — recomputed from the data.
+- Funnel `left/top/bottom/width` layout, tooltip formatters, legends, etc. are
+  generally not preserved; only the tablular data and title/animate/tooltip
+  toggles are.
+
+Chart types the builder has no model for at all (effectScatter, box, sankey,
+treemap, sunburst, graph, pictorialBar, themeRiver, parallel) don't even open
+the dialog — the pencil shows the "cannot be reopened" warning and you edit the
+raw JSON. The doc-driven round-trip corpus in `docs/echarts.md` pins exactly
+which types parse-and-rebuild (`tests/test_chartsource_docs.cpp`).

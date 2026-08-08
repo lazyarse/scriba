@@ -44,7 +44,8 @@ TEST(ChartSourceDetect, StockCandlestick) {
 }
 
 TEST(ChartSourceDetect, ChartBuilderSeries) {
-    for (const char *type : {"bar", "line", "scatter", "pie"}) {
+    for (const char *type : {"bar", "line", "scatter", "pie", "funnel", "gauge",
+                             "radar", "heatmap"}) {
         QJsonObject spec;
         QJsonArray series;
         QJsonObject s;
@@ -183,6 +184,162 @@ TEST(ChartSourceChart, CandlestickRejected) {
     s["type"] = "candlestick";
     series.replace(0, s);
     spec["series"] = series;
+    ChartSource::ChartSpecData out;
+    EXPECT_FALSE(ChartSource::parseChartSpec(json(spec), out));
+}
+
+// ---------------------------------------------------------------------------
+// New chart-builder types (funnel/gauge/radar/heatmap/calendar) — mirror
+// ChartDialog::buildSpec
+// ---------------------------------------------------------------------------
+
+// Name/value item charts (funnel, gauge) — no axes.
+static QJsonObject itemChartSpec(const char *type, const QString &title,
+                                 const QStringList &names, const QList<double> &values)
+{
+    QJsonObject spec;
+    if (!title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = title;
+        spec["title"] = t;
+    }
+    QJsonArray items;
+    for (int i = 0; i < names.size(); ++i) {
+        QJsonObject item;
+        item["name"] = names[i];
+        item["value"] = values[i];
+        items.append(item);
+    }
+    QJsonObject s;
+    s["type"] = type;
+    if (qstrcmp(type, "gauge") == 0) {
+        s["min"] = 0;
+        s["max"] = values.isEmpty() ? 100 : values.last();
+    }
+    s["data"] = items;
+    spec["series"] = QJsonArray{s};
+    return spec;
+}
+
+TEST(ChartSourceChart, FunnelRoundTrip) {
+    QJsonObject spec = itemChartSpec("funnel", "Conversion",
+        {"Visited", "Retained"}, {100.0, 60.0});
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_EQ(out.type, "funnel");
+    EXPECT_EQ(out.title, "Conversion");
+    EXPECT_EQ(out.headers, (QStringList{"Label", "Value"}));
+    ASSERT_EQ(out.rows.size(), 2);
+    EXPECT_EQ(out.rows[0], (QStringList{"Visited", "100"}));
+    EXPECT_EQ(out.rows[1], (QStringList{"Retained", "60"}));
+}
+
+TEST(ChartSourceChart, GaugeRoundTrip) {
+    QJsonObject spec = itemChartSpec("gauge", {}, {"Speed"}, {168.0});
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_EQ(out.type, "gauge");
+    EXPECT_EQ(out.headers, (QStringList{"Label", "Value"}));
+    ASSERT_EQ(out.rows.size(), 1);
+    EXPECT_EQ(out.rows[0], (QStringList{"Speed", "168"}));
+}
+
+TEST(ChartSourceChart, RadarRoundTrip) {
+    QJsonObject spec;
+    QJsonArray indicators;
+    QJsonArray values;
+    const QStringList names = {"Sales", "Marketing", "Dev"};
+    const QList<double> nums = {4200.0, 25000.0, 30000.0};
+    const QList<double> maxs = {6500.0, 25000.0, 52000.0};
+    for (int i = 0; i < names.size(); ++i) {
+        QJsonObject ind;
+        ind["name"] = names[i];
+        ind["max"] = maxs[i];
+        indicators.append(ind);
+        values.append(nums[i]);
+    }
+    QJsonObject radar;
+    radar["indicator"] = indicators;
+    spec["radar"] = radar;
+    QJsonObject s;
+    s["type"] = "radar";
+    QJsonObject dataItem;
+    dataItem["value"] = values;
+    s["data"] = QJsonArray{dataItem};
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_EQ(out.type, "radar");
+    EXPECT_EQ(out.headers, (QStringList{"Indicator", "Value", "Max"}));
+    ASSERT_EQ(out.rows.size(), 3);
+    EXPECT_EQ(out.rows[0], (QStringList{"Sales", "4200", "6500"}));
+    EXPECT_EQ(out.rows[1], (QStringList{"Marketing", "25000", "25000"}));
+}
+
+TEST(ChartSourceChart, CalendarHeatmapRoundTrip) {
+    QJsonObject s;
+    s["type"] = "heatmap";
+    s["coordinateSystem"] = "calendar";
+    s["data"] = QJsonArray{QJsonArray{"2026-07-01", 1.0},
+                           QJsonArray{"2026-07-02", 4.0}};
+    QJsonObject spec;
+    spec["series"] = QJsonArray{s};
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_EQ(out.type, "calendar");
+    EXPECT_EQ(out.headers, (QStringList{"Date", "Value"}));
+    ASSERT_EQ(out.rows.size(), 2);
+    EXPECT_EQ(out.rows[0], (QStringList{"2026-07-01", "1"}));
+    EXPECT_EQ(out.rows[1], (QStringList{"2026-07-02", "4"}));
+}
+
+TEST(ChartSourceChart, MatrixHeatmapRoundTrip) {
+    QJsonObject spec;
+    QJsonObject xAxis;
+    xAxis["type"] = "category";
+    xAxis["data"] = QJsonArray{"Mon", "Tue", "Wed"};
+    QJsonObject yAxis;
+    yAxis["type"] = "category";
+    yAxis["data"] = QJsonArray{"Morning", "Evening"};
+    spec["xAxis"] = xAxis;
+    spec["yAxis"] = yAxis;
+    QJsonObject s;
+    s["type"] = "heatmap";
+    s["data"] = QJsonArray{QJsonArray{0, 0, 5.0},
+                           QJsonArray{1, 0, 7.0},
+                           QJsonArray{2, 1, 3.0}};
+    spec["series"] = QJsonArray{s};
+
+    ChartSource::ChartSpecData out;
+    ASSERT_TRUE(ChartSource::parseChartSpec(json(spec), out));
+    EXPECT_EQ(out.type, "heatmap");
+    EXPECT_EQ(out.headers, (QStringList{"X", "Y", "Value"}));
+    ASSERT_EQ(out.rows.size(), 3);
+    EXPECT_EQ(out.rows[0], (QStringList{"Mon", "Morning", "5"}));
+    EXPECT_EQ(out.rows[1], (QStringList{"Tue", "Morning", "7"}));
+    EXPECT_EQ(out.rows[2], (QStringList{"Wed", "Evening", "3"}));
+}
+
+TEST(ChartSourceChart, MatrixHeatmapMissingAxesRejected) {
+    QJsonObject s;
+    s["type"] = "heatmap";
+    s["data"] = QJsonArray{QJsonArray{0, 0, 5.0}};
+    QJsonObject spec;
+    spec["series"] = QJsonArray{s};
+    ChartSource::ChartSpecData out;
+    EXPECT_FALSE(ChartSource::parseChartSpec(json(spec), out));
+}
+
+TEST(ChartSourceChart, RadarMismatchedIndicatorCountRejected) {
+    QJsonObject radar;
+    radar["indicator"] = QJsonArray{QJsonObject{{"name", "A"}, {"max", 10}}};
+    QJsonObject s;
+    s["type"] = "radar";
+    s["data"] = QJsonArray{QJsonObject{{"value", QJsonArray{1.0, 2.0}}}};
+    QJsonObject spec;
+    spec["radar"] = radar;
+    spec["series"] = QJsonArray{s};
     ChartSource::ChartSpecData out;
     EXPECT_FALSE(ChartSource::parseChartSpec(json(spec), out));
 }

@@ -39,8 +39,10 @@
 #include <QPlainTextEdit>
 #include <QFileDialog>
 #include <QIcon>
+#include <algorithm>
+#include <cmath>
 
-enum class ChartSeries { Bar, Line, Area, Scatter, Pie };
+enum class ChartSeries { Bar, Line, Area, Scatter, Pie, Funnel, Gauge, Radar, Heatmap, Calendar };
 
 static QString chartSeriesToString(ChartSeries series)
 {
@@ -50,8 +52,72 @@ static QString chartSeriesToString(ChartSeries series)
         case ChartSeries::Area: return QStringLiteral("line");
         case ChartSeries::Scatter: return QStringLiteral("scatter");
         case ChartSeries::Pie: return QStringLiteral("pie");
+        case ChartSeries::Funnel: return QStringLiteral("funnel");
+        case ChartSeries::Gauge: return QStringLiteral("gauge");
+        case ChartSeries::Radar: return QStringLiteral("radar");
+        case ChartSeries::Heatmap: return QStringLiteral("heatmap");
+        case ChartSeries::Calendar: return QStringLiteral("heatmap");
     }
     return {};
+}
+
+// Smallest "nice" number at least `v` (1, 2, 5, then 10×): used to derive
+// gauge maxima / visualMap bounds when the user leaves them unspecified.
+static double niceCeil(double v)
+{
+    if (v <= 0)
+        return 100;
+    const double mag = std::pow(10.0, std::floor(std::log10(v)));
+    const double norm = v / mag;
+    double n = 1;
+    if (norm > 1) n = 2;
+    if (norm > 2) n = 5;
+    if (norm > 5) n = 10;
+    return n * mag;
+}
+
+static double minOf(const QList<double> &values, double fallback)
+{
+    if (values.isEmpty())
+        return fallback;
+    double m = values.first();
+    for (double v : values)
+        m = std::min(m, v);
+    return m;
+}
+
+static double maxOf(const QList<double> &values, double fallback)
+{
+    if (values.isEmpty())
+        return fallback;
+    double m = values.first();
+    for (double v : values)
+        m = std::max(m, v);
+    return m;
+}
+
+// First-seen order, empty entries skipped.
+static QStringList uniqueCats(const QStringList &values)
+{
+    QStringList out;
+    for (const QString &v : values) {
+        if (v.isEmpty() || out.contains(v))
+            continue;
+        out.append(v);
+    }
+    return out;
+}
+
+// "2026-07" (all dates share a month) or a [start, end] pair of ISO dates.
+static QJsonValue calendarRange(const QStringList &dates)
+{
+    if (dates.isEmpty())
+        return QJsonValue(QJsonValue::Null);
+    const bool sameMonth = std::all_of(dates.cbegin(), dates.cend(),
+        [&](const QString &d) { return d.size() >= 7 && d.left(7) == dates.first().left(7); });
+    if (sameMonth && dates.first().size() >= 7)
+        return dates.first().left(7);
+    return QJsonArray{dates.first(), dates.last()};
 }
 
 ChartDialog::ChartDialog(QWidget *parent)
@@ -68,6 +134,8 @@ ChartDialog::ChartDialog(QWidget *parent)
     if (m_fieldX->count() > 1) m_fieldX->setCurrentIndex(1);
     if (m_fieldY->count() > 2) m_fieldY->setCurrentIndex(2);
     else if (m_fieldY->count() > 1) m_fieldY->setCurrentIndex(1);
+    if (m_fieldZ->count() > 3) m_fieldZ->setCurrentIndex(3);
+    else if (m_fieldZ->count() > 1) m_fieldZ->setCurrentIndex(1);
     onChartTypeChanged();
     updatePreview();
 }
@@ -86,6 +154,8 @@ ChartDialog::ChartDialog(const QString &existingSpecJson, QWidget *parent)
     if (m_fieldX->count() > 1) m_fieldX->setCurrentIndex(1);
     if (m_fieldY->count() > 2) m_fieldY->setCurrentIndex(2);
     else if (m_fieldY->count() > 1) m_fieldY->setCurrentIndex(1);
+    if (m_fieldZ->count() > 3) m_fieldZ->setCurrentIndex(3);
+    else if (m_fieldZ->count() > 1) m_fieldZ->setCurrentIndex(1);
     prefillFromSpec(existingSpecJson);
     onChartTypeChanged();
     updatePreview();
@@ -102,7 +172,11 @@ void ChartDialog::prefillFromSpec(const QString &specJson)
         : data.type == QLatin1String("line") ? ChartSeries::Line
         : data.type == QLatin1String("area") ? ChartSeries::Area
         : data.type == QLatin1String("scatter") ? ChartSeries::Scatter
-        : ChartSeries::Pie;
+        : data.type == QLatin1String("funnel") ? ChartSeries::Funnel
+        : data.type == QLatin1String("gauge") ? ChartSeries::Gauge
+        : data.type == QLatin1String("radar") ? ChartSeries::Radar
+        : data.type == QLatin1String("heatmap") ? ChartSeries::Heatmap
+        : ChartSeries::Calendar;
     int typeIdx = m_chartTypeCombo->findData(static_cast<int>(series));
     if (typeIdx >= 0)
         m_chartTypeCombo->setCurrentIndex(typeIdx);
@@ -126,6 +200,8 @@ void ChartDialog::prefillFromSpec(const QString &specJson)
         m_fieldX->setCurrentText(data.headers.value(0));
     if (m_fieldY->findText(data.headers.value(1)) >= 0)
         m_fieldY->setCurrentText(data.headers.value(1));
+    if (m_fieldZ->findText(data.headers.value(2)) >= 0)
+        m_fieldZ->setCurrentText(data.headers.value(2));
 }
 
 void ChartDialog::setupUi()
@@ -178,6 +254,11 @@ void ChartDialog::setupLeftPanel(QWidget *panel)
     addSeries("Area", ChartSeries::Area);
     addSeries("Scatter", ChartSeries::Scatter);
     addSeries("Pie", ChartSeries::Pie);
+    addSeries("Funnel", ChartSeries::Funnel);
+    addSeries("Gauge", ChartSeries::Gauge);
+    addSeries("Radar", ChartSeries::Radar);
+    addSeries("Heatmap (Matrix)", ChartSeries::Heatmap);
+    addSeries("Calendar Heatmap", ChartSeries::Calendar);
     layout->addWidget(m_chartTypeCombo);
 
     layout->addWidget(new QLabel("Data:"));
@@ -223,13 +304,16 @@ void ChartDialog::setupLeftPanel(QWidget *panel)
 
     makeRow(0, "X:", m_fieldX, encGroup);
     makeRow(1, "Y:", m_fieldY, encGroup);
+    makeRow(2, "Z:", m_fieldZ, encGroup);
+    m_fieldZ->setToolTip(
+        tr("Third column: value for a matrix heatmap, per-indicator max for a radar."));
 
     m_tooltipCheck = new QCheckBox("Tooltip", encGroup);
-    encLayout->addWidget(m_tooltipCheck, 2, 0, 1, 2);
+    encLayout->addWidget(m_tooltipCheck, 3, 0, 1, 2);
 
     m_animateCheck = new QCheckBox("Animate", encGroup);
     m_animateCheck->setObjectName(QStringLiteral("animateCheck"));
-    encLayout->addWidget(m_animateCheck, 3, 0, 1, 2);
+    encLayout->addWidget(m_animateCheck, 4, 0, 1, 2);
 
     encLayout->setColumnStretch(1, 1);
     layout->addWidget(encGroup);
@@ -273,7 +357,7 @@ void ChartDialog::setupLeftPanel(QWidget *panel)
     connect(m_tooltipCheck, &QCheckBox::toggled, this, &ChartDialog::schedulePreviewUpdate);
     connect(m_animateCheck, &QCheckBox::toggled, this, &ChartDialog::schedulePreviewUpdate);
 
-    QComboBox *fieldBoxes[] = {m_fieldX, m_fieldY};
+    QComboBox *fieldBoxes[] = {m_fieldX, m_fieldY, m_fieldZ};
     for (QComboBox *combo : fieldBoxes)
         connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &ChartDialog::schedulePreviewUpdate);
@@ -508,7 +592,7 @@ void ChartDialog::updateFieldComboBoxes()
             headers.append(item->text());
     }
 
-    QComboBox *boxes[] = {m_fieldX, m_fieldY};
+    QComboBox *boxes[] = {m_fieldX, m_fieldY, m_fieldZ};
     for (QComboBox *combo : boxes) {
         QString current = combo->currentText();
         combo->blockSignals(true);
@@ -542,10 +626,11 @@ QString ChartDialog::buildSpec() const
 
     QString xField = m_fieldX->currentText();
     QString yField = m_fieldY->currentText();
+    QString zField = m_fieldZ->currentText();
     if (xField.isEmpty() || yField.isEmpty())
         return QStringLiteral("{}");
 
-    QStringList xValues, yValues;
+    QStringList xValues, yValues, zValues;
     auto columnIndex = [this](const QString &field) {
         for (int c = 0; c < m_table->columnCount(); ++c) {
             QTableWidgetItem *h = m_table->horizontalHeaderItem(c);
@@ -556,22 +641,23 @@ QString ChartDialog::buildSpec() const
     };
     int xCol = columnIndex(xField);
     int yCol = columnIndex(yField);
+    int zCol = columnIndex(zField);
     for (int r = 0; r < m_table->rowCount(); ++r) {
         QTableWidgetItem *xItem = xCol >= 0 ? m_table->item(r, xCol) : nullptr;
         QTableWidgetItem *yItem = yCol >= 0 ? m_table->item(r, yCol) : nullptr;
+        QTableWidgetItem *zItem = zCol >= 0 ? m_table->item(r, zCol) : nullptr;
         QString xv = xItem ? xItem->text().trimmed() : QString();
         QString yv = yItem ? yItem->text().trimmed() : QString();
+        QString zv = zItem ? zItem->text().trimmed() : QString();
         if (xv.isEmpty() && yv.isEmpty()) continue;
         xValues.append(xv);
         yValues.append(yv);
+        zValues.append(zv);
     }
     if (xValues.isEmpty())
         return QStringLiteral("{}");
 
     ChartSeries series = static_cast<ChartSeries>(m_chartTypeCombo->currentData().toInt());
-    QJsonObject tooltip;
-    if (m_tooltipCheck->isChecked())
-        tooltip["trigger"] = "axis";
 
     QString title = m_titleEdit->text().trimmed();
     if (!title.isEmpty()) {
@@ -579,29 +665,194 @@ QString ChartDialog::buildSpec() const
         t["text"] = title;
         spec["title"] = t;
     }
+
+    // Data-driven option derivation (gauge max, visualMap bounds, radar maxes).
+    auto numeric = [](const QStringList &values, QList<double> &out) {
+        out.clear();
+        for (const QString &v : values) {
+            bool ok = false;
+            out.append(v.toDouble(&ok));
+        }
+        return out;
+    };
+    QList<double> ys, zs;
+    numeric(yValues, ys);
+    numeric(zValues, zs);
+
+    QJsonObject tooltip;
+    switch (series) {
+    case ChartSeries::Heatmap:
+        if (m_tooltipCheck->isChecked())
+            tooltip["position"] = "top";
+        break;
+    case ChartSeries::Calendar:
+        if (m_tooltipCheck->isChecked())
+            tooltip = QJsonObject(); // item default; axis/position make no sense
+        break;
+    default:
+        if (m_tooltipCheck->isChecked())
+            tooltip["trigger"] = "axis";
+        break;
+    }
     if (!tooltip.isEmpty())
         spec["tooltip"] = tooltip;
 
-    if (series == ChartSeries::Pie) {
-        QJsonArray pieData;
+    // Item charts (name/value pairs, no axes).
+    if (series == ChartSeries::Pie || series == ChartSeries::Funnel
+        || series == ChartSeries::Gauge || series == ChartSeries::Radar) {
+        QJsonArray sdata;
         for (int i = 0; i < xValues.size(); ++i) {
-            if (xValues[i].isEmpty()) continue;
+            if (xValues[i].isEmpty())
+                continue;
             QJsonObject item;
             item["name"] = xValues[i];
-            bool ok = false;
-            double v = yValues[i].toDouble(&ok);
-            item["value"] = ok ? v : 0;
-            pieData.append(item);
+            item["value"] = ys.value(i, 0.0);
+            sdata.append(item);
         }
+        if (sdata.isEmpty())
+            return QStringLiteral("{}");
+
+        if (series == ChartSeries::Radar) {
+            if (zField.isEmpty())
+                return QStringLiteral("{}");
+            const double valueMax = maxOf(ys, 0.0);
+            QJsonArray indicators;
+            QJsonArray values;
+            for (int i = 0; i < xValues.size(); ++i) {
+                if (xValues[i].isEmpty())
+                    continue;
+                QJsonObject ind;
+                ind["name"] = xValues[i];
+                const double userMax = zs.value(i, 0.0);
+                ind["max"] = userMax > 0 ? userMax : niceCeil(valueMax);
+                indicators.append(ind);
+                values.append(ys.value(i, 0.0));
+            }
+            QJsonObject radar;
+            radar["indicator"] = indicators;
+            spec["radar"] = radar;
+            QJsonObject s;
+            s["type"] = chartSeriesToString(series);
+            QJsonObject dataItem;
+            dataItem["value"] = values;
+            if (!title.isEmpty())
+                dataItem["name"] = title;
+            s["data"] = QJsonArray{dataItem};
+            spec["series"] = QJsonArray{s};
+            return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+        }
+
         QJsonArray seriesArr;
         QJsonObject s;
         s["type"] = chartSeriesToString(series);
-        s["data"] = pieData;
+        if (series == ChartSeries::Gauge) {
+            const double maxVal = maxOf(ys, 0.0);
+            s["min"] = 0;
+            s["max"] = niceCeil(maxVal);
+            QJsonObject progress;
+            progress["show"] = true;
+            s["progress"] = progress;
+            QJsonObject axisLine;
+            QJsonObject lineStyle;
+            lineStyle["width"] = 18;
+            axisLine["lineStyle"] = lineStyle;
+            s["axisLine"] = axisLine;
+            QJsonObject detail;
+            detail["formatter"] = "{value}";
+            s["detail"] = detail;
+        }
+        s["data"] = sdata;
         seriesArr.append(s);
         spec["series"] = seriesArr;
         return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
     }
 
+    // Calendar heatmap: dates in X, values in Y, no axes.
+    if (series == ChartSeries::Calendar) {
+        QJsonArray data;
+        for (int i = 0; i < xValues.size(); ++i) {
+            if (xValues[i].isEmpty() || yValues[i].isEmpty())
+                continue;
+            data.append(QJsonArray{xValues[i], ys.value(i, 0.0)});
+        }
+        if (data.isEmpty())
+            return QStringLiteral("{}");
+
+        QJsonObject calendar;
+        calendar["range"] = calendarRange(xValues);
+        calendar["top"] = 50;
+        calendar["left"] = 60;
+        calendar["cellSize"] = QJsonArray{"auto", 18};
+        spec["calendar"] = calendar;
+
+        QJsonObject visualMap;
+        double vmax = maxOf(ys, 0.0);
+        double vmin = minOf(ys, 0.0);
+        if (vmax - vmin < 1.0)
+            vmax = vmin + 1.0;
+        visualMap["min"] = vmin;
+        visualMap["max"] = vmax;
+        visualMap["calculable"] = false;
+        visualMap["orient"] = "horizontal";
+        visualMap["bottom"] = 20;
+        spec["visualMap"] = visualMap;
+
+        QJsonObject s;
+        s["type"] = "heatmap";
+        s["coordinateSystem"] = "calendar";
+        s["data"] = data;
+        spec["series"] = QJsonArray{s};
+        return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+    }
+
+    // Matrix heatmap: X and Y are category axes, Z is the cell value.
+    if (series == ChartSeries::Heatmap) {
+        if (zField.isEmpty())
+            return QStringLiteral("{}");
+        const QStringList xCats = uniqueCats(xValues);
+        const QStringList yCats = uniqueCats(yValues);
+        if (xCats.isEmpty() || yCats.isEmpty())
+            return QStringLiteral("{}");
+
+        QJsonArray data;
+        for (int i = 0; i < xValues.size(); ++i) {
+            const double v = zs.value(i, 0.0);
+            const int xi = xCats.indexOf(xValues[i]);
+            const int yi = yCats.indexOf(yValues[i]);
+            if (xi < 0 || yi < 0)
+                continue;
+            data.append(QJsonArray{xi, yi, v});
+        }
+        if (data.isEmpty())
+            return QStringLiteral("{}");
+
+        QJsonObject xAxis;
+        xAxis["type"] = "category";
+        xAxis["data"] = QJsonArray::fromStringList(xCats);
+        QJsonObject yAxis;
+        yAxis["type"] = "category";
+        yAxis["data"] = QJsonArray::fromStringList(yCats);
+        spec["xAxis"] = xAxis;
+        spec["yAxis"] = yAxis;
+
+        QJsonObject visualMap;
+        double vmin = minOf(zs, 0.0);
+        double vmax = maxOf(zs, 0.0);
+        if (vmax - vmin < 1.0)
+            vmax = vmin + 1.0;
+        visualMap["min"] = vmin;
+        visualMap["max"] = vmax;
+        visualMap["calculable"] = true;
+        spec["visualMap"] = visualMap;
+
+        QJsonObject s;
+        s["type"] = "heatmap";
+        s["data"] = data;
+        spec["series"] = QJsonArray{s};
+        return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+    }
+
+    // Bar / Line / Area / Scatter: existing cartesian path.
     bool numericX = allNumeric(xValues);
     QJsonObject xAxis;
     xAxis["type"] = numericX ? "value" : "category";

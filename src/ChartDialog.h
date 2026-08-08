@@ -61,6 +61,7 @@ private:
     QTableWidget *m_table;
     QComboBox *m_fieldX;
     QComboBox *m_fieldY;
+    QComboBox *m_fieldZ;
     QCheckBox *m_tooltipCheck;
     QCheckBox *m_animateCheck;
     QLineEdit *m_titleEdit;

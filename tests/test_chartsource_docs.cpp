@@ -330,19 +330,87 @@ QJsonObject serializeChartSpec(const ChartSource::ChartSpecData &d)
 
     QJsonObject s;
     s["type"] = d.type;
+
+    // Item charts: pie / funnel / gauge.
+    if (d.type == QLatin1String("pie") || d.type == QLatin1String("funnel")
+        || d.type == QLatin1String("gauge")) {
+        QJsonArray items;
+        for (const auto &row : d.rows) {
+            QJsonObject item;
+            item["name"] = row.at(0);
+            item["value"] = row.at(1).toDouble();
+            items.append(item);
+        }
+        s["data"] = items;
+        spec["series"] = QJsonArray{s};
+        return spec;
+    }
+
+    // Radar: one series over indicator values + per-indicator maxes.
+    if (d.type == QLatin1String("radar")) {
+        QJsonArray indicators;
+        QJsonArray values;
+        for (const auto &row : d.rows) {
+            QJsonObject ind;
+            ind["name"] = row.at(0);
+            ind["max"] = row.at(2).toDouble();
+            indicators.append(ind);
+            values.append(row.at(1).toDouble());
+        }
+        QJsonObject radar;
+        radar["indicator"] = indicators;
+        spec["radar"] = radar;
+        QJsonObject dataItem;
+        dataItem["value"] = values;
+        s["data"] = QJsonArray{dataItem};
+        spec["series"] = QJsonArray{s};
+        return spec;
+    }
+
+    // Calendar heatmap: [date, value] pairs on a calendar coordinate system.
+    if (d.type == QLatin1String("calendar")) {
+        QJsonArray data;
+        for (const auto &row : d.rows)
+            data.append(QJsonArray{row.at(0), row.at(1).toDouble()});
+        s["type"] = "heatmap";
+        s["coordinateSystem"] = "calendar";
+        s["data"] = data;
+        spec["series"] = QJsonArray{s};
+        return spec;
+    }
+
+    // Matrix heatmap: reconstruct category axes, emit index triples.
+    if (d.type == QLatin1String("heatmap")) {
+        QStringList xCats, yCats;
+        for (const auto &row : d.rows) {
+            if (!xCats.contains(row.at(0))) xCats.append(row.at(0));
+            if (!yCats.contains(row.at(1))) yCats.append(row.at(1));
+        }
+        QJsonArray data;
+        for (const auto &row : d.rows) {
+            data.append(QJsonArray{xCats.indexOf(row.at(0)), yCats.indexOf(row.at(1)),
+                                   row.at(2).toDouble()});
+        }
+        QJsonObject xAxis;
+        xAxis["type"] = "category";
+        xAxis["data"] = QJsonArray::fromStringList(xCats);
+        QJsonObject yAxis;
+        yAxis["type"] = "category";
+        yAxis["data"] = QJsonArray::fromStringList(yCats);
+        spec["xAxis"] = xAxis;
+        spec["yAxis"] = yAxis;
+        s["data"] = data;
+        spec["series"] = QJsonArray{s};
+        return spec;
+    }
+
+    // bar / line / area / scatter.
     if (d.type == QLatin1String("area")) {
         QJsonObject areaStyle;
         s["areaStyle"] = areaStyle;
     }
     QJsonArray rows;
-    if (d.type == QLatin1String("pie")) {
-        for (const auto &row : d.rows) {
-            QJsonObject item;
-            item["name"] = row.at(0);
-            item["value"] = row.at(1).toDouble();
-            rows.append(item);
-        }
-    } else if (d.headers.size() >= 2 && d.headers.at(0) == QLatin1String("X")) {
+    if (d.headers.size() >= 2 && d.headers.at(0) == QLatin1String("X")) {
         for (const auto &row : d.rows) {
             QJsonArray pair{row.at(0).toDouble(), row.at(1).toDouble()};
             rows.append(pair);
@@ -850,8 +918,9 @@ TEST(DocsEcharts, ChartAndStockBlocksRoundTrip)
             break;
         }
     }
-    // Line, bar, pie, donut, scatter, styled combo.
-    EXPECT_GE(chartParsed, 5);
+    // Line, bar, pie, donut, scatter, funnel, gauge, radar, heatmap, calendar,
+    // styled combo.
+    EXPECT_GE(chartParsed, 8);
     // Candlestick.
     EXPECT_GE(stockParsed, 1);
 }
@@ -879,6 +948,59 @@ TEST(DocsEcharts, StockSpecExampleExtractsExpected)
     EXPECT_FALSE(out.hasVolume);
 }
 
+// Helper: first `ec` block whose parsed spec is of the given type.
+static ChartSource::ChartSpecData firstChartOfType(const QString &type)
+{
+    const QString doc = readDoc(QStringLiteral("echarts.md"));
+    const QStringList blocks = fencedBlocks(doc, QStringLiteral("ec"));
+    for (const QString &block : blocks) {
+        ChartSource::ChartSpecData out;
+        if (ChartSource::parseChartSpec(block.toUtf8(), out) && out.type == type)
+            return out;
+    }
+    return {};
+}
+
+TEST(DocsEcharts, CalendarExampleExtractsExpected)
+{
+    const ChartSource::ChartSpecData out = firstChartOfType("calendar");
+    EXPECT_EQ(out.headers, (QStringList{"Date", "Value"}));
+    ASSERT_EQ(out.rows.size(), 8);
+    EXPECT_EQ(out.rows.first(), (QStringList{"2026-07-01", "1"}));
+    EXPECT_EQ(out.rows.last(), (QStringList{"2026-07-08", "8"}));
+}
+
+TEST(DocsEcharts, FunnelAndGaugeExamplesExtractExpected)
+{
+    const ChartSource::ChartSpecData funnel = firstChartOfType("funnel");
+    EXPECT_EQ(funnel.headers, (QStringList{"Label", "Value"}));
+    ASSERT_EQ(funnel.rows.size(), 4);
+    EXPECT_EQ(funnel.rows.first(), (QStringList{"Visited", "100"}));
+
+    const ChartSource::ChartSpecData gauge = firstChartOfType("gauge");
+    EXPECT_EQ(gauge.headers, (QStringList{"Label", "Value"}));
+    ASSERT_EQ(gauge.rows.size(), 1);
+    EXPECT_EQ(gauge.rows.first(), (QStringList{"Speed", "168"}));
+}
+
+TEST(DocsEcharts, RadarExampleExtractsExpected)
+{
+    const ChartSource::ChartSpecData out = firstChartOfType("radar");
+    EXPECT_EQ(out.headers, (QStringList{"Indicator", "Value", "Max"}));
+    ASSERT_EQ(out.rows.size(), 6);
+    EXPECT_EQ(out.rows.first(), (QStringList{"Sales", "4200", "6500"}));
+    EXPECT_EQ(out.rows.last(), (QStringList{"Marketing", "18000", "25000"}));
+}
+
+TEST(DocsEcharts, MatrixHeatmapExampleExtractsExpected)
+{
+    const ChartSource::ChartSpecData out = firstChartOfType("heatmap");
+    EXPECT_EQ(out.headers, (QStringList{"X", "Y", "Value"}));
+    ASSERT_EQ(out.rows.size(), 28);
+    EXPECT_EQ(out.rows.first(), (QStringList{"Mon", "Morning", "5"}));
+    EXPECT_EQ(out.rows.last(), (QStringList{"Sun", "Night", "6"}));
+}
+
 TEST(DocsEcharts, UnsupportedSpecTypesFallBack)
 {
     const QString doc = readDoc(QStringLiteral("echarts.md"));
@@ -892,9 +1014,9 @@ TEST(DocsEcharts, UnsupportedSpecTypesFallBack)
         ChartSource::ChartSpecData out;
         EXPECT_FALSE(ChartSource::parseChartSpec(json, out));
     }
-    // effectScatter, radar, box, heatmap, sankey, treemap, sunburst, funnel,
-    // graph, pictorialBar, themeRiver, calendar.
-    EXPECT_GE(unknown, 11);
+    // effectScatter, box, sankey, treemap, sunburst, graph, pictorialBar,
+    // themeRiver, parallel.
+    EXPECT_GE(unknown, 9);
 }
 
 // ---------------------------------------------------------------------------
