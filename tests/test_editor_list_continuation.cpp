@@ -120,15 +120,23 @@ TEST(IndentListLine, IndentsAlreadyIndented) {
 }
 
 TEST(IndentListLine, IndentsOrdered) {
-    EXPECT_EQ(indentListLine("1. item"), "  1. item");
+    EXPECT_EQ(indentListLine("1. item"), "   1. item");
 }
 
 TEST(IndentListLine, IndentsOrderedParen) {
-    EXPECT_EQ(indentListLine("1) item"), "  1) item");
+    EXPECT_EQ(indentListLine("1) item"), "   1) item");
 }
 
 TEST(IndentListLine, IndentsOrderedParenIndented) {
-    EXPECT_EQ(indentListLine("  1) item"), "    1) item");
+    EXPECT_EQ(indentListLine("  1) item"), "     1) item");
+}
+
+TEST(IndentListLine, IndentsMultiDigitOrdered) {
+    EXPECT_EQ(indentListLine("10. item"), "    10. item");
+}
+
+TEST(IndentListLine, IndentsAlreadyIndentedOrdered) {
+    EXPECT_EQ(indentListLine("   1. item"), "      1. item");
 }
 
 TEST(IndentListLine, NoChangeForPlainText) {
@@ -145,6 +153,10 @@ TEST(OutdentListLine, OutdentsFourSpace) {
 
 TEST(OutdentListLine, OutdentsOrderedParen) {
     EXPECT_EQ(outdentListLine("  1) item"), "1) item");
+}
+
+TEST(OutdentListLine, OutdentsOrderedParenAtContentColumn) {
+    EXPECT_EQ(outdentListLine("   1) item"), "1) item");
 }
 
 TEST(OutdentListLine, NoChangeForNoIndent) {

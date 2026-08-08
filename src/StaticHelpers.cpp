@@ -125,6 +125,21 @@ static int listIndentWidth(const QString &line)
     return spaces;
 }
 
+// How many spaces Tab adds / Shift+Tab removes when indenting a list item,
+// matching the item's content column so the result nests correctly under
+// CommonMark: 2 for bullets ("- ", "+ ", "* "), digits+delimiter+1 for
+// ordered ("1." → 3, "10." → 4, "1)" → 3), 0 for non-list lines.
+static int listIndentStep(const QString &line)
+{
+    auto match = unorderedListRe().match(line);
+    if (match.hasMatch())
+        return 2;
+    match = orderedListRe().match(line);
+    if (match.hasMatch())
+        return match.captured(2).length() + match.captured(3).length() + 1;
+    return 0;
+}
+
 QString handleTableReturn(const QString &line, const QString &prevLine)
 {
     if (line.startsWith('|')) {
@@ -430,26 +445,22 @@ QString indentListLine(const QString &line)
 {
     if (isThematicBreak(line))
         return line;
-    auto match = unorderedListRe().match(line);
-    if (!match.hasMatch())
-        match = orderedListRe().match(line);
-    if (!match.hasMatch())
+    const int step = listIndentStep(line);
+    if (step == 0)
         return line;
     int indent = listIndentWidth(line);
-    return line.left(indent) + "  " + line.mid(indent);
+    return line.left(indent) + QString(step, ' ') + line.mid(indent);
 }
 
 QString outdentListLine(const QString &line)
 {
     if (isThematicBreak(line))
         return line;
-    auto match = unorderedListRe().match(line);
-    if (!match.hasMatch())
-        match = orderedListRe().match(line);
-    if (!match.hasMatch())
+    const int step = listIndentStep(line);
+    if (step == 0)
         return line;
     int indent = listIndentWidth(line);
-    int remove = qMin(indent, 2);
+    int remove = qMin(indent, step);
     return line.mid(remove);
 }
 

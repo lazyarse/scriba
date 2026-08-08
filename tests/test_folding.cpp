@@ -671,6 +671,7 @@ TEST_F(FoldingTest, OrderedAndTaskListItemsFoldable)
         "1. one\n"
         "2. two\n"
         "- [ ] task\n"
+        "  - subtask\n"
         "- done\n"
     );
 
@@ -682,11 +683,13 @@ TEST_F(FoldingTest, OrderedAndTaskListItemsFoldable)
     EXPECT_FALSE(doc->findBlockByNumber(2).isVisible());
     EXPECT_FALSE(doc->findBlockByNumber(3).isVisible());
 
-    // A task item is its own fold anchor; folding it keeps the last item.
+    // A task item with sub-content is its own fold anchor; folding it keeps
+    // the following sibling item visible.
     editor->restoreFolds({2});
     QApplication::processEvents();
     EXPECT_TRUE(editor->foldedBlockNumbers().contains(2));
-    EXPECT_TRUE(doc->findBlockByNumber(3).isVisible());
+    EXPECT_FALSE(doc->findBlockByNumber(3).isVisible()) << "sub-content hides with the task";
+    EXPECT_TRUE(doc->findBlockByNumber(4).isVisible()) << "sibling item stays visible";
 }
 
 TEST_F(FoldingTest, FoldsQuotedListItems)
@@ -794,6 +797,53 @@ TEST_F(FoldingTest, KeyboardFoldUnfoldList)
 
     EXPECT_TRUE(doc->findBlockByNumber(1).isVisible());
     EXPECT_TRUE(editor->foldedBlockNumbers().isEmpty());
+}
+
+TEST_F(FoldingTest, OrderedMarkerAtAnyNumberIsAnchor)
+{
+    setText(
+        "2024. a\n"
+        "2025. b\n"
+    );
+
+    // Any-number ordered markers are real list items (per CommonMark the
+    // renderer emits <ol start="2024">); the leaf "2025. b" still gets no
+    // anchor.
+    editor->restoreFolds({0, 1});
+    QApplication::processEvents();
+    const QList<int> folded = editor->foldedBlockNumbers();
+    EXPECT_TRUE(folded.contains(0)) << "any-number ordered marker is a fold anchor";
+    EXPECT_FALSE(folded.contains(1)) << "leaf item still gets no anchor";
+}
+
+TEST_F(FoldingTest, BulletLeafItemsGetNoFoldAnchor)
+{
+    setText(
+        "- a\n"
+        "- b\n"
+    );
+
+    editor->restoreFolds({0, 1});
+    QApplication::processEvents();
+    const QList<int> folded = editor->foldedBlockNumbers();
+    EXPECT_TRUE(folded.contains(0)) << "first bullet folds the following items";
+    EXPECT_FALSE(folded.contains(1)) << "leaf bullet gets no fold anchor";
+}
+
+TEST_F(FoldingTest, NestedListItemsKeepFoldAnchor)
+{
+    setText(
+        "- a\n"
+        "  - a1\n"
+        "      - deep\n"
+    );
+
+    editor->restoreFolds({0, 1, 2});
+    QApplication::processEvents();
+    const QList<int> folded = editor->foldedBlockNumbers();
+    EXPECT_TRUE(folded.contains(0));
+    EXPECT_TRUE(folded.contains(1)) << "nested item with its own sub-content folds";
+    EXPECT_FALSE(folded.contains(2)) << "deepest leaf gets no anchor";
 }
 
 TEST_F(FoldingTest, ListFoldRoundtrip)

@@ -83,6 +83,29 @@ TEST_F(EditorTestHarness, OrderedListDoubleDigitIncrementsOnEnter)
     EXPECT_EQ(text(), "9. ninth\n10. ");
 }
 
+TEST_F(EditorTestHarness, YearAtLineStartContinuesList)
+{
+    typeLine("2024. text");
+    EXPECT_EQ(text(), "2024. text\n2025. ");
+}
+
+TEST_F(EditorTestHarness, OrderedListContinuesWhenPrecededByOne)
+{
+    setContent("1. first\n2. second");
+    placeCursorAtEnd();
+    enter();
+    EXPECT_EQ(text(), "1. first\n2. second\n3. ");
+}
+
+TEST_F(EditorTestHarness, EnterMidYearCarriesListMarker)
+{
+    setContent("2024. report");
+    placeCursor(0, 7);
+    enter();
+    EXPECT_EQ(text(), "2024. r\n2025. eport");
+    assertCursor(1, 6);
+}
+
 TEST_F(EditorTestHarness, IndentedListKeepsIndentOnEnter)
 {
     typeLine("  - nested");
@@ -428,7 +451,35 @@ TEST_F(EditorTestHarness, ShiftTabOutdentsListItem)
 TEST_F(EditorTestHarness, TabIndentsOrderedListItem)
 {
     run("1. item", Qt::Key_Tab);
-    EXPECT_EQ(text(), "  1. item");
+    EXPECT_EQ(text(), "   1. item");
+}
+
+TEST_F(EditorTestHarness, TabNestsUnorderedListThreeLevels)
+{
+    setContent("- item one");
+    placeCursorAtEnd();
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "  - item one");
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "    - item one");
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "      - item one");
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    EXPECT_EQ(text(), "    - item one");
+}
+
+TEST_F(EditorTestHarness, TabNestsOrderedListThreeLevels)
+{
+    setContent("1. item one");
+    placeCursorAtEnd();
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "   1. item one");
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "      1. item one");
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "         1. item one");
+    press(Qt::Key_Tab, Qt::ShiftModifier);
+    EXPECT_EQ(text(), "      1. item one");
 }
 
 TEST_F(EditorTestHarness, TabIndentsSelectedLines)

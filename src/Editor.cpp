@@ -2354,7 +2354,8 @@ void Editor::scanHeadersAndFolds()
 
             // List item marker line (bullet, ordered, task): a fold anchor whose
             // range runs to the next sibling/shallower item or the list end.
-            if (listFoldInfo(text).isList)
+            // Leaf items whose fold would hide nothing get no anchor at all.
+            if (listFoldInfo(text).isList && listAnchorHasContent(bn))
                 m_listItems.insert(bn);
         }
 
@@ -2505,6 +2506,18 @@ bool Editor::listItemIsFirst(int startBlock, int anchorQuoteDepth, int anchorInd
         block = block.previous();
     }
     return true;
+}
+
+bool Editor::listAnchorHasContent(int blockNumber) const
+{
+    const int end = listFoldEnd(blockNumber);
+    if (end <= blockNumber + 1)
+        return false;
+    for (int i = blockNumber + 1; i < end; ++i) {
+        if (!document()->findBlockByNumber(i).text().trimmed().isEmpty())
+            return true;
+    }
+    return false;
 }
 
 int Editor::listFoldEnd(int startBlock) const
