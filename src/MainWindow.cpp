@@ -15,6 +15,7 @@
 #include "MainWindow.h"
 #include "Editor.h"
 #include "Preview.h"
+#include "PreviewBridge.h"
 #include "MarkdownParser.h"
 #include "CssConfig.h"
 #include "CssLoader.h"
@@ -47,6 +48,7 @@
 #include "ValidationReportDialog.h"
 
 #include <QAtomicInteger>
+#include <QWebChannel>
 
 static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
 static constexpr const char *kOpenMdFilter = "Markdown Files (*.md *.markdown *.txt);;All Files (*)";
@@ -167,33 +169,20 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
         }
     });
 
-    connect(m_preview->page(), &QWebEnginePage::urlChanged, this, [this](const QUrl &url) {
-        QString frag = url.fragment(QUrl::FullyDecoded);
-        if (frag.startsWith("scriba-edit:")) {
-            // Edit-button bridge: #scriba-edit:<kind>:<line>:<index>:<tex>.
-            QString rest = frag.mid(12);
-            int c1 = rest.indexOf(QLatin1Char(':'));
-            if (c1 <= 0)
-                return;
-            int c2 = rest.indexOf(QLatin1Char(':'), c1 + 1);
-            if (c2 <= c1)
-                return;
-            int c3 = rest.indexOf(QLatin1Char(':'), c2 + 1);
-            if (c3 <= c2)
-                return;
-            const QString kind = rest.left(c1);
-            const int line = rest.mid(c1 + 1, c2 - c1 - 1).toInt();
-            const int index = rest.mid(c2 + 1, c3 - c2 - 1).toInt();
-            const QString tex = rest.mid(c3 + 1);
-            if (line <= 0)
-                return;
-            handleChartEdit(kind, line, index, tex);
-            m_preview->page()->runJavaScript(
-                "history.replaceState(null,'',location.href.split('#')[0])");
-            return;
-        }
-        if (frag.startsWith("scriba-open:")) {
-            QUrl target(frag.mid(12));
+    // The preview page routes link clicks to C++ via a QWebChannel bridge
+    // (see PreviewBridge) instead of encoding URLs in the page fragment and
+    // watching urlChanged. The old approach was racy: the fragment-clearing
+    // replaceState could be lost against the deferred setHtml load, leaving a
+    // stale #scriba-open: fragment so the next identical click became a no-op
+    // replaceState and was silently dropped.
+    m_webChannel = new QWebChannel(this);
+    m_previewBridge = new PreviewBridge(this);
+    m_webChannel->registerObject(QStringLiteral("scriba"), m_previewBridge);
+    m_preview->page()->setWebChannel(m_webChannel);
+
+    connect(m_previewBridge, &PreviewBridge::linkRequested, this,
+        [this](const QString &href) {
+            QUrl target(href);
             const QString anchor = target.fragment(QUrl::FullyDecoded);
             if (target.isLocalFile()) {
                 QString localPath = target.toLocalFile();
@@ -216,14 +205,11 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
             } else {
                 QDesktopServices::openUrl(target);
             }
-            // replaceState (not location.hash=) so clearing the scriba-open
-            // fragment does not scroll the preview back to the top: the empty
-            // fragment and a fragment matching no element both scroll to the
-            // top of the document per the HTML spec.
-            m_preview->page()->runJavaScript(
-                "history.replaceState(null,'',location.href.split('#')[0])");
-        }
-    });
+        });
+    connect(m_previewBridge, &PreviewBridge::chartEditRequested, this,
+        [this](const QString &kind, int line, int index, const QString &tex) {
+            handleChartEdit(kind, line, index, tex);
+        });
 
     refreshPreviewCss();
 
@@ -1483,15 +1469,28 @@ void MainWindow::updatePreview(bool tabSwitch)
             "<script src=\"qrc:///echarts.min.js\"></script>"
             "<script src=\"qrc:///twemoji.min.js\"></script>"
             "<script src=\"qrc:///emoji.js\"></script>"
+            "<script src=\"qrc:///qtwebchannel/qwebchannel.js\"></script>"
             "<script>window._scribaHeavyDelay=" + QString::number(heavyRenderDelay) + ";" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + echartsInitJs + setImgTitlesJs + setFootnoteTitlesJs + imageOverlayJs + chartEditJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode,delay,baseUrl){if(!document.body)return false;try{window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss){var tc=document.getElementById('theme-css');if(tc)tc.textContent=themeCss;}if(baseUrl){var b=document.getElementById('scriba-base');if(!b){b=document.createElement('base');b.id='scriba-base';var hd=document.head;hd.insertBefore(b,hd.firstChild);}b.href=baseUrl;}else{var b2=document.getElementById('scriba-base');if(b2)b2.remove();}window._scribaBasePath=baseUrl?new URL(baseUrl).pathname:location.pathname;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initECharts();hljs.highlightAll();generateHeadingIds();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},(typeof delay==='number'&&delay>=0)?delay:window._scribaHeavyDelay);return true;}catch(e){scribaShowRenderError(e&&e.message?e.message:e);scribaEndRender();return false;}}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}function scribaShowRenderError(m){var c=document.getElementById('scriba-content');if(!c&&document.body){c=document.createElement('div');c.id='scriba-content';document.body.appendChild(c);}if(!c)return;m=String(m==null?'Unknown render error':m);var t=document.createElement('div');t.style.cssText='margin:2rem auto;max-width:720px;padding:1.2rem 1.4rem;border:1px solid #d33;border-radius:6px;background:#fdf0f0;color:#8b0000;font-family:system-ui,sans-serif;';t.innerHTML='<strong>Preview error</strong><pre style=\"white-space:pre-wrap;word-break:break-word;font-family:monospace;margin:0.5rem 0 0;color:#6b0000;\">'+String(m).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';c.innerHTML='';c.appendChild(t);}document.addEventListener('DOMContentLoaded',function(){window._scribaBasePath=location.pathname;mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.echartsReady=initECharts();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
             "</head><body id=\"preview\">"
             "<div id=\"scriba-rendering-overlay\">Rendering…</div>"
             "<div id=\"scriba-content\">%3</div>"
-            "<script>document.addEventListener('click',function(e){"
+            "<script>function scribaBridgeOpen(href){if(window.scribaBridge)window.scribaBridge.openLink(href);else window.scribaPendingOpen=href;}"
+            "function scribaBridgeEdit(kind,line,idx,tex){if(window.scribaBridge)window.scribaBridge.editChart(kind,line,idx,tex);else window.scribaPendingEdit={kind:kind,line:line,idx:idx,tex:tex};}"
+            "function scribaBridgeFlush(){if(!window.scribaBridge)return;if(window.scribaPendingOpen!==undefined){window.scribaBridge.openLink(window.scribaPendingOpen);window.scribaPendingOpen=undefined;}if(window.scribaPendingEdit){window.scribaBridge.editChart(window.scribaPendingEdit.kind,window.scribaPendingEdit.line,window.scribaPendingEdit.idx,window.scribaPendingEdit.tex);window.scribaPendingEdit=null;}}"
+            "function scribaBridgeInit(){"
+            "if(window.scribaBridge)return;"
+            "if(typeof QWebChannel==='undefined'||!window.qt||!window.qt.webChannelTransport){setTimeout(scribaBridgeInit,50);return;}"
+            "new QWebChannel(qt.webChannelTransport,function(ch){window.scribaBridge=ch.objects.scriba;scribaBridgeFlush();});"
+            "}"
+            "scribaBridgeInit();"
+            "document.addEventListener('click',function(e){"
             "var l=e.target.closest('a');if(!l)return;"
             "if(l.hash&&l.hash.indexOf('#scriba-edit:')===0){"
             "e.preventDefault();"
-            "history.replaceState(null,'','#'+l.hash.slice(1));"
+            "var p=l.hash.slice(13).split(':');if(p.length<3)return;"
+            "var tex=p.length>3?p.slice(3).join(':'):'';"
+            "try{tex=decodeURIComponent(tex);}catch(err){}"
+            "scribaBridgeEdit(p[0],parseInt(p[1],10),parseInt(p[2],10),tex);"
             "return;"
             "}"
             "if(l.hash&&l.hash.length>1&&l.pathname===window._scribaBasePath){"
@@ -1500,7 +1499,7 @@ void MainWindow::updatePreview(bool tabSwitch)
             "return;"
             "}"
             "e.preventDefault();"
-            "history.replaceState(null,'','#scriba-open:'+encodeURIComponent(l.href))"
+            "scribaBridgeOpen(l.href)"
             "})</script>"
             "</body></html>"
         ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss, codeLangInit, renderCss);

@@ -201,32 +201,39 @@ The chrome CSS for Qt widgets (dialogs, buttons, inputs, spinboxes) is generated
 
 ## Preview Link Handling
 
-Clicking a hyperlink in the preview opens local `.md` files in a new editor tab and everything else (http, https, mailto, etc.) in the system browser.
+Clicking a hyperlink in the preview opens local `.md` files in a new tab and everything else (http, https, mailto, etc.) in the system browser. Link clicks are routed from the preview page's JS context back to C++ through a `QWebChannel` bridge.
 
-### Why `about:blank#scriba-open:`?
+### Why QWebChannel?
 
-The preview page is loaded via `QWebEnginePage::setHtml()`, which creates an internal `data:` URL. Chromium silently blocks navigation from `data:` to `file:` URLs before Qt ever sees the request in `acceptNavigationRequest()`. However, navigation from `data:` to `http:` and `about:` is allowed.
+The preview page is loaded via `QWebEnginePage::setHtml()`, which creates an internal `data:` URL. Chromium silently blocks navigation from `data:` to `file:` URLs, so the previous mechanism redirected link clicks to `about:blank#scriba-open:<encoded-url>` fragments and intercepted them in `PreviewPage::acceptNavigationRequest()`. That was racy: the fragment-clearing `replaceState` could be lost against the deferred `setHtml` load, leaving a stale `#scriba-open:` fragment so the next identical click produced a no-op `replaceState` and the click was silently dropped. The QWebChannel bridge calls C++ directly with no URL state, so that race is eliminated.
 
-To work around this, a delegated JavaScript click handler is injected into the preview HTML (`MainWindow.cpp:951-956`) that intercepts every link click, prevents the default navigation, and instead redirects to `about:blank#scriba-open:<encoded-url>`. The `about:` scheme navigation reaches `PreviewPage::acceptNavigationRequest()` (in `Preview.cpp:48-55`), which detects the `scriba-open:` fragment header, extracts the real URL, and emits `openLinkRequested(url)`. No actual navigation to `about:blank` occurs — `acceptNavigationRequest` returns `false`, cancelling it.
+### The bridge
+
+The preview page loads `qrc:///qtwebchannel/qwebchannel.js` — a JS shim embedded in the Qt WebChannel library — plus a small init snippet in the preview HTML template (the `fullHtml` string in `MainWindow::updatePreview`). The snippet creates `new QWebChannel(qt.webChannelTransport, ...)` and stores the result's `objects.scriba` as `window.scribaBridge`.
+
+On the C++ side, `MainWindow` owns a `QWebChannel` and a `PreviewBridge` (`src/PreviewBridge.h/.cpp`), registered via `channel->registerObject("scriba", bridge)` and attached with `preview->page()->setWebChannel(channel)`. The bridge exposes `Q_INVOKABLE openLink(QString)` and `Q_INVOKABLE editChart(...)`, which re-emit the C++ signals `linkRequested` and `chartEditRequested`.
 
 ### Signal flow
 
 ```
 User clicks link in preview
-  → JS handler: e.preventDefault()
-  → JS: window.location.href = 'about:blank#scriba-open:' + encodeURIComponent(link.href)
-  → PreviewPage::acceptNavigationRequest(url, NavigationTypeOther)
-  → detects scriba-open fragment, emits openLinkRequested(realUrl)
+  → delegated JS click handler:
+      • same-document #anchor → scribaScrollToSlugRetry()  (scroll in page)
+      • #scriba-edit: anchor  →  parse kind/line/index/tex  →  bridge.editChart(...)
+      • every other link     →  e.preventDefault()  →  bridge.openLink(l.href)
+  → PreviewBridge emits linkRequested(url) (or chartEditRequested)
   → MainWindow handler:
-      • realUrl.isLocalFile() && suffix == "md"  →  loadFile(localPath)  [new tab]
-      • otherwise                                →  QDesktopServices::openUrl(realUrl)
+      • realUrl.isLocalFile() && suffix == "md"    →  loadFile(localPath)  [new editor tab]
+      •      with a #section fragment              →  also scrollPreviewToAnchor(fragment)
+      • local image                                →  in-preview lightbox (scribaShowImage)
+      • otherwise                                  →  QDesktopServices::openUrl(realUrl)
+  → chartEditRequested → MainWindow::handleChartEdit()
 ```
 
 ### Key files
 
-- `src/Preview.cpp` — `PreviewPage::acceptNavigationRequest` intercepts the fake navigation
-- `src/MainWindow.cpp` — JS injection in the HTML template; signal handler that opens tabs or browser
-- `src/Preview.h` — `openLinkRequested` signal declaration
+- `src/PreviewBridge.h/.cpp` — `Q_INVOKABLE` `openLink` / `editChart` slots re-emitting `linkRequested` / `chartEditRequested`
+- `src/MainWindow.cpp` — owns the `QWebChannel` + `PreviewBridge`; preview HTML template with the `qwebchannel.js` init snippet; link/chart signal handlers
 
 ## Preview Rendering: Dual Debounce
 

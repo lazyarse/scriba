@@ -88,9 +88,9 @@ build\Release\scriba.exe file.md
 
 ## Dependencies
 
-Qt6: Core, Gui, Widgets, Network, WebEngineWidgets. Install on Debian/Ubuntu:
+Qt6: Core, Gui, Widgets, Network, WebEngineWidgets, WebChannel. Install on Debian/Ubuntu:
 ```bash
-sudo apt install qt6-base-dev qt6-webengine-dev
+sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
 ```
 
 ## Structure

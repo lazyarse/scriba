@@ -33,6 +33,7 @@
 
 class Editor;
 class Preview;
+class PreviewBridge;
 class MarkdownParser;
 class CssConfig;
 class CssLoader;
@@ -46,6 +47,7 @@ class KatexHelperDialog;
 class MchemHelperDialog;
 class SpellCheckDialog;
 class QProgressBar;
+class QWebChannel;
 
 struct TabInfo {
     Editor *editor = nullptr;
@@ -171,6 +173,8 @@ private:
 
     QSplitter *m_splitter;
     Preview *m_preview;
+    QWebChannel *m_webChannel = nullptr;
+    PreviewBridge *m_previewBridge = nullptr;
     MarkdownParser *m_parser;
     CssConfig *m_cssConfig;
     CssLoader *m_cssLoader;

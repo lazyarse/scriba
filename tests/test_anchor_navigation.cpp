@@ -23,6 +23,7 @@
 #include <QSet>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QTabBar>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QUrl>
@@ -33,6 +34,8 @@
 #include "Preferences.h"
 #include "Preview.h"
 #include "TestConfig.h"
+
+#include <QAction>
 
 static int s_argc = 1;
 static char s_arg0[] = "test_anchor_navigation";
@@ -124,6 +127,20 @@ protected:
             QTest::qWait(100);
         }
         return y;
+    }
+
+    // Polls until the QWebChannel bridge is registered in the preview page.
+    void waitForBridge()
+    {
+        for (int i = 0; i < 60; ++i) {
+            bool ready = false;
+            window->preview()->page()->runJavaScript(
+                "!!window.scribaBridge",
+                [&](const QVariant &r) { ready = r.toBool(); });
+            QTest::qWait(100);
+            if (ready)
+                return;
+        }
     }
 
     QTemporaryDir m_dir;
@@ -378,6 +395,76 @@ TEST_F(AnchorNavigationTest, FootnoteBackrefGetsNoTitle)
         [&](const QVariant &r) { title = r.toString(); });
     QTest::qWait(500);
     EXPECT_EQ(QStringLiteral("no-title"), title);
+}
+
+// Regression: clicking a local-file link opens the target in a new tab;
+// after closing that tab, clicking the same link again must reopen it.
+// The old #scriba-open: fragment mechanism could leave a stale URL so the
+// repeated click was a no-op; the QWebChannel bridge routes every click to
+// C++ directly.
+TEST_F(AnchorNavigationTest, LinkReopensAfterClosingTabWorks)
+{
+    QFile b(m_dir.filePath(QStringLiteral("b.md")));
+    ASSERT_TRUE(b.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    b.write("# In B\n\nBody.\n");
+    b.close();
+
+    loadDoc(QStringLiteral("a.md"),
+        "# In A\n\nPara.\n\n[Go to B](b.md)\n");
+    waitForBridge();
+
+    auto *tabBar = window->findChild<QTabBar *>();
+    ASSERT_NE(tabBar, nullptr);
+    ASSERT_EQ(tabBar->count(), 1);
+
+    // Click the a.md link. After a tab close the preview re-renders the a.md
+    // content asynchronously, so the anchor may not exist yet — poll until the
+    // click actually lands (the app under load takes a while to repaint).
+    auto clickLink = [&]() {
+        for (int i = 0; i < 80; ++i) {
+            bool clicked = false;
+            window->preview()->page()->runJavaScript(
+                "(function(){var a=document.querySelector('a');"
+                "if(!a)return 'no-link';a.click();return 'clicked';})()",
+                [&](const QVariant &r) { clicked = r.toString() == "clicked"; });
+            QTest::qWait(100);
+            if (clicked)
+                return;
+        }
+    };
+
+    // Close the current tab via the menu action rather than a Ctrl+W
+    // keyClick: after clicking a link the preview page owns focus, and
+    // QtWebEngine can swallow the key before WindowShortcut dispatch.
+    auto closeTab = [&]() {
+        const auto actions = window->findChildren<QAction *>();
+        for (QAction *a : actions) {
+            if (a->text().contains(QStringLiteral("Close Tab"))) {
+                a->trigger();
+                return;
+            }
+        }
+    };
+
+    for (int round = 0; round < 3; ++round) {
+        SCOPED_TRACE("round " + QString::number(round).toStdString());
+
+        clickLink();
+        bool opened = false;
+        for (int i = 0; i < 40 && !opened; ++i) {
+            QTest::qWait(150);
+            opened = tabBar->count() > 1;
+        }
+        ASSERT_TRUE(opened);
+
+        closeTab();
+        bool closed = false;
+        for (int i = 0; i < 40 && !closed; ++i) {
+            QTest::qWait(150);
+            closed = tabBar->count() == 1;
+        }
+        ASSERT_TRUE(closed);
+    }
 }
 
 } // namespace

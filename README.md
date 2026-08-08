@@ -67,7 +67,7 @@ _See the [Gallery](docs/gallery.md) for more screenshots..._
 - CMake 3.16+
 - Qt6 development libraries
   ```bash
-  sudo apt install qt6-base-dev qt6-webengine-dev
+  sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
   ```
 - GCC/Clang with C++23 support (Linux) or Visual Studio 2022 with "Desktop development with C++" workload (Windows)
 - On Windows: Qt 6.8+ (MSVC 2022 64-bit) from qt.io, CMake, Git for Windows
