@@ -62,6 +62,15 @@ QStringList fencedBlocks(const QString &markdown, const QString &lang)
     return out;
 }
 
+// Returns the body of the first ` ```mermaid ` fence that contains `fragment`.
+QString blockContaining(const QString &doc, const QString &fragment)
+{
+    for (const QString &block : fencedBlocks(doc, QStringLiteral("mermaid")))
+        if (block.contains(fragment))
+            return block;
+    return QString();
+}
+
 // ---------------------------------------------------------------------------
 // Mermaid -> text serializers (mirror MermaidDialog::build*{Pie,Flowchart,
 // Sequence,Gantt,State,Mindmap,Timeline,Journey,Quadrant,Sankey}Diagram). They
@@ -95,6 +104,11 @@ const ArrowPair kArrowPairs[] = {
     {"==>",   "==",  "==>"},
     {"--o",   "--",  "--o"},
     {"--x",   "--",  "--x"},
+    {"<-->",  "<--", "-->"},
+    {"<==>",  "<==", "==>"},
+    {"<-.->", "<-.", ".->"},
+    {"o--o",  "o--", "--o"},
+    {"x--x",  "x--", "--x"},
 };
 
 QString renderEdgeText(const QString &from, const QString &to, const QString &label,
@@ -502,6 +516,181 @@ TEST(DocsMermaid, ParsingConsistentWithDetection)
             break;
         }
     }
+}
+
+TEST(DocsMermaid, FlowchartBidirectionalExtraction)
+{
+    // The styled example (`docs/mermaid.md`) links its subgraph nodes with
+    // `A <--> B` / `B <--> C`; those are not decorative — they must extract
+    // as real "<-->" edges rather than being dropped.
+    const QString doc = readDoc(QStringLiteral("mermaid.md"));
+    const QStringList blocks = fencedBlocks(doc, QStringLiteral("mermaid"));
+    bool found = false;
+    for (const QString &block : blocks) {
+        if (!block.contains(QLatin1String("<-->")))
+            continue;
+        found = true;
+        ChartSource::MermaidData out;
+        ASSERT_TRUE(ChartSource::parseMermaid(block, out));
+        ASSERT_EQ(out.type, ChartSource::MermaidType::Flowchart);
+        ASSERT_EQ(out.fcEdges.size(), 3) << "styled example must keep both <--> edges";
+        EXPECT_EQ(out.fcEdges[0], (QStringList{"A", "B", "", "<-->"}));
+        EXPECT_EQ(out.fcEdges[1], (QStringList{"B", "C", "", "<-->"}));
+        EXPECT_EQ(out.fcEdges[2], (QStringList{"B", "D", "", "-.->"}));
+    }
+    ASSERT_TRUE(found) << "expected a `A <--> B` block in docs/mermaid.md";
+}
+
+TEST(DocsMermaid, FlowchartExampleExtractsLitmusValues)
+{
+    const QString block =
+        blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                        QStringLiteral("Start([Start])"));
+    ASSERT_FALSE(block.isEmpty());
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(block, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Flowchart);
+    EXPECT_EQ(out.fcDirection, "TD");
+    ASSERT_EQ(out.fcNodes.size(), 7);
+    EXPECT_EQ(out.fcNodes[0], (QStringList{"Start", "Start", "Stadium"}));
+    EXPECT_EQ(out.fcNodes[1], (QStringList{"Auth", "Authenticated?", "Diamond"}));
+    EXPECT_EQ(out.fcNodes[2], (QStringList{"Dashboard", "Load Dashboard", "Box"}));
+    EXPECT_EQ(out.fcNodes[3], (QStringList{"Login", "Login Page", "Box"}));
+    EXPECT_EQ(out.fcNodes[4], (QStringList{"Validate", "Valid Credentials?", "Diamond"}));
+    EXPECT_EQ(out.fcNodes[5], (QStringList{"Error", "Show Error", "Box"}));
+    EXPECT_EQ(out.fcNodes[6], (QStringList{"End", "End", "Stadium"}));
+    ASSERT_EQ(out.fcEdges.size(), 8);
+    EXPECT_EQ(out.fcEdges[1], (QStringList{"Auth", "Dashboard", "Yes", "-->"}));
+    EXPECT_EQ(out.fcEdges[3], (QStringList{"Login", "Validate", "", "-->"}));
+    EXPECT_EQ(out.fcEdges[7], (QStringList{"Dashboard", "End", "", "-->"}));
+}
+
+TEST(DocsMermaid, SequenceExtractsLitValues)
+{
+    const QString block = blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                                          QStringLiteral("sequenceDiagram"));
+    ASSERT_FALSE(block.isEmpty());
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(block, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Sequence);
+    ASSERT_EQ(out.seqParticipants.size(), 4);
+    EXPECT_EQ(out.seqParticipants[0], (QStringList{"U", "User"}));
+    EXPECT_EQ(out.seqParticipants[3], (QStringList{"D", "Database"}));
+    ASSERT_EQ(out.seqMessages.size(), 9);
+    EXPECT_EQ(out.seqMessages[0],
+              (QStringList{"U", "F", "Enter credentials", "->>"}));
+    EXPECT_EQ(out.seqMessages[3],
+              (QStringList{"D", "A", "User record", "-->>"}));
+    EXPECT_EQ(out.seqMessages[4],
+              (QStringList{"A", "A", "Verify password", "->>"}));
+    EXPECT_EQ(out.seqMessages[8],
+              (QStringList{"F", "U", "Show error", "-->>"}));
+}
+
+TEST(DocsMermaid, GanttExtractsLitValues)
+{
+    const QString block = blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                                          QStringLiteral("Project Timeline"));
+    ASSERT_FALSE(block.isEmpty());
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(block, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Gantt);
+    EXPECT_EQ(out.ganttTitle, "Project Timeline");
+    EXPECT_EQ(out.ganttDateFormat, "YYYY-MM-DD");
+    EXPECT_FALSE(out.ganttWeekend); // no `excludes weekends` line in the doc
+    ASSERT_EQ(out.ganttTasks.size(), 8);
+    EXPECT_EQ(out.ganttTasks[0],
+              (QStringList{"a1", "Requirements", "2024-06-01", "5d", "", "Planning"}));
+    EXPECT_EQ(out.ganttTasks[1],
+              (QStringList{"a2", "Design", "after a1", "7d", "", "Planning"}));
+    EXPECT_EQ(out.ganttTasks[7],
+              (QStringList{"d1", "Staging", "after c2", "2d", "", "Deploy"}));
+}
+
+TEST(DocsMermaid, PieExtractsLitValues)
+{
+    const QString block = blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                                          QStringLiteral("Development Stack Usage"));
+    ASSERT_FALSE(block.isEmpty());
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(block, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Pie);
+    EXPECT_EQ(out.pieTitle, "Development Stack Usage");
+    ASSERT_EQ(out.pieEntries.size(), 5);
+    EXPECT_EQ(out.pieEntries[0].first, "TypeScript");
+    EXPECT_DOUBLE_EQ(out.pieEntries[0].second, 40.0);
+    EXPECT_EQ(out.pieEntries[4].first, "Other");
+    EXPECT_DOUBLE_EQ(out.pieEntries[4].second, 10.0);
+}
+
+TEST(DocsMermaid, JourneyExtractsLitValues)
+{
+    const QString block = blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                                          QStringLiteral("Coffee Shop"));
+    ASSERT_FALSE(block.isEmpty());
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(block, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Journey);
+    EXPECT_EQ(out.journeyTitle, "Coffee Shop Experience");
+    ASSERT_EQ(out.journeyEntries.size(), 7);
+    EXPECT_EQ(out.journeyEntries[0],
+              (QStringList{"Order", "Browse menu", "4", "Customer"}));
+    EXPECT_EQ(out.journeyEntries[2],
+              (QStringList{"Order", "Pay", "3", "Customer, Cashier"}));
+    EXPECT_EQ(out.journeyEntries[6],
+              (QStringList{"Enjoy", "Drink coffee", "5", "Customer"}));
+}
+
+TEST(DocsMermaid, TimelineExtractsLitValues)
+{
+    const QString block = blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                                          QStringLiteral("Company Milestones"));
+    ASSERT_FALSE(block.isEmpty());
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(block, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Timeline);
+    EXPECT_EQ(out.timelineTitle, "Company Milestones");
+    ASSERT_EQ(out.timelineEntries.size(), 8);
+    EXPECT_EQ(out.timelineEntries[0], (QStringList{"2018", "Founded"}));
+    EXPECT_EQ(out.timelineEntries[2], (QStringList{"2019", "MVP launch"}));
+    EXPECT_EQ(out.timelineEntries[7], (QStringList{"2024", "IPO"}));
+}
+
+TEST(DocsMermaid, MindmapAndQuadrantAndSankeyExtract)
+{
+    const QString mindmap = blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                                            QStringLiteral("mindmap"));
+    ASSERT_FALSE(mindmap.isEmpty());
+    ChartSource::MermaidData m;
+    ASSERT_TRUE(ChartSource::parseMermaid(mindmap, m));
+    EXPECT_EQ(m.mindmapRoots.size(), 1);
+    EXPECT_EQ(m.mindmapRoots[0].text, "Software");
+    ASSERT_EQ(m.mindmapRoots[0].children.size(), 4);
+    EXPECT_EQ(m.mindmapRoots[0].children[0].text, "Frontend");
+    ASSERT_EQ(m.mindmapRoots[0].children[0].children.size(), 3);
+    EXPECT_EQ(m.mindmapRoots[0].children[0].children[0].text, "React");
+
+    const QString quadrant = blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                                             QStringLiteral("quadrantChart"));
+    ASSERT_FALSE(quadrant.isEmpty());
+    ChartSource::MermaidData q;
+    ASSERT_TRUE(ChartSource::parseMermaid(quadrant, q));
+    EXPECT_EQ(q.quadTitle, "Task Priority");
+    EXPECT_EQ(q.quadXLeft, "\"Urgent\"");
+    EXPECT_EQ(q.quadXRight, "\"Not Urgent\"");
+    EXPECT_EQ(q.quadQ1, "Do First");
+    EXPECT_EQ(q.quadQ4, "Eliminate");
+    ASSERT_EQ(q.quadPoints.size(), 4);
+    EXPECT_EQ(q.quadPoints[0], (QStringList{"Fix outage", "0.15", "0.8"}));
+
+    const QString sankey = blockContaining(readDoc(QStringLiteral("mermaid.md")),
+                                           QStringLiteral("sankey"));
+    ASSERT_FALSE(sankey.isEmpty());
+    ChartSource::MermaidData s;
+    ASSERT_TRUE(ChartSource::parseMermaid(sankey, s));
+    ASSERT_EQ(s.sankeyLinks.size(), 6);
+    EXPECT_EQ(s.sankeyLinks[0], (QStringList{"Coal", "Pulverized", "78"}));
+    EXPECT_EQ(s.sankeyLinks[3], (QStringList{"Steam", "Electricity", "22"}));
 }
 
 TEST(DocsMermaid, FrontmatterWrappedDiagramsDetected)

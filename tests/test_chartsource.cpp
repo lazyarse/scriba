@@ -319,6 +319,23 @@ TEST(ChartSourceMermaid, DetectType) {
     EXPECT_EQ(ChartSource::detectMermaidType("random"), ChartSource::MermaidType::Unknown);
 }
 
+TEST(ChartSourceMermaid, DetectSkipsCommentsAndDirectives) {
+    // Real-world diagrams frequently open with `%%{init: {...}}%%` config
+    // blocks or `%%` comments; detection must not mistake them for Unknown.
+    EXPECT_EQ(ChartSource::detectMermaidType(
+                  "%%{init: {\"theme\": \"base\"}}%%\nflowchart LR\n  A --> B\n"),
+              ChartSource::MermaidType::Flowchart);
+    EXPECT_EQ(ChartSource::detectMermaidType(
+                  "%% a comment\npie title Usage\n  \"A\" : 1\n"),
+              ChartSource::MermaidType::Pie);
+    ChartSource::MermaidData out;
+    EXPECT_TRUE(ChartSource::parseMermaid(
+        "%%{init: {\"theme\": \"base\"}}%%\nflowchart LR\n  A --> B\n", out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Flowchart);
+    EXPECT_EQ(out.fcNodes.size(), 2);
+    EXPECT_EQ(out.fcEdges.size(), 1);
+}
+
 // The following inputs mirror MermaidDialog::build*Diagram output byte-for-byte.
 
 TEST(ChartSourceMermaid, Pie) {
@@ -396,6 +413,39 @@ TEST(ChartSourceMermaid, FlowchartCombinedNodesEdgesAndInlineLabels) {
     EXPECT_EQ(out.fcEdges[5], (QStringList{"Validate", "Error", "No", "-->"}));
     EXPECT_EQ(out.fcEdges[6], (QStringList{"Error", "Login", "", "-->"}));
     EXPECT_EQ(out.fcEdges[7], (QStringList{"Dashboard", "End", "", "-->"}));
+}
+
+TEST(ChartSourceMermaid, FlowchartBidirectionalArrows) {
+    // Every bidirectional arrow form: solid, thick, dotted, circle, cross —
+    // in both compact and spaced-label styles (`A <-- text --> B`).
+    const QString diagram =
+        "flowchart LR\n"
+        "  A <--> B\n"
+        "  C <==> D\n"
+        "  E <-.-> F\n"
+        "  G o--o H\n"
+        "  I x--x J\n"
+        "  K <-- via --> L\n"
+        "  M <== thick ==> N\n"
+        "  O <-. dotted .-> P\n"
+        "  Q o-- ring --o R\n"
+        "  S x-- cross --x T\n"
+        "  U <-->|pipe| V\n";
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(diagram, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Flowchart);
+    ASSERT_EQ(out.fcEdges.size(), 11);
+    EXPECT_EQ(out.fcEdges[0], (QStringList{"A", "B", "", "<-->"}));
+    EXPECT_EQ(out.fcEdges[1], (QStringList{"C", "D", "", "<==>"}));
+    EXPECT_EQ(out.fcEdges[2], (QStringList{"E", "F", "", "<-.->"}));
+    EXPECT_EQ(out.fcEdges[3], (QStringList{"G", "H", "", "o--o"}));
+    EXPECT_EQ(out.fcEdges[4], (QStringList{"I", "J", "", "x--x"}));
+    EXPECT_EQ(out.fcEdges[5], (QStringList{"K", "L", "via", "<-->"}));
+    EXPECT_EQ(out.fcEdges[6], (QStringList{"M", "N", "thick", "<==>"}));
+    EXPECT_EQ(out.fcEdges[7], (QStringList{"O", "P", "dotted", "<-.->"}));
+    EXPECT_EQ(out.fcEdges[8], (QStringList{"Q", "R", "ring", "o--o"}));
+    EXPECT_EQ(out.fcEdges[9], (QStringList{"S", "T", "cross", "x--x"}));
+    EXPECT_EQ(out.fcEdges[10], (QStringList{"U", "V", "pipe", "<-->"}));
 }
 
 TEST(ChartSourceMermaid, SequenceImplicitParticipantsFromMessages) {
@@ -480,6 +530,19 @@ TEST(ChartSourceMermaid, Gantt) {
               (QStringList{"a3", "Endpoints", "after a2", "14d", "active", "Backend"}));
     EXPECT_EQ(out.ganttTasks[2],
               (QStringList{"b1", "UI", "2026-07-10", "10d", "", "Frontend"}));
+}
+
+TEST(ChartSourceMermaid, GanttWithoutExcludesKeepsWeekendFalse) {
+    // Reverse-parsing a gantt that never said `excludes weekends` must not
+    // silently default it on (otherwise re-inserting adds the line).
+    const QString diagram =
+        "gantt\n"
+        "    dateFormat YYYY-MM-DD\n"
+        "    section Dev\n"
+        "        A :a1, 2026-07-01, 7d\n";
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(diagram, out));
+    EXPECT_FALSE(out.ganttWeekend);
 }
 
 TEST(ChartSourceMermaid, State) {

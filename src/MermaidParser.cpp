@@ -60,6 +60,12 @@ MermaidType detectMermaidType(const QString &rawDiagram)
         const QString line = rawLine.trimmed();
         if (line.isEmpty())
             continue;
+        // `%% comment` lines and `%%{init: {...}}%%` integrity/config
+        // directives are commonplace at the top of a diagram; skip them while
+        // hunting for the diagram keyword.
+        if (line.startsWith(QLatin1String("%%"))
+            || line.startsWith(QLatin1String("---")))
+            continue;
         if (line.startsWith(QLatin1String("pie"))) return MermaidType::Pie;
         if (line.startsWith(QLatin1String("flowchart")) || line.startsWith(QLatin1String("graph")))
             return MermaidType::Flowchart;
@@ -114,6 +120,13 @@ static bool parsePie(const QString &diagram, MermaidData &out)
             }
             continue;
         }
+        // `title X` may legitimately sit on its own line after the `pie` header
+        // (mermaid accepts both `pie title X` and `pie\n title X`).
+        if (line.startsWith(QLatin1String("title "))) {
+            out.pieTitle = line.mid(6).trimmed();
+            parsed = true;
+            continue;
+        }
         // `"label" : value`
         const QRegularExpression re(
             QStringLiteral("^\"?(.+?)\"?\\s*:\\s*([\\d.eE+-]+)$"));
@@ -148,6 +161,13 @@ static const ArrowDef kArrows[] = {
     {"==>",  "==",  "==>"},
     {"--o",  "--",  "--o"},
     {"--x",  "--",  "--x"},
+    // Bidirectional (both ends marked): `A <--> B`, `A <==> B`,
+    // `A <-.-> B`, `A o--o B`, `A x--x B`.
+    {"<-->", "<--", "-->"},
+    {"<==>", "<==", "==>"},
+    {"<-.->", "<-.", ".->"},
+    {"o--o", "o--", "--o"},
+    {"x--x", "x--", "--x"},
 };
 
 static QString arrowDisplayForTokens(const QString &left, const QString &right)
@@ -235,9 +255,10 @@ static bool parseFlowchartLine(const QString &line, MermaidData &out)
     if (trimmed.isEmpty())
         return false;
 
-    // Spaced-label edge: `A -- label --> B`, `A == label ==> B`, `A .- label .-> B`
+    // Spaced-label edge: `A -- label --> B`, `A == label ==> B`,
+    // `A .- label .-> B`, `A <-- label --> B`, `A o-- label --o B`, ...
     static const QRegularExpression labelRe(
-        QStringLiteral(R"(^(.+?)\s+(--|==|\.-)\s+(.+?)\s+(-->|---|==>|\.->|--o|--x)\s+(.+)$)"));
+        QStringLiteral(R"(^(.+?)\s+(--|==|\.-|o--|x--|<--|<==|<-.)\s+(.+?)\s+(-->|---|==>|\.->|--o|--x)\s+(.+)$)"));
     QRegularExpressionMatch em = labelRe.match(trimmed);
     if (em.hasMatch()) {
         const QString display = arrowDisplayForTokens(em.captured(2), em.captured(4));
@@ -256,7 +277,7 @@ static bool parseFlowchartLine(const QString &line, MermaidData &out)
     // Bare / inline-pipe edge: `A-->B`, `A --> B`, `A -->|label| B`,
     // `A[text] --> B{text}` (a node and edge on one line).
     static const QRegularExpression edgeRe(
-        QStringLiteral(R"(^(.+?)\s*(-->|---|-\.->|==>|--o|--x)(?:\s*\|\s*([^|]*)\s*\|)?\s*(.+)$)"));
+        QStringLiteral(R"(^(.+?)\s*(-->|---|-\.->|==>|--o|--x|<-->|<==>|<-.->|o--o|x--x)(?:\s*\|\s*([^|]*)\s*\|)?\s*(.+)$)"));
     em = edgeRe.match(trimmed);
     if (em.hasMatch()) {
         const FlowNodeTok from = parseFlowNodeToken(em.captured(1));
@@ -408,6 +429,7 @@ static bool parseSequence(const QString &diagram, MermaidData &out)
 
 static bool parseGantt(const QString &diagram, MermaidData &out)
 {
+    out.ganttWeekend = false;
     out.ganttDateFormat = QStringLiteral("YYYY-MM-DD");
     bool sawHeader = false;
     bool sawContent = false;

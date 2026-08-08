@@ -346,7 +346,7 @@ shot_chart_dialog() { open ctrl+g; capture "Chart Builder" "$OUT_DIR/chart-dialo
 shot_stock_chart_dialog() { open ctrl+alt+s; capture "Stock Chart Builder" "$OUT_DIR/stock-chart-dialog.png"; }
 
 # --- Mermaid chart helper (default pie chart) ---
-shot_mermaid_dialog() { open ctrl+m; capture "Mermaid Chart" "$OUT_DIR/mermaid-dialog.png"; }
+shot_mermaid_dialog() { open ctrl+m; capture "Mermaid Diagrams" "$OUT_DIR/mermaid-dialog.png"; }
 
 # --- Check Spelling (type a misspelled word so the dialog has an error) ---
 # NB: `xdotool key F7` latches a phantom Alt before the key, so Qt sees
