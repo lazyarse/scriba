@@ -178,8 +178,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_centreSingleViewWidthSpin->setRange(400, 2000);
         m_centreSingleViewWidthSpin->setSuffix(" px");
         m_centreSingleViewWidthSpin->setValue(settings.value(Preferences::CentreSingleViewWidth, 800).toInt());
-        m_centreSingleViewWidthSpin->setEnabled(m_centreSingleViewCheck->isChecked());
-        connect(m_centreSingleViewCheck, &QCheckBox::toggled, m_centreSingleViewWidthSpin, &QSpinBox::setEnabled);
+        connect(m_centreSingleViewCheck, &QCheckBox::toggled,
+                this, &PreferencesDialog::updateContentWidthEnable);
         widthRow->addWidget(m_centreSingleViewWidthSpin);
         widthRow->addStretch();
         singleViewLayout->addLayout(widthRow);
@@ -198,7 +198,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
             spin->setSuffix(" px");
             lbl->setBuddy(spin);
             autoCheck = new QCheckBox("Auto (fill pane)");
-            connect(autoCheck, &QCheckBox::toggled, spin, &QSpinBox::setEnabled);
+            connect(autoCheck, &QCheckBox::toggled,
+                    this, &PreferencesDialog::updateContentWidthEnable);
             row->addWidget(lbl);
             row->addWidget(spin);
             row->addWidget(autoCheck);
@@ -215,6 +216,52 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_splitPreviewWidthSpin->setValue(previewWidth > 0 ? previewWidth : 800);
 
         layout->addWidget(splitViewGroup);
+
+        QGroupBox *wrapGroup = new QGroupBox("Editor Line Wrap");
+        QVBoxLayout *wrapLayout = new QVBoxLayout(wrapGroup);
+        wrapLayout->addSpacing(8);
+
+        QHBoxLayout *wrapModeRow = new QHBoxLayout();
+        wrapModeRow->addWidget(new QLabel("Wrap text:"));
+        m_wrapModeCombo = new QComboBox();
+        m_wrapModeCombo->addItem("Off", "no-wrap");
+        m_wrapModeCombo->addItem("At window width", "window");
+        m_wrapModeCombo->addItem("At column", "column");
+        {
+            const bool wrapEnabled = settings.value(Preferences::EditorWrapEnabled, true).toBool();
+            const QString wrapMode = settings.value(Preferences::EditorWrapMode,
+                                                     QStringLiteral("window")).toString();
+            int idx = wrapMode == QLatin1String("column") ? 2 : 1;
+            if (!wrapEnabled)
+                idx = 0;
+            m_wrapModeCombo->setCurrentIndex(idx);
+        }
+        wrapModeRow->addWidget(m_wrapModeCombo);
+        wrapModeRow->addStretch();
+        wrapLayout->addLayout(wrapModeRow);
+
+        QHBoxLayout *wrapColRow = new QHBoxLayout();
+        wrapColRow->addWidget(new QLabel("Wrap column:"));
+        m_wrapColumnSpin = new QSpinBox();
+        m_wrapColumnSpin->setRange(40, 400);
+        m_wrapColumnSpin->setSuffix(" chars");
+        m_wrapColumnSpin->setValue(settings.value(Preferences::EditorWrapColumn,
+                                                   Preferences::DefaultEditorWrapColumn).toInt());
+        wrapColRow->addWidget(m_wrapColumnSpin);
+        wrapColRow->addStretch();
+        wrapLayout->addLayout(wrapColRow);
+
+        QLabel *wrapHint = new QLabel(
+            "When wrapping at a column, that column becomes the editor's max width.");
+        wrapHint->setWordWrap(true);
+        wrapHint->setStyleSheet("color:#888;");
+        wrapLayout->addWidget(wrapHint);
+
+        connect(m_wrapModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &PreferencesDialog::updateContentWidthEnable);
+        layout->addWidget(wrapGroup);
+
+        updateContentWidthEnable();
 
         QGroupBox *autoSaveGroup = new QGroupBox("Auto-Save");
         QVBoxLayout *autoSaveLayout = new QVBoxLayout(autoSaveGroup);
@@ -1512,6 +1559,9 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
             m_splitEditorAutoCheck->isChecked() ? 0 : m_splitEditorWidthSpin->value());
         settings.setValue(Preferences::SplitViewPreviewMaxWidth,
             m_splitPreviewAutoCheck->isChecked() ? 0 : m_splitPreviewWidthSpin->value());
+        settings.setValue(Preferences::EditorWrapEnabled, m_wrapModeCombo->currentIndex() != 0);
+        settings.setValue(Preferences::EditorWrapMode, m_wrapModeCombo->currentData().toString());
+        settings.setValue(Preferences::EditorWrapColumn, m_wrapColumnSpin->value());
         settings.setValue(Preferences::AutoSaveOnExit, m_autoSaveExitCheck->isChecked());
         int interval = m_autoSaveCheck->isChecked() ? m_autoSaveSpin->value() : 0;
         settings.setValue(Preferences::AutoSaveInterval, interval);
@@ -1585,6 +1635,22 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+}
+
+void PreferencesDialog::updateContentWidthEnable()
+{
+    const bool columnMode = m_wrapModeCombo
+        && m_wrapModeCombo->currentData().toString() == QLatin1String("column");
+    if (m_centreSingleViewCheck)
+        m_centreSingleViewWidthSpin->setEnabled(!columnMode && m_centreSingleViewCheck->isChecked());
+    if (m_splitEditorAutoCheck) {
+        m_splitEditorAutoCheck->setEnabled(!columnMode);
+        m_splitEditorWidthSpin->setEnabled(!columnMode && m_splitEditorAutoCheck->isChecked());
+    }
+    if (m_splitPreviewAutoCheck)
+        m_splitPreviewWidthSpin->setEnabled(m_splitPreviewAutoCheck->isChecked());
+    if (m_wrapColumnSpin)
+        m_wrapColumnSpin->setEnabled(columnMode);
 }
 
 void PreferencesDialog::populateStylesheetList()

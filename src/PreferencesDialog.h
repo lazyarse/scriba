@@ -57,6 +57,11 @@ private slots:
 private:
     void populateStylesheetList();
     void setupUi(const QString &themeBgColor, const QString &themeFgColor);
+    // Enables/disables the editor content-width controls (single-view content
+    // width, split-view editor max width) based on the wrap mode: when the
+    // editor wraps at a fixed column count, the column count takes over as the
+    // editor's max width, so the px controls are greyed out.
+    void updateContentWidthEnable();
 
     CssConfig *m_config;
     CssLoader *m_loader;
@@ -127,6 +132,8 @@ private:
     QCheckBox *m_splitPreviewAutoCheck;
     QSpinBox *m_splitEditorWidthSpin;
     QSpinBox *m_splitPreviewWidthSpin;
+    QComboBox *m_wrapModeCombo = nullptr;
+    QSpinBox *m_wrapColumnSpin = nullptr;
     QComboBox *m_editorFontCombo;
     QSpinBox *m_editorFontSizeSpin;
     QSpinBox *m_uiFontSizeSpin;

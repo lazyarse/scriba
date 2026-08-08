@@ -992,6 +992,19 @@ void MainWindow::setupMenuBar()
                 tab.editor->updateGutterSettings();
     });
 
+    m_wrapTextAction = viewMenu->addAction("Wrap &Text");
+    m_wrapTextAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_W));
+    m_wrapTextAction->setCheckable(true);
+    m_wrapTextAction->setChecked(QSettings().value(Preferences::EditorWrapEnabled, true).toBool());
+    connect(m_wrapTextAction, &QAction::toggled, this, [this](bool checked) {
+        QSettings s;
+        s.setValue(Preferences::EditorWrapEnabled, checked);
+        s.sync();
+        for (const auto &tab : m_tabs)
+            if (tab.editor)
+                tab.editor->applyLineWrap();
+    });
+
     viewMenu->addSeparator();
 
     m_layoutActions = new QActionGroup(this);
@@ -1327,6 +1340,7 @@ void MainWindow::applyEditorContentWidth(Editor *editor)
 {
     if (!editor)
         return;
+    editor->applyLineWrap();
     QSettings settings;
     if (m_previewState == 0) {
         bool centre = settings.value(Preferences::CentreSingleViewContent, true).toBool();
@@ -1587,6 +1601,8 @@ void MainWindow::showPreferences()
                 applyEditorContentWidth(tab.editor);
             }
         }
+        if (m_wrapTextAction)
+            m_wrapTextAction->setChecked(s.value(Preferences::EditorWrapEnabled, true).toBool());
         applyPreviewSplitWidth();
         updatePreview();
 

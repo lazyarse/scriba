@@ -40,6 +40,11 @@ public:
     ~Editor() override;
     void setCurrentFile(const QString &path);
     void setCenterContent(bool enabled, int width);
+    // Reads the EditorWrap* settings and applies the editor's line wrap mode
+    // (no-wrap / window width / fixed column count). Also re-computes the
+    // centred content width when wrapping at a column. Call after a wrap
+    // preference change.
+    void applyLineWrap();
     QMargins contentMargins() const;
     void centerCursor();
     void invalidateEmojiIconCache();
@@ -144,6 +149,14 @@ private:
                        const QColor &color, const QFontMetrics &fm, int underlineY);
 
     void updateViewportMargins();
+    // True when line wrapping is on and configured to wrap at a fixed column
+    // count. In that mode the column width takes over as the editor's
+    // effective max content width (see updateViewportMargins()).
+    bool wrapAtColumnActive() const;
+    // Pixel width of the configured wrap column measured in the editor's
+    // current font (the width of `column` widest characters). Only meaningful
+    // when wrapAtColumnActive().
+    qreal wrapColumnPx() const;
 
     enum class CursorContext { None, ListItem, TableRow, CodeBlock };
     CursorContext detectCursorContext() const;

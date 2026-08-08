@@ -81,6 +81,16 @@ namespace Preferences {
     constexpr const char *EditorCaretWidth = "editorCaretWidth";
     constexpr int DefaultEditorCaretWidth = 1;
 
+    // Editor line wrapping. EditorWrapEnabled is the master switch (the View
+    // menu's "Wrap Text" toggle flips this). While enabled, EditorWrapMode
+    // selects the style: "window" wraps at the pane/centred width, "column"
+    // wraps at EditorWrapColumn characters (which then becomes the editor's
+    // effective max width for centring).
+    constexpr const char *EditorWrapEnabled = "editorWrapEnabled";
+    constexpr const char *EditorWrapMode = "editorWrapMode";
+    constexpr int DefaultEditorWrapColumn = 80;
+    constexpr const char *EditorWrapColumn = "editorWrapColumn";
+
     constexpr const char *UiFontSize = "uiFontSize";
     constexpr int DefaultUiFontSize = 10;
 

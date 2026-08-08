@@ -197,6 +197,7 @@ private:
     FindDialog *m_findDialog = nullptr;
     QList<QAction *> m_insertActions;
     QAction *m_mermaidAction;
+    QAction *m_wrapTextAction = nullptr;
     QTimer *m_updateTimer = nullptr;
     QTimer *m_anchorTimer = nullptr;
     QString m_pendingAnchor;

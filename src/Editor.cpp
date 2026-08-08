@@ -125,6 +125,7 @@ Editor::Editor(QWidget *parent)
     m_spellHighlighter->setChecker(m_spellChecker.get());
     m_spellHighlighter->setGrammarChecker(m_grammarChecker.get());
     applySpellSettings();
+    applyLineWrap();
 
     m_underlineOverlay = new QWidget(viewport());
     m_underlineOverlay->setObjectName(QStringLiteral("underline-overlay"));
@@ -1444,6 +1445,26 @@ void Editor::setCenterContent(bool enabled, int width)
     updateViewportMargins();
 }
 
+void Editor::applyLineWrap()
+{
+    QSettings settings;
+    const bool enabled = settings.value(Preferences::EditorWrapEnabled, true).toBool();
+    if (!enabled) {
+        setLineWrapMode(QTextEdit::NoWrap);
+    } else {
+        const QString mode = settings.value(Preferences::EditorWrapMode,
+                                             QStringLiteral("window")).toString();
+        if (mode == QLatin1String("column")) {
+            setLineWrapMode(QTextEdit::FixedColumnWidth);
+            setLineWrapColumnOrWidth(settings.value(Preferences::EditorWrapColumn,
+                                                     Preferences::DefaultEditorWrapColumn).toInt());
+        } else {
+            setLineWrapMode(QTextEdit::WidgetWidth);
+        }
+    }
+    updateViewportMargins();
+}
+
 QMargins Editor::contentMargins() const
 {
     return viewportMargins();
@@ -2099,11 +2120,35 @@ void Editor::updateViewportMargins()
         setViewportMargins(gutterW, 0, 0, 0);
         return;
     }
+    // When wrapping at a fixed column the column count takes over as the
+    // editor's effective max width: the centred region is the wrapped width
+    // rather than m_centerContentWidth.
+    int contentWidth = m_centerContentWidth;
+    if (wrapAtColumnActive())
+        contentWidth = qRound(wrapColumnPx());
     int available = width() - 2 * frameWidth() - gutterW;
     int scrollbarWidth = verticalScrollBar()->isVisible() ? verticalScrollBar()->width() : 0;
     available -= scrollbarWidth;
-    int margin = qMax(0, (available - m_centerContentWidth) / 2);
+    int margin = qMax(0, (available - contentWidth) / 2);
     setViewportMargins(margin + gutterW, 0, margin, 0);
+}
+
+bool Editor::wrapAtColumnActive() const
+{
+    QSettings settings;
+    return settings.value(Preferences::EditorWrapEnabled, true).toBool()
+        && settings.value(Preferences::EditorWrapMode,
+                          QStringLiteral("window")).toString() == QLatin1String("column");
+}
+
+qreal Editor::wrapColumnPx() const
+{
+    const QFontMetrics fm = fontMetrics();
+    const int col = QSettings().value(Preferences::EditorWrapColumn,
+                                      Preferences::DefaultEditorWrapColumn).toInt();
+    const qreal charWidth = fm.horizontalAdvance(QLatin1Char('M')) > 0
+        ? fm.horizontalAdvance(QLatin1Char('M')) : fm.averageCharWidth();
+    return charWidth * col;
 }
 
 void Editor::updateGutter()
