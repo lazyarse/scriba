@@ -89,7 +89,7 @@ TEST_F(SettingsMigrationTest, AlreadyMigratedConfigIsUntouched)
 
 TEST_F(SettingsMigrationTest, PreviewRenderDelayDefaultsMatchDebounceConstants)
 {
-    EXPECT_EQ(Preferences::DefaultPreviewUpdateDelay, Debounce::PreviewUpdate);
+    EXPECT_EQ(Preferences::DefaultPreviewUpdateDelay, Debounce::LightRender);
     EXPECT_EQ(Preferences::DefaultHeavyRenderDelay, Debounce::HeavyRender);
 }
 
@@ -109,5 +109,5 @@ TEST_F(SettingsMigrationTest, PreviewUpdateDelayDefaultsToDebounceConstant)
 
     EXPECT_EQ(settings.value(Preferences::PreviewUpdateDelay,
               Preferences::DefaultPreviewUpdateDelay).toInt(),
-              Debounce::PreviewUpdate);
+              Debounce::LightRender);
 }

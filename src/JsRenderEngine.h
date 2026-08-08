@@ -16,6 +16,7 @@
 
 #include <QString>
 #include <QUrl>
+#include "StaticHelpers.h"
 
 #define DEFAULT_EMOJI_FONT "@font-face{font-family:'Symbola';src:url('qrc:///fonts/Symbola.ttf')format('truetype')}"
 
@@ -36,7 +37,7 @@ public:
     static QString replaceQrcUrls(const QString &html);
 
     static QString renderSync(const QString &fullHtml, const QString &baseUrl,
-                              int timeoutMs = 30000);
+                              int timeoutMs = Timeout::RenderTimeoutMs);
 
     static QString katexCss();
 

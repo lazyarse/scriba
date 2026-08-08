@@ -16,6 +16,7 @@
 
 #include <QString>
 #include <QUrl>
+#include "StaticHelpers.h"
 
 class HtmlToMarkdown
 {
@@ -25,5 +26,5 @@ public:
     // the Markdown text, or a plain-text fallback when nothing convertible
     // is found.
     static QString convert(const QString &html, const QUrl &baseUrl = {},
-                           int timeoutMs = 30000);
+                           int timeoutMs = Timeout::RenderTimeoutMs);
 };

@@ -431,7 +431,7 @@ void MainWindow::setupUi()
     statusBar()->addPermanentWidget(m_reportProgressBar);
 
     m_reportProgressTimer = new QTimer(this);
-    m_reportProgressTimer->setInterval(150);
+    m_reportProgressTimer->setInterval(Timeout::ReportProgress);
     connect(m_reportProgressTimer, &QTimer::timeout, this,
             &MainWindow::updateReportProgress);
 }

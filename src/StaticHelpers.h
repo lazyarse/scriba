@@ -136,14 +136,32 @@ public:
     void arm();
 };
 
+// C++ QTimer debounce timers: cheap "light" edits debounce on LightRender,
+// then the expensive render pass follows after HeavyRender (a tab switch
+// shortens that wait via TabSwitchRender).
 namespace Debounce {
-    constexpr int PreviewUpdate = 80;   // MainWindow live-preview push timer
-    constexpr int AnchorScroll  = 300;  // MainWindow scroll-sync anchor timer
-    constexpr int FoldScan      = 300;  // Editor fold rescan after editing
-    constexpr int SpellCheck    = 400;  // SpellHighlighter spell/grammar timers
-    constexpr int DialogPreview = 300;  // Mermaid/KaTeX/Mchem/ECharts dialog previews
-    constexpr int HeavyRender   = 1500; // JS heavy-render setTimeout in preview
-    constexpr int TabSwitchRender = 100; // JS heavy-render delay after a tab switch
+    constexpr int LightRender      = 80;   // live-preview push debounce
+    constexpr int AnchorScroll     = 300;  // scroll-sync anchor timer
+    constexpr int FoldScan         = 300;  // Editor fold rescan after editing
+    constexpr int SpellCheck       = 400;  // SpellHighlighter spell/grammar timers
+    constexpr int DialogPreview    = 300;  // Mermaid/KaTeX/Mchem/ECharts dialog previews
+    constexpr int HeavyRender      = 1500; // JS heavy-render setTimeout in preview
+    constexpr int TabSwitchRender  = 100;  // JS heavy-render delay after a tab switch
+}
+
+// C++ non-debounce timing values that are not embedded in JS strings.
+namespace Timeout {
+    constexpr int RenderTimeoutMs = 30000; // hard cap for renderSync/HTML import
+    constexpr int ReportProgress  = 150;   // validation-report progress poll
+}
+
+// Timing values that live inside generated JS strings (injected at build
+// time from these constants; keep the JS snippets in sync).
+namespace JsTiming {
+    constexpr int AnchorNavRetry      = 300;  // anchor-jump retry poll
+    constexpr int ChartLayoutPoll     = 50;   // ECharts container-size poll
+    constexpr int ChartLayoutTries    = 40;   // ECharts size-poll retry cap
+    constexpr int EChartsReadyTimeout = 2000; // ECharts-ready fallback resolve
 }
 
 class QWebEngineView;

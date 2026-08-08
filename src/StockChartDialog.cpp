@@ -267,18 +267,19 @@ QString StockChartDialog::previewPageHtml(const QString &spec)
         "var vis=document.getElementById('vis');"
         "var tries=0;"
         "(function go(){"
-        "if(vis.clientWidth>0||++tries>40){"
+        "if(vis.clientWidth>0||++tries>%2){"
         "var chart=echarts.init(vis,null,{renderer:'svg'});"
         "try{chart.setOption(spec);}"
         "catch(e){vis.innerHTML='<div class=\"error\">'+e+'</div>';}"
-        "}else{setTimeout(go,50);}"
+        "}else{setTimeout(go,%3);}"
         "})();"
         "}catch(e){"
         "document.getElementById('vis').innerHTML='<div class=\"error\">'+e+'</div>';"
         "}"
         "</script>"
         "</body></html>"
-    ).arg(spec);
+    ).arg(spec, QString::number(JsTiming::ChartLayoutTries),
+          QString::number(JsTiming::ChartLayoutPoll));
 }
 
 QString StockChartDialog::generatedSpec() const

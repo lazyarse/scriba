@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "JsSnippets.h"
+#include "StaticHelpers.h"
 
 const QString mermaidInitJs = QStringLiteral(
     "function initMermaid(){"
@@ -54,19 +55,19 @@ const QString headingIdJs = QStringLiteral(
 // pass) — safe for same-document jumps, where no page reload kills the
 // closure. Cross-document jumps retry from C++ instead (a fresh page load
 // discards in-flight JS).
-const QString anchorNavJs = QStringLiteral(
-    "function scribaScrollToSlug(frag){"
-    "try{"
-    "var slug=decodeURIComponent(frag).toLowerCase().replace(/[^\\w\\s-]/g,'').replace(/\\s+/g,'-').replace(/^-+|-+$/g,'');"
-    "var el=slug?document.getElementById(slug):null;"
-    "if(el){el.scrollIntoView({block:'start',behavior:'auto'});return true;}"
-    "}catch(e){}"
-    "return false;"
-    "}"
-    "function scribaScrollToSlugRetry(frag){var tries=0;(function poll(){"
-    "if(scribaScrollToSlug(frag)||tries++>20)return;setTimeout(poll,300);"
-    "})();}"
-);
+const QString anchorNavJs = QString(
+        "function scribaScrollToSlug(frag){"
+        "try{"
+        "var slug=decodeURIComponent(frag).toLowerCase().replace(/[^\\w\\s-]/g,'').replace(/\\s+/g,'-').replace(/^-+|-+$/g,'');"
+        "var el=slug?document.getElementById(slug):null;"
+        "if(el){el.scrollIntoView({block:'start',behavior:'auto'});return true;}"
+        "}catch(e){}"
+        "return false;"
+        "}"
+        "function scribaScrollToSlugRetry(frag){var tries=0;(function poll(){"
+        "if(scribaScrollToSlug(frag)||tries++>20)return;setTimeout(poll,%1);"
+        "})();}"
+    ).arg(QString::number(JsTiming::AnchorNavRetry));
 
 const QString katexInitJs = QStringLiteral(
     "function scribaRenderMath(){"
@@ -89,7 +90,7 @@ const QString katexInitJs = QStringLiteral(
     "}"
 );
 
-const QString echartsInitJs = QStringLiteral(
+const QString echartsInitJs = QString(
     "function initECharts(){"
     "var els=document.querySelectorAll('code.language-ec');"
     "if(!els.length)return Promise.resolve();"
@@ -111,19 +112,21 @@ const QString echartsInitJs = QStringLiteral(
     "return new Promise(function(resolve){"
     "var tries=0;"
     "(function go(){"
-    "if(div.clientWidth>0||++tries>40){"
+    "if(div.clientWidth>0||++tries>%1){"
     "var chart=echarts.init(div,null,{renderer:'svg'});"
     "try{chart.setOption(spec);}catch(e){}"
     "chart.on('finished',function(){resolve(chart);});"
-    "setTimeout(function(){resolve(chart);},2000);"
-    "}else{setTimeout(go,50);}"
+    "setTimeout(function(){resolve(chart);},%2);"
+    "}else{setTimeout(go,%3);}"
     "})();"
     "});"
     "}"
     "catch(e){return Promise.resolve();}"
     "}));"
     "}"
-);
+    ).arg(QString::number(JsTiming::ChartLayoutTries),
+          QString::number(JsTiming::EChartsReadyTimeout),
+          QString::number(JsTiming::ChartLayoutPoll));
 
 const QString chartEditJs = QStringLiteral(
     "function scribaEditAnchor(kind,line,idx,tex){"
