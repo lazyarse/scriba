@@ -18,12 +18,44 @@
 
 namespace ChartSource {
 
+// Strips a leading `--- ... ---` YAML frontmatter block (as used for Mermaid
+// config directives) so the diagram keyword that follows it is detected and
+// parsed. Returns "true" when a frontmatter block was removed.
+static bool stripFrontmatter(QString &diagram)
+{
+    const QStringList lines = diagram.split('\n');
+    int start = -1;
+    int end = lines.size();
+    bool sawConfig = false;
+    for (int i = 0; i < lines.size(); ++i) {
+        if (lines.at(i).trimmed().isEmpty())
+            continue;
+        if (lines.at(i).trimmed() == QLatin1String("---")) {
+            if (start < 0) {
+                start = i;
+                continue;
+            }
+            end = i;
+            break;
+        }
+        if (start < 0)
+            break;
+        sawConfig = true;
+    }
+    if (start < 0 || end >= lines.size() || !sawConfig)
+        return false;
+    diagram = lines.mid(end + 1).join('\n');
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 // Mermaid — detection
 // ---------------------------------------------------------------------------
 
-MermaidType detectMermaidType(const QString &diagram)
+MermaidType detectMermaidType(const QString &rawDiagram)
 {
+    QString diagram = rawDiagram;
+    stripFrontmatter(diagram);
     for (const QString &rawLine : diagram.split('\n')) {
         const QString line = rawLine.trimmed();
         if (line.isEmpty())
@@ -728,7 +760,9 @@ static bool parseSankey(const QString &diagram, MermaidData &out)
 bool parseMermaid(const QString &diagram, MermaidData &out)
 {
     out.source = diagram;
-    out.type = detectMermaidType(diagram);
+    QString body = diagram;
+    stripFrontmatter(body);
+    out.type = detectMermaidType(body);
     switch (out.type) {
     case MermaidType::Pie:        return parsePie(diagram, out);
     case MermaidType::Flowchart:  return parseFlowchart(diagram, out);

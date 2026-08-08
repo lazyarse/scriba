@@ -247,6 +247,12 @@ if(BUILD_TESTS)
     target_link_libraries(test_chartsource PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_chartsource COMMAND ${_TEST_PREFIX} ./test_chartsource)
 
+    add_executable(test_chartsource_docs tests/test_chartsource_docs.cpp)
+    target_link_libraries(test_chartsource_docs PRIVATE scriba_core GTest::gtest_main)
+    target_compile_definitions(test_chartsource_docs
+        PRIVATE SCRIBA_DOCS_DIR="${CMAKE_SOURCE_DIR}/docs")
+    add_test(NAME test_chartsource_docs COMMAND ${_TEST_PREFIX} ./test_chartsource_docs)
+
     add_executable(test_typography tests/test_typography.cpp)
     target_link_libraries(test_typography PRIVATE scriba_core scriba_test_main)
     add_test(NAME test_typography COMMAND ${_TEST_PREFIX} ./test_typography)

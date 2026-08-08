@@ -163,11 +163,14 @@ bool parseStockSpec(const QByteArray &specJson, StockSpecData &out)
 
     out.zoom = spec.contains("dataZoom");
 
-    const QJsonArray xAxisArr = spec.value("xAxis").toArray();
-    if (!xAxisArr.isEmpty()) {
-        for (const QJsonValue &v : xAxisArr.at(0).toObject().value("data").toArray())
-            out.dates.append(v.toString());
-    }
+    // Accept the axis as either an object or a single-element array (the dialog
+    // emits the array form; hand-written charts often use the object form).
+    const QJsonValue xAxisVal = spec.value("xAxis");
+    const QJsonObject xAxis = xAxisVal.isArray()
+        ? xAxisVal.toArray().at(0).toObject() : xAxisVal.toObject();
+    const QJsonArray xData = xAxis.value("data").toArray();
+    for (const QJsonValue &v : xData)
+        out.dates.append(v.toString());
     if (out.dates.isEmpty())
         return false;
 
