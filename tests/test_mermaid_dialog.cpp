@@ -273,3 +273,24 @@ TEST_F(MermaidDialogTest, AllChartTypesProduceOutput)
         EXPECT_TRUE(block.contains("```mermaid")) << "Chart type index " << i << " missing mermaid fence";
     }
 }
+
+TEST_F(MermaidDialogTest, DefaultChartTypeIsPie)
+{
+    // Tools > Mermaid Diagrams opens a fresh dialog; it must land on the first
+    // helper (Pie Chart), not the raw-source fallback panel.
+    MermaidDialog dlg{""};
+    auto *c = chartTypeCombo(dlg);
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(c->currentIndex(), 0);
+}
+
+TEST_F(MermaidDialogTest, EmptyDiagramPreviewShowsNoMermaidError)
+{
+    // An empty diagram (e.g. git graph with no repo loaded) must not drive
+    // mermaid.run() on an empty div; mermaid rejects there and the error
+    // handler stringifies the rejection object to "[object Object]".
+    QString html = MermaidDialog::emptyPreviewHtml();
+    EXPECT_FALSE(html.contains("mermaid"));
+    EXPECT_FALSE(html.contains("error"));
+}
+

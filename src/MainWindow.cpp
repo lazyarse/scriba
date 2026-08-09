@@ -1078,7 +1078,7 @@ void MainWindow::setupMenuBar()
     QAction *mermaidAction = toolsMenu->addAction("&Mermaid Diagrams...");
     mermaidAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
     connect(mermaidAction, &QAction::triggered, this, [this]() {
-        MermaidDialog dlg(QString(), m_cssLoader->themeCss(), this);
+        MermaidDialog dlg(m_cssLoader->themeCss(), this);
         if (dlg.exec() == QDialog::Accepted) {
             QString block = dlg.mermaidBlock();
             Editor *ed = editor();

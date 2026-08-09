@@ -125,6 +125,16 @@ QString MermaidDialog::mermaidPreviewHtml(const QString &escaped, const QString 
     ).arg(escaped, theme, bgColor);
 }
 
+QString MermaidDialog::emptyPreviewHtml(const QString &bgColor)
+{
+    return QString(
+        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+        "<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;background-color:%1;}"
+        ".hint{color:palette(mid);}</style>"
+        "</head><body><span class=\"hint\"></span></body></html>"
+    ).arg(bgColor);
+}
+
 QString MermaidDialog::mermaidBlock() const
 {
     QString diagram = buildDiagram();
@@ -274,6 +284,10 @@ void MermaidDialog::schedulePreviewUpdate()
 void MermaidDialog::updatePreview()
 {
     QString diagram = buildDiagram();
+    if (diagram.trimmed().isEmpty()) {
+        m_preview->setHtml(emptyPreviewHtml(m_bgColor));
+        return;
+    }
     QString escaped = diagram;
     escaped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     m_preview->setHtml(mermaidPreviewHtml(escaped, m_mermaidTheme, m_bgColor));

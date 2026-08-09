@@ -156,11 +156,17 @@ waitwin() {
     return 1
 }
 
-# capture <title> <outfile> [sleep]: wait for dialog, let WebEngine render, shoot
+# capture <title> <outfile> [sleep] [close-popup]: wait for dialog, let
+# WebEngine render, shoot.  When close-popup is set, send one Escape before
+# the capture to dismiss any open QComboBox dropdown (override-redirect X11
+# window that import -window <dialog> can't composite, leaving black).
 capture() {
     local W
     W=$(waitwin "$1") || { echo "WARN: window \"$1\" not found"; return 1; }
     sleep "${3:-4}"
+    if [ "${4:-}" = "close-popup" ]; then
+        xdotool key Escape; sleep 0.5
+    fi
     import -window "$W" "$2"
     xdotool key Escape
     sleep 1
@@ -358,7 +364,7 @@ shot_advanced_charts() {
     xdotool key a
     sleep 0.4
     xdotool key Return
-    capture "Advanced Charts" "$OUT_DIR/advanced-charts.png"
+    capture "Advanced Charts" "$OUT_DIR/advanced-charts.png" 4 close-popup
 }
 
 # --- Mermaid chart helper (default pie chart) ---
@@ -402,22 +408,28 @@ shot_mermaid_gitgraph() {
     sleep 0.3
     for ((i = 0; i < 12; i++)); do xdotool key Down; sleep 0.05; done
     sleep 0.5
-    # Focus the repo-path field by clicking into it. The dialog is 950px wide
-    # with a ~420px left panel; the repo-path row is the first row of the git
-    # graph panel, just below the chart-type combo, so dialog-relative
-    # (120, 55) lands inside the field (validated empirically).
-    eval "$(xdotool getwindowgeometry --shell "$MDG")"
-    local fx=$((X + 120)) fy=$((Y + 55))
-    xdotool mousemove "$fx" "$fy" click 1
-    sleep 0.5
-    xdotool type -- "$demo"
-    sleep 0.5
-    xdotool key Return
+    # Open the Browse file dialog (Alt+B), navigate to the fixture repo via
+    # the GTK location bar (Ctrl+L), then confirm with two Returns.
+    xdotool key alt+b
+    sleep 2
+    local FD
+    FD=$(xdotool search --onlyvisible --name "Select Git Repository" | head -1)
+    if [ -z "$FD" ]; then
+        echo "WARN: Browse dialog not found"; xdotool key Escape; return 1
+    fi
+    xdotool windowfocus "$FD"; sleep 1
+    xdotool key ctrl+l; sleep 0.5
+    xdotool type -- "$demo"; sleep 0.5
+    xdotool key Return; sleep 1   # navigate to directory
+    xdotool key Return; sleep 1   # confirm selection (Open)
     # Give libgit2 + WebEngine time to walk the repo and render the graph.
     sleep 8
     if ! xdotool search --onlyvisible --name "Mermaid Diagrams" >/dev/null 2>&1; then
         echo "WARN: Mermaid Diagrams closed before capture"; return 1
     fi
+    # Close any open QComboBox dropdown overlay (same black-box artifact as
+    # advanced-charts; see capture() comment).
+    xdotool key Escape; sleep 0.5
     import -window "$MDG" "$OUT_DIR/mermaid-gitgraph.png"
     echo "  -> $OUT_DIR/mermaid-gitgraph.png"
     xdotool key Escape

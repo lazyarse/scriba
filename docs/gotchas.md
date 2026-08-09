@@ -250,3 +250,25 @@ Consequences that look like bugs but are intended:
   (until the doc is saved), or ask each time. An unsaved document with
   "next to the document" escalates to asking; if no folder is chosen the
   `<img>` tags are stripped rather than leaking `docximg://` placeholders.
+
+## Empty mermaid diagrams in the chart-helper dialog
+
+Feeding mermaid an **empty** `.mermaid` div makes `mermaid.run()` reject, and the
+error-handler in `MermaidDialog::mermaidPreviewHtml` stringifies the rejection
+value — an object — as `[object Object]`. So "Git Graph selected but no repo
+loaded" (or any helper with no data yet) shows a red `[object Object]` box in
+the live preview if the empty string is passed straight to mermaid.
+
+Scriba guards this in `MermaidDialog::updatePreview`: when `buildDiagram()` is
+empty/whitespace it renders `MermaidDialog::emptyPreviewHtml()` (a blank pane)
+instead of invoking mermaid at all. Do not "fix" the red box by tweaking the JS
+error handler alone — the real problem is calling `mermaid.run` on empty input;
+keep the empty-path check.
+
+Related: `MainWindow.cpp` opens the dialog via the theme-only constructor
+(`MermaidDialog(themeCss, parent)`). Passing an *empty* `existingDiagram` into
+the prefill constructor is **not** the same thing — it routes through
+`prefillFromSource("")`, which fails to parse and forces the raw-source
+fallback panel (combo index 13, "Diagram Source") instead of the default first
+helper (Pie). Use the theme-only ctor for a fresh dialog and the prefill ctor
+only when editing an existing diagram.

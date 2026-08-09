@@ -57,6 +57,7 @@ public:
 
     static QString mermaidPreviewHtml(const QString &escaped, const QString &theme,
                                       const QString &bgColor = QString());
+    static QString emptyPreviewHtml(const QString &bgColor = QString());
 
 private:
     void setupUi();
