@@ -258,8 +258,8 @@ TEST(FormatMdTableTest, PaddingZeroPacksTight) {
     QStringList rows = {"| a | bb |", "|---|---|", "| ccc | d |"};
     EXPECT_EQ(formatMdTable(rows, 0),
         "|a  |bb|\n"
-        "|---|---|\n"
-        "|ccc|d  |");
+        "|---|--|\n"
+        "|ccc|d |");
 }
 
 TEST(FormatMdTableTest, PaddingKeepsAlignmentColons) {
