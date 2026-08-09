@@ -42,6 +42,10 @@ The pencil in the gutter edits the mermaid/ECharts code block it sits beside usi
 | --- | --- | --- | --- |
 | [![Chart Builder](images/chart-dialog.png)](images/chart-dialog.png) | [![Stock Chart Builder](images/stock-chart-dialog.png)](images/stock-chart-dialog.png) | [![Advanced Charts](images/advanced-charts.png)](images/advanced-charts.png) | [![Mermaid Diagrams](images/mermaid-dialog.png)](images/mermaid-dialog.png) |
 
+| Mermaid Git Graph |
+| --- |
+| [![Mermaid Git Graph](images/mermaid-gitgraph.png)](images/mermaid-gitgraph.png) |
+
 | Check Spelling | Validation Report Options |
 | --- | --- |
 | [![Check Spelling](images/check-spelling.png)](images/check-spelling.png) | [![Validation Report Options](images/validation-report.png)](images/validation-report.png) |

@@ -2,7 +2,7 @@
 
 Scriba includes form-based assistants for building **Mermaid** diagrams and **ECharts** charts without writing code by hand. Each assistant provides a split-pane UI: form controls on the left, a live preview on the right, and Insert/Copy buttons at the bottom.
 
-## Mermaid Assistants (12 diagram types)
+## Mermaid Assistants (13 diagram types)
 
 Accessed from **Tools > Mermaid Diagrams**. Each assistant generates a fenced ` ```mermaid ` code block.
 
@@ -84,6 +84,17 @@ Two-axis scatter plots with quadrant labels. Fields: **Title**, **X-axis** label
 
 Flow quantity diagrams. A table of **Source** / **Target** / **Value** triples. Uses the `sankey-beta` syntax.
 
+### Git Graph
+
+Commit/branch visualization from a local git repository. Reads the repo with the bundled libgit2 (no `git` binary needed) and emits a `gitGraph` block.
+
+- **Repo** — directory path of the local repository (or one of its subdirectories; the nearest enclosing repo is used).
+- **Branch** — optional: restrict the graph to a single branch. Defaults to the current branch, or all local branches.
+- **Limit** — how many commits to include (`All`, or a cap of 10/25/50).
+- **Date range** — optional from/to dates; only commits within the range appear.
+
+Branch topology follows first-parent chains: each branch is assigned the commits reachable from its tip, walking first parents; merge commits are emitted as `merge <branch>`. Remote refs are ignored. If the path is not a git repository, an error message is shown instead.
+
 ---
 
 ## Mermaid Types NOT Covered
@@ -92,7 +103,6 @@ The following Mermaid diagram types have no assistant in Scriba. They can still 
 
 | Type | Keyword | Notes |
 |---|---|---|
-| Git Graph | `gitGraph` | Branch/commit visualization |
 | XY Chart | `xychart-beta` | Simple bar/line charts (beta) |
 | Block Diagram | `block-beta` | Grid-based system layouts (beta) |
 | Architecture | `architecture-beta` | Cloud/infrastructure topology (beta) |

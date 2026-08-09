@@ -19,11 +19,15 @@
 #include "CsvReader.h"
 #include "CsvColumnMapDialog.h"
 #include "ChartSource.h"
+#include "GitGraphBuilder.h"
 
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QDateEdit>
 #include <QDialogButtonBox>
+#include <QDir>
+#include <QFileDialog>
 #include <QFontDatabase>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -46,7 +50,7 @@
 
 namespace {
 
-constexpr int kSourcePanelIndex = 12; // index of the raw-source fallback panel
+constexpr int kSourcePanelIndex = 13; // index of the raw-source fallback panel
 
 }
 
@@ -166,6 +170,7 @@ void MermaidDialog::setupUi()
     m_chartTypeCombo->addItem(tr("User Journey"),          static_cast<int>(ChartType::Journey));
     m_chartTypeCombo->addItem(tr("Quadrant Chart"),        static_cast<int>(ChartType::Quadrant));
     m_chartTypeCombo->addItem(tr("Sankey Diagram"),        static_cast<int>(ChartType::Sankey));
+    m_chartTypeCombo->addItem(tr("Git Graph"),             static_cast<int>(ChartType::GitGraph));
     m_chartTypeCombo->addItem(tr("Diagram Source"),        kSourcePanelIndex);
     leftLayout->addWidget(m_chartTypeCombo);
 
@@ -184,7 +189,10 @@ void MermaidDialog::setupUi()
     m_panels->addWidget(createQuadrantPanel());  // 10
     m_panels->addWidget(createSankeyPanel());    // 11
 
-    // 12 — raw-source fallback panel
+    // 12 — git graph panel
+    m_panels->addWidget(createGitGraphPanel());
+
+    // 13 — raw-source fallback panel
     auto *sourcePanel = new QWidget(this);
     auto *sourceLayout = new QVBoxLayout(sourcePanel);
     sourceLayout->setContentsMargins(12, 12, 12, 12);
@@ -369,6 +377,7 @@ QString MermaidDialog::buildDiagram() const
     case ChartType::Journey:    return buildJourneyDiagram();
     case ChartType::Quadrant:   return buildQuadrantDiagram();
     case ChartType::Sankey:     return buildSankeyDiagram();
+    case ChartType::GitGraph:   return buildGitGraphDiagram();
     }
     return {};
 }
@@ -2408,4 +2417,174 @@ QString MermaidDialog::buildSankeyDiagram() const
             out += "    " + src + "," + tgt + "," + val + "\n";
     }
     return out;
+}
+
+QWidget *MermaidDialog::createGitGraphPanel()
+{
+    auto *panel = new QWidget(this);
+    auto *layout = new QVBoxLayout(panel);
+    layout->setContentsMargins(12, 12, 12, 12);
+
+    auto *repoRow = new QHBoxLayout;
+    m_gitRepoPath = new QLineEdit(panel);
+    m_gitRepoPath->setPlaceholderText(tr("Path to a git repository..."));
+    auto *browseBtn = new QPushButton(tr("&Browse..."), panel);
+    repoRow->addWidget(m_gitRepoPath, 1);
+    repoRow->addWidget(browseBtn);
+    layout->addLayout(repoRow);
+
+    m_gitLimitCombo = new QComboBox(panel);
+    m_gitLimitCombo->addItem(tr("All commits"),
+                             static_cast<int>(GitGraphBuilder::Options::Limit::All));
+    m_gitLimitCombo->addItem(tr("Single branch"),
+                             static_cast<int>(GitGraphBuilder::Options::Limit::Branch));
+    m_gitLimitCombo->addItem(tr("Date range"),
+                             static_cast<int>(GitGraphBuilder::Options::Limit::Dates));
+    m_gitLimitCombo->addItem(tr("Branch + date range"),
+                             static_cast<int>(GitGraphBuilder::Options::Limit::BranchAndDates));
+    layout->addWidget(m_gitLimitCombo);
+
+    layout->addWidget(new QLabel(tr("Branch:")));
+    m_gitBranchCombo = new QComboBox(panel);
+    layout->addWidget(m_gitBranchCombo);
+
+    auto *dateRow = new QHBoxLayout;
+    m_gitFromDate = new QDateEdit(panel);
+    m_gitFromDate->setCalendarPopup(true);
+    m_gitFromDate->setDisplayFormat(QStringLiteral("yyyy-MM-dd"));
+    m_gitToDate = new QDateEdit(panel);
+    m_gitToDate->setCalendarPopup(true);
+    m_gitToDate->setDisplayFormat(QStringLiteral("yyyy-MM-dd"));
+    dateRow->addWidget(new QLabel(tr("From:")));
+    dateRow->addWidget(m_gitFromDate);
+    dateRow->addWidget(new QLabel(tr("To:")));
+    dateRow->addWidget(m_gitToDate);
+    layout->addLayout(dateRow);
+
+    auto *capRow = new QHBoxLayout;
+    m_gitMaxCommits = new QSpinBox(panel);
+    m_gitMaxCommits->setRange(1, 2000);
+    m_gitMaxCommits->setValue(50);
+    m_gitMaxCommits->setSuffix(QStringLiteral(" commits"));
+    m_gitNoLimit = new QCheckBox(tr("No commit limit"), panel);
+    capRow->addWidget(new QLabel(tr("Max:")));
+    capRow->addWidget(m_gitMaxCommits);
+    capRow->addWidget(m_gitNoLimit);
+    capRow->addStretch();
+    layout->addLayout(capRow);
+
+    m_gitStatus = new QLabel(panel);
+    m_gitStatus->setWordWrap(true);
+    m_gitStatus->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    layout->addWidget(m_gitStatus);
+
+    layout->addStretch();
+
+    connect(browseBtn, &QPushButton::clicked, this, [this]() {
+        QString dir = QFileDialog::getExistingDirectory(
+            this, tr("Select Git Repository"),
+            m_gitRepoPath->text().isEmpty() ? QDir::homePath()
+                                            : m_gitRepoPath->text());
+        if (!dir.isEmpty())
+            loadGitRepo(dir);
+    });
+    connect(m_gitRepoPath, &QLineEdit::returnPressed, this, [this]() {
+        loadGitRepo(m_gitRepoPath->text().trimmed());
+    });
+    connect(m_gitLimitCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MermaidDialog::updateGitLimitEnabled);
+    connect(m_gitLimitCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_gitBranchCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_gitFromDate, &QDateEdit::dateChanged,
+            this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_gitToDate, &QDateEdit::dateChanged,
+            this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_gitMaxCommits, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_gitNoLimit, &QCheckBox::toggled,
+            this, &MermaidDialog::schedulePreviewUpdate);
+
+    updateGitLimitEnabled();
+    return panel;
+}
+
+void MermaidDialog::loadGitRepo(const QString &path)
+{
+    QStringList branches;
+    QString current;
+    QDateTime first, last;
+    QString error;
+    if (!GitGraphBuilder::repoInfo(path, &branches, &current, &first, &last, &error)) {
+        m_gitRepo.clear();
+        m_gitStatus->setText(error);
+        m_gitStatus->setStyleSheet(QStringLiteral("color: #d32f2f;"));
+        schedulePreviewUpdate();
+        return;
+    }
+
+    m_gitRepo = path;
+    m_gitRepoPath->setText(path);
+    QString status;
+    if (first.isValid() && last.isValid())
+        status = tr("Commits from %1 to %2")
+                     .arg(first.date().toString(Qt::ISODate),
+                          last.date().toString(Qt::ISODate));
+    else
+        status = tr("Repository has no commits.");
+    m_gitStatus->setText(status);
+    m_gitStatus->setStyleSheet(QStringLiteral("color: palette(mid);"));
+
+    m_gitBranchCombo->blockSignals(true);
+    m_gitBranchCombo->clear();
+    m_gitBranchCombo->addItems(branches);
+    if (!current.isEmpty()) {
+        int idx = m_gitBranchCombo->findText(current);
+        if (idx >= 0)
+            m_gitBranchCombo->setCurrentIndex(idx);
+    }
+    m_gitBranchCombo->blockSignals(false);
+
+    if (first.isValid() && last.isValid()) {
+        m_gitFromDate->setDateRange(first.date(), last.date());
+        m_gitToDate->setDateRange(first.date(), last.date());
+        m_gitFromDate->setDate(first.date());
+        m_gitToDate->setDate(last.date());
+    }
+
+    updateGitLimitEnabled();
+    schedulePreviewUpdate();
+}
+
+void MermaidDialog::updateGitLimitEnabled()
+{
+    if (!m_gitLimitCombo || !m_gitBranchCombo || !m_gitFromDate || !m_gitToDate)
+        return;
+    const auto limit = static_cast<GitGraphBuilder::Options::Limit>(
+        m_gitLimitCombo->currentData().toInt());
+    const bool branchNeeded =
+        limit == GitGraphBuilder::Options::Limit::Branch
+        || limit == GitGraphBuilder::Options::Limit::BranchAndDates;
+    const bool dateNeeded =
+        limit == GitGraphBuilder::Options::Limit::Dates
+        || limit == GitGraphBuilder::Options::Limit::BranchAndDates;
+    m_gitBranchCombo->setEnabled(branchNeeded);
+    m_gitFromDate->setEnabled(dateNeeded);
+    m_gitToDate->setEnabled(dateNeeded);
+}
+
+QString MermaidDialog::buildGitGraphDiagram() const
+{
+    if (m_gitRepo.isEmpty())
+        return {};
+    GitGraphBuilder::Options opts;
+    opts.limit = static_cast<GitGraphBuilder::Options::Limit>(
+        m_gitLimitCombo->currentData().toInt());
+    opts.branch = m_gitBranchCombo->currentText();
+    opts.from = m_gitFromDate->date().startOfDay();
+    opts.to = m_gitToDate->date().endOfDay();
+    opts.maxCommits = m_gitNoLimit->isChecked() ? 0 : m_gitMaxCommits->value();
+    QString error;
+    return GitGraphBuilder::build(m_gitRepo, opts, &error);
 }

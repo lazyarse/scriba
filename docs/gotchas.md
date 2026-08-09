@@ -199,3 +199,26 @@ bordered row always pairs its edge pipe with a separator pipe after the first
 cell. A lone pipe is always a cell separator, never a border. Keep this rule
 when reworking the table helpers — and note `formatMdTable` derives the border
 style from the separator row, so it is immune to the ambiguity.
+
+### Git Graph topology
+
+The Mermaid Git Graph panel (`src/GitGraphBuilder.cpp`, bundled libgit2) assigns
+each local branch the commits reachable from its tip, walking **first parents**:
+a commit `c` belongs to branch `b` iff `c` is on `b`'s first-parent chain.
+Consequences that look like bugs but are intended:
+
+- A merge commit only appears on the branch it was created *on* (its first
+  parent). The merged-in branch shows the pre-merge commits instead — e.g. for
+  `main: c1 c2 c3`, `feature` branched from c2, then `main` merges `feature`
+  with `--no-ff`:
+  - `feature` walk = `c5 c4 c2 c1` (4 commits, the merge `c6` is *not* included)
+  - `main` walk = `c6 c3 c2 c1` (the merge commit + 3 first-parent commits)
+- A commit reachable from two branches is assigned to the branch whose
+  first-parent chain contains it first (main processed before feature), so
+  shared ancestors like `c1`/`c2` show under `main`.
+- "Limit" and "date range" filters apply to the *walk*, so a merge commit
+  filtered out by date also drops its `merge <branch>` line from the output.
+- The graph is emitted with commits in reverse-chronological order (newest
+  first) so the `gitGraph` reads top-to-bottom, matching Mermaid's defaults;
+  branches appear in the order they are first used.
+

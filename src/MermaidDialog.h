@@ -19,7 +19,9 @@
 
 class QCheckBox;
 class QComboBox;
+class QDateEdit;
 class QDialogButtonBox;
+class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
@@ -40,7 +42,7 @@ class MermaidDialog : public QDialog
 public:
     enum class ChartType {
         Pie, Flowchart, Sequence, Gantt, Class, ER,
-        State, Mindmap, Timeline, Journey, Quadrant, Sankey
+        State, Mindmap, Timeline, Journey, Quadrant, Sankey, GitGraph
     };
     Q_ENUM(ChartType)
 
@@ -78,6 +80,7 @@ private:
     QWidget *createJourneyPanel();
     QWidget *createQuadrantPanel();
     QWidget *createSankeyPanel();
+    QWidget *createGitGraphPanel();
 
     QString buildPieDiagram() const;
     QString buildFlowchartDiagram() const;
@@ -91,6 +94,7 @@ private:
     QString buildJourneyDiagram() const;
     QString buildQuadrantDiagram() const;
     QString buildSankeyDiagram() const;
+    QString buildGitGraphDiagram() const;
     QString buildDiagram() const;
 
     void addDeleteButton(QTableWidget *table, int column, int row,
@@ -184,6 +188,19 @@ private:
 
     // Sankey
     QTableWidget *m_sankeyTable;
+
+    // Git Graph
+    QLineEdit *m_gitRepoPath = nullptr;
+    QComboBox *m_gitBranchCombo = nullptr;
+    QComboBox *m_gitLimitCombo = nullptr;
+    QDateEdit *m_gitFromDate = nullptr;
+    QDateEdit *m_gitToDate = nullptr;
+    QSpinBox *m_gitMaxCommits = nullptr;
+    QCheckBox *m_gitNoLimit = nullptr;
+    QLabel *m_gitStatus = nullptr;
+    QString m_gitRepo; // validated repository path
+    void loadGitRepo(const QString &path);
+    void updateGitLimitEnabled();
 
     // Raw-source fallback panel (index kSourcePanelIndex). Active when an
     // existing diagram could not be reverse-parsed into a structured panel.

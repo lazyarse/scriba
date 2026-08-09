@@ -15,6 +15,10 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 #include <QComboBox>
+#include <QLineEdit>
+#include <QTest>
+#include <QTemporaryDir>
+#include "GitTestRepo.h"
 #include "MermaidDialog.h"
 
 static int g_argc = 1;
@@ -31,7 +35,7 @@ protected:
     static QComboBox *chartTypeCombo(MermaidDialog &dlg) {
         const auto combos = dlg.findChildren<QComboBox*>();
         for (auto *c : combos)
-            if (c->count() == 13) return c;
+            if (c->count() == 14) return c;
         return nullptr;
     }
 
@@ -221,6 +225,42 @@ TEST_F(MermaidDialogTest, SankeyDiagram)
     EXPECT_TRUE(block.contains("COGS"));
     EXPECT_TRUE(block.contains("Product Sales"));
     EXPECT_TRUE(block.contains("600"));
+}
+
+TEST_F(MermaidDialogTest, GitGraphPanelLoadsRepository)
+{
+    QTemporaryDir repo;
+    ASSERT_TRUE(repo.isValid());
+    ASSERT_TRUE(GitTestRepo::create(repo.path()));
+
+    MermaidDialog dlg{""};
+    selectChartType(dlg, 12);
+
+    const auto edits = dlg.findChildren<QLineEdit*>();
+    QLineEdit *pathEdit = nullptr;
+    for (auto *e : edits) {
+        if (e->placeholderText().contains("git repository")) {
+            pathEdit = e;
+            break;
+        }
+    }
+    ASSERT_NE(pathEdit, nullptr);
+    pathEdit->setText(repo.path());
+    QTest::keyClick(pathEdit, Qt::Key_Return);
+
+    QString block = dlg.mermaidBlock();
+    EXPECT_FALSE(block.isEmpty());
+    EXPECT_TRUE(block.contains("```mermaid"));
+    EXPECT_TRUE(block.contains("gitGraph"));
+    EXPECT_TRUE(block.contains("commit id:"));
+    EXPECT_TRUE(block.contains("merge feature"));
+}
+
+TEST_F(MermaidDialogTest, GitGraphPanelWithoutRepoProducesNothing)
+{
+    MermaidDialog dlg{""};
+    selectChartType(dlg, 12);
+    EXPECT_TRUE(dlg.mermaidBlock().isEmpty());
 }
 
 TEST_F(MermaidDialogTest, AllChartTypesProduceOutput)

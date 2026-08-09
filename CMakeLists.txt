@@ -15,6 +15,55 @@ add_subdirectory(vendor/mathml2omml)
 set(STOPPARD_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendor/stoppard)
 
+# Vendored libgit2 for the Mermaid Git Graph panel (see vendor/libgit2). Built
+# statically with network/SSH disabled and bundled zlib/pcre2 so the tree
+# compiles fully offline. LIBGIT2_EMBEDDED (an upstream libgit2 option, used by
+# cmake/PkgBuildConfig.cmake) suppresses the pkgconfig install rules so they
+# cannot pollute the scriba package.
+#
+# libgit2's options share names with CMake conventions and with scriba's own
+# options (BUILD_TESTS), so its values are forced here and scriba's values are
+# restored afterwards.
+set(_scriba_BUILD_TESTS "${BUILD_TESTS}")
+set(_scriba_BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS}")
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_CLI OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_FUZZERS OFF CACHE BOOL "" FORCE)
+set(USE_SSH OFF CACHE BOOL "" FORCE)
+set(USE_HTTPS OFF CACHE BOOL "" FORCE)
+set(USE_NSEC OFF CACHE BOOL "" FORCE)
+set(USE_BUNDLED_ZLIB ON CACHE BOOL "" FORCE)
+set(REGEX_BACKEND "builtin" CACHE STRING "" FORCE)
+set(LIBGIT2_EMBEDDED ON)
+add_subdirectory(vendor/libgit2)
+if("${_scriba_BUILD_TESTS}" STREQUAL "")
+    unset(BUILD_TESTS CACHE)
+else()
+    set(BUILD_TESTS "${_scriba_BUILD_TESTS}" CACHE BOOL "" FORCE)
+endif()
+if("${_scriba_BUILD_SHARED_LIBS}" STREQUAL "")
+    unset(BUILD_SHARED_LIBS CACHE)
+else()
+    set(BUILD_SHARED_LIBS "${_scriba_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
+endif()
+unset(_scriba_BUILD_TESTS)
+unset(_scriba_BUILD_SHARED_LIBS)
+
+# Git Graph generator, used by the main app and by test targets that compile
+# MermaidDialog.cpp. libgit2's public headers are only generated into the build
+# tree, so the scriba include dir is exported for consumers.
+add_library(scriba_gitgraph STATIC
+    src/GitGraphBuilder.cpp
+)
+target_include_directories(scriba_gitgraph PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/vendor/libgit2/include
+    ${CMAKE_BINARY_DIR}/vendor/libgit2/include
+)
+target_link_libraries(scriba_gitgraph PRIVATE libgit2package Qt6::Core)
+
 add_executable(scriba WIN32
     src/main.cpp
     src/MainWindow.cpp
@@ -92,6 +141,7 @@ target_link_libraries(scriba PRIVATE
     Qt6::PrintSupport
     mathml2omml
     stoppard
+    scriba_gitgraph
 )
 
 add_custom_command(TARGET scriba POST_BUILD
@@ -338,13 +388,22 @@ if(BUILD_TESTS)
 
     add_executable(test_mermaid_dialog
         tests/test_mermaid_dialog.cpp
+        tests/GitTestRepo.cpp
         src/MermaidDialog.cpp
         src/CsvColumnMapDialog.cpp
         src/Preview.cpp)
+    target_include_directories(test_mermaid_dialog PRIVATE ${CMAKE_SOURCE_DIR}/tests)
     target_link_libraries(test_mermaid_dialog
-        PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)
+        PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets
+                Qt6::Test scriba_gitgraph)
     add_test(NAME test_mermaid_dialog
         COMMAND ${_TEST_PREFIX} ./test_mermaid_dialog)
+
+    add_executable(test_gitgraph tests/test_gitgraph.cpp tests/GitTestRepo.cpp)
+    target_include_directories(test_gitgraph PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+    target_link_libraries(test_gitgraph
+        PRIVATE scriba_gitgraph scriba_core GTest::gtest_main Qt6::Core)
+    add_test(NAME test_gitgraph COMMAND ./test_gitgraph)
 
     add_executable(test_chart_dialog
         tests/test_chart_dialog.cpp
@@ -471,7 +530,7 @@ if(BUILD_TESTS)
     target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(test_scroll_sync PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
     target_link_libraries(test_scroll_sync PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
     add_executable(test_html_to_markdown
@@ -500,7 +559,7 @@ if(BUILD_TESTS)
     target_include_directories(test_anchor_navigation PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(test_anchor_navigation PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
     target_link_libraries(test_anchor_navigation PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell)
     add_test(NAME test_anchor_navigation COMMAND ${_TEST_PREFIX} ./test_anchor_navigation)
 
     add_executable(test_emoji_preview tests/test_emoji_preview.cpp
@@ -521,7 +580,7 @@ if(BUILD_TESTS)
     target_include_directories(test_emoji_preview PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(test_emoji_preview PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
     target_link_libraries(test_emoji_preview PRIVATE
-        scriba_core GTest::gtest test_editor_helpers Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+        scriba_core GTest::gtest test_editor_helpers Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell)
     add_test(NAME test_emoji_preview COMMAND ${_TEST_PREFIX} ./test_emoji_preview)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
@@ -539,7 +598,7 @@ if(BUILD_TESTS)
         resources/scriba.qrc)
     target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_auto_save PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
     add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp
@@ -557,7 +616,7 @@ if(BUILD_TESTS)
         resources/scriba.qrc)
     target_include_directories(test_multi_tab_typing PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_multi_tab_typing PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell)
     add_test(NAME test_multi_tab_typing COMMAND ${_TEST_PREFIX} ./test_multi_tab_typing)
 
     add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp
@@ -575,7 +634,7 @@ if(BUILD_TESTS)
         resources/scriba.qrc)
     target_include_directories(test_dirty_on_load PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_dirty_on_load PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell)
     add_test(NAME test_dirty_on_load COMMAND ${_TEST_PREFIX} ./test_dirty_on_load)
 
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
@@ -594,7 +653,7 @@ if(BUILD_TESTS)
 target_include_directories(test_editor_initial_css PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(test_editor_initial_css PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
 target_link_libraries(test_editor_initial_css PRIVATE
-    scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+    scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell)
 add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp
@@ -612,7 +671,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         resources/scriba.qrc)
     target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_find_dialog PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_spell)
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell)
     add_test(NAME test_find_dialog COMMAND ${_TEST_PREFIX} ./test_find_dialog)
 
     add_executable(test_print_css_file tests/test_print_css_file.cpp)

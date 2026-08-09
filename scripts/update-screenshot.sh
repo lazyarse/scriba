@@ -31,6 +31,7 @@ declare -A TARGETS=(
     [stock-chart-dialog]="shot_stock_chart_dialog|Stock chart builder"
     [advanced-charts]="shot_advanced_charts|Advanced Charts builder (sankey/treemap/...)"
     [mermaid-dialog]="shot_mermaid_dialog|Mermaid chart helper"
+    [mermaid-gitgraph]="shot_mermaid_gitgraph|Mermaid Git Graph helper (loads the scriba repo)"
     [check-spelling]="shot_check_spelling|Check Spelling dialog"
     [validation-report]="shot_validation_report|Validation Report options"
     [print-pdf-dialog]="shot_print_pdf_dialog|Print / Export PDF dialog"
@@ -39,7 +40,7 @@ declare -A TARGETS=(
 # Display order for --help rows and the full-suite run (assoc arrays don't
 # preserve insertion order).
 TARGET_ORDER=(screenshot tabbar gutter-pencil preferences table-dialog emoji-picker katex-dialog
-              mchem-dialog chart-dialog stock-chart-dialog advanced-charts mermaid-dialog
+              mchem-dialog chart-dialog stock-chart-dialog advanced-charts mermaid-dialog mermaid-gitgraph
               check-spelling validation-report print-pdf-dialog)
 
 usage() {
@@ -362,6 +363,33 @@ shot_advanced_charts() {
 
 # --- Mermaid chart helper (default pie chart) ---
 shot_mermaid_dialog() { open ctrl+m; capture "Mermaid Diagrams" "$OUT_DIR/mermaid-dialog.png"; }
+
+# --- Mermaid Git Graph helper (load the scriba repo itself so the preview
+# renders a real graph) ---
+shot_mermaid_gitgraph() {
+    open ctrl+m
+    MDG=$(waitwin "Mermaid Diagrams") || { echo "WARN: Mermaid Diagrams window not found"; return 1; }
+    sleep 1
+    # Chart-type combo is the first focusable widget; jump to "Git Graph"
+    # (index 12): Home resets to Pie, then 12 Downs. Tab lands on the repo
+    # path field; type the scriba repo (derived from OUT_DIR) and hit Return
+    # to load it.
+    xdotool key Home
+    sleep 0.3
+    for ((i = 0; i < 12; i++)); do xdotool key Down; sleep 0.05; done
+    sleep 0.5
+    xdotool key Tab
+    sleep 0.3
+    xdotool type -- "$(dirname "$(dirname "$OUT_DIR")")"
+    sleep 0.5
+    xdotool key Return
+    sleep 8
+    import -window "$MDG" "$OUT_DIR/mermaid-gitgraph.png"
+    echo "  -> $OUT_DIR/mermaid-gitgraph.png"
+    xdotool key Escape
+    sleep 1
+    xdotool windowfocus "$WID"
+}
 
 # --- Check Spelling (type a misspelled word so the dialog has an error) ---
 # NB: `xdotool key F7` latches a phantom Alt before the key, so Qt sees
