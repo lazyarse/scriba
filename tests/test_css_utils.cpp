@@ -97,17 +97,22 @@ TEST(CssUtilsTest, AllWidgetTypesPresent) {
 }
 
 TEST(CssUtilsTest, TabBarBottomBorder) {
-    // The tabbar's 1px thumb border around inactive tabs forms the divider
-    // under the tab strip; the selected tab must stay borderless so it merges
-    // into the editor below. Regression guard for the tabbar base look.
+    // Each tab's 1px thumb bottom border forms the divider under the tab strip
+    // (adjacent tabs join into one continuous line); the selected tab must stay
+    // borderless so the line breaks there and it merges into the editor below.
+    // Top corners are rounded; the bar itself has no border. Regression guard
+    // for the tabbar base look.
     QString theme = "body { background: #000000; }";
     QString css = CssUtils::deriveChromeCss(theme);
 
     QRegularExpression barBorder("QTabBar \\{ [^}]*border: none");
     EXPECT_TRUE(barBorder.match(css).hasMatch());
 
-    QRegularExpression tabBorder("QTabBar::tab \\{ [^}]*border: 1px solid #[0-9A-F]{6}");
+    QRegularExpression tabBorder("QTabBar::tab \\{ [^}]*border-bottom: 1px solid #[0-9A-F]{6}");
     EXPECT_TRUE(tabBorder.match(css).hasMatch());
+
+    QRegularExpression tabRadius("QTabBar::tab \\{ [^}]*border-top-(left|right)-radius: 6px");
+    EXPECT_TRUE(tabRadius.match(css).hasMatch());
 
     QRegularExpression selectedNoBorder("QTabBar::tab:selected \\{ [^}]*border: none");
     EXPECT_TRUE(selectedNoBorder.match(css).hasMatch());
@@ -296,20 +301,22 @@ TEST(CssUtilsTest, TabBarInactiveMatchesBarBackground) {
         return m.hasMatch() ? m.captured(0) : QString();
     };
 
-    // dark theme: inactive tab matches the tab bar background, with a border
+    // dark theme: inactive tab matches the tab bar background, with only a
+    // bottom border (the divider under the tab strip)
     QColor darkTrack = QColor("#282a36").lighter(160);
     QString darkTab = ruleFor("body { background: #282a36; }", "QTabBar::tab");
     EXPECT_TRUE(darkTab.contains("background-color: " + darkTrack.name()));
-    EXPECT_TRUE(darkTab.contains("border: 1px solid " + QColor("#282a36").lighter(220).name()));
+    EXPECT_TRUE(darkTab.contains("border-bottom: 1px solid " + QColor("#282a36").lighter(220).name()));
     QString darkSelected = ruleFor("body { background: #282a36; }", "QTabBar::tab:selected");
     EXPECT_TRUE(darkSelected.contains("background-color: #282a36"));
     EXPECT_TRUE(darkSelected.contains("border: none"));
 
-    // light theme: inactive tab matches the tab bar background, with a border
+    // light theme: inactive tab matches the tab bar background, with only a
+    // bottom border (the divider under the tab strip)
     QColor lightTrack = QColor("#ffffff").darker(105);
     QString lightTab = ruleFor("body { background: #ffffff; }", "QTabBar::tab");
     EXPECT_TRUE(lightTab.contains("background-color: " + lightTrack.name()));
-    EXPECT_TRUE(lightTab.contains("border: 1px solid " + QColor("#ffffff").darker(125).name()));
+    EXPECT_TRUE(lightTab.contains("border-bottom: 1px solid " + QColor("#ffffff").darker(125).name()));
     QString lightSelected = ruleFor("body { background: #ffffff; }", "QTabBar::tab:selected");
     EXPECT_TRUE(lightSelected.contains("background-color: #ffffff"));
     EXPECT_TRUE(lightSelected.contains("border: none"));

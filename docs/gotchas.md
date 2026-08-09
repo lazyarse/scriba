@@ -169,6 +169,24 @@ disabling the toggle in the dialog and re-inserting writes a spec without those
 keys — which round-trips back as "off", not as a guessed default, on the next
 pencil-edit.
 
+## QTabBar QSS: widget borders paint under the tabs
+
+A QSS `border-bottom` declared on the `QTabBar` selector itself is painted as
+part of the widget's box, **before** the tabs are drawn
+(`QTabBar::paintEvent` in qtbase: widget box → base frame → tabs → selected tab
+last). So a bar-level border is hidden underneath opaque tabs — the line would
+only peek out in the gaps between tabs. To get a single continuous divider
+under the tab strip (with the active tab breaking it), each tab carries its own
+`border-bottom: 1px solid %4` (adjacent tabs join into one line) and the
+selected tab keeps `border: none` so the line stops there and it merges into
+the editor below. `setDrawBase(true)` is fine to leave on: the base frame is
+drawn before the tabs too, so the tabs cover it.
+
+The active tab's rect spans to the tabbar's bottom edge, so its opaque
+background (`%7`, the editor background) overpaints the divider — that is what
+visually "cuts" the line under it. Keep the selected-tab rule borderless;
+adding a matching-color bottom border is not needed and risks a 1px seam.
+
 ## Empty borderless table rows have a lone pipe
 
 An empty row of a borderless table (`foo | bar`, no edge pipes) is written with

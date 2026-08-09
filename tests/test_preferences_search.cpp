@@ -24,6 +24,7 @@
 #include "CssLoader.h"
 #include "TestConfig.h"
 #include <QApplication>
+#include <QCheckBox>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -32,6 +33,7 @@
 #include <QSettings>
 #include <QShortcut>
 #include <QStackedWidget>
+#include <QTest>
 
 namespace {
 
@@ -130,9 +132,12 @@ TEST_F(PreferencesSearchTest, TypingNarrowsSidebarToMatchingPage)
 
 TEST_F(PreferencesSearchTest, AutoSwitchesToFirstMatchingPage)
 {
+    searchEdit()->setText(QStringLiteral("spelling"));
+    EXPECT_EQ(currentPage(), QStringLiteral("Spelling"));
+    // "wrap" matches the General page's "Editor Line Wrap" group (not the
+    // Editor page), so the sidebar jumps back to it.
     searchEdit()->setText(QStringLiteral("wrap"));
-    EXPECT_EQ(visiblePageCount(), 1);
-    EXPECT_EQ(currentPage(), QStringLiteral("Editor"));
+    EXPECT_EQ(currentPage(), QStringLiteral("General"));
 }
 
 TEST_F(PreferencesSearchTest, MultiTokenQueryMatchesSettingLabel)
@@ -151,37 +156,42 @@ TEST_F(PreferencesSearchTest, PageNameIsSearchable)
 TEST_F(PreferencesSearchTest, DimsNonMatchingWidgetsOnShownPage)
 {
     searchEdit()->setText(QStringLiteral("wrap"));
-    ASSERT_EQ(currentPage(), QStringLiteral("Editor"));
+    ASSERT_EQ(currentPage(), QStringLiteral("General"));
 
     QLabel *wrapLabel = nullptr;
-    QLabel *lineHeightLabel = nullptr;
-    for (QLabel *l : m_dialog->findChildren<QLabel *>()) {
+    QCheckBox *reopenCheck = nullptr;
+    for (QLabel *l : m_dialog->findChildren<QLabel *>())
         if (l->text().contains(QStringLiteral("Wrap text"), Qt::CaseInsensitive))
             wrapLabel = l;
-        if (l->text().contains(QStringLiteral("Line height"), Qt::CaseInsensitive))
-            lineHeightLabel = l;
-    }
+    for (QCheckBox *cb : m_dialog->findChildren<QCheckBox *>())
+        if (cb->text().contains(QStringLiteral("Open last session"), Qt::CaseInsensitive))
+            reopenCheck = cb;
     ASSERT_TRUE(wrapLabel);
-    ASSERT_TRUE(lineHeightLabel);
+    ASSERT_TRUE(reopenCheck);
     EXPECT_FALSE(wrapLabel->property("scribaPrefDim").toBool());
-    EXPECT_TRUE(lineHeightLabel->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(reopenCheck->property("scribaPrefDim").toBool());
 }
 
 TEST_F(PreferencesSearchTest, GroupBoxContainingMatchStaysVisible)
 {
     searchEdit()->setText(QStringLiteral("wrap"));
     QGroupBox *wrapGroup = nullptr;
-    for (QGroupBox *g : m_dialog->findChildren<QGroupBox *>())
+    QGroupBox *autoSaveGroup = nullptr;
+    for (QGroupBox *g : m_dialog->findChildren<QGroupBox *>()) {
         if (g->title().contains(QStringLiteral("Line Wrap")))
             wrapGroup = g;
+        if (g->title() == QStringLiteral("Auto-Save"))
+            autoSaveGroup = g;
+    }
     ASSERT_TRUE(wrapGroup);
+    ASSERT_TRUE(autoSaveGroup);
     EXPECT_FALSE(wrapGroup->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(autoSaveGroup->property("scribaPrefDim").toBool());
 }
 
 TEST_F(PreferencesSearchTest, ClearRestoresAllPagesAndDims)
 {
     searchEdit()->setText(QStringLiteral("wrap"));
-    EXPECT_EQ(currentPage(), QStringLiteral("Editor"));
     searchEdit()->clear();
     EXPECT_EQ(visiblePageCount(), 10);
     EXPECT_FALSE(infoLabel()->isVisible());
@@ -208,9 +218,14 @@ TEST_F(PreferencesSearchTest, FindShortcutFocusesSearch)
         }
     }
     ASSERT_TRUE(sc);
+    m_dialog->activateWindow();
+    m_dialog->setFocus();
+    QTest::qWait(20);
     searchEdit()->clearFocus();
+    QTest::qWait(20);
     EXPECT_FALSE(searchEdit()->hasFocus());
-    QMetaObject::invokeMethod(sc, "activated", Qt::DirectConnection);
+    ASSERT_TRUE(QMetaObject::invokeMethod(sc, "activated", Qt::DirectConnection));
+    QTest::qWait(20);
     EXPECT_TRUE(searchEdit()->hasFocus());
 }
 

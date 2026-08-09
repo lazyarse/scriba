@@ -197,7 +197,7 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 | QTableWidget / QTableView | `%2` | `%3` | `%4` border + gridline |
 | QHeaderView / ::section | `%2` | `%3` | `%4` |
 | QTabWidget::pane / QTabBar | `%2` | | |
-| QTabBar::tab | `%2`, selected `%7`, hover `%5` | `%3` | `%4` |
+| QTabBar::tab | `%2`, selected `%7`, hover `%5` | `%3` | `%4` bottom border |
 | `::-webkit-scrollbar` (preview) | track `%2` | | thumb `%4`, hover `%5` |
 
 ### How the two layers connect

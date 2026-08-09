@@ -253,8 +253,8 @@ shot_gutter_pencil() {
 }
 
 # Capture one Preferences page. The sidebar list order matches PREF_PAGES; the
-# (60,35) click selects the top row ("general"), and a page at list index `idx`
-# needs `idx` Down presses after the click.
+# (60,55) click selects the top row ("general"), and a page at list index `idx`
+# needs `idx` Down presses after the click. (55 = below the settings search box.)
 shot_preference_page() {
     local page="$1" idx
     case "$page" in
@@ -273,7 +273,7 @@ shot_preference_page() {
     open ctrl+alt+p
     PREF=$(waitwin "Preferences") || { echo "WARN: Preferences window not found"; return 1; }
     sleep 1
-    xdotool mousemove --window "$PREF" 60 35 click 1
+    xdotool mousemove --window "$PREF" 60 55 click 1
     sleep 1
     for ((i = 0; i < idx; i++)); do
         xdotool key Down
@@ -291,7 +291,7 @@ shot_preferences() {
     open ctrl+alt+p
     PREF=$(waitwin "Preferences") || { echo "WARN: Preferences window not found"; return 1; }
     sleep 1
-    xdotool mousemove --window "$PREF" 60 35 click 1
+    xdotool mousemove --window "$PREF" 60 55 click 1
     sleep 1
     import -window "$PREF" "$OUT_DIR/preferences-general.png"
     echo "  -> $OUT_DIR/preferences-general.png"

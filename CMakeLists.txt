@@ -444,6 +444,15 @@ if(BUILD_TESTS)
         GTest::gtest scriba_core scriba_spell Qt6::Test Qt6::Widgets)
     add_test(NAME test_spell_check_dialog COMMAND ${_TEST_PREFIX} ./test_spell_check_dialog)
 
+    add_executable(test_preferences_search tests/test_preferences_search.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_preferences_search PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_preferences_search PRIVATE
+        scriba_core scriba_spell scriba_test_main Qt6::Test)
+    add_test(NAME test_preferences_search COMMAND ${_TEST_PREFIX} ./test_preferences_search)
+
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
         src/MainWindow.cpp src/HtmlToMarkdown.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp

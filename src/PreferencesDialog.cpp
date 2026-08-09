@@ -44,6 +44,12 @@
 #include <QColorDialog>
 #include <QDoubleSpinBox>
 #include <QStyledItemDelegate>
+#include <QStyle>
+#include <QShortcut>
+#include <QTextDocumentFragment>
+#include <QRegularExpression>
+#include <QAbstractButton>
+#include <QSet>
 #include <array>
 #include <QPainter>
 #include <QStyleOptionViewItem>
@@ -82,6 +88,19 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(8);
+
+    m_searchEdit = new QLineEdit;
+    m_searchEdit->setPlaceholderText(tr("Search settings..."));
+    m_searchEdit->setClearButtonEnabled(true);
+    m_searchEdit->setObjectName("preferences-search");
+    mainLayout->addWidget(m_searchEdit);
+
+    m_searchInfoLabel = new QLabel;
+    m_searchInfoLabel->setObjectName("preferences-search-info");
+    m_searchInfoLabel->setWordWrap(true);
+    m_searchInfoLabel->setStyleSheet("color: gray;");
+    m_searchInfoLabel->setVisible(false);
+    mainLayout->addWidget(m_searchInfoLabel);
 
     /* --- Sidebar + Pages --- */
     QHBoxLayout *contentLayout = new QHBoxLayout();
@@ -1533,9 +1552,21 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     connect(m_listWidget, &QListWidget::currentItemChanged, this, &PreferencesDialog::onCurrentItemChanged);
     connect(m_pageList, &QListWidget::currentRowChanged, m_pages, &QStackedWidget::setCurrentIndex);
     connect(m_grammarCheckCheck, &QCheckBox::toggled, m_grammarDialectCombo, &QWidget::setEnabled);
+    connect(m_searchEdit, &QLineEdit::textChanged, this, &PreferencesDialog::onSearchTextChanged);
+    connect(m_pageList, &QListWidget::currentRowChanged, this, [this](int row) {
+        if (!m_searchEdit->text().trimmed().isEmpty())
+            applySearchDim(row);
+    });
+
+    auto *searchShortcut = new QShortcut(QKeySequence::Find, this);
+    connect(searchShortcut, &QShortcut::activated, this, [this]() {
+        m_searchEdit->setFocus();
+        m_searchEdit->selectAll();
+    });
 
     populateStylesheetList();
     m_pageList->setCurrentRow(0);
+    buildSearchIndex();
 
     /* --- Dialog Buttons --- */
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -1674,6 +1705,190 @@ void PreferencesDialog::updateContentWidthEnable()
         m_splitPreviewWidthSpin->setEnabled(m_splitPreviewAutoCheck->isChecked());
     if (m_wrapColumnSpin)
         m_wrapColumnSpin->setEnabled(columnMode);
+}
+
+namespace {
+
+QString normalizeSearchText(QString s)
+{
+    s.replace(QStringLiteral("&&"), QChar('\x01'));
+    s.remove(QChar('&'));
+    s.replace(QChar('\x01'), QChar('&'));
+    s.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
+    s = QTextDocumentFragment::fromHtml(s).toPlainText();
+    return s.simplified().toLower();
+}
+
+QStringList searchTextsForWidget(const QWidget *w)
+{
+    QStringList texts;
+    if (const auto *btn = qobject_cast<const QAbstractButton *>(w))
+        texts << btn->text();
+    if (const auto *group = qobject_cast<const QGroupBox *>(w))
+        texts << group->title();
+    if (const auto *label = qobject_cast<const QLabel *>(w))
+        texts << label->text();
+    if (const auto *combo = qobject_cast<const QComboBox *>(w))
+        for (int i = 0; i < combo->count(); ++i)
+            texts << combo->itemText(i);
+    if (const auto *table = qobject_cast<const QTableWidget *>(w))
+        for (int c = 0; c < table->columnCount(); ++c)
+            if (const auto *h = table->horizontalHeaderItem(c))
+                texts << h->text();
+    if (!w->toolTip().isEmpty())
+        texts << w->toolTip();
+    return texts;
+}
+
+QStringList ancestorGroupTitles(const QWidget *w, const QWidget *top)
+{
+    QStringList titles;
+    for (QWidget *p = w->parentWidget(); p && p != top; p = p->parentWidget())
+        if (const auto *g = qobject_cast<const QGroupBox *>(p))
+            titles << g->title();
+    return titles;
+}
+
+bool widgetMatches(const QStringList &entryTexts, const QStringList &tokens)
+{
+    const QString combined = entryTexts.join(QLatin1Char(' '));
+    for (const QString &tok : tokens) {
+        if (!combined.contains(tok))
+            return false;
+    }
+    return true;
+}
+
+void setWidgetDimmed(QWidget *w, bool dimmed)
+{
+    if (w->property("scribaPrefDim").toBool() == dimmed)
+        return;
+    w->setProperty("scribaPrefDim", dimmed);
+    w->style()->unpolish(w);
+    w->style()->polish(w);
+}
+
+} // namespace
+
+void PreferencesDialog::buildSearchIndex()
+{
+    m_searchIndex.clear();
+    const int pageCount = m_pages->count();
+    for (int i = 0; i < pageCount; ++i) {
+        QList<SearchEntry> entries;
+        QWidget *pageWidget = m_pages->widget(i);
+        if (auto *scroll = qobject_cast<QScrollArea *>(pageWidget))
+            pageWidget = scroll->widget();
+        if (!pageWidget)
+            continue;
+
+        // The page name itself is searchable, so typing "General" finds it.
+        if (QListWidgetItem *item = m_pageList->item(i)) {
+            SearchEntry pageEntry;
+            pageEntry.widget = pageWidget;
+            pageEntry.texts << normalizeSearchText(item->text());
+            entries << pageEntry;
+        }
+
+        for (QWidget *w : pageWidget->findChildren<QWidget *>()) {
+            QStringList texts = searchTextsForWidget(w);
+            texts += ancestorGroupTitles(w, pageWidget);
+            QStringList normalized;
+            for (const QString &t : texts) {
+                const QString n = normalizeSearchText(t);
+                if (!n.isEmpty())
+                    normalized << n;
+            }
+            if (normalized.isEmpty())
+                continue;
+            SearchEntry entry;
+            entry.widget = w;
+            entry.texts = normalized;
+            entries << entry;
+        }
+
+        m_searchIndex.push_back(entries);
+    }
+}
+
+void PreferencesDialog::onSearchTextChanged(const QString &text)
+{
+    const QStringList tokens = text.toLower().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (tokens.isEmpty()) {
+        for (int i = 0; i < m_pageList->count(); ++i)
+            m_pageList->item(i)->setHidden(false);
+        m_searchInfoLabel->setVisible(false);
+        applySearchDim(-1);
+        return;
+    }
+
+    int firstMatchRow = -1;
+    for (int i = 0; i < m_pageList->count(); ++i) {
+        const bool matches = i < static_cast<int>(m_searchIndex.size())
+            && [&] {
+                for (const auto &entry : m_searchIndex[static_cast<size_t>(i)])
+                    if (widgetMatches(entry.texts, tokens))
+                        return true;
+                return false;
+            }();
+        m_pageList->item(i)->setHidden(!matches);
+        if (matches && firstMatchRow < 0)
+            firstMatchRow = i;
+    }
+
+    if (firstMatchRow < 0) {
+        m_searchInfoLabel->setText(tr("No settings match \"%1\"").arg(text));
+        m_searchInfoLabel->setVisible(true);
+        applySearchDim(-1);
+        return;
+    }
+    m_searchInfoLabel->setVisible(false);
+
+    const int current = m_pages->currentIndex();
+    if (current < 0 || current >= m_pageList->count() || m_pageList->item(current)->isHidden())
+        m_pageList->setCurrentRow(firstMatchRow);
+    else
+        applySearchDim(current);
+}
+
+void PreferencesDialog::applySearchDim(int pageIndex)
+{
+    for (const auto &entries : m_searchIndex)
+        for (const auto &entry : entries)
+            setWidgetDimmed(entry.widget, false);
+
+    const QStringList tokens = m_searchEdit->text().toLower().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (tokens.isEmpty() || pageIndex < 0 || pageIndex >= static_cast<int>(m_searchIndex.size()))
+        return;
+
+    const QList<SearchEntry> &entries = m_searchIndex[static_cast<size_t>(pageIndex)];
+
+    // Widgets that match stay visible; containers that hold a matching widget
+    // stay visible too (e.g. a group box whose title doesn't match but whose
+    // child spin box does). Everything else on the page is dimmed.
+    QSet<QWidget *> keep;
+    for (const auto &entry : entries)
+        if (widgetMatches(entry.texts, tokens))
+            keep.insert(entry.widget);
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (const auto &entry : entries) {
+            if (keep.contains(entry.widget))
+                continue;
+            for (QWidget *p = entry.widget->parentWidget(); p; p = p->parentWidget()) {
+                if (keep.contains(p)) {
+                    keep.insert(entry.widget);
+                    changed = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    for (const auto &entry : entries)
+        if (!keep.contains(entry.widget))
+            setWidgetDimmed(entry.widget, true);
 }
 
 void PreferencesDialog::populateStylesheetList()

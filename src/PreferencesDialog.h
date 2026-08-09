@@ -29,6 +29,10 @@
 
 #include <QComboBox>
 #include <QTableWidget>
+#include <QLineEdit>
+#include <QVector>
+#include <QStringList>
+#include <utility>
 
 class CssConfig;
 class CssLoader;
@@ -54,9 +58,15 @@ private slots:
     void editStylesheet();
     void editPreviewBaseCss();
     void onCurrentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
+    void onSearchTextChanged(const QString &text);
 private:
     void populateStylesheetList();
     void setupUi(const QString &themeBgColor, const QString &themeFgColor);
+    void buildSearchIndex();
+    // Dims the widgets on the given page that don't match the active search
+    // query (containers holding a match stay normal). Clears all dimming when
+    // the search box is empty.
+    void applySearchDim(int pageIndex);
     // Enables/disables the editor content-width controls (single-view content
     // width, split-view editor max width) based on the wrap mode: when the
     // editor wraps at a fixed column count, the column count takes over as the
@@ -178,5 +188,14 @@ private:
     QPushButton *m_grammarColorBtn;
     QPushButton *m_linkColorBtn;
     QPushButton *m_markdownColorBtn;
+
+    // Settings search
+    QLineEdit *m_searchEdit = nullptr;
+    QLabel *m_searchInfoLabel = nullptr;
+    struct SearchEntry {
+        QWidget *widget = nullptr;
+        QStringList texts; // normalized searchable text fragments
+    };
+    std::vector<QList<SearchEntry>> m_searchIndex; // one entry list per page
 };
 
