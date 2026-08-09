@@ -617,6 +617,20 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_autoAlignTablesCheck->setChecked(settings.value(Preferences::AutoAlignTables, true).toBool());
         tablesLayout->addWidget(m_autoAlignTablesCheck);
 
+        QHBoxLayout *paddingRow = new QHBoxLayout();
+        QLabel *paddingLabel = new QLabel("Cell padding:");
+        m_tablePaddingSpin = new QSpinBox();
+        m_tablePaddingSpin->setRange(0, 4);
+        m_tablePaddingSpin->setValue(settings.value(Preferences::TablePadding,
+                                                     Preferences::DefaultTablePadding).toInt());
+        m_tablePaddingSpin->setToolTip("Number of spaces around each cell's content when the "
+            "table columns are aligned. 0 packs cells tightly against the pipes; 1 (the "
+            "default) matches the historic layout; larger values space the columns out.");
+        paddingRow->addWidget(paddingLabel);
+        paddingRow->addWidget(m_tablePaddingSpin);
+        paddingRow->addStretch();
+        tablesLayout->addLayout(paddingRow);
+
         layout->addWidget(tablesGroup);
         layout->addStretch();
 
@@ -1603,6 +1617,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EnableCspExport, m_enableCspExportCheck->isChecked());
         settings.setValue(Preferences::ShowLineNumbers, m_showLineNumbersCheck->isChecked());
         settings.setValue(Preferences::AutoAlignTables, m_autoAlignTablesCheck->isChecked());
+        settings.setValue(Preferences::TablePadding, m_tablePaddingSpin->value());
         settings.setValue(Preferences::GutterColorOverride, m_gutterOverrideGroup->isChecked());
         settings.setValue(Preferences::GutterBgColor, m_gutterBgBtn->text());
         settings.setValue(Preferences::GutterTextColor, m_gutterTextBtn->text());

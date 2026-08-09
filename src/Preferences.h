@@ -50,6 +50,10 @@ namespace Preferences {
     constexpr const char *AutoCorrectPairs = "autoCorrectPairs";
 
     constexpr const char *AutoAlignTables = "autoAlignTables";
+    // Number of spaces around each cell's content when formatting markdown
+    // tables (Editor → Tables → "Cell padding").
+    constexpr const char *TablePadding = "tablePadding";
+    constexpr int DefaultTablePadding = 1;
 
     constexpr const char *TypographyQuotes = "typographyQuotes";
     constexpr const char *TypographyDashes = "typographyDashes";

@@ -52,6 +52,7 @@ add_executable(scriba WIN32
     src/KatexHelperDialog.cpp
     src/MchemHelperDialog.cpp
     src/StaticHelpers.cpp
+    src/MdTable.cpp
     src/Readability.h
     src/Readability.cpp
     src/JsSnippets.cpp
@@ -187,6 +188,7 @@ if(BUILD_TESTS)
         src/Typography.cpp
         src/CssUtils.cpp
         src/StaticHelpers.cpp
+        src/MdTable.cpp
         src/Readability.cpp
         src/JsSnippets.cpp
         src/CsvReader.cpp
@@ -272,6 +274,11 @@ if(BUILD_TESTS)
     add_executable(test_static_helpers tests/test_static_helpers.cpp resources/scriba.qrc resources/twemoji-svg.qrc)
     target_link_libraries(test_static_helpers PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_static_helpers COMMAND ${_TEST_PREFIX} ./test_static_helpers)
+
+    add_executable(test_md_table tests/test_md_table.cpp)
+    target_include_directories(test_md_table PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_md_table PRIVATE scriba_core GTest::gtest_main)
+    add_test(NAME test_md_table COMMAND ${_TEST_PREFIX} ./test_md_table)
 
     add_executable(test_spell_checker tests/test_spell_checker.cpp resources/scriba.qrc)
     target_link_libraries(test_spell_checker PRIVATE GTest::gtest scriba_spell)

@@ -147,6 +147,7 @@ private:
 
     // Tables
     QCheckBox *m_autoAlignTablesCheck;
+    QSpinBox *m_tablePaddingSpin = nullptr;
 
     // Preview
     QCheckBox *m_hardSoftBreaksCheck;

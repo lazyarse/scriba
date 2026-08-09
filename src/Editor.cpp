@@ -20,6 +20,7 @@
 #include "MarkdownChecker.h"
 #include "SpellChecker.h"
 #include "StaticHelpers.h"
+#include "MdTable.h"
 #include <algorithm>
 #include <climits>
 #include <QAbstractItemView>
@@ -311,42 +312,42 @@ void Editor::keyPressEvent(QKeyEvent *event)
         // (e.g. the one just auto-completed below a header) exits the table
         // even when the caret sits inside a cell rather than at the row's end,
         // while Enter on a data/header row's content keeps working the table.
-        if (isMdTableLikeRow(line) && isMdSeparatorRow(line)) {
+        if (MdTable::isMdTableLikeRow(line) && MdTable::isMdSeparatorRow(line)) {
             // Separator row: never split. Jump to the first data row below, or
             // create an empty one if the table has no data rows yet.
             QTextBlock block = cursor.block().next();
             while (block.isValid()) {
                 QString t = block.text();
-                if (isMdTableLikeRow(t) && !isMdSeparatorRow(t)) {
+                if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
                     QTextCursor tc = textCursor();
-                    tc.setPosition(block.position() + mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
+                    tc.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
                     setTextCursor(tc);
                     return;
                 }
                 block = block.next();
             }
-            const MdRowStyle style = mdRowStyle(line);
-            int cols = qMax(splitMdTableRow(line).size(), 1);
-            QString newRow = makeEmptyTableRow(cols, style);
+            const MdTable::MdRowStyle style = MdTable::mdRowStyle(line);
+            int cols = qMax(MdTable::splitMdTableRow(line).size(), 1);
+            QString newRow = MdTable::makeEmptyTableRow(cols, style, tablePadding());
             cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
             cursor.insertText("\n" + newRow);
             cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, mdRowFirstCellPos(newRow));
+            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, MdTable::mdRowFirstCellPos(newRow));
             setTextCursor(cursor);
             return;
         }
 
         QString result;
         if (cursor.positionInBlock() == line.length()) {
-            result = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
-        } else if (isBlankMdTableRow(line)) {
+            result = MdTable::handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString(), tablePadding());
+        } else if (MdTable::isBlankMdTableRow(line)) {
             result = QString(clearSentinel);
-        } else if (isMdTableLikeRow(line)) {
-            // Mid-cell Enter on a data or header row: let handleTableReturn
+        } else if (MdTable::isMdTableLikeRow(line)) {
+            // Mid-cell Enter on a data or header row: let MdTable::handleTableReturn
             // decide — data rows continue with an empty row below, header rows
             // fall through to the header-skip block to jump to the first data
             // row (or create a fresh table).
-            const QString r = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
+            const QString r = MdTable::handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString(), tablePadding());
             if (!r.isEmpty() && r != QString(clearSentinel))
                 result = r;
         }
@@ -373,13 +374,13 @@ void Editor::keyPressEvent(QKeyEvent *event)
 
             // Header row: skip to first data row below separator
             QTextBlock nextBlock = cursor.block().next();
-            if (nextBlock.isValid() && isMdSeparatorRow(nextBlock.text())) {
+            if (nextBlock.isValid() && MdTable::isMdSeparatorRow(nextBlock.text())) {
                 QTextBlock block = nextBlock.next();
                 while (block.isValid()) {
                     QString t = block.text();
-                    if (isMdTableLikeRow(t) && !isMdSeparatorRow(t)) {
+                    if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
                         QTextCursor tc = textCursor();
-                        tc.setPosition(block.position() + mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
+                        tc.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
                         setTextCursor(tc);
                         return;
                     }
@@ -395,7 +396,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
             const QString lastLine = result.mid(result.lastIndexOf('\n') + 1);
             int cellPos = result.startsWith("<tr>")
                 ? result.indexOf("<td>") + 4
-                : mdRowFirstCellPos(lastLine);
+                : MdTable::mdRowFirstCellPos(lastLine);
             cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
             setTextCursor(cursor);
             // Typing a header row then Enter creates a fresh table
@@ -514,9 +515,9 @@ void Editor::keyPressEvent(QKeyEvent *event)
         QString line = cursor.block().text();
 
         // Table cell navigation
-        if (isMdTableLikeRow(line)) {
+        if (MdTable::isMdTableLikeRow(line)) {
             int pos = cursor.positionInBlock();
-            int cellPos = tableNavCell(line, pos, !shift);
+            int cellPos = MdTable::tableNavCell(line, pos, !shift);
             if (cellPos >= 0) {
                 cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
                 setTextCursor(cursor);
@@ -526,29 +527,29 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 QTextBlock block = cursor.block().next();
                 while (block.isValid()) {
                     QString t = block.text();
-                    if (isMdTableLikeRow(t) && !isMdSeparatorRow(t)) {
-                        cursor.setPosition(block.position() + mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
+                    if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
+                        cursor.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
                         setTextCursor(cursor);
                         return;
                     }
                     block = block.next();
                 }
                 // No next row — create a new empty row
-                const MdRowStyle style = mdRowStyle(line);
-                int cols = splitMdTableRow(line).size();
+                const MdTable::MdRowStyle style = MdTable::mdRowStyle(line);
+                int cols = MdTable::splitMdTableRow(line).size();
                 if (cols > 0) {
-                    QString newRow = makeEmptyTableRow(cols, style);
+                    QString newRow = MdTable::makeEmptyTableRow(cols, style, tablePadding());
                     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
                     bool hasSep = false;
                     QTextBlock b = cursor.block();
-                    while (b.isValid() && isMdTableLikeRow(b.text())) {
-                        if (isMdSeparatorRow(b.text())) { hasSep = true; break; }
+                    while (b.isValid() && MdTable::isMdTableLikeRow(b.text())) {
+                        if (MdTable::isMdSeparatorRow(b.text())) { hasSep = true; break; }
                         b = b.previous();
                     }
-                    QString sep = hasSep ? QString() : (makeTableSeparatorRow(cols, style) + "\n");
+                    QString sep = hasSep ? QString() : (MdTable::makeTableSeparatorRow(cols, style, tablePadding()) + "\n");
                     cursor.insertText("\n" + sep + newRow);
                     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, mdRowFirstCellPos(newRow));
+                    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, MdTable::mdRowFirstCellPos(newRow));
                     setTextCursor(cursor);
                     return;
                 }
@@ -556,8 +557,8 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 QTextBlock block = cursor.block().previous();
                 while (block.isValid()) {
                     QString t = block.text();
-                    if (isMdTableLikeRow(t) && !isMdSeparatorRow(t)) {
-                        cursor.setPosition(block.position() + mdRowLastCellPos(t), QTextCursor::MoveAnchor);
+                    if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
+                        cursor.setPosition(block.position() + MdTable::mdRowLastCellPos(t), QTextCursor::MoveAnchor);
                         setTextCursor(cursor);
                         return;
                     }
@@ -569,7 +570,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
         // HTML table cell navigation
         if (line.contains("<tr>") && line.contains("<td>")) {
             int pos = cursor.positionInBlock();
-            int cellPos = tableNavHtmlCell(line, pos, !shift);
+            int cellPos = MdTable::tableNavHtmlCell(line, pos, !shift);
             if (cellPos >= 0) {
                 cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
                 setTextCursor(cursor);
@@ -590,7 +591,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 // No next row — create a new empty row
                 int cols = line.count("<td>");
                 if (cols > 0) {
-                    QString newRow = makeEmptyHtmlTableRow(cols);
+                    QString newRow = MdTable::makeEmptyHtmlTableRow(cols);
                     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
                     cursor.insertText("\n" + newRow);
                     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
@@ -1565,7 +1566,7 @@ void Editor::onCursorPositionChanged()
         return;
 
     const QString line = cursor.block().text();
-    const bool inTable = isMdTableLikeRow(line);
+    const bool inTable = MdTable::isMdTableLikeRow(line);
 
     if (inTable) {
         if (m_trackTableStartBlock < 0) {
@@ -1573,7 +1574,7 @@ void Editor::onCursorPositionChanged()
             // cursor is inside can be tracked and the table reformatted once
             // the cursor leaves.
             QTextBlock block = cursor.block();
-            while (block.previous().isValid() && isMdTableLikeRow(block.previous().text()))
+            while (block.previous().isValid() && MdTable::isMdTableLikeRow(block.previous().text()))
                 block = block.previous();
             m_trackTableStartBlock = block.blockNumber();
             m_tableDirty = false;
@@ -1596,22 +1597,30 @@ void Editor::formatTableAt(int documentPos)
     if (!QSettings().value(Preferences::AutoAlignTables, true).toBool())
         return;
     QTextBlock block = document()->findBlock(documentPos);
-    if (block.isValid() && isMdTableLikeRow(block.text()))
+    if (block.isValid() && MdTable::isMdTableLikeRow(block.text()))
         formatMdTableBlock(block.blockNumber());
+}
+
+// Reads the configured table cell padding (Editor → Tables → Cell padding),
+// clamped to the spin box's 0..4 range.
+int Editor::tablePadding() const
+{
+    return qBound(0, QSettings().value(Preferences::TablePadding,
+                                       Preferences::DefaultTablePadding).toInt(), 4);
 }
 
 void Editor::formatMdTableBlock(int startBlock)
 {
     QTextDocument *doc = document();
     QTextBlock block = doc->findBlockByNumber(startBlock);
-    if (!block.isValid() || !isMdTableLikeRow(block.text()))
+    if (!block.isValid() || !MdTable::isMdTableLikeRow(block.text()))
         return;
 
     QTextBlock first = block;
-    while (first.previous().isValid() && isMdTableLikeRow(first.previous().text()))
+    while (first.previous().isValid() && MdTable::isMdTableLikeRow(first.previous().text()))
         first = first.previous();
     QTextBlock last = block;
-    while (last.next().isValid() && isMdTableLikeRow(last.next().text()))
+    while (last.next().isValid() && MdTable::isMdTableLikeRow(last.next().text()))
         last = last.next();
 
     QStringList rows;
@@ -1632,7 +1641,7 @@ void Editor::formatMdTableBlock(int startBlock)
     if (!hasSeparator)
         return;
 
-    const QString formatted = formatMdTable(rows);
+    const QString formatted = MdTable::formatMdTable(rows, tablePadding());
     if (formatted.isEmpty() || formatted == rows.join('\n'))
         return; // not a table, or already aligned — nothing to do
 
@@ -1669,7 +1678,7 @@ Editor::CursorContext Editor::detectCursorContext() const
     if (listRe.match(line).hasMatch())
         return CursorContext::ListItem;
 
-    if (isMdTableLikeRow(line) && !isMdSeparatorRow(line))
+    if (MdTable::isMdTableLikeRow(line) && !MdTable::isMdSeparatorRow(line))
         return CursorContext::TableRow;
 
     if (isCursorInFencedCodeBlock())
@@ -1735,15 +1744,15 @@ void Editor::insertTableRow(bool above)
 {
     QTextCursor cursor = textCursor();
     QString line = currentLineText();
-    if (!isMdTableLikeRow(line))
+    if (!MdTable::isMdTableLikeRow(line))
         return;
 
-    const MdRowStyle style = mdRowStyle(line);
-    const int cols = splitMdTableRow(line).size();
+    const MdTable::MdRowStyle style = MdTable::mdRowStyle(line);
+    const int cols = MdTable::splitMdTableRow(line).size();
     if (cols <= 0)
         return;
 
-    QString newRow = makeEmptyTableRow(cols, style);
+    QString newRow = MdTable::makeEmptyTableRow(cols, style, tablePadding());
     if (!newRow.endsWith('\n'))
         newRow += '\n';
 
@@ -1763,12 +1772,12 @@ template <typename Fn>
 static void forEachTableRow(QTextDocument *doc, const QTextBlock &block, Fn &&transform)
 {
     QTextBlock b = block;
-    while (b.previous().isValid() && isMdTableLikeRow(b.previous().text()))
+    while (b.previous().isValid() && MdTable::isMdTableLikeRow(b.previous().text()))
         b = b.previous();
-    while (b.isValid() && isMdTableLikeRow(b.text())) {
-        QStringList cells = splitMdTableRow(b.text());
-        const bool separator = isMdSeparatorRow(b.text());
-        const MdRowStyle style = mdRowStyle(b.text());
+    while (b.isValid() && MdTable::isMdTableLikeRow(b.text())) {
+        QStringList cells = MdTable::splitMdTableRow(b.text());
+        const bool separator = MdTable::isMdSeparatorRow(b.text());
+        const MdTable::MdRowStyle style = MdTable::mdRowStyle(b.text());
         QString rebuilt = transform(cells, separator);
         if (!rebuilt.isNull()) {
             if (style.hasLeadingPipe)
@@ -1789,15 +1798,15 @@ void Editor::insertTableCol(bool left)
 {
     QTextCursor cursor = textCursor();
     QString line = currentLineText();
-    if (!isMdTableLikeRow(line))
+    if (!MdTable::isMdTableLikeRow(line))
         return;
 
-    const QStringList cells = splitMdTableRow(line);
+    const QStringList cells = MdTable::splitMdTableRow(line);
     if (cells.isEmpty())
         return;
     const int insertIdx =
-        qMin(left ? mdRowColumnAt(line, cursor.positionInBlock())
-                  : mdRowColumnAt(line, cursor.positionInBlock()) + 1,
+        qMin(left ? MdTable::mdRowColumnAt(line, cursor.positionInBlock())
+                  : MdTable::mdRowColumnAt(line, cursor.positionInBlock()) + 1,
              cells.size());
 
     forEachTableRow(document(), cursor.block(), [insertIdx](QStringList cells, bool separator) {
@@ -1811,11 +1820,11 @@ void Editor::deleteTableRow()
 {
     QTextCursor cursor = textCursor();
     QString line = currentLineText();
-    if (!isMdTableLikeRow(line))
+    if (!MdTable::isMdTableLikeRow(line))
         return;
 
     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-    if (isMdSeparatorRow(line)) {
+    if (MdTable::isMdSeparatorRow(line)) {
         cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
     } else {
         cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor);
@@ -1857,14 +1866,14 @@ void Editor::deleteTableCol()
 {
     QTextCursor cursor = textCursor();
     QString line = currentLineText();
-    if (!isMdTableLikeRow(line))
+    if (!MdTable::isMdTableLikeRow(line))
         return;
 
     // Refuse to delete the only column of the caret row's column count.
-    if (splitMdTableRow(line).size() <= 1)
+    if (MdTable::splitMdTableRow(line).size() <= 1)
         return;
 
-    const int colIdx = mdRowColumnAt(line, cursor.positionInBlock());
+    const int colIdx = MdTable::mdRowColumnAt(line, cursor.positionInBlock());
 
     forEachTableRow(document(), cursor.block(),
                     [colIdx](QStringList cells, bool) {

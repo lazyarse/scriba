@@ -35,60 +35,6 @@ QString handleListReturn(const QString &line);
 // (inside the marker itself, at the very end of the line, at the start, in
 // plain text, or on a thematic break) — Enter then falls back to a plain split.
 QString handleListSplitReturn(const QString &line, int caretPos);
-QString handleTableReturn(const QString &line, const QString &prevLine);
-// GFM tables make the leading/trailing `|` optional, so a table row may be
-// bordered (`| a | b |`), borderless (`a | b`), or something in between.
-// `MdRowStyle` records which of the two optional border pipes a row carries.
-struct MdRowStyle {
-    bool hasLeadingPipe = true;
-    bool hasTrailingPipe = true;
-};
-// Returns whether `line` contains any unescaped `|`, i.e. could read as a
-// markdown table row regardless of border style.
-bool isMdTableLikeRow(const QString &line);
-// Returns `line`'s leading/trailing border style (which of the optional pipes
-// GFM allows are actually present).
-MdRowStyle mdRowStyle(const QString &line);
-// Splits a markdown table row into its cells, dropping the optional leading/
-// trailing border cells. Escaped pipes (`\|`) are preserved and cells are
-// trimmed. `style` (optional) receives the row's border style.
-QStringList splitMdTableRow(const QString &line, MdRowStyle *style = nullptr);
-// Position of the first cell's content in `line` (just past the leading pipe
-// when bordered, else the line start, skipping any leading spaces).
-int mdRowFirstCellPos(const QString &line);
-// Position of the last cell's content in `line` (just past the second-last
-// pipe when the row is trailing-bordered, else just past the last pipe).
-int mdRowLastCellPos(const QString &line);
-// 0-based index of the column containing `blockPos` in a markdown table row
-// (clamped to the last column when the caret sits in the trailing border).
-int mdRowColumnAt(const QString &line, int blockPos);
-// Returns whether `line` is a markdown table separator row: pipes where every
-// cell is made only of optional colons and at least one dash (spaces allowed
-// around it). Matches narrow columns such as `|:--:|` or `|--:|` too, not just
-// the spec's three-dash minimum, and matches borderless separators (`--- | ---`)
-// as well. A bare `---` (thematic break / setext underline) is not a separator.
-bool isMdSeparatorRow(const QString &line);
-// Returns whether `line` is a markdown table data row whose cells are all
-// empty (e.g. `|   |   |`). Separator rows are never blank.
-bool isBlankMdTableRow(const QString &line);
-// An empty markdown table data row of `cols` columns matching `style`'s border
-// (bordered rows carry leading/trailing pipes, borderless rows do not).
-QString makeEmptyTableRow(int cols, const MdRowStyle &style);
-// A bare markdown table separator row of `cols` columns matching `style`.
-QString makeTableSeparatorRow(int cols, const MdRowStyle &style);
-QString makeEmptyTableRow(int cols);
-QString makeEmptyHtmlTableRow(int cols);
-int tableNavCell(const QString &line, int cursorPos, bool forward);
-int tableNavHtmlCell(const QString &line, int cursorPos, bool forward);
-// Re-aligns a markdown table: takes the contiguous `|`-delimited rows of a
-// table block (header, separator, and data rows) and returns the rows re-spaced
-// so the column pipes line up. Per-column alignment follows the separator row
-// (`:---` left, `---:` right, `:---:` center, `---` default/null). Returns an
-// empty QString when `rows` is not a valid table (no separator row containing
-// `---`). The separator row's border style (leading/trailing `|`) is preserved:
-// a borderless table stays borderless. Cell content is trimmed; escaped pipes
-// (`\|`) are preserved.
-QString formatMdTable(const QStringList &rows);
 QString indentListLine(const QString &line);
 QString outdentListLine(const QString &line);
 QTextCursor restoreCursorPosition(QTextDocument *doc, int block, int column);

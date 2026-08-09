@@ -175,6 +175,9 @@ private:
     // Auto-alignment of markdown table source (see Preferences::AutoAlignTables)
     void onCursorPositionChanged();
     void formatMdTableBlock(int startBlock);
+    // Configured cell padding (spaces around each cell's content) for table
+    // formatting and new-row creation; clamped to the 0..4 spin-box range.
+    int tablePadding() const;
 
     QString m_currentFile;
     QCompleter *m_completer = nullptr;

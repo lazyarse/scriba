@@ -654,9 +654,17 @@ TEST_F(EditorTestHarness, TabFromSeparatorLastCellWithoutDataRowCreatesRow)
 // as having a leading+trailing pipe, so Enter landed the cursor past the first
 // cell and Tab from cell 1 wrongly created a new row.
 
-TEST_F(EditorTestHarness, BorderlessFirstRowCreatesSeparatorAndDataRow)
+TEST_F(EditorTestHarness, BorderlessSpacedFirstRowCreatesSeparatorAndDataRow)
 {
     typeText("foo | bar");
+    enter();
+    EXPECT_EQ(text(), "foo | bar\n--- | ---\n    |    ");
+    assertCursor(2, 0);
+}
+
+TEST_F(EditorTestHarness, BorderlessTightFirstRowCreatesSeparatorAndDataRow)
+{
+    typeText("foo|bar");
     enter();
     EXPECT_EQ(text(), "foo | bar\n--- | ---\n    |    ");
     assertCursor(2, 0);
