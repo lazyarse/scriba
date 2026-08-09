@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 #include "MarkdownParser.h"
+#include "MdTable.h"
 #include "Preferences.h"
 #include <QSettings>
 
@@ -80,6 +81,23 @@ TEST(MarkdownParserTest, Table) {
     EXPECT_TRUE(html.contains("<td"));
     EXPECT_TRUE(html.contains("A"));
     EXPECT_TRUE(html.contains("2"));
+}
+
+TEST(MarkdownParserTest, PaddingZeroFormattedTableStillRenders) {
+    // formatMdTable with padding 0 must never emit a separator cell without a
+    // dash (`:` or `::`), or md4c rejects the delimiter row and the whole table
+    // collapses into plain paragraphs. The floor-3 body keeps `|:-:|` valid.
+    QString table = MdTable::formatMdTable(
+        {"| h | c |", "|:--:|:--:|", "| a | bb |"}, 0);
+    EXPECT_EQ(table,
+        "| h | c |\n"
+        "|:-:|:-:|\n"
+        "| a |bb |");
+    QString html = MarkdownParser::toHtml(table);
+    EXPECT_TRUE(html.contains("<table>"));
+    EXPECT_TRUE(html.contains("<th"));
+    EXPECT_TRUE(html.contains("<td"));
+    EXPECT_TRUE(html.contains("bb"));
 }
 
 TEST(MarkdownParserTest, TableEndsAtAtxHeader) {

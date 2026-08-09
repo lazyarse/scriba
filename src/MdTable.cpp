@@ -54,7 +54,7 @@ QString padMdCell(const QString &content, int width, MdAlign align)
 // content width), with the alignment colons, so the dashes reach the pipes.
 QString mdSeparatorCell(MdAlign align, int width, int padding)
 {
-    const int span = width + 2 * padding;
+    const int span = qMax(width + 2 * padding, 3);
     switch (align) {
     case MdAlign::Left:    return ':' + QString(qMax(span - 1, 0), '-');
     case MdAlign::Right:   return QString(qMax(span - 1, 0), '-') + ':';
@@ -307,7 +307,7 @@ QString makeTableSeparatorRow(int cols, const MdRowStyle &style, int padding)
 {
     if (cols <= 0)
         return {};
-    const QString dashes = QString(2 * padding + 1, '-');
+    const QString dashes = QString(qMax(2 * padding + 1, 3), '-');
     if (style.hasLeadingPipe && style.hasTrailingPipe)
         return "|" + (dashes + "|").repeated(cols);
     QStringList cells;
@@ -500,6 +500,13 @@ QString formatMdTable(const QStringList &rows, int padding)
     for (int c = 0; c < maxCols; ++c)
         width[c] = qMax(width[c], 1);
 
+    // Column body width including padding, floored at three chars so every
+    // separator cell keeps at least one dash (`---`, `:--`, `--:`, `:-:`) and
+    // data rows stay pipe-aligned with it even at padding 0.
+    QVector<int> bodyWidth(maxCols);
+    for (int c = 0; c < maxCols; ++c)
+        bodyWidth[c] = qMax(width[c] + 2 * padding, 3);
+
     const QString pipeSpacing = QString(padding, ' ') + "|" + QString(padding, ' ');
 
     QStringList out;
@@ -510,7 +517,7 @@ QString formatMdTable(const QStringList &rows, int padding)
             if (r == sepIndex) {
                 QString line = "|";
                 for (int c = 0; c < maxCols; ++c)
-                    line += mdSeparatorCell(align[c], width[c], padding) + "|";
+                    line += mdSeparatorCell(align[c], bodyWidth[c], 0) + "|";
                 out << line;
             } else {
                 const QStringList &cells = cellRows[r];
@@ -518,7 +525,7 @@ QString formatMdTable(const QStringList &rows, int padding)
                 for (int c = 0; c < maxCols; ++c) {
                     const QString content = c < cells.size() ? cells[c] : QString();
                     line += QString(padding, ' ')
-                            + padMdCell(content, width[c], align[c])
+                            + padMdCell(content, bodyWidth[c] - 2 * padding, align[c])
                             + QString(padding, ' ') + "|";
                 }
                 out << line;

@@ -254,12 +254,29 @@ TEST(FormatMdTableTest, PaddingTwoSpacesEachSide) {
         "|  ccc  |  d   |");
 }
 
-TEST(FormatMdTableTest, PaddingZeroPacksTight) {
+TEST(FormatMdTableTest, PaddingZeroFloorsNarrowColumns) {
+    // Padding 0 must not shrink a column below three chars: a narrower
+    // separator cell would lose its dashes (`:` or `::`) and md4c would reject
+    // the whole table. The body is floored instead.
     QStringList rows = {"| a | bb |", "|---|---|", "| ccc | d |"};
     EXPECT_EQ(formatMdTable(rows, 0),
-        "|a  |bb|\n"
-        "|---|--|\n"
-        "|ccc|d |");
+        "|a  |bb |\n"
+        "|---|---|\n"
+        "|ccc|d  |");
+}
+
+TEST(FormatMdTableTest, PaddingZeroKeepsCenterColons) {
+    // The floor-3 separator keeps at least one dash even for colon-aligned
+    // narrow columns at padding 0, so the output stays a valid table.
+    QStringList rows = {
+        "| h | c |",
+        "|:--:|:--:|",
+        "| a | bb |"
+    };
+    EXPECT_EQ(formatMdTable(rows, 0),
+        "| h | c |\n"
+        "|:-:|:-:|\n"
+        "| a |bb |");
 }
 
 TEST(FormatMdTableTest, PaddingKeepsAlignmentColons) {
@@ -293,5 +310,7 @@ TEST(MakeEmptyTableRow, PaddingScalesBorderlessCells) {
 
 TEST(MakeSeparatorRow, PaddingScalesDashes) {
     EXPECT_EQ(makeTableSeparatorRow(2, MdRowStyle{true, true}, 2), "|-----|-----|");
-    EXPECT_EQ(makeTableSeparatorRow(2, MdRowStyle{true, true}, 0), "|-|-|");
+    // Dash count is floored at three: fewer dashes than that is non-portable
+    // markdown (and `-` alone can be misread), even at padding 0.
+    EXPECT_EQ(makeTableSeparatorRow(2, MdRowStyle{true, true}, 0), "|---|---|");
 }
