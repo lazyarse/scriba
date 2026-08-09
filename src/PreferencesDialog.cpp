@@ -90,7 +90,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     mainLayout->setSpacing(8);
 
     m_searchEdit = new QLineEdit;
-    m_searchEdit->setPlaceholderText(tr("Search settings..."));
+    m_searchEdit->setPlaceholderText(tr("Search settings... (Ctrl+F)"));
     m_searchEdit->setClearButtonEnabled(true);
     m_searchEdit->setObjectName("preferences-search");
     mainLayout->addWidget(m_searchEdit);
