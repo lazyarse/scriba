@@ -22,6 +22,24 @@
 #include "Preferences.h"
 #include "TestConfig.h"
 
+namespace {
+QString escapeVisible(const QString &s)
+{
+    QString out;
+    for (QChar c : s) {
+        if (c == '\n') out += "\\n";
+        else if (c == '\t') out += "\\t";
+        else if (c == ' ') out += QString(QChar(0x2423));
+        else out += c;
+    }
+    return out;
+}
+QString qvs(const QStringList &l)
+{
+    return "[ " + l.join(" | ") + " ]";
+}
+}
+
 TEST_F(EditorTestHarness, TypingInsertsTextAndMovesCursor)
 {
     typeText("Hello, world");
@@ -629,6 +647,53 @@ TEST_F(EditorTestHarness, TabFromSeparatorLastCellWithoutDataRowCreatesRow)
     placeCursor(1, 5);
     press(Qt::Key_Tab);
     assertCursor(2, 2);
+}
+
+// Borderless tables: `foo | bar` (no edge pipes). Regression coverage for the
+// lone-pipe row misparse — an empty borderless data row (`    |    `) was read
+// as having a leading+trailing pipe, so Enter landed the cursor past the first
+// cell and Tab from cell 1 wrongly created a new row.
+
+TEST_F(EditorTestHarness, BorderlessFirstRowCreatesSeparatorAndDataRow)
+{
+    typeText("foo | bar");
+    enter();
+    EXPECT_EQ(text(), "foo | bar\n--- | ---\n    |    ");
+    assertCursor(2, 0);
+}
+
+TEST_F(EditorTestHarness, BorderlessTableDataRowContinuesOnEnter)
+{
+    setContent("foo | bar\n--- | ---\nx   | y");
+    placeCursorAtEnd();
+    enter();
+    EXPECT_EQ(text(), "foo | bar\n--- | ---\nx   | y\n   |   ");
+    assertCursor(3, 0);
+}
+
+TEST_F(EditorTestHarness, BorderlessTabMovesToNextTableCell)
+{
+    setContent("foo | bar\n--- | ---\n    |    ");
+    placeCursor(2, 0);
+    press(Qt::Key_Tab);
+    assertCursor(2, 6);
+}
+
+TEST_F(EditorTestHarness, BorderlessTabMovesHeaderToNextCell)
+{
+    setContent("foo | bar\n--- | ---\n    |    ");
+    placeCursor(0, 0);
+    press(Qt::Key_Tab);
+    assertCursor(0, 6);
+}
+
+TEST_F(EditorTestHarness, BorderlessTabFromLastCellCreatesNewRow)
+{
+    setContent("foo | bar\n--- | ---\n    |    ");
+    placeCursor(2, 6);
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "foo | bar\n--- | ---\n    |    \n   |   ");
+    assertCursor(3, 0);
 }
 
 TEST_F(EditorTestHarness, CtrlDDuplicatesCurrentLine)

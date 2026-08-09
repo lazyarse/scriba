@@ -311,25 +311,27 @@ void Editor::keyPressEvent(QKeyEvent *event)
         // (e.g. the one just auto-completed below a header) exits the table
         // even when the caret sits inside a cell rather than at the row's end,
         // while Enter on a data/header row's content keeps working the table.
-        if (line.startsWith('|') && isMdSeparatorRow(line)) {
+        if (isMdTableLikeRow(line) && isMdSeparatorRow(line)) {
             // Separator row: never split. Jump to the first data row below, or
             // create an empty one if the table has no data rows yet.
             QTextBlock block = cursor.block().next();
             while (block.isValid()) {
                 QString t = block.text();
-                if (t.startsWith('|') && !isMdSeparatorRow(t)) {
+                if (isMdTableLikeRow(t) && !isMdSeparatorRow(t)) {
                     QTextCursor tc = textCursor();
-                    tc.setPosition(block.position() + 2, QTextCursor::MoveAnchor);
+                    tc.setPosition(block.position() + mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
                     setTextCursor(tc);
                     return;
                 }
                 block = block.next();
             }
-            int cols = qMax(line.count('|') - 1, 1);
+            const MdRowStyle style = mdRowStyle(line);
+            int cols = qMax(splitMdTableRow(line).size(), 1);
+            QString newRow = makeEmptyTableRow(cols, style);
             cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
-            cursor.insertText("\n" + makeEmptyTableRow(cols));
+            cursor.insertText("\n" + newRow);
             cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
+            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, mdRowFirstCellPos(newRow));
             setTextCursor(cursor);
             return;
         }
@@ -339,7 +341,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
             result = handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString());
         } else if (isBlankMdTableRow(line)) {
             result = QString(clearSentinel);
-        } else if (line.startsWith('|')) {
+        } else if (isMdTableLikeRow(line)) {
             // Mid-cell Enter on a data or header row: let handleTableReturn
             // decide — data rows continue with an empty row below, header rows
             // fall through to the header-skip block to jump to the first data
@@ -375,9 +377,9 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 QTextBlock block = nextBlock.next();
                 while (block.isValid()) {
                     QString t = block.text();
-                    if (t.startsWith('|') && !isMdSeparatorRow(t)) {
+                    if (isMdTableLikeRow(t) && !isMdSeparatorRow(t)) {
                         QTextCursor tc = textCursor();
-                        tc.setPosition(block.position() + 2, QTextCursor::MoveAnchor);
+                        tc.setPosition(block.position() + mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
                         setTextCursor(tc);
                         return;
                     }
@@ -388,7 +390,12 @@ void Editor::keyPressEvent(QKeyEvent *event)
             cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
             cursor.insertText("\n" + result);
             cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-            int cellPos = result.startsWith("<tr>") ? result.indexOf("<td>") + 4 : 2;
+            // `result` is multi-line when Enter builds a whole table; the cursor
+            // sits on its last line, so measure the first cell of that line.
+            const QString lastLine = result.mid(result.lastIndexOf('\n') + 1);
+            int cellPos = result.startsWith("<tr>")
+                ? result.indexOf("<td>") + 4
+                : mdRowFirstCellPos(lastLine);
             cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
             setTextCursor(cursor);
             // Typing a header row then Enter creates a fresh table
@@ -507,7 +514,7 @@ void Editor::keyPressEvent(QKeyEvent *event)
         QString line = cursor.block().text();
 
         // Table cell navigation
-        if (line.startsWith('|')) {
+        if (isMdTableLikeRow(line)) {
             int pos = cursor.positionInBlock();
             int cellPos = tableNavCell(line, pos, !shift);
             if (cellPos >= 0) {
@@ -519,30 +526,29 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 QTextBlock block = cursor.block().next();
                 while (block.isValid()) {
                     QString t = block.text();
-                    if (t.startsWith('|') && !t.contains("---")) {
-                        int p = 1;
-                        if (p < t.size() && t[p] == ' ') ++p;
-                        cursor.setPosition(block.position() + p, QTextCursor::MoveAnchor);
+                    if (isMdTableLikeRow(t) && !isMdSeparatorRow(t)) {
+                        cursor.setPosition(block.position() + mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
                         setTextCursor(cursor);
                         return;
                     }
                     block = block.next();
                 }
                 // No next row — create a new empty row
-                int cols = line.count('|') - 1;
+                const MdRowStyle style = mdRowStyle(line);
+                int cols = splitMdTableRow(line).size();
                 if (cols > 0) {
-                    QString newRow = makeEmptyTableRow(cols);
+                    QString newRow = makeEmptyTableRow(cols, style);
                     cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
                     bool hasSep = false;
                     QTextBlock b = cursor.block();
-                    while (b.isValid() && b.text().startsWith('|')) {
-                        if (b.text().contains("---")) { hasSep = true; break; }
+                    while (b.isValid() && isMdTableLikeRow(b.text())) {
+                        if (isMdSeparatorRow(b.text())) { hasSep = true; break; }
                         b = b.previous();
                     }
-                    QString sep = hasSep ? QString() : (QString("|") + QString("---|").repeated(cols) + "\n");
+                    QString sep = hasSep ? QString() : (makeTableSeparatorRow(cols, style) + "\n");
                     cursor.insertText("\n" + sep + newRow);
                     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);
+                    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, mdRowFirstCellPos(newRow));
                     setTextCursor(cursor);
                     return;
                 }
@@ -550,17 +556,10 @@ void Editor::keyPressEvent(QKeyEvent *event)
                 QTextBlock block = cursor.block().previous();
                 while (block.isValid()) {
                     QString t = block.text();
-                    if (t.startsWith('|') && !t.contains("---")) {
-                        QList<int> pipes;
-                        for (int i = 0; i < t.size(); ++i)
-                            if (t[i] == '|') pipes.append(i);
-                        if (pipes.size() >= 2) {
-                            int p = pipes[pipes.size() - 2] + 1;
-                            if (p < t.size() && t[p] == ' ') ++p;
-                            cursor.setPosition(block.position() + p, QTextCursor::MoveAnchor);
-                            setTextCursor(cursor);
-                            return;
-                        }
+                    if (isMdTableLikeRow(t) && !isMdSeparatorRow(t)) {
+                        cursor.setPosition(block.position() + mdRowLastCellPos(t), QTextCursor::MoveAnchor);
+                        setTextCursor(cursor);
+                        return;
                     }
                     block = block.previous();
                 }
@@ -1566,7 +1565,7 @@ void Editor::onCursorPositionChanged()
         return;
 
     const QString line = cursor.block().text();
-    const bool inTable = line.startsWith('|');
+    const bool inTable = isMdTableLikeRow(line);
 
     if (inTable) {
         if (m_trackTableStartBlock < 0) {
@@ -1574,7 +1573,7 @@ void Editor::onCursorPositionChanged()
             // cursor is inside can be tracked and the table reformatted once
             // the cursor leaves.
             QTextBlock block = cursor.block();
-            while (block.previous().isValid() && block.previous().text().startsWith('|'))
+            while (block.previous().isValid() && isMdTableLikeRow(block.previous().text()))
                 block = block.previous();
             m_trackTableStartBlock = block.blockNumber();
             m_tableDirty = false;
@@ -1597,7 +1596,7 @@ void Editor::formatTableAt(int documentPos)
     if (!QSettings().value(Preferences::AutoAlignTables, true).toBool())
         return;
     QTextBlock block = document()->findBlock(documentPos);
-    if (block.isValid() && block.text().startsWith('|'))
+    if (block.isValid() && isMdTableLikeRow(block.text()))
         formatMdTableBlock(block.blockNumber());
 }
 
@@ -1605,14 +1604,14 @@ void Editor::formatMdTableBlock(int startBlock)
 {
     QTextDocument *doc = document();
     QTextBlock block = doc->findBlockByNumber(startBlock);
-    if (!block.isValid() || !block.text().startsWith('|'))
+    if (!block.isValid() || !isMdTableLikeRow(block.text()))
         return;
 
     QTextBlock first = block;
-    while (first.previous().isValid() && first.previous().text().startsWith('|'))
+    while (first.previous().isValid() && isMdTableLikeRow(first.previous().text()))
         first = first.previous();
     QTextBlock last = block;
-    while (last.next().isValid() && last.next().text().startsWith('|'))
+    while (last.next().isValid() && isMdTableLikeRow(last.next().text()))
         last = last.next();
 
     QStringList rows;
@@ -1670,7 +1669,7 @@ Editor::CursorContext Editor::detectCursorContext() const
     if (listRe.match(line).hasMatch())
         return CursorContext::ListItem;
 
-    if (line.startsWith('|') && !line.contains("---"))
+    if (isMdTableLikeRow(line) && !isMdSeparatorRow(line))
         return CursorContext::TableRow;
 
     if (isCursorInFencedCodeBlock())
@@ -1736,14 +1735,15 @@ void Editor::insertTableRow(bool above)
 {
     QTextCursor cursor = textCursor();
     QString line = currentLineText();
-    if (!line.startsWith('|'))
+    if (!isMdTableLikeRow(line))
         return;
 
-    int pipes = line.count('|');
-    QString newRow;
-    for (int i = 0; i < pipes; ++i) {
-        newRow += "| ";
-    }
+    const MdRowStyle style = mdRowStyle(line);
+    const int cols = splitMdTableRow(line).size();
+    if (cols <= 0)
+        return;
+
+    QString newRow = makeEmptyTableRow(cols, style);
     if (!newRow.endsWith('\n'))
         newRow += '\n';
 
@@ -1756,58 +1756,66 @@ void Editor::insertTableRow(bool above)
     }
 }
 
+// Applies `transform` to every row of the table block containing `block`:
+// consecutive lines that look like markdown table rows (any border style). The
+// caret's current row determines the contiguous extent scanned above and below.
+template <typename Fn>
+static void forEachTableRow(QTextDocument *doc, const QTextBlock &block, Fn &&transform)
+{
+    QTextBlock b = block;
+    while (b.previous().isValid() && isMdTableLikeRow(b.previous().text()))
+        b = b.previous();
+    while (b.isValid() && isMdTableLikeRow(b.text())) {
+        QStringList cells = splitMdTableRow(b.text());
+        const bool separator = isMdSeparatorRow(b.text());
+        const MdRowStyle style = mdRowStyle(b.text());
+        QString rebuilt = transform(cells, separator);
+        if (!rebuilt.isNull()) {
+            if (style.hasLeadingPipe)
+                rebuilt.prepend('|');
+            if (style.hasTrailingPipe)
+                rebuilt.append('|');
+            QTextCursor tc(doc);
+            tc.setPosition(b.position());
+            tc.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
+            tc.removeSelectedText();
+            tc.insertText(rebuilt);
+        }
+        b = doc->findBlockByNumber(b.blockNumber() + 1);
+    }
+}
+
 void Editor::insertTableCol(bool left)
 {
     QTextCursor cursor = textCursor();
     QString line = currentLineText();
-    if (!line.startsWith('|'))
+    if (!isMdTableLikeRow(line))
         return;
 
-    int pos = cursor.positionInBlock();
-    QList<int> pipes;
-    for (int i = 0; i < line.size(); ++i)
-        if (line[i] == '|') pipes.append(i);
-
-    int insertAfterPipe = -1;
-    for (int i = 0; i < pipes.size() - 1; ++i) {
-        if (pos >= pipes[i] && pos <= pipes[i + 1]) {
-            insertAfterPipe = i;
-            break;
-        }
-    }
-    if (insertAfterPipe < 0)
+    const QStringList cells = splitMdTableRow(line);
+    if (cells.isEmpty())
         return;
+    const int insertIdx =
+        qMin(left ? mdRowColumnAt(line, cursor.positionInBlock())
+                  : mdRowColumnAt(line, cursor.positionInBlock()) + 1,
+             cells.size());
 
-    int colOffset = pipes[insertAfterPipe] + 1;
-
-    QTextBlock block = cursor.block();
-    while (block.isValid() && block.text().startsWith('|')) {
-        QString text = block.text();
-        QList<int> bPipes;
-        for (int i = 0; i < text.size(); ++i)
-            if (text[i] == '|') bPipes.append(i);
-
-        if (insertAfterPipe < bPipes.size() - 1) {
-            int insertPos = bPipes[insertAfterPipe] + 1;
-            bool isSep = text.contains("---");
-            QString insert = isSep ? " --- " : "  ";
-            QTextCursor tc(document());
-            tc.setPosition(block.position() + insertPos);
-            tc.insertText(insert);
-        }
-        block = block.next();
-    }
+    forEachTableRow(document(), cursor.block(), [insertIdx](QStringList cells, bool separator) {
+        cells.insert(qMin(insertIdx, static_cast<int>(cells.size())),
+                     separator ? QStringLiteral("---") : QString());
+        return cells.join(" | ");
+    });
 }
 
 void Editor::deleteTableRow()
 {
     QTextCursor cursor = textCursor();
     QString line = currentLineText();
-    if (!line.startsWith('|'))
+    if (!isMdTableLikeRow(line))
         return;
 
     cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-    if (line.contains("---")) {
+    if (isMdSeparatorRow(line)) {
         cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
     } else {
         cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor);
@@ -1849,46 +1857,24 @@ void Editor::deleteTableCol()
 {
     QTextCursor cursor = textCursor();
     QString line = currentLineText();
-    if (!line.startsWith('|'))
+    if (!isMdTableLikeRow(line))
         return;
 
-    int pos = cursor.positionInBlock();
-    QList<int> pipes;
-    for (int i = 0; i < line.size(); ++i)
-        if (line[i] == '|') pipes.append(i);
-
-    int colIdx = -1;
-    for (int i = 0; i < pipes.size() - 1; ++i) {
-        if (pos >= pipes[i] && pos <= pipes[i + 1]) {
-            colIdx = i;
-            break;
-        }
-    }
-    if (colIdx < 0)
+    // Refuse to delete the only column of the caret row's column count.
+    if (splitMdTableRow(line).size() <= 1)
         return;
 
-    QTextBlock b = document()->firstBlock();
-    while (b.isValid()) {
-        if (b.text().startsWith('|')) {
-            QList<int> bPipes;
-            QString text = b.text();
-            for (int i = 0; i < text.size(); ++i)
-                if (text[i] == '|') bPipes.append(i);
+    const int colIdx = mdRowColumnAt(line, cursor.positionInBlock());
 
-            if (colIdx < bPipes.size() - 1) {
-                int start = bPipes[colIdx];
-                int end = (colIdx + 1 < bPipes.size()) ? bPipes[colIdx + 1] : text.size();
-                if (bPipes[colIdx + 1] == bPipes.last() && colIdx + 1 == bPipes.size() - 1) {
-                    end = text.size() - 1;
-                }
-                QTextCursor tc(document());
-                tc.setPosition(b.position() + start);
-                tc.setPosition(b.position() + end, QTextCursor::KeepAnchor);
-                tc.removeSelectedText();
-            }
-        }
-        b = b.next();
-    }
+    forEachTableRow(document(), cursor.block(),
+                    [colIdx](QStringList cells, bool) {
+        if (colIdx >= cells.size())
+            return QString(); // rows with fewer columns are left untouched
+        cells.removeAt(colIdx);
+        if (cells.isEmpty())
+            return QString();
+        return cells.join(" | ");
+    });
 }
 
 void Editor::changeCodeLanguage()

@@ -168,3 +168,16 @@ re-inserted through `generatedSpec()`:
 disabling the toggle in the dialog and re-inserting writes a spec without those
 keys — which round-trips back as "off", not as a guessed default, on the next
 pencil-edit.
+
+## Empty borderless table rows have a lone pipe
+
+An empty row of a borderless table (`foo | bar`, no edge pipes) is written with
+leading and trailing spaces: `    |    `. To a row-parser that trims leading
+whitespace this looks like a fully-bordered row (`|    |`), which made Enter
+land the cursor in cell 2 and made Tab from cell 1 create a new row. The
+disambiguation lives in `mdRowStyle`: a leading/trailing pipe only counts as a
+*border* when the row holds at least two pipes (`pipes.size() >= 2`), because a
+bordered row always pairs its edge pipe with a separator pipe after the first
+cell. A lone pipe is always a cell separator, never a border. Keep this rule
+when reworking the table helpers — and note `formatMdTable` derives the border
+style from the separator row, so it is immune to the ambiguity.
