@@ -75,22 +75,13 @@ public:
     QVector<ValidationReport::DocumentSource> sources;
     QVector<QList<GrammarChecker::Issue>> results;
 
-    // Number of documents fully checked so far; incremented on the worker
-    // thread after each source. Read racing-safe from the UI thread via
-    // loadAcquire() while the thread is still running.
-    QAtomicInteger<int> total = 0;
-    QAtomicInteger<int> completed = 0;
-
 protected:
     void run() override
     {
-        const int count = sources.size();
-        total.storeRelease(count);
-        results.reserve(count);
+        results.reserve(sources.size());
         for (const auto &source : sources) {
             results.append(m_checker ? m_checker->check(source.text)
                                      : QList<GrammarChecker::Issue>());
-            completed.fetchAndAddRelease(1);
         }
     }
 
@@ -115,7 +106,6 @@ private:
 #include <QFileInfo>
 #include <QTimer>
 #include <QStatusBar>
-#include <QProgressBar>
 #include <QSettings>
 #include <QScrollBar>
 #include <QTextDocument>
@@ -409,18 +399,6 @@ void MainWindow::setupUi()
     m_statsLabel->setAlignment(Qt::AlignCenter);
     m_statsLabel->setContentsMargins(0, 0, 0, 0);
     statusBar()->addWidget(m_statsLabel, 1);
-
-    m_reportProgressBar = new QProgressBar();
-    m_reportProgressBar->setObjectName("report-progress");
-    m_reportProgressBar->setFixedWidth(180);
-    m_reportProgressBar->setTextVisible(true);
-    m_reportProgressBar->setVisible(false);
-    statusBar()->addPermanentWidget(m_reportProgressBar);
-
-    m_reportProgressTimer = new QTimer(this);
-    m_reportProgressTimer->setInterval(Timeout::ReportProgress);
-    connect(m_reportProgressTimer, &QTimer::timeout, this,
-            &MainWindow::updateReportProgress);
 }
 
 int MainWindow::addTab(const QString &filePath)
@@ -1915,11 +1893,6 @@ void MainWindow::generateValidationReport()
             worker->deleteLater();
         });
         worker->start();
-        m_reportProgressBar->setRange(0, m_reportSources.size());
-        m_reportProgressBar->setValue(0);
-        m_reportProgressBar->setFormat("Validating %v/%m");
-        m_reportProgressBar->setVisible(true);
-        m_reportProgressTimer->start();
         statusBar()->showMessage(tr("Generating validation report..."));
     } else {
         openValidationReport(); // no grammar selected: assemble synchronously
@@ -1938,20 +1911,9 @@ void MainWindow::onValidationReportReady(
     openValidationReport();
 }
 
-void MainWindow::updateReportProgress()
-{
-    QThread *thread = m_reportThread;
-    if (auto *worker = static_cast<ValidationReportThread *>(thread))
-        m_reportProgressBar->setValue(worker->completed.loadAcquire());
-    else
-        m_reportProgressBar->setValue(m_reportProgressBar->maximum());
-}
-
 void MainWindow::openValidationReport()
 {
     m_reportInFlight = false;
-    m_reportProgressTimer->stop();
-    m_reportProgressBar->setVisible(false);
     statusBar()->clearMessage();
 
     const QDateTime now = QDateTime::currentDateTime();
@@ -1981,8 +1943,6 @@ void MainWindow::stopValidationReport()
     thread->quit();
     thread->wait();
     delete thread; // ValidationReportThread dtor frees the grammar checker
-    m_reportProgressTimer->stop();
-    m_reportProgressBar->setVisible(false);
 }
 
 void MainWindow::showTableInsert()

@@ -186,7 +186,6 @@ namespace Debounce {
 // C++ non-debounce timing values that are not embedded in JS strings.
 namespace Timeout {
     constexpr int RenderTimeoutMs = 30000; // hard cap for renderSync/HTML import
-    constexpr int ReportProgress  = 150;   // validation-report progress poll
 }
 
 // Timing values that live inside generated JS strings (injected at build
