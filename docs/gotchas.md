@@ -234,10 +234,14 @@ Consequences that look like bugs but are intended:
   `w:tblHeader`, so export->import round-trips lose the GFM table (raw HTML
   remains, content intact).
 - **Cell merge spans**: `w:gridSpan` is emitted as a `colspan`; `w:vMerge`
-  continuation cells are dropped (first cell wins). This is lossy — a
-  vertically-merged cell's text in continuation rows is lost.
-- **EMF/WMF images are dropped** (a warning is recorded) since the preview and
-  Markdown have no use for them; PNG/JPEG/GIF/SVG/WebP/BMP/TIFF are extracted.
+  continuation cells render **empty** (their text is lost; the restart cell —
+  "first cell wins" — keeps its content). This is deliberately lossy since
+  Markdown has no vertical-merge representation; the merged cell's text in
+  continuation rows does not import.
+- **EMF/WMF images**: an attempt is made to rasterize them via `QImageReader`
+  into PNG (plugin/platform dependent — often failing on Linux, sometimes
+  working on Windows); on failure they are skipped with a warning.
+  PNG/JPEG/GIF/SVG/WebP/BMP/TIFF are extracted directly.
 - **Image alt text**: stored in `wp:docPr descr`; not all producers set it, and
   Scriba's own exporter doesn't write it, so `![...]` alt is often empty after
   an export->import round-trip.
@@ -250,6 +254,11 @@ Consequences that look like bugs but are intended:
   (until the doc is saved), or ask each time. An unsaved document with
   "next to the document" escalates to asking; if no folder is chosen the
   `<img>` tags are stripped rather than leaking `docximg://` placeholders.
+- **Loose vs tight lists**: loose-ness is inferred from **inline** `w:spacing`
+  in each item's `w:pPr` (emits `<li><p>…</p></li>`, which turndown turns into
+  a loose Markdown list). Paragraph-mark defaults (`w:docDefaults`/styles-level
+  spacing) are **not** considered, so Word lists whose spacing is inherited from
+  a style may still import as tight.
 
 ## Empty mermaid diagrams in the chart-helper dialog
 

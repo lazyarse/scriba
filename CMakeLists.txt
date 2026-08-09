@@ -759,7 +759,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/OoxmlToHtml.cpp)
     target_include_directories(test_ooxml_to_html PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_ooxml_to_html PRIVATE
-        GTest::gtest_main Qt6::Core mathml2omml)
+        GTest::gtest_main Qt6::Core Qt6::Gui mathml2omml)
     add_test(NAME test_ooxml_to_html COMMAND ${_TEST_PREFIX} ./test_ooxml_to_html)
 
     add_executable(test_docx_import tests/test_docx_import.cpp

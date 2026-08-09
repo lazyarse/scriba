@@ -16,6 +16,9 @@
 
 #include <mathml2omml.h>
 
+#include <QBuffer>
+#include <QImage>
+#include <QImageReader>
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
 
@@ -199,6 +202,7 @@ struct Para {
     int heading = 0;        // 1..6, or 0 for a plain paragraph
     int listLevel = -1;     // -1 = plain paragraph, else 0-based list level
     bool listOrdered = false;
+    bool loose = false;     // list item has inline w:spacing -> loose list
 
     bool isListItem() const { return listLevel >= 0; }
 };
@@ -206,6 +210,7 @@ struct Para {
 struct Cell {
     QString html;
     int colspan = 0;        // 0 = "not specified"
+    bool vMergeContinue = false;  // continuation of a vertically merged cell
 };
 
 struct ListState {
@@ -546,6 +551,11 @@ struct Converter {
                 if (lvl >= 0 && lvl <= 5 && para.heading == 0)
                     para.heading = lvl + 1;
                 r.skipCurrentElement();
+            } else if (lm == QLatin1String("spacing")) {
+                // Inline paragraph spacing (w:before/w:after) marks a loose
+                // list. Styles-level defaults are not considered.
+                para.loose = true;
+                r.skipCurrentElement();
             } else {
                 r.skipCurrentElement();
             }
@@ -697,17 +707,38 @@ struct Converter {
             return QString();
         }
         const QString fileName = target.mid(target.lastIndexOf(QLatin1Char('/')) + 1);
-        if (fileName.endsWith(QLatin1String(".emf")) || fileName.endsWith(QLatin1String(".wmf"))) {
-            warn(QStringLiteral("Skipped %1 (EMF/WMF not supported)").arg(fileName));
-            return QString();
+        const bool isEmfWmf = fileName.endsWith(QLatin1String(".emf"))
+                           || fileName.endsWith(QLatin1String(".wmf"));
+        QByteArray outData = data;
+        QString outContentType = contentTypeFor(fileName);
+        if (isEmfWmf) {
+            // Try to rasterize EMF/WMF via QImageReader (plugin/platform
+            // dependent); fall back to skipping with a warning.
+            bool converted = false;
+            QBuffer buffer;
+            buffer.setData(data);
+            QImageReader reader(&buffer);
+            const QImage img = reader.read();
+            if (!img.isNull()) {
+                QBuffer png;
+                if (png.open(QIODevice::WriteOnly) && img.save(&png, "PNG")) {
+                    outData = png.data();
+                    outContentType = QStringLiteral("image/png");
+                    converted = true;
+                }
+            }
+            if (!converted) {
+                warn(QStringLiteral("Skipped %1 (EMF/WMF not supported)").arg(fileName));
+                return QString();
+            }
         }
         const auto iti = imageIndex.constFind(rId);
         if (iti == imageIndex.constEnd()) {
             OoxmlImportedImage img;
             img.rId = rId;
             img.fileName = fileName;
-            img.contentType = contentTypeFor(fileName);
-            img.data = data;
+            img.contentType = outContentType;
+            img.data = outData;
             imageIndex.insert(rId, images.size());
             images << img;
         }
@@ -765,7 +796,9 @@ struct Converter {
                 st.open << ordered;
                 frags << (ordered ? QStringLiteral("<ol>\n") : QStringLiteral("<ul>\n"));
             }
-            frags << QStringLiteral("<li>%1</li>\n").arg(para.inner);
+            frags << (para.loose
+                          ? QStringLiteral("<li><p>%1</p></li>\n").arg(para.inner)
+                          : QStringLiteral("<li>%1</li>\n").arg(para.inner));
         } else {
             closeLists(frags, st);
             if (para.heading > 0)
@@ -814,7 +847,10 @@ struct Converter {
             const QString tag = row.header ? QLatin1String("th") : QLatin1String("td");
             QString tr = QStringLiteral("<tr>");
             for (const Cell &cell : row.cells) {
-                QString cellHtml = cell.html.isEmpty() ? QStringLiteral("&nbsp;") : cell.html;
+                // A vertically merged continuation cell's text is dropped (the
+                // restart cell wins) — emit it empty so the table stays shaped.
+                QString cellHtml = cell.vMergeContinue ? QStringLiteral("&nbsp;")
+                                                       : (cell.html.isEmpty() ? QStringLiteral("&nbsp;") : cell.html);
                 const QString attrs = cell.colspan > 1
                     ? QStringLiteral(" colspan=\"%1\"").arg(cell.colspan)
                     : QString();
@@ -845,6 +881,10 @@ struct Converter {
                     while (r.readNextStartElement()) {
                         if (r.name() == QLatin1String("gridSpan"))
                             c.colspan = attrOf(r.attributes(), QStringLiteral("val")).toInt();
+                        else if (r.name() == QLatin1String("vMerge")) {
+                            const QString v = attrOf(r.attributes(), QStringLiteral("val"));
+                            c.vMergeContinue = v != QLatin1String("restart");
+                        }
                         r.skipCurrentElement();
                     }
                 } else if (lm == QLatin1String("p")) {

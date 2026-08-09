@@ -134,6 +134,27 @@ TEST(HtmlToMarkdown, FullDocumentIgnoresHead)
     EXPECT_EQ(norm(md), "Body text");
 }
 
+// Footnote reference/definition syntax is Scriba's own marker convention.
+// Turndown escapes the brackets ([\^1]), which must be undone so the
+// markers survive the HTML -> Markdown round trip.
+TEST(HtmlToMarkdown, FootnotesPassThrough)
+{
+    const QString md = convert(
+        "<p>Text with a footnote [^1] and another [^f2].</p>"
+        "<p>[^1]: Definition one.</p>"
+        "<p>[^f2]: Definition two.</p>");
+    EXPECT_EQ(norm(md), "Text with a footnote [^1] and another [^f2]. [^1]: Definition one. [^f2]: Definition two.");
+}
+
+// Math delimiters ($...$, $$...$$) are plain text as far as turndown is
+// concerned; MathML -> LaTeX output must keep them intact.
+TEST(HtmlToMarkdown, MathDollarSurvives)
+{
+    const QString md = convert(
+        "<p>Inline $a^2$ and display $$\\frac{a}{b}$$ both survive.</p>");
+    EXPECT_EQ(norm(md), "Inline $a^2$ and display $$\\\\frac{a}{b}$$ both survive.");
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

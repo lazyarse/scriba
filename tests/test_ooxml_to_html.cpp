@@ -76,6 +76,14 @@ QHash<QString, QByteArray> makePackage(const QByteArray &bodyXml,
 const char *kDefaultW = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" "
                         "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
 
+const char *kNumberingXml =
+    "<w:numbering xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+    "<w:abstractNum w:abstractNumId=\"100\">"
+    "<w:lvl><w:ilvl w:val=\"0\"/><w:numFmt w:val=\"bullet\"/></w:lvl>"
+    "</w:abstractNum>"
+    "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"100\"/></w:num>"
+    "</w:numbering>";
+
 } // namespace
 
 TEST(OoxmlToHtmlTest, ParagraphRunsAndFormatting)
@@ -260,4 +268,86 @@ TEST(OoxmlToHtmlTest, EmptyOrMissingDocumentFails)
     OoxmlToHtmlResult nobody = OoxmlToHtml::convert(noBody);
     EXPECT_TRUE(nobody.ok);
     EXPECT_TRUE(nobody.html.isEmpty());
+}
+
+TEST(OoxmlToHtmlTest, VmMergeRestartWinsContinuationEmptied)
+{
+    // First column is vertically merged across two rows: row 1 restarts
+    // (keeps "Top"), row 2 continues (text "concealed" is dropped).
+    QHash<QString, QByteArray> parts = makePackage(
+        "<w:document " + QByteArray(kDefaultW) + "><w:body>"
+        "<w:tbl>"
+        "<w:tr><w:tc><w:tcPr><w:vMerge w:val=\"restart\"/></w:tcPr>"
+        "<w:p><w:r><w:t>Top</w:t></w:r></w:p></w:tc>"
+        "<w:tc><w:p><w:r><w:t>b1</w:t></w:r></w:p></w:tc></w:tr>"
+        "<w:tr><w:tc><w:tcPr><w:vMerge/></w:tcPr>"
+        "<w:p><w:r><w:t>concealed</w:t></w:r></w:p></w:tc>"
+        "<w:tc><w:p><w:r><w:t>b2</w:t></w:r></w:p></w:tc></w:tr>"
+        "</w:tbl>"
+        "<w:sectPr/></w:body></w:document>");
+    OoxmlToHtmlResult res = OoxmlToHtml::convert(parts);
+    ASSERT_TRUE(res.ok) << qPrintable(res.errors.join("; "));
+    EXPECT_TRUE(res.html.contains("<td><p>Top</p>")) << qPrintable(res.html);
+    EXPECT_TRUE(res.html.contains("<td>&nbsp;</td>")) << qPrintable(res.html);
+    EXPECT_FALSE(res.html.contains("concealed")) << qPrintable(res.html);
+}
+
+TEST(OoxmlToHtmlTest, VmMergeExplicitContinueAlsoEmptied)
+{
+    QHash<QString, QByteArray> parts = makePackage(
+        "<w:document " + QByteArray(kDefaultW) + "><w:body>"
+        "<w:tbl>"
+        "<w:tr><w:tc><w:tcPr><w:vMerge w:val=\"restart\"/></w:tcPr><w:p><w:r><w:t>Keep</w:t></w:r></w:p></w:tc></w:tr>"
+        "<w:tr><w:tc><w:tcPr><w:vMerge w:val=\"continue\"/></w:tcPr><w:p><w:r><w:t>gone</w:t></w:r></w:p></w:tc></w:tr>"
+        "</w:tbl>"
+        "<w:sectPr/></w:body></w:document>");
+    OoxmlToHtmlResult res = OoxmlToHtml::convert(parts);
+    ASSERT_TRUE(res.ok) << qPrintable(res.errors.join("; "));
+    EXPECT_TRUE(res.html.contains("<td><p>Keep</p>")) << qPrintable(res.html);
+    EXPECT_TRUE(res.html.contains("<td>&nbsp;</td>")) << qPrintable(res.html);
+    EXPECT_FALSE(res.html.contains("gone")) << qPrintable(res.html);
+}
+
+TEST(OoxmlToHtmlTest, LooseListFromInlineSpacing)
+{
+    const QByteArray bodyTight =
+        "<w:document " + QByteArray(kDefaultW) + "><w:body>"
+        "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr>"
+        "<w:r><w:t>Tight item</w:t></w:r></w:p>"
+        "<w:sectPr/></w:body></w:document>";
+    OoxmlToHtmlResult tight = OoxmlToHtml::convert(makePackage(bodyTight, "", kNumberingXml));
+    ASSERT_TRUE(tight.ok) << qPrintable(tight.errors.join("; "));
+    EXPECT_TRUE(tight.html.contains("<ul>\n<li>Tight item</li>")) << qPrintable(tight.html);
+
+    const QByteArray bodyLoose =
+        "<w:document " + QByteArray(kDefaultW) + "><w:body>"
+        "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>"
+        "<w:spacing w:before=\"120\" w:after=\"120\"/></w:pPr>"
+        "<w:r><w:t>Loose item</w:t></w:r></w:p>"
+        "<w:sectPr/></w:body></w:document>";
+    OoxmlToHtmlResult loose = OoxmlToHtml::convert(makePackage(bodyLoose, "", kNumberingXml));
+    ASSERT_TRUE(loose.ok) << qPrintable(loose.errors.join("; "));
+    EXPECT_TRUE(loose.html.contains("<ul>\n<li><p>Loose item</p></li>")) << qPrintable(loose.html);
+}
+
+TEST(OoxmlToHtmlTest, EmfImageSkippedWithWarning)
+{
+    // Garbage EMF bytes cannot be rasterized -> skipped, no image registered.
+    QHash<QString, QByteArray> parts = makePackage(
+        "<w:document " + QByteArray(kDefaultW) + "><w:body>"
+        "<w:p><w:r><w:pict><v:imagedata xmlns:v=\"urn:schemas-microsoft-com:vml\" r:id=\"rIdEmf1\"/></w:pict></w:r></w:p>"
+        "<w:sectPr/></w:body></w:document>");
+    parts.insert(QStringLiteral("word/_rels/document.xml.rels"),
+                 "<?xml version=\"1.0\"?>"
+                 "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                 "<Relationship Id=\"rIdEmf1\" "
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" "
+                 "Target=\"media/image1.emf\"/></Relationships>");
+    parts.insert(QStringLiteral("word/media/image1.emf"),
+                 QByteArray("\x01\x00\x00\x00garbage emf bytes for decode failure", 40));
+    OoxmlToHtmlResult res = OoxmlToHtml::convert(parts);
+    ASSERT_TRUE(res.ok) << qPrintable(res.errors.join("; "));
+    EXPECT_TRUE(res.images.isEmpty());
+    EXPECT_FALSE(res.errors.isEmpty());
+    EXPECT_TRUE(res.errors.join(';').contains("EMF/WMF")) << qPrintable(res.errors.join("; "));
 }
