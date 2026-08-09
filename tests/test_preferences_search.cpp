@@ -1,0 +1,225 @@
+// Copyright (C) 2026 LazyArse
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// Settings search in the Preferences dialog: typing narrows the sidebar to
+// matching pages, auto-switches to the first match, dims non-matching widgets
+// on the shown page (containers holding a match stay visible), shows a
+// "no matches" hint, and clears everything when the box is emptied. Ctrl+F
+// focuses the search box.
+#include <gtest/gtest.h>
+#include "PreferencesDialog.h"
+#include "CssConfig.h"
+#include "CssLoader.h"
+#include "TestConfig.h"
+#include <QApplication>
+#include <QGroupBox>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QMetaObject>
+#include <QSettings>
+#include <QShortcut>
+#include <QStackedWidget>
+
+namespace {
+
+class PreferencesSearchTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        QSettings().clear();
+        m_config = new CssConfig;
+        m_loader = new CssLoader(m_config);
+        m_dialog = new PreferencesDialog(m_config, m_loader, nullptr,
+            QStringLiteral("#ffffff"), QStringLiteral("#000000"));
+        m_dialog->show();
+    }
+
+    void TearDown() override
+    {
+        delete m_dialog;
+        delete m_loader;
+        delete m_config;
+        QSettings().clear();
+    }
+
+    QLineEdit *searchEdit() const
+    {
+        return m_dialog->findChild<QLineEdit *>(QStringLiteral("preferences-search"));
+    }
+
+    QListWidget *pageList() const
+    {
+        return m_dialog->findChild<QListWidget *>(QStringLiteral("preferences-page-list"));
+    }
+
+    QStackedWidget *pages() const
+    {
+        return m_dialog->findChild<QStackedWidget *>();
+    }
+
+    QLabel *infoLabel() const
+    {
+        return m_dialog->findChild<QLabel *>(QStringLiteral("preferences-search-info"));
+    }
+
+    bool pageVisible(const QString &name) const
+    {
+        for (int i = 0; i < pageList()->count(); ++i) {
+            QListWidgetItem *it = pageList()->item(i);
+            if (it->text() == name)
+                return !it->isHidden();
+        }
+        return false;
+    }
+
+    int visiblePageCount() const
+    {
+        int n = 0;
+        for (int i = 0; i < pageList()->count(); ++i)
+            if (!pageList()->item(i)->isHidden())
+                ++n;
+        return n;
+    }
+
+    QString currentPage() const
+    {
+        const int idx = pages()->currentIndex();
+        if (idx < 0 || idx >= pageList()->count())
+            return QString();
+        return pageList()->item(idx)->text();
+    }
+
+    CssConfig *m_config = nullptr;
+    CssLoader *m_loader = nullptr;
+    PreferencesDialog *m_dialog = nullptr;
+};
+
+TEST_F(PreferencesSearchTest, EmptySearchShowsAllPagesAndNoDim)
+{
+    ASSERT_EQ(pageList()->count(), 10);
+    EXPECT_EQ(visiblePageCount(), 10);
+    EXPECT_FALSE(infoLabel()->isVisible());
+    const auto all = m_dialog->findChildren<QWidget *>();
+    for (QWidget *w : all)
+        EXPECT_FALSE(w->property("scribaPrefDim").toBool())
+            << "unexpected dim on " << w->objectName().toUtf8().constData()
+            << " / " << w->metaObject()->className();
+}
+
+TEST_F(PreferencesSearchTest, TypingNarrowsSidebarToMatchingPage)
+{
+    searchEdit()->setText(QStringLiteral("spelling"));
+    EXPECT_TRUE(pageVisible(QStringLiteral("Spelling")));
+    EXPECT_EQ(visiblePageCount(), 1);
+    EXPECT_EQ(currentPage(), QStringLiteral("Spelling"));
+}
+
+TEST_F(PreferencesSearchTest, AutoSwitchesToFirstMatchingPage)
+{
+    searchEdit()->setText(QStringLiteral("wrap"));
+    EXPECT_EQ(visiblePageCount(), 1);
+    EXPECT_EQ(currentPage(), QStringLiteral("Editor"));
+}
+
+TEST_F(PreferencesSearchTest, MultiTokenQueryMatchesSettingLabel)
+{
+    searchEdit()->setText(QStringLiteral("line height"));
+    EXPECT_EQ(currentPage(), QStringLiteral("Editor"));
+}
+
+TEST_F(PreferencesSearchTest, PageNameIsSearchable)
+{
+    searchEdit()->setText(QStringLiteral("security"));
+    EXPECT_TRUE(pageVisible(QStringLiteral("Security")));
+    EXPECT_EQ(visiblePageCount(), 1);
+}
+
+TEST_F(PreferencesSearchTest, DimsNonMatchingWidgetsOnShownPage)
+{
+    searchEdit()->setText(QStringLiteral("wrap"));
+    ASSERT_EQ(currentPage(), QStringLiteral("Editor"));
+
+    QLabel *wrapLabel = nullptr;
+    QLabel *lineHeightLabel = nullptr;
+    for (QLabel *l : m_dialog->findChildren<QLabel *>()) {
+        if (l->text().contains(QStringLiteral("Wrap text"), Qt::CaseInsensitive))
+            wrapLabel = l;
+        if (l->text().contains(QStringLiteral("Line height"), Qt::CaseInsensitive))
+            lineHeightLabel = l;
+    }
+    ASSERT_TRUE(wrapLabel);
+    ASSERT_TRUE(lineHeightLabel);
+    EXPECT_FALSE(wrapLabel->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(lineHeightLabel->property("scribaPrefDim").toBool());
+}
+
+TEST_F(PreferencesSearchTest, GroupBoxContainingMatchStaysVisible)
+{
+    searchEdit()->setText(QStringLiteral("wrap"));
+    QGroupBox *wrapGroup = nullptr;
+    for (QGroupBox *g : m_dialog->findChildren<QGroupBox *>())
+        if (g->title().contains(QStringLiteral("Line Wrap")))
+            wrapGroup = g;
+    ASSERT_TRUE(wrapGroup);
+    EXPECT_FALSE(wrapGroup->property("scribaPrefDim").toBool());
+}
+
+TEST_F(PreferencesSearchTest, ClearRestoresAllPagesAndDims)
+{
+    searchEdit()->setText(QStringLiteral("wrap"));
+    EXPECT_EQ(currentPage(), QStringLiteral("Editor"));
+    searchEdit()->clear();
+    EXPECT_EQ(visiblePageCount(), 10);
+    EXPECT_FALSE(infoLabel()->isVisible());
+    const auto all = m_dialog->findChildren<QWidget *>();
+    for (QWidget *w : all)
+        EXPECT_FALSE(w->property("scribaPrefDim").toBool());
+}
+
+TEST_F(PreferencesSearchTest, NoMatchShowsInfoLabel)
+{
+    searchEdit()->setText(QStringLiteral("zzznope"));
+    EXPECT_EQ(visiblePageCount(), 0);
+    EXPECT_TRUE(infoLabel()->isVisible());
+    EXPECT_TRUE(infoLabel()->text().contains(QStringLiteral("No settings match")));
+}
+
+TEST_F(PreferencesSearchTest, FindShortcutFocusesSearch)
+{
+    QShortcut *sc = nullptr;
+    for (QShortcut *s : m_dialog->findChildren<QShortcut *>()) {
+        if (s->key() == QKeySequence::Find) {
+            sc = s;
+            break;
+        }
+    }
+    ASSERT_TRUE(sc);
+    searchEdit()->clearFocus();
+    EXPECT_FALSE(searchEdit()->hasFocus());
+    QMetaObject::invokeMethod(sc, "activated", Qt::DirectConnection);
+    EXPECT_TRUE(searchEdit()->hasFocus());
+}
+
+} // namespace
+
+int main(int argc, char **argv)
+{
+    QApplication app(argc, argv);
+    setupTestConfig();
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
