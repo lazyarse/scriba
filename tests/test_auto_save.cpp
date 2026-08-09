@@ -25,18 +25,26 @@
 
 // Observes the unsaved-changes prompt at its call site instead of driving
 // the real modal QMessageBox, which would block waiting for user input.
+// Also stubs the Save-As dialog so tests can simulate cancel/success.
 class TestMainWindow : public MainWindow
 {
 public:
     bool unsavedPromptShown = false;
     bool lastPromptHadUntitled = false;
+    MainWindow::ClosePromptResult promptResult = MainWindow::ClosePromptResult::Discard;
+    QString saveAsResult;
 
 protected:
     MainWindow::ClosePromptResult promptUnsavedChanges(bool hasUntitledDirty) override
     {
         unsavedPromptShown = true;
         lastPromptHadUntitled = hasUntitledDirty;
-        return MainWindow::ClosePromptResult::Discard;
+        return promptResult;
+    }
+
+    QString saveAsDialogPath() override
+    {
+        return saveAsResult;
     }
 };
 
@@ -136,6 +144,45 @@ TEST_F(AutoSaveTest, SaveOnExitDoesNotWriteWhenDisabled) {
     ASSERT_TRUE(f.open(QIODevice::ReadOnly | QIODevice::Text));
     QString saved = QString::fromUtf8(f.readAll());
     EXPECT_EQ(saved, "original content\n");
+}
+
+TEST_F(AutoSaveTest, CancelSaveAsAbortsClose) {
+    QSettings s;
+    s.setValue(Preferences::AutoSaveOnExit, false);
+
+    auto *testWindow = new TestMainWindow();
+    window = testWindow;
+    QApplication::processEvents();
+
+    window->editor()->setPlainText("precious content");
+    testWindow->promptResult = MainWindow::ClosePromptResult::Save;
+    testWindow->saveAsResult = QString();
+
+    EXPECT_FALSE(window->close()) << "cancelling the Save As dialog must abort the close";
+    QApplication::processEvents();
+
+    EXPECT_EQ(window->editor()->toPlainText(), "precious content");
+}
+
+TEST_F(AutoSaveTest, SaveAsWritesFileThenCloses) {
+    QSettings s;
+    s.setValue(Preferences::AutoSaveOnExit, false);
+
+    auto *testWindow = new TestMainWindow();
+    window = testWindow;
+    QApplication::processEvents();
+
+    window->editor()->setPlainText("precious content");
+    testWindow->promptResult = MainWindow::ClosePromptResult::Save;
+    testWindow->saveAsResult = tmpFile->fileName();
+
+    EXPECT_TRUE(window->close()) << "a completed Save As must let the window close";
+    QApplication::processEvents();
+
+    QFile f(tmpFile->fileName());
+    ASSERT_TRUE(f.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString saved = QString::fromUtf8(f.readAll());
+    EXPECT_EQ(saved, "precious content");
 }
 
 int main(int argc, char **argv) {

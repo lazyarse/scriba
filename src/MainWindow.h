@@ -225,5 +225,10 @@ protected:
     // chosen action. Overridable so tests can observe that the prompt call
     // was made without driving the real modal dialog.
     virtual ClosePromptResult promptUnsavedChanges(bool hasUntitledDirty);
+
+    // Seam for tests: prompts for a save path for an untitled tab and returns
+    // the chosen path, or an empty string if the user cancelled. Overridable
+    // so tests can simulate cancel/success without the real file dialog.
+    virtual QString saveAsDialogPath();
 };
 

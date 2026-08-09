@@ -3071,20 +3071,35 @@ void MainWindow::closeEvent(QCloseEvent *event)
         }
     }
 
-    auto saveAllDirtyTabs = [this]() {
+    auto saveAllDirtyTabs = [this](QCloseEvent *event) {
         for (TabInfo &info : m_tabs) {
             if (!info.dirty) continue;
             if (info.filePath.isEmpty()) {
-                QString file = QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter);
-                if (file.isEmpty()) continue;
+                QString file = saveAsDialogPath();
+                if (file.isEmpty()) {
+                    event->ignore();
+                    return false;
+                }
                 info.filePath = file;
             }
             QFile file(info.filePath);
-            if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                file.write(info.editor->toPlainText().toUtf8());
-                info.dirty = false;
+            if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QMessageBox msgBox(this);
+                msgBox.setIcon(QMessageBox::Critical);
+                msgBox.setWindowTitle("Save Failed");
+                msgBox.setText(QString("Could not save \"%1\".\n%2")
+                    .arg(info.filePath, file.errorString()));
+                msgBox.setStandardButtons(QMessageBox::Ok);
+                for (auto *btn : msgBox.buttons())
+                    btn->setIcon(QIcon());
+                msgBox.exec();
+                event->ignore();
+                return false;
             }
+            file.write(info.editor->toPlainText().toUtf8());
+            info.dirty = false;
         }
+        return true;
     };
 
     if (anyDirty && (!autoSave || hasUntitledDirty)) {
@@ -3093,8 +3108,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
             event->ignore();
             return;
         }
-        if (ret == ClosePromptResult::Save) {
-            saveAllDirtyTabs();
+        if (ret == ClosePromptResult::Save && !saveAllDirtyTabs(event)) {
+            return;
         }
     } else if (autoSave) {
         for (TabInfo &info : m_tabs) {
@@ -3117,6 +3132,11 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
 
     QMainWindow::closeEvent(event);
+}
+
+QString MainWindow::saveAsDialogPath()
+{
+    return QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter);
 }
 
 MainWindow::ClosePromptResult MainWindow::promptUnsavedChanges(bool hasUntitledDirty)
