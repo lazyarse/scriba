@@ -46,6 +46,7 @@
 #include "MchemHelperDialog.h"
 #include "ChartSource.h"
 #include "HtmlToMarkdown.h"
+#include "DocxImporter.h"
 #include "ValidationReportDialog.h"
 
 #include <QAtomicInteger>
@@ -880,6 +881,10 @@ void MainWindow::setupMenuBar()
     QAction *importHtmlAction = importMenu->addAction("Import &HTML...");
     importHtmlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
     connect(importHtmlAction, &QAction::triggered, this, &MainWindow::importHtmlFromFile);
+
+    QAction *importDocxAction = importMenu->addAction("Import &Word (DOCX)...");
+    importDocxAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
+    connect(importDocxAction, &QAction::triggered, this, &MainWindow::importDocxFromFile);
 
     QMenu *exportMenu = fileMenu->addMenu("&Export");
 
@@ -2626,6 +2631,65 @@ void MainWindow::importHtmlFromFile()
     m_previewInitialized = false;
     updatePreview();
     statusBar()->showMessage("Imported " + QFileInfo(path).fileName(), 3000);
+}
+
+// Opens a Word (.docx) package, converts the body OOXML to Markdown and loads
+// it into a new tab. Embedded images are written according to the Import
+// preference (next to the document, a configured folder, system temp, or ask).
+void MainWindow::importDocxFromFile()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Import Word Document", QString(), "Word Documents (*.docx);;All Files (*)");
+    if (path.isEmpty())
+        return;
+
+    QSettings s;
+    DocxImportOptions opts;
+    const QString loc = s.value(Preferences::ImportImageLocation,
+        QStringLiteral("currentDir")).toString();
+    if (loc == QLatin1String("customDir"))
+        opts.imageLocation = DocxImportOptions::ImageLocation::CustomDir;
+    else if (loc == QLatin1String("tempDir"))
+        opts.imageLocation = DocxImportOptions::ImageLocation::TempDir;
+    else if (loc == QLatin1String("ask"))
+        opts.imageLocation = DocxImportOptions::ImageLocation::Ask;
+    else
+        opts.imageLocation = DocxImportOptions::ImageLocation::CurrentDir;
+    opts.customImageDir = s.value(Preferences::ImportImageDir).toString();
+    opts.documentDir = QFileInfo(path).absolutePath();
+
+    DocxImportResult result = DocxImporter::import(path, opts);
+    if (!result.ok) {
+        QMessageBox::warning(this, "Import Word Document", result.error);
+        return;
+    }
+
+    int idx = addTab();
+    QSignalBlocker blocker(m_tabs[idx].editor);
+    m_tabs[idx].editor->setPlainText(result.markdown);
+    m_tabs[idx].previewHtmlValid = false;
+    {
+        QTextBlockFormat fmt;
+        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
+                          QTextBlockFormat::ProportionalHeight);
+        QTextCursor cursor(m_tabs[idx].editor->document());
+        cursor.select(QTextCursor::Document);
+        cursor.mergeBlockFormat(fmt);
+    }
+    m_tabs[idx].dirty = true;
+    updateTabLabel(idx);
+    m_previewInitialized = false;
+    updatePreview();
+
+    if (!result.warnings.isEmpty()) {
+        statusBar()->showMessage("Imported " + QFileInfo(path).fileName()
+                                 + " (" + QString::number(result.warnings.size())
+                                 + " warnings)", 5000);
+        QMessageBox::information(this, "Import Word Document",
+                                 result.warnings.join('\n'));
+    } else {
+        statusBar()->showMessage("Imported " + QFileInfo(path).fileName(), 3000);
+    }
 }
 
 void MainWindow::pasteAsMarkdown()

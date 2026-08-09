@@ -5,6 +5,7 @@ vendor/*
 !vendor/md4c/
 !vendor/hunspell/
 !vendor/mathml2omml/
+!vendor/miniz/
 !vendor/stoppard/
 *.deb
 _CPack_Packages

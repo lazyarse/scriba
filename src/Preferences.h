@@ -71,6 +71,12 @@ namespace Preferences {
 
     constexpr const char *HardSoftBreaks = "hardSoftBreaks";
 
+    // Where imported DOCX images are written: next to the document, into a
+    // configured folder, to the system temp dir (until the doc is saved), or
+    // ask each time.
+    constexpr const char *ImportImageLocation = "importImageLocation";
+    constexpr const char *ImportImageDir = "importImageDir";
+
     constexpr const char *ConfigVersion = "configVersion";
     constexpr int CurrentConfigVersion = 1;
 

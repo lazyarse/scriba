@@ -24,7 +24,7 @@ Designed to *actually* do what you need without a plugin ecosystem. No node, rea
 
 - **Create _and_ edit charts and diagrams with ease** using two-way [chart assistants](docs/chart-assistants.md) for ECharts and [Mermaid](docs/mermaid.md) diagrams, manual or CSV-file (+ field mappings) data-entry; extra assistants for LaTeX, MChem, and creating tables
 - **"Find and Replace" with regex search _and_ replacement back-references**
-- **Export**: PDF, DOCX, and HTML; **Import**: HTML
+- **Export**: PDF, DOCX, and HTML; **Import**: HTML and DOCX
 - **Painless tables** --- after you create a header-row, Scriba will: create a separator-row, blank rows for data, and cell-padding to keep your source looking like an aligned table instead of mangled text and pipes
 - **Fuzzy auto-complete suggestions** for links to local filenames, and even emojis; 
 - **Fold headers, fenced-code blocks, tables, and lists** to reduce vertical space

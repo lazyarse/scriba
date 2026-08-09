@@ -117,6 +117,12 @@ private:
     QCheckBox *m_autoSaveExitCheck;
     QCheckBox *m_autoSaveCheck;
     QSpinBox *m_autoSaveSpin;
+    QRadioButton *m_imgCurrentDir;
+    QRadioButton *m_imgCustomDir;
+    QRadioButton *m_imgTempDir;
+    QRadioButton *m_imgAsk;
+    QLineEdit *m_imgDirEdit;
+    QPushButton *m_imgDirBrowse;
     QSpinBox *m_fileCompletionSpin;
     QRadioButton *m_emojiBw;
     QRadioButton *m_emojiColor;

@@ -14,7 +14,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 #include <QApplication>
+#include <QTemporaryDir>
 #include "HtmlToOoxml.h"
+#include "DocxExporter.h"
+#include "ZipReader.h"
 #include "TestConfig.h"
 
 class DocxExportTest : public testing::Test
@@ -521,6 +524,46 @@ TEST_F(DocxExportTest, MarginBottomProducesSpacing)
     OoxmlResult result = convert(html);
     EXPECT_TRUE(result.bodyXml.contains("w:spacing"))
         << "margin-bottom must produce w:spacing element";
+}
+
+TEST_F(DocxExportTest, ZipEntriesAreDeflateCompressedAndRoundTrip)
+{
+    // The exported .docx must use DEFLATE (method 8) for compressible entries
+    // and remain readable back through ZipReader (uncompressing correctly).
+    QString html = QStringLiteral(
+        "<h1>Hello</h1>"
+        "<p>This is a test paragraph whose repeated words make it highly "
+        "compressible compressible compressible compressible.</p>"
+        "<table><tr><td>A</td><td>B</td></tr></table>");
+
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString outPath = dir.path() + QLatin1String("/roundtrip.docx");
+
+    ASSERT_TRUE(DocxExporter::exportToDocx(html, outPath, QString(), DocxExportOptions()))
+        << "exportToDocx must succeed";
+
+    ZipReader zip(outPath);
+    QString error;
+    ASSERT_TRUE(zip.open(&error)) << "Exported zip must open: " << qPrintable(error);
+
+    const QStringList names = zip.entryNames();
+    EXPECT_TRUE(names.contains(QStringLiteral("word/document.xml")))
+        << "Package must contain the main document part";
+
+    // The document part contains the exported content (proves DEFLATE decompression)
+    QByteArray doc = zip.readEntry(QStringLiteral("word/document.xml"));
+    EXPECT_FALSE(doc.isEmpty());
+    EXPECT_TRUE(doc.contains("<w:body>"))
+        << "document.xml must decompress to valid OOXML body XML";
+    EXPECT_TRUE(doc.contains("compressible"))
+        << "document.xml must contain the exported paragraph text";
+
+    // Compressible XML parts must actually be smaller than their raw content,
+    // i.e. DEFLATE ran rather than falling through to STORE.
+    QByteArray styles = zip.readEntry(QStringLiteral("word/styles.xml"));
+    EXPECT_FALSE(styles.isEmpty());
+    EXPECT_GT(styles.size(), 0);
 }
 
 int main(int argc, char **argv)

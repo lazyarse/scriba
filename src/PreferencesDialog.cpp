@@ -306,6 +306,62 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(autoSaveGroup);
 
+        QGroupBox *importGroup = new QGroupBox("Imported Documents");
+        QVBoxLayout *importLayout = new QVBoxLayout(importGroup);
+        importLayout->addSpacing(8);
+
+        const QString imgLocation = settings.value(Preferences::ImportImageLocation,
+            QStringLiteral("currentDir")).toString();
+
+        m_imgCurrentDir = new QRadioButton("Save imported images next to the document");
+        m_imgCustomDir = new QRadioButton("Save in a specific folder");
+        m_imgTempDir = new QRadioButton("Save in the system temp folder until saved");
+        m_imgAsk = new QRadioButton("Ask each time");
+
+        m_imgCurrentDir->setChecked(imgLocation == QLatin1String("currentDir"));
+        m_imgCustomDir->setChecked(imgLocation == QLatin1String("customDir"));
+        m_imgTempDir->setChecked(imgLocation == QLatin1String("tempDir"));
+        m_imgAsk->setChecked(imgLocation == QLatin1String("ask"));
+        if (!m_imgCurrentDir->isChecked() && !m_imgCustomDir->isChecked()
+            && !m_imgTempDir->isChecked())
+            m_imgAsk->setChecked(true);
+
+        importLayout->addWidget(m_imgCurrentDir);
+        importLayout->addWidget(m_imgCustomDir);
+        importLayout->addWidget(m_imgTempDir);
+        importLayout->addWidget(m_imgAsk);
+
+        QHBoxLayout *imgDirRow = new QHBoxLayout();
+        m_imgDirEdit = new QLineEdit(settings.value(Preferences::ImportImageDir).toString());
+        m_imgDirBrowse = new QPushButton("Browse...");
+        m_imgDirBrowse->setIcon(QIcon());
+        connect(m_imgDirBrowse, &QPushButton::clicked, this, [this]() {
+            const QString dir = QFileDialog::getExistingDirectory(
+                this, "Choose Image Folder", m_imgDirEdit->text());
+            if (!dir.isEmpty())
+                m_imgDirEdit->setText(dir);
+        });
+        imgDirRow->addWidget(m_imgDirEdit, 1);
+        imgDirRow->addWidget(m_imgDirBrowse);
+        auto enableImgDir = [this]() {
+            m_imgDirEdit->setEnabled(m_imgCustomDir->isChecked());
+            m_imgDirBrowse->setEnabled(m_imgCustomDir->isChecked());
+        };
+        enableImgDir();
+        connect(m_imgCustomDir, &QRadioButton::toggled, this, enableImgDir);
+        importLayout->addLayout(imgDirRow);
+
+        QLabel *importHint = new QLabel(
+            "When importing a Word document, embedded images are written "
+            "according to the chosen location. If \"next to the document\" is "
+            "selected while the document has not been saved yet, you will be "
+            "asked where to put them.");
+        importHint->setWordWrap(true);
+        importHint->setStyleSheet("color: gray;");
+        importLayout->addWidget(importHint);
+
+        layout->addWidget(importGroup);
+
         layout->addStretch();
 
         m_pages->addWidget(wrapPage(page));
@@ -1686,6 +1742,12 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         for (int i = 0; i < m_ignoredWordsList->count(); ++i)
             ignoredWords << m_ignoredWordsList->item(i)->text();
         SpellChecker::writeIgnoredWords(ignoredWords);
+        QString imgLocation = QStringLiteral("ask");
+        if (m_imgCurrentDir->isChecked()) imgLocation = QStringLiteral("currentDir");
+        else if (m_imgCustomDir->isChecked()) imgLocation = QStringLiteral("customDir");
+        else if (m_imgTempDir->isChecked()) imgLocation = QStringLiteral("tempDir");
+        settings.setValue(Preferences::ImportImageLocation, imgLocation);
+        settings.setValue(Preferences::ImportImageDir, m_imgDirEdit->text());
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

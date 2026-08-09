@@ -364,26 +364,60 @@ shot_advanced_charts() {
 # --- Mermaid chart helper (default pie chart) ---
 shot_mermaid_dialog() { open ctrl+m; capture "Mermaid Diagrams" "$OUT_DIR/mermaid-dialog.png"; }
 
-# --- Mermaid Git Graph helper (load the scriba repo itself so the preview
-# renders a real graph) ---
+# --- Mermaid Git Graph helper: build a small fixture repo in /tmp (fast,
+# deterministic shot) and load it into the panel. The repo-path field is
+# focused by mouse-click, NOT Tab: Tab does not land in the field, and a
+# Return with focus elsewhere activates the dialog's default Insert button,
+# which closes the dialog and leaves nothing to capture.
 shot_mermaid_gitgraph() {
+    local demo=/tmp/scriba-gitgraph-demo
+    rm -rf "$demo"
+    mkdir -p "$demo"
+    (
+        cd "$demo" || exit 1
+        git init -q -b main
+        git config user.name "Demo"
+        git config user.email "demo@example.com"
+        for n in 1 2 3; do
+            printf 'commit %s\n' "$n" >> README.md
+            git add README.md
+            GIT_AUTHOR_DATE="2026-01-0${n}T10:00:00Z" GIT_COMMITTER_DATE="2026-01-0${n}T10:00:00Z" git commit -qm "c$n"
+        done
+        git checkout -qb feature
+        for n in 4 5; do
+            printf 'feature %s\n' "$n" >> feature.txt
+            git add feature.txt
+            GIT_AUTHOR_DATE="2026-01-0${n}T10:00:00Z" GIT_COMMITTER_DATE="2026-01-0${n}T10:00:00Z" git commit -qm "c$n"
+        done
+        git checkout -q main
+        GIT_AUTHOR_DATE="2026-01-06T10:00:00Z" GIT_COMMITTER_DATE="2026-01-06T10:00:00Z" git merge feature --no-ff --no-edit -q
+    ) || { echo "WARN: could not create fixture repo"; return 1; }
+
     open ctrl+m
     MDG=$(waitwin "Mermaid Diagrams") || { echo "WARN: Mermaid Diagrams window not found"; return 1; }
     sleep 1
-    # Chart-type combo is the first focusable widget; jump to "Git Graph"
-    # (index 12): Home resets to Pie, then 12 Downs. Tab lands on the repo
-    # path field; type the scriba repo (derived from OUT_DIR) and hit Return
-    # to load it.
+    # Jump the chart-type combo to "Git Graph" (index 12): Home resets to Pie,
+    # then 12 Downs.
     xdotool key Home
     sleep 0.3
     for ((i = 0; i < 12; i++)); do xdotool key Down; sleep 0.05; done
     sleep 0.5
-    xdotool key Tab
-    sleep 0.3
-    xdotool type -- "$(dirname "$(dirname "$OUT_DIR")")"
+    # Focus the repo-path field by clicking into it. The dialog is 950px wide
+    # with a ~420px left panel; the repo-path row is the first row of the git
+    # graph panel, just below the chart-type combo, so dialog-relative
+    # (120, 55) lands inside the field (validated empirically).
+    eval "$(xdotool getwindowgeometry --shell "$MDG")"
+    local fx=$((X + 120)) fy=$((Y + 55))
+    xdotool mousemove "$fx" "$fy" click 1
+    sleep 0.5
+    xdotool type -- "$demo"
     sleep 0.5
     xdotool key Return
+    # Give libgit2 + WebEngine time to walk the repo and render the graph.
     sleep 8
+    if ! xdotool search --onlyvisible --name "Mermaid Diagrams" >/dev/null 2>&1; then
+        echo "WARN: Mermaid Diagrams closed before capture"; return 1
+    fi
     import -window "$MDG" "$OUT_DIR/mermaid-gitgraph.png"
     echo "  -> $OUT_DIR/mermaid-gitgraph.png"
     xdotool key Escape

@@ -115,6 +115,7 @@ private:
     void saveFile(const QString &filePath);
     void renameCurrentFile();
     void importHtmlFromFile();
+    void importDocxFromFile();
     void pasteAsMarkdown();
     void exportPdf();
     void exportDocx();

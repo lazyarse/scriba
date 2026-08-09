@@ -222,3 +222,31 @@ Consequences that look like bugs but are intended:
   first) so the `gitGraph` reads top-to-bottom, matching Mermaid's defaults;
   branches appear in the order they are first used.
 
+## DOCX import (OoxmlToHtml -> DocxImporter)
+
+`DocxImporter` (ZipReader -> OoxmlToHtml -> HtmlToMarkdown/turndown) converts
+`.docx` to Markdown. Quirks worth knowing:
+
+- **Tables**: header rows come out as `<th>` inside `<thead>` only when the
+  source marks them with `w:trPr/w:tblHeader`. turndown's GFM plugin turns
+  `<thead>`+`<tbody>` tables into pipe tables; without a marked header row the
+  table survives as raw HTML. Scriba's own `DocxExporter` does not emit
+  `w:tblHeader`, so export->import round-trips lose the GFM table (raw HTML
+  remains, content intact).
+- **Cell merge spans**: `w:gridSpan` is emitted as a `colspan`; `w:vMerge`
+  continuation cells are dropped (first cell wins). This is lossy — a
+  vertically-merged cell's text in continuation rows is lost.
+- **EMF/WMF images are dropped** (a warning is recorded) since the preview and
+  Markdown have no use for them; PNG/JPEG/GIF/SVG/WebP/BMP/TIFF are extracted.
+- **Image alt text**: stored in `wp:docPr descr`; not all producers set it, and
+  Scriba's own exporter doesn't write it, so `![...]` alt is often empty after
+  an export->import round-trip.
+- **Hard breaks**: `w:br` becomes `<br>` and turndown keeps a single trailing
+  newline, so `<br>` in a paragraph yields a hard line break in Markdown. This
+  is the predictable round-trip behaviour regardless of the `HardSoftBreaks`
+  preference (that pref only affects the editor's *writing* behaviour).
+- **Image placement** is a user preference (`Preferences::ImportImageLocation`):
+  next to the document (`media/`), a configured folder, the system temp dir
+  (until the doc is saved), or ask each time. An unsaved document with
+  "next to the document" escalates to asking; if no folder is chosen the
+  `<img>` tags are stripped rather than leaking `docximg://` placeholders.

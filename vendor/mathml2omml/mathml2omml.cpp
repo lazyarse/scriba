@@ -1,3 +1,17 @@
+// Copyright (C) 2026 LazyArse
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "mathml2omml.h"
 
 #include <algorithm>
@@ -1083,6 +1097,374 @@ static void emitMathml(const MmlNode &node, XmlSink &sink) {
     emitContainerChildren(node, sink);
 }
 
+// ── MathML → LaTeX emitter ─────────────────────────────────────────────────
+
+static void emitLatex(const MmlNode &node, std::string &out,
+                       std::optional<std::string> &error);
+
+static void emitLatexChildren(const MmlNode &node, std::string &out,
+                              std::optional<std::string> &error) {
+    for (const auto &c : node.children) emitLatex(c, out, error);
+}
+
+static const std::map<std::string, std::string> &latexSymbolMap() {
+    static const std::map<std::string, std::string> m = {
+        // Relations
+        { "\u2264", "\\le" }, { "&le;", "\\le" },
+        { "\u2265", "\\ge" }, { "&ge;", "\\ge" },
+        { "\u2260", "\\ne" }, { "&ne;", "\\ne" },
+        { "\u2248", "\\approx" }, { "&ap;", "\\approx" },
+        { "\u2261", "\\equiv" }, { "&equiv;", "\\equiv" },
+        { "\u2208", "\\in" }, { "&isin;", "\\in" },
+        { "\u2209", "\\notin" }, { "&notin;", "\\notin" },
+        { "\u2282", "\\subset" }, { "&sub;", "\\subset" },
+        { "\u2283", "\\supset" }, { "&sup;", "\\supset" },
+        { "\u2286", "\\subseteq" }, { "&sube;", "\\subseteq" },
+        { "\u2287", "\\supseteq" }, { "&supe;", "\\supseteq" },
+        { "\u22A5", "\\perp" }, { "&perp;", "\\perp" },
+        // Arrows
+        { "\u2192", "\\to" }, { "&rarr;", "\\to" },
+        { "\u2190", "\\leftarrow" }, { "&larr;", "\\leftarrow" },
+        { "\u2194", "\\leftrightarrow" }, { "&harr;", "\\leftrightarrow" },
+        { "\u21D2", "\\Rightarrow" }, { "&rArr;", "\\Rightarrow" },
+        { "\u21D0", "\\Leftarrow" }, { "&lArr;", "\\Leftarrow" },
+        // Binary operators
+        { "\u00D7", "\\times" }, { "&times;", "\\times" },
+        { "\u00F7", "\\div" }, { "&divide;", "\\div" },
+        { "\u00B1", "\\pm" }, { "&plusmn;", "\\pm" },
+        { "\u2212", "-" }, { "&minus;", "-" },
+        { "\u00B7", "\\cdot" }, { "&middot;", "\\cdot" },
+        { "\u2217", "\\ast" }, { "&lowast;", "\\ast" },
+        { "\u2218", "\\circ" }, { "&compfn;", "\\circ" },
+        { "\u2295", "\\oplus" }, { "&oplus;", "\\oplus" },
+        { "\u2297", "\\otimes" }, { "&otimes;", "\\otimes" },
+        { "\u222A", "\\cup" }, { "&cup;", "\\cup" },
+        { "\u2229", "\\cap" }, { "&cap;", "\\cap" },
+        { "\u2227", "\\wedge" }, { "&and;", "\\wedge" },
+        { "\u2228", "\\vee" }, { "&or;", "\\vee" },
+        { "\u2211", "\\sum" }, { "&sum;", "\\sum" },
+        { "\u220F", "\\prod" }, { "&prod;", "\\prod" },
+        // Misc operators and symbols
+        { "\u221E", "\\infty" }, { "&infin;", "\\infty" },
+        { "\u222B", "\\int" }, { "&int;", "\\int" },
+        { "\u2202", "\\partial" }, { "&part;", "\\partial" },
+        { "\u2207", "\\nabla" }, { "&nabla;", "\\nabla" },
+        { "\u2200", "\\forall" }, { "&forall;", "\\forall" },
+        { "\u2203", "\\exists" }, { "&exist;", "\\exists" },
+        { "\u00AC", "\\neg" }, { "&not;", "\\neg" },
+        { "\u00A0", "~" }, { "&nbsp;", "~" },
+        // Greek lowercase
+        { "\u03B1", "\\alpha" }, { "&alpha;", "\\alpha" },
+        { "\u03B2", "\\beta" }, { "&beta;", "\\beta" },
+        { "\u03B3", "\\gamma" }, { "&gamma;", "\\gamma" },
+        { "\u03B4", "\\delta" }, { "&delta;", "\\delta" },
+        { "\u03B5", "\\epsilon" }, { "&epsilon;", "\\epsilon" },
+        { "\u03B8", "\\theta" }, { "&theta;", "\\theta" },
+        { "\u03BB", "\\lambda" }, { "&lambda;", "\\lambda" },
+        { "\u03BC", "\\mu" }, { "&mu;", "\\mu" },
+        { "\u03C0", "\\pi" }, { "&pi;", "\\pi" },
+        { "\u03C1", "\\rho" }, { "&rho;", "\\rho" },
+        { "\u03C3", "\\sigma" }, { "&sigma;", "\\sigma" },
+        { "\u03C6", "\\phi" }, { "&phi;", "\\phi" },
+        { "\u03C9", "\\omega" }, { "&omega;", "\\omega" },
+        // Greek uppercase
+        { "\u0393", "\\Gamma" }, { "&Gamma;", "\\Gamma" },
+        { "\u0394", "\\Delta" }, { "&Delta;", "\\Delta" },
+        { "\u0398", "\\Theta" }, { "&Theta;", "\\Theta" },
+        { "\u039B", "\\Lambda" }, { "&Lambda;", "\\Lambda" },
+        { "\u039E", "\\Xi" }, { "&Xi;", "\\Xi" },
+        { "\u03A0", "\\Pi" }, { "&Pi;", "\\Pi" },
+        { "\u03A3", "\\Sigma" }, { "&Sigma;", "\\Sigma" },
+        { "\u03A6", "\\Phi" }, { "&Phi;", "\\Phi" },
+        { "\u03A8", "\\Psi" }, { "&Psi;", "\\Psi" },
+        { "\u03A9", "\\Omega" }, { "&Omega;", "\\Omega" },
+    };
+    return m;
+}
+
+static std::size_t utf8SeqLen(char c) {
+    unsigned char u = static_cast<unsigned char>(c);
+    if (u < 0x80) return 1;
+    if ((u & 0xE0) == 0xC0) return 2;
+    if ((u & 0xF0) == 0xE0) return 3;
+    if ((u & 0xF8) == 0xF0) return 4;
+    return 1;
+}
+
+static std::size_t utf8CodepointCount(std::string_view s) {
+    std::size_t n = 0;
+    for (std::size_t i = 0; i < s.size();) {
+        i += utf8SeqLen(s[i]);
+        ++n;
+    }
+    return n;
+}
+
+static void escapeLatex(std::string &out, std::string_view s) {
+    for (char c : s) {
+        switch (c) {
+            case '\\': out += "\\backslash "; break;
+            case '{': out += "\\{"; break;
+            case '}': out += "\\}"; break;
+            case '^': out += "\\text{\\textasciicircum}"; break;
+            case '_': out += "\\text{\\textunderscore}"; break;
+            case '&': out += "\\&"; break;
+            case '%': out += "\\%"; break;
+            case '$': out += "\\$"; break;
+            case '#': out += "\\#"; break;
+            default: out += c;
+        }
+    }
+}
+
+static void emitLatexText(std::string_view text, std::string &out) {
+    const auto &map = latexSymbolMap();
+    for (std::size_t i = 0; i < text.size();) {
+        if (text[i] == '&') {
+            std::size_t semi = text.find(';', i);
+            if (semi != std::string_view::npos && semi + 1 - i <= 16) {
+                auto it = map.find(std::string(text.substr(i, semi + 1 - i)));
+                if (it != map.end()) {
+                    out += it->second;
+                    out += ' ';
+                    i = semi + 1;
+                    continue;
+                }
+            }
+        }
+        std::size_t len = utf8SeqLen(text[i]);
+        if (len > 1 && i + len <= text.size()) {
+            auto it = map.find(std::string(text.substr(i, len)));
+            if (it != map.end()) {
+                out += it->second;
+                out += ' ';
+                i += len;
+                continue;
+            }
+        }
+        escapeLatex(out, text.substr(i, len));
+        i += len;
+    }
+}
+
+static bool latexNeedsBaseParens(const MmlNode &node) {
+    std::string tag = stripNs(node.tag);
+    return tag == "mfrac" || tag == "msqrt" || tag == "mroot" ||
+           tag == "mtable" || tag == "munder" || tag == "mover" ||
+           tag == "munderover";
+}
+
+static void emitLatexScriptBase(const MmlNode &node, std::string &out,
+                                std::optional<std::string> &error) {
+    if (latexNeedsBaseParens(node)) {
+        out += "\\left( ";
+        emitLatex(node, out, error);
+        out += " \\right)";
+    } else {
+        emitLatex(node, out, error);
+    }
+}
+
+static void emitLatex(const MmlNode &node, std::string &out,
+                      std::optional<std::string> &error) {
+    if (error) return;
+    std::string tag = stripNs(node.tag);
+    if (tag.empty()) return;
+
+    // ── Container / transparent passthrough elements ──────────────────────
+    if (tag == "math" || tag == "mrow" || tag == "mpadded" || tag == "mstyle" ||
+        tag == "semantics") {
+        emitLatexChildren(node, out, error);
+        return;
+    }
+    if (tag == "annotation" || tag == "annotation-xml" || tag == "none" ||
+        tag == "mprescripts") {
+        return;
+    }
+
+    // ── Token elements ─────────────────────────────────────────────────────
+    if (tag == "mi") {
+        if (utf8CodepointCount(node.text) == 1) {
+            emitLatexText(node.text, out);
+        } else {
+            out += "\\mathit{";
+            escapeLatex(out, node.text);
+            out += "}";
+        }
+        return;
+    }
+    if (tag == "mo") {
+        emitLatexText(node.text, out);
+        return;
+    }
+    if (tag == "mn") {
+        escapeLatex(out, node.text);
+        return;
+    }
+    if (tag == "mtext") {
+        out += "\\text{";
+        escapeLatex(out, node.text);
+        out += "}";
+        return;
+    }
+
+    // ── Fractions and roots ────────────────────────────────────────────────
+    if (tag == "mfrac") {
+        out += "\\frac{";
+        if (node.children.size() >= 1) emitLatex(node.children[0], out, error);
+        out += "}{";
+        if (node.children.size() >= 2) emitLatex(node.children[1], out, error);
+        out += "}";
+        return;
+    }
+    if (tag == "msqrt") {
+        out += "\\sqrt{";
+        emitLatexChildren(node, out, error);
+        out += "}";
+        return;
+    }
+    if (tag == "mroot") {
+        out += "\\sqrt[";
+        if (node.children.size() >= 2) emitLatex(node.children[1], out, error);
+        out += "]{";
+        if (node.children.size() >= 1) emitLatex(node.children[0], out, error);
+        out += "}";
+        return;
+    }
+
+    // ── Scripts ────────────────────────────────────────────────────────────
+    if (tag == "msup") {
+        if (node.children.size() >= 1) emitLatexScriptBase(node.children[0], out, error);
+        if (node.children.size() >= 2) {
+            out += "^{";
+            emitLatex(node.children[1], out, error);
+            out += "}";
+        }
+        return;
+    }
+    if (tag == "msub") {
+        if (node.children.size() >= 1) emitLatexScriptBase(node.children[0], out, error);
+        if (node.children.size() >= 2) {
+            out += "_{";
+            emitLatex(node.children[1], out, error);
+            out += "}";
+        }
+        return;
+    }
+    if (tag == "msubsup") {
+        if (node.children.size() >= 1) emitLatexScriptBase(node.children[0], out, error);
+        if (node.children.size() >= 2) {
+            out += "_{";
+            emitLatex(node.children[1], out, error);
+            out += "}";
+        }
+        if (node.children.size() >= 3) {
+            out += "^{";
+            emitLatex(node.children[2], out, error);
+            out += "}";
+        }
+        return;
+    }
+
+    // ── Under/over scripts ─────────────────────────────────────────────────
+    if (tag == "munder") {
+        out += "\\underset{";
+        if (node.children.size() >= 2) emitLatex(node.children[1], out, error);
+        out += "}{";
+        if (node.children.size() >= 1) emitLatex(node.children[0], out, error);
+        out += "}";
+        return;
+    }
+    if (tag == "mover") {
+        out += "\\overset{";
+        if (node.children.size() >= 2) emitLatex(node.children[1], out, error);
+        out += "}{";
+        if (node.children.size() >= 1) emitLatex(node.children[0], out, error);
+        out += "}";
+        return;
+    }
+    if (tag == "munderover") {
+        out += "\\overset{";
+        if (node.children.size() >= 3) emitLatex(node.children[2], out, error);
+        out += "}{\\underset{";
+        if (node.children.size() >= 2) emitLatex(node.children[1], out, error);
+        out += "}{";
+        if (node.children.size() >= 1) emitLatex(node.children[0], out, error);
+        out += "}}";
+        return;
+    }
+
+    // ── Tables ─────────────────────────────────────────────────────────────
+    if (tag == "mtable") {
+        out += "\\begin{matrix}";
+        for (const auto &c : node.children) emitLatex(c, out, error);
+        out += "\\end{matrix}";
+        return;
+    }
+    if (tag == "mtr") {
+        for (std::size_t i = 0; i < node.children.size(); ++i) {
+            if (i > 0) out += "&";
+            emitLatex(node.children[i], out, error);
+        }
+        out += "\\\\";
+        return;
+    }
+    if (tag == "mtd") {
+        emitLatexChildren(node, out, error);
+        return;
+    }
+
+    // ── Enclosures, spacing, phantom ───────────────────────────────────────
+    if (tag == "menclose") {
+        if (auto notation = getAttr(node, "notation"); notation && *notation == "boxed") {
+            out += "\\boxed{";
+            emitLatexChildren(node, out, error);
+            out += "}";
+        } else {
+            emitLatexChildren(node, out, error);
+        }
+        return;
+    }
+    if (tag == "mspace") {
+        std::string width = getAttr(node, "width").value_or("");
+        if (width.starts_with("verythin") || width.starts_with("thin")) out += "\\,";
+        else if (width.starts_with("medium")) out += "\\:";
+        else if (width.starts_with("thick")) out += "\\;";
+        else out += "\\ ";
+        return;
+    }
+    if (tag == "mphantom") {
+        out += "\\phantom{";
+        emitLatexChildren(node, out, error);
+        out += "}";
+        return;
+    }
+
+    // ── Multiscripts ───────────────────────────────────────────────────────
+    if (tag == "mmultiscripts") {
+        if (auto mpIdx = findChild(node, "mprescripts")) {
+            std::size_t mp = *mpIdx;
+            std::string preSub, preSup, base;
+            if (!node.children.empty()) emitLatex(node.children[0], base, error);
+            if (mp + 1 < node.children.size()) emitLatex(node.children[mp + 1], preSub, error);
+            if (mp + 2 < node.children.size()) emitLatex(node.children[mp + 2], preSup, error);
+            out += "\\prescript{";
+            out += preSup;
+            out += "}{";
+            out += preSub;
+            out += "}{";
+            out += base;
+            out += "}";
+        } else {
+            emitLatexChildren(node, out, error);
+        }
+        return;
+    }
+
+    // ── Unknown — signal unsupported so callers can fall back ──────────────
+    error = "MathmlToLatex: unsupported element <" + tag + ">";
+}
+
 // ── String-building sink (keeps string overload working) ──────────────────────
 
 class StringSink : public XmlSink {
@@ -1217,4 +1599,25 @@ std::expected<std::string, std::string> OmmlToMathml::convert(std::string_view o
     StringSink sink;
     emitMathml(root, sink);
     return sink.result();
+}
+
+// ── MathML → LaTeX public API ─────────────────────────────────────────────
+
+std::expected<std::string, std::string> MathmlToLatex::convert(std::string_view mathmlXml)
+{
+    if (mathmlXml.empty())
+        return std::unexpected("empty input");
+
+    XmlReader reader(mathmlXml);
+    if (!reader.seekToFirstElement())
+        return std::unexpected("no root element found");
+
+    MmlNode root = reader.readElement();
+
+    std::string out;
+    std::optional<std::string> error;
+    emitLatex(root, out, error);
+    if (error)
+        return std::unexpected(*error);
+    return out;
 }
