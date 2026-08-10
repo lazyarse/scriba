@@ -100,7 +100,7 @@ TEST(PrintOptionsTest, BuildCssOffOverrides) {
     o = PrintOptions::Options();
     o.keepFigures = false;
     EXPECT_EQ(PrintOptions::buildCss(o),
-        ".mermaid,.katex-display,.admonition,pre{break-inside:auto;page-break-inside:auto}");
+        ".mermaid,.katex-display,.admonition,blockquote,pre{break-inside:auto;page-break-inside:auto}");
 
     o = PrintOptions::Options();
     o.orphanControl = false;

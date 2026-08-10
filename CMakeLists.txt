@@ -115,6 +115,7 @@ add_executable(scriba WIN32
     src/CssValueParser.cpp
     src/CsvReader.cpp
     src/PrintOptions.cpp
+    src/PreviewPagination.cpp
     src/CsvColumnMapDialog.cpp
     src/SpellChecker.cpp
     src/SpellCheckDialog.cpp
@@ -525,6 +526,7 @@ if(BUILD_TESTS)
     add_test(NAME test_preferences_search COMMAND ${_TEST_PREFIX} ./test_preferences_search)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
+        src/PreviewPagination.cpp
         src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
@@ -555,6 +557,7 @@ if(BUILD_TESTS)
     add_test(NAME test_html_to_markdown COMMAND ${_TEST_PREFIX} ./test_html_to_markdown)
 
     add_executable(test_anchor_navigation tests/test_anchor_navigation.cpp
+        src/PreviewPagination.cpp
         src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
@@ -575,6 +578,7 @@ if(BUILD_TESTS)
     add_test(NAME test_anchor_navigation COMMAND ${_TEST_PREFIX} ./test_anchor_navigation)
 
     add_executable(test_emoji_preview tests/test_emoji_preview.cpp
+        src/PreviewPagination.cpp
         src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
@@ -596,6 +600,7 @@ if(BUILD_TESTS)
     add_test(NAME test_emoji_preview COMMAND ${_TEST_PREFIX} ./test_emoji_preview)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
+        src/PreviewPagination.cpp
         src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
@@ -614,6 +619,7 @@ if(BUILD_TESTS)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
     add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp
+        src/PreviewPagination.cpp
         src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
@@ -632,6 +638,7 @@ if(BUILD_TESTS)
     add_test(NAME test_multi_tab_typing COMMAND ${_TEST_PREFIX} ./test_multi_tab_typing)
 
     add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp
+        src/PreviewPagination.cpp
         src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
@@ -650,6 +657,7 @@ if(BUILD_TESTS)
     add_test(NAME test_dirty_on_load COMMAND ${_TEST_PREFIX} ./test_dirty_on_load)
 
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
+    src/PreviewPagination.cpp
     src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
     src/CssConfig.cpp src/CssLoader.cpp
     src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
@@ -669,6 +677,7 @@ target_link_libraries(test_editor_initial_css PRIVATE
 add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp
+        src/PreviewPagination.cpp
         src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
@@ -716,6 +725,13 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
     target_link_libraries(test_pdf_export PRIVATE
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::PrintSupport Qt6::Test)
     add_test(NAME test_pdf_export COMMAND ${_TEST_PREFIX} ./test_pdf_export)
+
+    add_executable(test_preview_pagination tests/test_preview_pagination.cpp
+        src/PreviewPagination.cpp)
+    target_include_directories(test_preview_pagination PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_preview_pagination PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::Test)
+    add_test(NAME test_preview_pagination COMMAND ${_TEST_PREFIX} ./test_preview_pagination)
 
     add_executable(test_export_html tests/test_export_html.cpp
         src/ExportHtmlDialog.cpp src/JsRenderEngine.cpp src/Preview.cpp
@@ -798,7 +814,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         test_scroll_sync test_html_to_markdown test_anchor_navigation
         test_emoji_preview test_auto_save test_multi_tab_typing
         test_dirty_on_load test_editor_initial_css test_find_dialog
-        test_pdf_export test_export_html test_docx_image_export test_docx_import
+        test_pdf_export test_preview_pagination test_export_html test_docx_image_export test_docx_import
         test_pdf_import
         PROPERTIES RESOURCE_LOCK webkit)
 endif()

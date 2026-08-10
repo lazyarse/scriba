@@ -19,7 +19,7 @@ override and returns to your saved Preferences.
 | **Split code blocks** | Never | Code blocks either stay whole (`Never`) or are allowed to split across pages when taller than the page's content area (`Over 50 lines`, `Over 100 lines`). |
 | **Keep tables together** | On | A table stays on one page where it fits. |
 | **Keep headings with following text** | On | A heading is not left stranded at the bottom of a page. |
-| **Keep figures together** | On | Mermaid, KaTeX, ECharts, admonitions and code blocks stay on one page where possible. |
+| **Keep figures and quotes together** | On | Mermaid, KaTeX, ECharts, admonitions, blockquotes and code blocks stay on one page where possible. |
 | **Avoid orphan/widow lines** | On | Prevents a lone paragraph line dangling at the top or bottom of a page. Chromium's support is best-effort. |
 | **Margin / Page size** | Base | Free-form CSS values, e.g. `18mm`, `0`, or `A4 landscape`. |
 
@@ -35,7 +35,7 @@ never appear in the preview or in the PDF:
 ```
 
 - `<!-- keep -->` pins the **next block** — table, code block, figure, heading,
-  paragraph — to one page.
+  quote, paragraph — to one page.
 - `<!-- page-break -->` starts a **new page** at the next block.
 
 A directive must sit **flush-left on its own line** and form its own block:
@@ -73,9 +73,10 @@ splitting applies only to blocks taller than the page's content area.
 <!-- keep -->
 
 > [!note]
-> Admonitions count as "figures" too: with **Keep figures together** on, this
-> block is kept intact where it fits, along with Mermaid diagrams, display
-> math, and ECharts charts.
+> Admonitions count as "figures" too: with **Keep figures and quotes together**
+> on, this block is kept intact where it fits, along with Mermaid diagrams,
+> display math, ECharts charts — and plain `>` blockquotes, which follow the
+> same keep rule.
 
 ## Splitting code blocks
 

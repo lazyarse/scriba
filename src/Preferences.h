@@ -32,6 +32,7 @@ namespace Preferences {
     constexpr const char *LastCursorColumn = "lastCursorColumn";
     constexpr const char *LastScrollTop = "lastScrollTop";
     constexpr const char *PreviewState = "previewState";
+    constexpr const char *PreviewShowPageBreaks = "previewShowPageBreaks";
     constexpr const char *TableStriping = "tableStriping";
     constexpr const char *EmojiMode = "emojiMode";
     constexpr const char *EmojiAutoComplete = "emojiAutoComplete";

@@ -780,7 +780,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_printKeepHeadingsCheck->setObjectName(QStringLiteral("printing-keep-headings"));
         m_printKeepHeadingsCheck->setChecked(settings.value(Preferences::PrintKeepHeadings, true).toBool());
         printLayout->addWidget(m_printKeepHeadingsCheck);
-        m_printKeepFiguresCheck = new QCheckBox(tr("Keep figures together"));
+        m_printKeepFiguresCheck = new QCheckBox(tr("Keep figures and quotes together"));
         m_printKeepFiguresCheck->setObjectName(QStringLiteral("printing-keep-figures"));
         m_printKeepFiguresCheck->setChecked(settings.value(Preferences::PrintKeepFigures, true).toBool());
         printLayout->addWidget(m_printKeepFiguresCheck);
@@ -1633,6 +1633,10 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_enableCspPreviewCheck->setChecked(settings.value(Preferences::EnableCspPreview, true).toBool());
         previewLayout->addWidget(m_enableCspPreviewCheck);
 
+        m_showPageBreaksCheck = new QCheckBox("Show page breaks in preview (print layout)");
+        m_showPageBreaksCheck->setChecked(settings.value(Preferences::PreviewShowPageBreaks, false).toBool());
+        previewLayout->addWidget(m_showPageBreaksCheck);
+
         layout->addWidget(previewGroup);
 
         QGroupBox *exportGroup = new QGroupBox("Export (PDF, DOCX, HTML)");
@@ -1742,6 +1746,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::AutoCorrectPairs, autoCorrectPairs);
         settings.setValue(Preferences::CentreSingleViewContent, m_centreSingleViewCheck->isChecked());
         settings.setValue(Preferences::CentreSingleViewWidth, m_centreSingleViewWidthSpin->value());
+        if (m_showPageBreaksCheck)
+            settings.setValue(Preferences::PreviewShowPageBreaks, m_showPageBreaksCheck->isChecked());
         settings.setValue(Preferences::SplitViewEditorMaxWidth,
             m_splitEditorAutoCheck->isChecked() ? 0 : m_splitEditorWidthSpin->value());
         settings.setValue(Preferences::SplitViewPreviewMaxWidth,

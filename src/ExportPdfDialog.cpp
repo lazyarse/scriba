@@ -63,38 +63,6 @@ Q_LOGGING_CATEGORY(lcPdf, "scriba.pdf", QtWarningMsg)
 #include <QSignalBlocker>
 #include "JsRenderEngine.h"
 
-enum class CssUnit { Mm, Cm, In, Pt, Px, Pc };
-
-static CssUnit parseCssUnit(const QString &u)
-{
-    if (u == QStringLiteral("mm")) return CssUnit::Mm;
-    if (u == QStringLiteral("cm")) return CssUnit::Cm;
-    if (u == QStringLiteral("in")) return CssUnit::In;
-    if (u == QStringLiteral("pt")) return CssUnit::Pt;
-    if (u == QStringLiteral("px")) return CssUnit::Px;
-    if (u == QStringLiteral("pc")) return CssUnit::Pc;
-    return CssUnit::Px;
-}
-
-enum class PageOrientation { Portrait, Landscape };
-
-enum class NamedPageSize { A3, A4, A5, Letter, Legal, Tabloid, Ledger, B4, B5 };
-
-static QSizeF namedPageSizeToSize(const QString &name)
-{
-    QString n = name.trimmed().toLower();
-    if (n == QLatin1String("a3")) return QPageSize(QPageSize::A3).size(QPageSize::Point);
-    if (n == QLatin1String("a4")) return QPageSize(QPageSize::A4).size(QPageSize::Point);
-    if (n == QLatin1String("a5")) return QPageSize(QPageSize::A5).size(QPageSize::Point);
-    if (n == QLatin1String("letter")) return QPageSize(QPageSize::Letter).size(QPageSize::Point);
-    if (n == QLatin1String("legal")) return QPageSize(QPageSize::Legal).size(QPageSize::Point);
-    if (n == QLatin1String("tabloid")) return QPageSize(QPageSize::Tabloid).size(QPageSize::Point);
-    if (n == QLatin1String("ledger")) return QPageSize(QPageSize::Tabloid).size(QPageSize::Point);
-    if (n == QLatin1String("b4")) return QPageSize(QPageSize::B4).size(QPageSize::Point);
-    if (n == QLatin1String("b5")) return QPageSize(QPageSize::B5).size(QPageSize::Point);
-    return {};
-}
-
 enum class MarginBox { TopLeft, TopCenter, TopRight, BottomLeft, BottomCenter, BottomRight };
 
 static QString marginBoxToString(MarginBox box)
@@ -110,115 +78,14 @@ static QString marginBoxToString(MarginBox box)
     return {};
 }
 
-static qreal cssLengthToPt(const QString &s)
-{
-    static const QRegularExpression re(QStringLiteral("^(-?\\d+(?:\\.\\d+)?)\\s*(mm|cm|in|pt|px|pc)?$"));
-    auto m = re.match(s.trimmed());
-    if (!m.hasMatch()) return 0;
-    qreal v = m.captured(1).toDouble();
-    QString u = m.captured(2);
-    switch (parseCssUnit(u)) {
-        case CssUnit::Mm: return v * 72.0 / 25.4;
-        case CssUnit::Cm: return v * 72.0 / 2.54;
-        case CssUnit::In: return v * 72.0;
-        case CssUnit::Pt: return v;
-        case CssUnit::Pc: return v * 12.0;
-        case CssUnit::Px: return v * 0.75;
-    }
-    return v * 0.75;
-}
-
-static QSizeF doParsePageSize(const QString &css)
-{
-    // Take the LAST @page block: the PrintOptions override is appended after
-    // print-base.css's own `@page { margin: 15mm; }`, and the last one wins.
-    static const QRegularExpression pageRe(QStringLiteral("@page\\s*\\{([^}]*)\\}"),
-                                           QRegularExpression::CaseInsensitiveOption);
-    QString block;
-    auto it = pageRe.globalMatch(css);
-    while (it.hasNext()) {
-        const QRegularExpressionMatch &m = it.next();
-        block = m.captured(1);
-    }
-    if (block.isEmpty())
-        return QSizeF(595.0, 842.0);
-    QRegularExpression sizeRe(QStringLiteral("size\\s*:\\s*([^;}]+)"),
-                              QRegularExpression::CaseInsensitiveOption);
-    auto sizeMatch = sizeRe.match(block);
-    if (!sizeMatch.hasMatch())
-        return QSizeF(595.0, 842.0);
-
-    QString raw = sizeMatch.captured(1).trimmed();
-
-    PageOrientation orientation = PageOrientation::Portrait;
-    QString cleaned = raw;
-    if (cleaned.contains(QStringLiteral("landscape"), Qt::CaseInsensitive)) {
-        orientation = PageOrientation::Landscape;
-        cleaned.remove(QStringLiteral("landscape"), Qt::CaseInsensitive);
-    } else if (cleaned.contains(QStringLiteral("portrait"), Qt::CaseInsensitive)) {
-        cleaned.remove(QStringLiteral("portrait"), Qt::CaseInsensitive);
-    }
-    cleaned = cleaned.trimmed();
-
-    QSizeF sz = namedPageSizeToSize(cleaned);
-    if (sz.isValid()) {
-        if (orientation == PageOrientation::Landscape)
-            sz.transpose();
-        return sz;
-    }
-
-    QStringList parts = cleaned.split(QRegularExpression(QStringLiteral("\\s+")),
-                                      Qt::SkipEmptyParts);
-    if (parts.size() >= 2) {
-        double w = cssLengthToPt(parts[0]);
-        double h = cssLengthToPt(parts[1]);
-        if (w > 0 && h > 0) {
-            if (orientation == PageOrientation::Landscape)
-                qSwap(w, h);
-            return QSizeF(w, h);
-        }
-    }
-
-    return QSizeF(595.0, 842.0);
-}
-
 QSizeF ExportPdfDialog::parsePageSize(const QString &css)
 {
-    return doParsePageSize(css);
+    return PrintOptions::parsePageSize(css);
 }
 
 QMarginsF ExportPdfDialog::parsePageMargins(const QString &css)
 {
-    static const QRegularExpression pageRe(QStringLiteral("@page\\s*\\{([^}]*)\\}"),
-                                           QRegularExpression::CaseInsensitiveOption);
-    // Last @page wins (override appended after base, see doParsePageSize).
-    QString block;
-    auto it = pageRe.globalMatch(css);
-    while (it.hasNext()) {
-        const QRegularExpressionMatch &m = it.next();
-        block = m.captured(1);
-    }
-    if (block.isEmpty())
-        return QMarginsF();
-
-    // margin may be the last declaration without a trailing ';' (e.g. the
-    // generated `@page{size:A4;margin:18mm}`).
-    QRegularExpression marginRe(QStringLiteral("margin\\s*:\\s*([^;}]+)"),
-                                QRegularExpression::CaseInsensitiveOption);
-    auto marginMatch = marginRe.match(block);
-    if (!marginMatch.hasMatch())
-        return QMarginsF();
-
-    QStringList parts = marginMatch.captured(1).trimmed().split(
-        QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
-
-    double t, r, b, l;
-    if (parts.size() == 1) { t = r = b = l = cssLengthToPt(parts[0]); }
-    else if (parts.size() == 2) { t = b = cssLengthToPt(parts[0]); l = r = cssLengthToPt(parts[1]); }
-    else if (parts.size() == 3) { t = cssLengthToPt(parts[0]); l = r = cssLengthToPt(parts[1]); b = cssLengthToPt(parts[2]); }
-    else if (parts.size() >= 4) { t = cssLengthToPt(parts[0]); r = cssLengthToPt(parts[1]); b = cssLengthToPt(parts[2]); l = cssLengthToPt(parts[3]); }
-    else return QMarginsF();
-    return QMarginsF(l, t, r, b);
+    return PrintOptions::parsePageMargins(css);
 }
 
 QString ExportPdfDialog::findChromiumBinary()
@@ -434,7 +301,7 @@ void ExportPdfDialog::setupUi()
 
     m_keepTables = new QCheckBox("Keep tables together", typesetGroup);
     m_keepHeadings = new QCheckBox("Keep headings with following text", typesetGroup);
-    m_keepFigures = new QCheckBox("Keep figures together", typesetGroup);
+    m_keepFigures = new QCheckBox("Keep figures and quotes together", typesetGroup);
     m_orphanControl = new QCheckBox("Avoid orphan/widow lines", typesetGroup);
     tsLayout->addWidget(m_keepTables);
     tsLayout->addWidget(m_keepHeadings);

@@ -15,6 +15,8 @@
 #pragma once
 
 #include <QString>
+#include <QSizeF>
+#include <QMarginsF>
 
 namespace PrintOptions {
 
@@ -45,5 +47,13 @@ QString buildCss(const Options &opts);
 // neither is set. The caller must append it LAST so it wins the cascade over
 // print-base.css's `@page { margin: 15mm; }` (DR-4).
 QString buildPageOverrideCss(const Options &opts);
+
+// Parse the LAST `@page` block in `css` (the merged print CSS — the override is
+// appended after print-base.css's own rule, and the last one wins) for its page
+// size and margins, in points. Falls back to A4 (595x842pt) / zero margins.
+// Shared by the export path and the preview's page-break mode so both agree on
+// the page box.
+QSizeF parsePageSize(const QString &css);
+QMarginsF parsePageMargins(const QString &css);
 
 }

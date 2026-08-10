@@ -20,6 +20,8 @@
 #include "CssConfig.h"
 #include "CssLoader.h"
 #include "CssUtils.h"
+#include "PrintOptions.h"
+#include "PreviewPagination.h"
 #include "PreferencesDialog.h"
 #include "FindDialog.h"
 #include "ExportPdfDialog.h"
@@ -147,6 +149,7 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
 {
     m_previewState = QSettings().value(Preferences::PreviewState, 1).toInt();
     if (m_previewState < 0 || m_previewState > 3) m_previewState = 1;
+    m_printLayoutMode = QSettings().value(Preferences::PreviewShowPageBreaks, false).toBool();
 
     setupUi();
     setupMenuBar();
@@ -1027,6 +1030,21 @@ void MainWindow::setupMenuBar()
         }
     });
 
+    m_showPageBreaksAction = viewMenu->addAction("Show Page &Breaks");
+    m_showPageBreaksAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
+    m_showPageBreaksAction->setCheckable(true);
+    m_showPageBreaksAction->setChecked(m_printLayoutMode);
+    connect(m_showPageBreaksAction, &QAction::toggled, this, [this](bool on) {
+        QSettings().setValue(Preferences::PreviewShowPageBreaks, on);
+        m_printLayoutMode = on;
+        if (!on)
+            m_printLayoutFp.clear();
+        // Force the full rebuild path so the page picks up the print/classic
+        // base CSS, theme, page box and paginator (or the absence of them).
+        m_previewInitialized = false;
+        updatePreview();
+    });
+
     for (int i = 1; i <= 10; ++i) {
         Qt::Key key = (i == 10) ? Qt::Key_0
                                 : static_cast<Qt::Key>(Qt::Key_0 + i);
@@ -1149,6 +1167,13 @@ void MainWindow::refreshPreviewCss()
 {
     QSettings settings;
     QString rawThemeCss = m_cssLoader->themeCss();
+    if (m_printLayoutMode) {
+        // Print layout strips the theme and swaps in the print base CSS; the
+        // page is rebuilt from scratch when it is toggled off, so the classic
+        // CSS never needs live-patching here.
+        m_preview->setThemeBackgroundColor(CssUtils::themeColors(rawThemeCss).background);
+        return;
+    }
     int uiFontSize = settings.value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt();
     QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss, uiFontSize);
     QString previewCss = chromeCss + rawThemeCss;
@@ -1347,6 +1372,11 @@ void MainWindow::applyEditorContentWidth(Editor *editor)
 
 void MainWindow::applyPreviewSplitWidth()
 {
+    if (m_printLayoutMode) {
+        // In print layout the page geometry (center-css) owns the preview
+        // width; a split max-width would fight the page box.
+        return;
+    }
     if (!m_previewInitialized)
         return;
     QString css;
@@ -1402,6 +1432,36 @@ void MainWindow::updatePreview(bool tabSwitch)
     QString mermaidTheme = CssUtils::isDarkTheme(rawThemeCss)
         ? QStringLiteral("dark") : QStringLiteral("default");
 
+    // Print layout: rebuild the preview as an exact page-by-page pagination of
+    // the PDF export. Geometry comes from the same merged CSS + print options
+    // the export path uses, so the on-screen page boxes match the printout.
+    const PrintOptions::Options printOpts = m_printLayoutMode
+        ? PrintOptions::fromSettings() : PrintOptions::Options();
+    QString printLayoutCss;
+    int printContentHpx = 0;
+    if (m_printLayoutMode) {
+        QString merged = m_cssLoader->printCss()
+            + QStringLiteral("\n") + PrintOptions::buildCss(printOpts)
+            + QStringLiteral("\n") + PrintOptions::buildPageOverrideCss(printOpts);
+        const QSizeF pagePt = PrintOptions::parsePageSize(merged);
+        const QMarginsF marginsPt = PrintOptions::parsePageMargins(merged);
+        const double px = 96.0 / 72.0;
+        const int contentW = qMax(160, qRound((pagePt.width() - marginsPt.left() - marginsPt.right()) * px));
+        printContentHpx = qMax(160, qRound((pagePt.height() - marginsPt.top() - marginsPt.bottom()) * px));
+        printLayoutCss = PreviewPagination::layoutCss(
+            contentW, printContentHpx,
+            qRound(marginsPt.top() * px), qRound(marginsPt.left() * px), qRound(marginsPt.bottom() * px));
+        if (merged != m_printLayoutFp) {
+            // Page geometry/options changed: force a full rebuild so the new
+            // page box and paginator take effect.
+            m_printLayoutFp = merged;
+            m_previewInitialized = false;
+        }
+        baseCss = m_cssLoader->printCss();
+        previewCss = QString();
+        mermaidTheme = QStringLiteral("default");
+    }
+
     bool cssChanged = (previewCss != m_cachedPreviewCss);
     if (cssChanged) {
         m_cachedPreviewCss = previewCss;
@@ -1428,15 +1488,15 @@ void MainWindow::updatePreview(bool tabSwitch)
         bool showCodeLang = prefs.value(Preferences::ShowCodeLangPreview, true).toBool();
         QString codeLangInit = showCodeLang ? QString()
             : QLatin1String(Preferences::HideCodeLangCss);
-        QString centerCss;
-        if (m_previewState == 3) {
+        QString centerCss = printLayoutCss;
+        if (!m_printLayoutMode && m_previewState == 3) {
             bool centre = prefs.value(Preferences::CentreSingleViewContent, true).toBool();
             int centreWidth = prefs.value(Preferences::CentreSingleViewWidth, 800).toInt();
             if (centre)
                 centerCss = QString("body{margin:0 auto!important;max-width:%1px!important}").arg(centreWidth);
         }
         QString splitCss;
-        if (m_previewState == 1 || m_previewState == 2) {
+        if (!m_printLayoutMode && (m_previewState == 1 || m_previewState == 2)) {
             int splitWidth = prefs.value(Preferences::SplitViewPreviewMaxWidth, 0).toInt();
             splitCss = CssUtils::splitViewMaxWidthCss(splitWidth);
         }
@@ -1495,6 +1555,20 @@ void MainWindow::updatePreview(bool tabSwitch)
             "})</script>"
             "</body></html>"
         ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss, codeLangInit, renderCss);
+        if (m_printLayoutMode) {
+            // Re-paginate after each render pass (see PreviewPagination) and
+            // embed the print option overrides + paginator for this geometry.
+            fullHtml = PreviewPagination::patchIncrementalPaginate(fullHtml);
+            const QString printOptionsCss = PrintOptions::buildCss(printOpts);
+            int headEnd = fullHtml.indexOf("</head>");
+            if (headEnd >= 0)
+                fullHtml.insert(headEnd,
+                    QStringLiteral("<style id=\"print-options-css\">%1</style>").arg(printOptionsCss));
+            int bodyEnd = fullHtml.indexOf("</body>");
+            if (bodyEnd >= 0)
+                fullHtml.insert(bodyEnd,
+                    PreviewPagination::paginatorScript(printOpts, printContentHpx));
+        }
         if (cspEnabled) {
             int headEnd = fullHtml.indexOf("</head>");
             if (headEnd >= 0)
@@ -1608,6 +1682,8 @@ void MainWindow::showPreferences()
         if (m_wrapTextAction)
             m_wrapTextAction->setChecked(s.value(Preferences::EditorWrapEnabled, true).toBool());
         applyPreviewSplitWidth();
+        if (m_showPageBreaksAction)
+            m_showPageBreaksAction->setChecked(s.value(Preferences::PreviewShowPageBreaks, false).toBool());
         updatePreview();
 
         int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
@@ -2264,7 +2340,7 @@ void MainWindow::setPreviewState(int state)
         m_preview->setVisible(true);
         if (ed) applyEditorContentWidth(ed);
         applyPreviewSplitWidth();
-        if (m_previewInitialized) {
+        if (m_previewInitialized && !m_printLayoutMode) {
             QString css = centre
                 ? QString("body{margin:0 auto!important;max-width:%1px!important}").arg(centreWidth)
                 : QString();
@@ -2278,7 +2354,7 @@ void MainWindow::setPreviewState(int state)
         m_preview->setVisible(true);
         if (ed) applyEditorContentWidth(ed);
         applyPreviewSplitWidth();
-        if (m_previewInitialized)
+        if (m_previewInitialized && !m_printLayoutMode)
             m_preview->page()->runJavaScript(
                 QStringLiteral("document.getElementById('center-css').textContent=''"));
     } else {
@@ -2288,7 +2364,7 @@ void MainWindow::setPreviewState(int state)
         m_editorStack->setVisible(true);
         if (ed) applyEditorContentWidth(ed);
         applyPreviewSplitWidth();
-        if (m_previewInitialized)
+        if (m_previewInitialized && !m_printLayoutMode)
             m_preview->page()->runJavaScript(
                 QStringLiteral("document.getElementById('center-css').textContent=''"));
     }

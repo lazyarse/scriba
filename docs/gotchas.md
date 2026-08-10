@@ -365,6 +365,14 @@ The classes are styled only in `resources/print-base.css`; the preview CSS
 deliberately has no `.scriba-*` rules, so the preview never shows a directive
 artifact beyond the blank line where the comment was.
 
+**Quoteblocks keep like admonitions in print.** `blockquote` carries
+`page-break-inside: avoid` in `resources/print-base.css` (same keep rule as
+`.admonition`), and the "Keep figures and quotes together" toggle relaxes both
+together (`PrintOptions::buildCss` emits
+`.mermaid,.katex-display,.admonition,blockquote,pre{break-inside:auto;…}` when
+off). The keep applies to the outer blockquote, so nested quotes stay together
+as one unit.
+
 ## `@page` parsing: the *last* block wins
 
 `ExportPdfDialog::parsePageSize` / `parsePageMargins` iterate **all**
@@ -388,4 +396,37 @@ height minus margins). Blocks taller than the content box get the mode's
 `scriba-split-*` class (→ `break-inside:auto`); everything else keeps the base
 `break-inside:avoid`. Line counting can't work reliably because soft-wrapped
 code lines don't appear in `textContent`.
+
+## Page-break mode only separates what must not flow
+
+"Show Page Breaks" (`Ctrl+Shift+B`, `Preferences::PreviewShowPageBreaks`)
+rebuilds the preview in print layout via `src/PreviewPagination.cpp`: the same
+merged print CSS + `PrintOptions` geometry as the PDF export (`PrintOptions::
+parsePageSize`/`parsePageMargins`, last `@page` wins — see above), a grey canvas
+with a white page in `#center-css`, and a paginator script (`window.
+scribaPaginate`) injected before `</body>`.
+
+The paginator inserts a `Page N` separator only where content **cannot** flow:
+`scriba-keep` blocks and (with the options on) tables/figures/heading+first
+line, plus explicit `scriba-page-break` directives. Plain paragraphs and code
+blocks that are allowed to split just flow across the page boundary like in a
+real printout — no separator is drawn, because the text simply continues on the
+next page. Don't "fix" this by giving flowing blocks separators; only kept
+content and explicit breaks get them (asserted by `tests/test_preview_pagination.cpp`).
+
+Re-pagination happens after every render pass by patching the preview template's
+two chains (`patchIncrementalPaginate`): the `DOMContentLoaded` pass ends in
+`scribaEndRender()` and every `scribaUpdate` heavy pass ends in `restoreScroll()`,
+both of which are followed by `if(window.scribaPaginate){window.scribaPaginate();}`.
+The hooks are guarded on `window.scribaPaginate` existing, so the normal preview
+is unaffected. While page-break mode is on, `refreshPreviewCss`,
+`applyPreviewSplitWidth` and `setPreviewState`'s `center-css` writes are skipped
+and theme/geometry changes force a full page rebuild; the print CSS is sent as
+`#base-css` and the theme as empty, so the on-screen page matches the printout
+(and the pane background, not the theme, colours the canvas).
+
+Page geometry changes (print page size/margin or any option in
+`PrintOptions::fromSettings`) are detected by a merged-CSS fingerprint
+(`m_printLayoutFp`); when it changes, `m_previewInitialized` is reset to force
+the full-build path so the new page box and paginator take effect.
 

@@ -185,6 +185,8 @@ private:
     QVector<TabInfo> m_tabs;
     int m_connectedTabIndex = -1;
     bool m_previewInitialized = false;
+    bool m_printLayoutMode = false;
+    QString m_printLayoutFp;    // merged print CSS+options fingerprint (page geometry)
     QString m_cachedPreviewCss;
     QString m_cachedFullCss;
     QString m_cachedPreviewBaseCss;
@@ -202,6 +204,7 @@ private:
     QList<QAction *> m_insertActions;
     QAction *m_mermaidAction;
     QAction *m_wrapTextAction = nullptr;
+    QAction *m_showPageBreaksAction = nullptr;
     QTimer *m_updateTimer = nullptr;
     QTimer *m_anchorTimer = nullptr;
     QString m_pendingAnchor;

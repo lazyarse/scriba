@@ -7,6 +7,7 @@
 | Ctrl+Alt+P | Preferences |
 | Ctrl+Q | Quit |
 | Ctrl+B | Toggle Preview Layout |
+| Ctrl+Shift+B | Toggle Show Page Breaks (print layout preview) |
 | F11 | Toggle Fullscreen |
 | Ctrl+Shift+D | Debug Log |
 | Alt+1–0 | Switch between open tabs (0 = tab 10) |
