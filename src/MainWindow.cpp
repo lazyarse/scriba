@@ -879,17 +879,17 @@ void MainWindow::setupMenuBar()
 
     QMenu *importMenu = fileMenu->addMenu("&Import");
 
-    QAction *importHtmlAction = importMenu->addAction("Import &HTML...");
-    importHtmlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
-    connect(importHtmlAction, &QAction::triggered, this, &MainWindow::importHtmlFromFile);
+    QAction *importPdfAction = importMenu->addAction("Import &PDF...");
+    importPdfAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_P));
+    connect(importPdfAction, &QAction::triggered, this, &MainWindow::importPdfFromFile);
 
     QAction *importDocxAction = importMenu->addAction("Import &Word (DOCX)...");
     importDocxAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
     connect(importDocxAction, &QAction::triggered, this, &MainWindow::importDocxFromFile);
 
-    QAction *importPdfAction = importMenu->addAction("Import &PDF...");
-    importPdfAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_P));
-    connect(importPdfAction, &QAction::triggered, this, &MainWindow::importPdfFromFile);
+    QAction *importHtmlAction = importMenu->addAction("Import &HTML...");
+    importHtmlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
+    connect(importHtmlAction, &QAction::triggered, this, &MainWindow::importHtmlFromFile);
 
     QMenu *exportMenu = fileMenu->addMenu("&Export");
 
