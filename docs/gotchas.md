@@ -430,3 +430,29 @@ Page geometry changes (print page size/margin or any option in
 (`m_printLayoutFp`); when it changes, `m_previewInitialized` is reset to force
 the full-build path so the new page box and paginator take effect.
 
+## Relative images resolve against the shared preview page's base URL
+
+The live preview is **one `QWebEngine` page shared across all tabs**
+(`src/Preview.cpp`). Relative markdown images (`![img](pic.png)`) are never
+rewritten in C++ — the browser resolves them against the page's base location,
+which is fixed at the last full `setHtml(html, baseUrl)` and then re-asserted
+per render by a `<base href>` element that `scribaUpdate` injects/updates.
+
+That `<base>` element must be (re)asserted on **every** render — tab switches
+*and* plain edits. If an update passes an empty base URL, the JS *removes* the
+element and relative images fall back to the page's document URL from the last
+full page load: if that was another tab's (or a pre-Save-As) directory, the
+images render broken until the next full load or tab switch. So in
+`MainWindow::updatePreview` the base URL is sent on every `scribaUpdate` call,
+not just when `tabSwitch == true` (regression test:
+`tests/test_scroll_sync.cpp` `BaseUrlSurvivesEdits`).
+
+Two corollaries:
+
+- `saveFile`/`renameCurrentFile` into a **different directory** must trigger a
+  re-render, otherwise the base stays stale until the next edit/tab switch
+  (`saveFile`/`renameCurrentFile` only signal when the base dir actually
+  changed). This mirrors the same "base desync" failure mode.
+- Untitled documents (no file path) legitimately pass an empty base URL and
+  drop the element — there's nothing for relative paths to anchor to.
+

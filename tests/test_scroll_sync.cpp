@@ -743,6 +743,90 @@ TEST_F(ScrollSyncIntegrationTest, TabSwitchUpdatesDocumentBaseUrl) {
     EXPECT_TRUE(evalStr("var i=document.querySelector('img');i?i.src:''").startsWith(expB));
 }
 
+/* ========== Regression: relative images must survive edits after a tab switch ========== */
+
+TEST_F(ScrollSyncIntegrationTest, BaseUrlSurvivesEdits) {
+    QTemporaryDir dirA;
+    QTemporaryDir dirB;
+    ASSERT_TRUE(dirA.isValid());
+    ASSERT_TRUE(dirB.isValid());
+    QString fileA = dirA.filePath("doc-a.md");
+    QString fileB = dirB.filePath("doc-b.md");
+    QFile fa(fileA);
+    ASSERT_TRUE(fa.open(QIODevice::WriteOnly));
+    fa.write("AAA-EDITED\n\n![img](pic.png)\n");
+    fa.close();
+    QFile fb(fileB);
+    ASSERT_TRUE(fb.open(QIODevice::WriteOnly));
+    fb.write("BBB-EDITED\n\n![img](pic.png)\n");
+    fb.close();
+
+    window->loadFile(fileA);
+    window->loadFile(fileB);
+
+    auto *tabBar = window->findChild<QTabBar *>();
+    ASSERT_NE(tabBar, nullptr);
+
+    auto previewSettlesOn = [this](const QString &present, const QString &absent) {
+        for (int attempt = 0; attempt < 12; ++attempt) {
+            QString html;
+            window->preview()->page()->toHtml([&](const QString &h) { html = h; });
+            QTest::qWait(500);
+            if (html.contains(present) && !html.contains(absent))
+                return true;
+            QTest::qWait(1000);
+        }
+        return false;
+    };
+    auto evalStr = [this](const QString &js) {
+        QString v;
+        window->preview()->page()->runJavaScript(js, [&](const QVariant &r) { v = r.toString(); });
+        QTest::qWait(300);
+        return v;
+    };
+    auto waitForBasePrefix = [&](const QString &prefix) {
+        for (int attempt = 0; attempt < 12; ++attempt) {
+            if (evalStr("document.baseURI").startsWith(prefix)
+                && evalStr("var i=document.querySelector('img');i?i.src:''").startsWith(prefix))
+                return true;
+            QTest::qWait(500);
+        }
+        return false;
+    };
+
+    // Load B, then switch to A: relative assets on A resolve against dir A.
+    EXPECT_TRUE(previewSettlesOn("BBB-EDITED", "AAA-EDITED"));
+    tabBar->setCurrentIndex(0);
+    EXPECT_TRUE(previewSettlesOn("AAA-EDITED", "BBB-EDITED"));
+    const QString expA = QUrl::fromLocalFile(dirA.path() + "/").toString();
+    const QString expB = QUrl::fromLocalFile(dirB.path() + "/").toString();
+
+    // Edit A. The shared page's base must survive the debounced re-render that
+    // follows (previously scribaUpdate got an empty baseUrl on edits and
+    // removed the <base> element, so images fell back to dir B's page URL).
+    QTextCursor cursor(window->editor()->document());
+    cursor.movePosition(QTextCursor::End);
+    cursor.insertText("\nEDITED AFTER SWITCH");
+    EXPECT_TRUE(previewSettlesOn("EDITED AFTER SWITCH", "BBB-EDITED"));
+    EXPECT_TRUE(waitForBasePrefix(expA));
+
+    // Type further into A; still anchored on dir A.
+    QTextCursor cursor2(window->editor()->document());
+    cursor2.movePosition(QTextCursor::End);
+    cursor2.insertText("\nMORE EDITS");
+    EXPECT_TRUE(previewSettlesOn("MORE EDITS", "BBB-EDITED"));
+    EXPECT_TRUE(waitForBasePrefix(expA));
+
+    // Switch to B and edit it: the base must now follow dir B.
+    tabBar->setCurrentIndex(1);
+    EXPECT_TRUE(previewSettlesOn("BBB-EDITED", "MORE EDITS"));
+    QTextCursor cursor3(window->editor()->document());
+    cursor3.movePosition(QTextCursor::End);
+    cursor3.insertText("\nEDITED IN B");
+    EXPECT_TRUE(previewSettlesOn("EDITED IN B", "AAA-EDITED"));
+    EXPECT_TRUE(waitForBasePrefix(expB));
+}
+
 /* ========== Regression: reordering tabs must move each tab's cached render with it ========== */
 
 TEST_F(ScrollSyncIntegrationTest, MoveTabCarriesPreviewCacheToNewPosition) {

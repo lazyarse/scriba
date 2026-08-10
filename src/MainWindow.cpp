@@ -1579,14 +1579,18 @@ void MainWindow::updatePreview(bool tabSwitch)
         QString escapedHtml = escapeJsString(html);
         QString escapedCss = cssChanged ? escapeJsString(previewCss) : QString();
         int delay = -1;
-        QString escapedBaseUrl;
         if (tabSwitch) {
             int heavyDelay = prefs.value(Preferences::HeavyRenderDelay,
                 Preferences::DefaultHeavyRenderDelay).toInt();
             delay = std::min(heavyDelay, Debounce::TabSwitchRender);
-            if (!baseUrl.isEmpty())
-                escapedBaseUrl = escapeJsString(baseUrl.toString());
         }
+        // Re-assert the active document's base URL on EVERY render, not just
+        // tab switches. Relative image paths resolve against the shared page's
+        // <base> element; with an empty baseUrl scribaUpdate removes it, making
+        // images fall back to the stale page URL from the last full load.
+        QString escapedBaseUrl;
+        if (!baseUrl.isEmpty())
+            escapedBaseUrl = escapeJsString(baseUrl.toString());
         QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6')")
             .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode,
                  QString::number(delay), escapedBaseUrl);
@@ -2588,6 +2592,9 @@ void MainWindow::saveFile(const QString &filePath)
     if (!info) return;
 
     bool pathChanged = (info->filePath != filePath);
+    // A new directory changes how relative image paths resolve (they hang off
+    // the shared page's <base> element), so re-render to move the base over.
+    QString oldDir = QFileInfo(info->filePath).absolutePath();
     info->filePath = filePath;
     ed->setCurrentFile(filePath);
     info->dirty = false;
@@ -2601,8 +2608,11 @@ void MainWindow::saveFile(const QString &filePath)
     statusBar()->showMessage("Saved", 2000);
 
     QSettings settings;
-    if (pathChanged)
+    if (pathChanged) {
+        if (QFileInfo(filePath).absolutePath() != oldDir && m_previewInitialized)
+            updatePreview();
         settings.setValue(Preferences::LastSessionName, filePath);
+    }
 }
 
 void MainWindow::renameCurrentFile()
@@ -2644,6 +2654,7 @@ void MainWindow::renameCurrentFile()
     Editor *ed = currentEditor();
     if (!ed)
         return;
+    QString oldDir = QFileInfo(info->filePath).absolutePath();
     info->filePath = newPath;
     ed->setCurrentFile(newPath);
 
@@ -2654,6 +2665,11 @@ void MainWindow::renameCurrentFile()
     updateWindowTitle();
     m_preview->setDocumentPath(newPath);
     statusBar()->showMessage("Renamed to " + newPath, 2000);
+
+    // The base directory changed: re-render so relative images (which resolve
+    // against the shared page's <base> element) follow the new location.
+    if (QFileInfo(newPath).absolutePath() != oldDir && m_previewInitialized)
+        updatePreview();
 }
 
 void MainWindow::autoSave()
