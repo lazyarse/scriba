@@ -116,6 +116,7 @@ private:
     void renameCurrentFile();
     void importHtmlFromFile();
     void importDocxFromFile();
+    void importPdfFromFile();
     void pasteAsMarkdown();
     void exportPdf();
     void exportDocx();

@@ -281,3 +281,33 @@ the prefill constructor is **not** the same thing — it routes through
 fallback panel (combo index 13, "Diagram Source") instead of the default first
 helper (Pie). Use the theme-only ctor for a fresh dialog and the prefill ctor
 only when editing an existing diagram.
+
+## QtWebEngine `runJavaScript` does not await returned promises
+
+`QWebEnginePage::runJavaScript` (Qt 6) fires its result callback as soon as the
+script *returns* — it does **not** wait for a script that returns a Promise to
+resolve, and it delivers the resolved value as the callback argument only when
+the script itself is synchronous. Scripts that `await` something therefore
+resolve asynchronously inside the page, and the C++ callback fires immediately
+with an empty/pre-resolution value.
+
+So a converter like `src/PdfImporter.cpp` that runs a long async pipeline
+(`pdfjsLib.getDocument(...).promise` → `getPage` → text extraction) must not
+rely on the second `runJavaScript` round-trip reading the result back — it will
+race and observe an empty global. The pattern that works:
+
+1. The async script stashes its JSON result in a page global
+   (`window.__scribaPdfResult`), never returning a promise to C++.
+2. C++ polls that global with a `QTimer` (every ~100 ms), calling
+   `page->runJavaScript("window.__scribaPdfResult || ''", cb)` on each tick,
+   quitting its `QEventLoop` as soon as the global is non-empty (or the
+   deadline hits).
+
+Also: **QtWebEngine refuses `new Worker(blob, {type: 'module'})`** for blob
+URLs ("Refused to cross-origin redirects of the top-level worker script"),
+while dynamic `import(blobUrl)` succeeds. pdf.js's fake-worker fallback
+(`PDFWorker._setupFakeWorkerGlobal` uses `import(workerSrc)`) happily drives
+the bundled worker via `import()`, so pin the pdf.js worker through the built-in
+fake-worker path by pre-registering `globalThis.pdfjsWorker = await import(...)`
+(PDFWorker initializes interestingly after that). See the `getDocument` setup in
+`src/PdfImporter.cpp` for the exact incantation.

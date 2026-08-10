@@ -47,6 +47,7 @@
 #include "ChartSource.h"
 #include "HtmlToMarkdown.h"
 #include "DocxImporter.h"
+#include "PdfImporter.h"
 #include "ValidationReportDialog.h"
 
 #include <QAtomicInteger>
@@ -885,6 +886,10 @@ void MainWindow::setupMenuBar()
     QAction *importDocxAction = importMenu->addAction("Import &Word (DOCX)...");
     importDocxAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
     connect(importDocxAction, &QAction::triggered, this, &MainWindow::importDocxFromFile);
+
+    QAction *importPdfAction = importMenu->addAction("Import &PDF...");
+    importPdfAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_P));
+    connect(importPdfAction, &QAction::triggered, this, &MainWindow::importPdfFromFile);
 
     QMenu *exportMenu = fileMenu->addMenu("&Export");
 
@@ -2690,6 +2695,43 @@ void MainWindow::importDocxFromFile()
     } else {
         statusBar()->showMessage("Imported " + QFileInfo(path).fileName(), 3000);
     }
+}
+
+// Opens a PDF file, extracts its text via pdf.js and heuristically converts
+// it to Markdown in a new tab. Ghost images (pure scans) yield a warning.
+void MainWindow::importPdfFromFile()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Import PDF Document", QString(), "PDF Files (*.pdf);;All Files (*)");
+    if (path.isEmpty())
+        return;
+
+    PdfImportResult result = PdfImporter::convert(path);
+    if (!result.ok) {
+        QMessageBox::warning(this, "Import PDF Document", result.error);
+        return;
+    }
+
+    QSettings s;
+    int idx = addTab();
+    QSignalBlocker blocker(m_tabs[idx].editor);
+    m_tabs[idx].editor->setPlainText(result.markdown);
+    m_tabs[idx].previewHtmlValid = false;
+    {
+        QTextBlockFormat fmt;
+        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
+                          QTextBlockFormat::ProportionalHeight);
+        QTextCursor cursor(m_tabs[idx].editor->document());
+        cursor.select(QTextCursor::Document);
+        cursor.mergeBlockFormat(fmt);
+    }
+    m_tabs[idx].dirty = true;
+    updateTabLabel(idx);
+    m_previewInitialized = false;
+    updatePreview();
+
+    statusBar()->showMessage("Imported " + QFileInfo(path).fileName()
+                             + " (" + QString::number(result.pages) + " pages)", 5000);
 }
 
 void MainWindow::pasteAsMarkdown()

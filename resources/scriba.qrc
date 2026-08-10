@@ -12,6 +12,9 @@
         <file>arrow-up-dark.svg</file>
         <file>arrow-down-dark.svg</file>
         <file>mermaid.min.js</file>
+        <file>pdf.min.mjs</file>
+        <file>pdf.worker.min.mjs</file>
+        <file>pdf2md.js</file>
         <file>turndown.min.js</file>
         <file>turndown-plugin-gfm.js</file>
         <file>highlight.min.js</file>
