@@ -327,3 +327,59 @@ the bundled worker via `import()`, so pin the pdf.js worker through the built-in
 fake-worker path by pre-registering `globalThis.pdfjsWorker = await import(...)`
 (PDFWorker initializes interestingly after that). See the `getDocument` setup in
 `src/PdfImporter.cpp` for the exact incantation.
+
+## In-source print directives (`<!-- keep -->` / `<!-- page-break -->`)
+
+The two directives that pin a block to one page or force a page break are parsed
+by `MarkdownParser::toHtml` (scanner in `src/MarkdownParser.cpp`, class
+attachment in `src/MdRenderer.cpp`) and must satisfy a strict contract:
+
+- **Flush-left and on their own line.** A directive indented inside a list item,
+  or trailing after paragraph text, is not recognized (it stays an ordinary
+  HTML comment — which md4c strips in the preview/export anyway).
+- **Blank line after the directive.** The directive attaches to the next
+  top-level block. A directive on the line immediately after paragraph text is
+  merged into that paragraph and silently unsupported — put a blank line between
+  the directive and the block it governs.
+- **They must stay comments.** The scanner matches `^<!--\s*(keep|...)\s*-->$`
+  exactly. A directive written as plain text (without `<!-- -->`) is just prose
+  and has no effect. Because it *is* a comment, it disappears from both the
+  preview and the exported PDF — that invisibility is the acceptance test.
+
+**Why tokens instead of line numbers?** `MdRenderer::m_currentLine` is advanced
+only by `\n` in `MD_TEXT` callbacks; md4c does not emit a trailing softbreak for
+a block's final line, so the counter lags by the number of blank lines between
+blocks — mapping directives to blocks by source line number is unreliable.
+Instead the scanner replaces each recognized directive with a unique marker
+(`SCRIBADIRK<n>` / `SCRIBADIRB<n>`), and the renderer — which knows block
+boundaries natively — strips the tokens and attaches the class
+(`scriba-keep` / `scriba-page-break`) to the next top-level block's opening tag.
+
+The classes are styled only in `resources/print-base.css`; the preview CSS
+deliberately has no `.scriba-*` rules, so the preview never shows a directive
+artifact beyond the blank line where the comment was.
+
+## `@page` parsing: the *last* block wins
+
+`ExportPdfDialog::parsePageSize` / `parsePageMargins` iterate **all**
+`@page { ... }` blocks and use the **last** one. `print-base.css` ships
+`@page { margin: 15mm; }` on its first line, and the per-export typesetting
+override (`PrintOptions::buildPageOverrideCss`) is appended *after* all the
+custom CSS, so a last-match scan is what makes the override beat the base block.
+(Falling back to a first-match scan silently reverts to base 15mm/A4 even when
+the user set a custom size/margin — do not "simplify" it back.)
+
+The override's `margin:` is typically the final declaration with no trailing
+semicolon (`@page{size:A4;margin:18mm}`), so the margin regex must stop at `}`
+as well as `;`.
+
+## Code splitting is measured in pixels, not lines
+
+The "split code blocks" option's thresholds (50/100 lines) are a *label*; the
+prepare-print JS pass in `ExportPdfDialog::onPageLoaded` decides by measuring
+each `<pre>` with `getBoundingClientRect()` against the page content box (page
+height minus margins). Blocks taller than the content box get the mode's
+`scriba-split-*` class (→ `break-inside:auto`); everything else keeps the base
+`break-inside:avoid`. Line counting can't work reliably because soft-wrapped
+code lines don't appear in `textContent`.
+

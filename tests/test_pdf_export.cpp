@@ -21,6 +21,9 @@
 #include <QDir>
 #include <QRadioButton>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QPushButton>
 #include <QPlainTextEdit>
 #include <QSettings>
 #include <QMarginsF>
@@ -31,6 +34,7 @@
 #include "CssLoader.h"
 #include "CssConfig.h"
 #include "Preferences.h"
+#include "PrintOptions.h"
 #include "TestConfig.h"
 #include <QWebEngineView>
 
@@ -59,6 +63,17 @@ public:
     static void setShowHeader(ExportPdfDialog *d, bool on) { d->m_showHeader->setChecked(on); }
     static QString buildHeaderFooterCss(ExportPdfDialog *d) { return d->buildHeaderFooterCss(); }
     static const QString &currentPrintCss(const ExportPdfDialog *d) { return d->m_currentPrintCss; }
+    static const QString &currentFullHtml(const ExportPdfDialog *d) { return d->m_currentFullHtml; }
+    static PrintOptions::Options &printOptions(ExportPdfDialog *d) { return d->m_printOptions; }
+    static QComboBox *codeSplitCombo(ExportPdfDialog *d) { return d->m_codeSplitCombo; }
+    static QCheckBox *keepTables(ExportPdfDialog *d) { return d->m_keepTables; }
+    static QCheckBox *keepHeadings(ExportPdfDialog *d) { return d->m_keepHeadings; }
+    static QCheckBox *keepFigures(ExportPdfDialog *d) { return d->m_keepFigures; }
+    static QCheckBox *orphanControl(ExportPdfDialog *d) { return d->m_orphanControl; }
+    static QLineEdit *marginEdit(ExportPdfDialog *d) { return d->m_marginEdit; }
+    static QLineEdit *sizeEdit(ExportPdfDialog *d) { return d->m_sizeEdit; }
+    static void syncTypesetting(ExportPdfDialog *d) { d->syncPrintOptionsFromUi(); }
+    static void resetTypesetting(ExportPdfDialog *d) { d->m_resetTypesettingBtn->click(); }
     static QMarginsF parsePageMargins(ExportPdfDialog *, const QString &css) { return ExportPdfDialog::parsePageMargins(css); }
     static QSizeF parsePageSize(ExportPdfDialog *, const QString &css) { return ExportPdfDialog::parsePageSize(css); }
 };
@@ -161,6 +176,151 @@ TEST_F(PrintExportTest, BuildHtmlCodeLangExportEnabledOmitsOverride)
     EXPECT_FALSE(html.contains("pre[data-lang]::before{content:none}"));
 }
 
+TEST_F(PrintExportTest, BuildFullHtmlAppendsPrintOptionsLast)
+{
+    auto &opts = PrintExportAccess::printOptions(dlg);
+    opts.pageSize = QStringLiteral("A4");
+    opts.pageMargin = QStringLiteral("18mm");
+    opts.keepTables = false;
+    opts.orphanControl = false;
+
+    const QString basePage = QStringLiteral("@page { margin: 15mm; }");
+    QString html = PrintExportAccess::buildFullHtml(dlg, basePage);
+
+    // Options fragments must be appended LAST, after base + custom CSS.
+    int baseIdx = html.indexOf(basePage);
+    int tableIdx = html.indexOf(QStringLiteral("table{break-inside:auto"));
+    int pageIdx = html.indexOf(QStringLiteral("@page{size:A4;margin:18mm}"));
+    EXPECT_GE(baseIdx, 0);
+    EXPECT_GE(tableIdx, 0);
+    EXPECT_GE(pageIdx, 0);
+    EXPECT_LT(baseIdx, tableIdx) << "option fragments must come after base CSS";
+    EXPECT_LT(tableIdx, pageIdx) << "@page override must be the last rule";
+}
+
+TEST_F(PrintExportTest, BuildFullHtmlDefaultOptionsEmitNoFragments)
+{
+    auto &opts = PrintExportAccess::printOptions(dlg);
+    opts.codeSplit = PrintOptions::CodeSplit::NeverSplit;
+    opts.keepTables = true;
+    opts.keepHeadings = true;
+    opts.keepFigures = true;
+    opts.orphanControl = true;
+    opts.pageMargin.clear();
+    opts.pageSize.clear();
+
+    QString html = PrintExportAccess::buildFullHtml(dlg, "/* defaults */");
+
+    EXPECT_FALSE(html.contains("scriba-split"));
+    EXPECT_FALSE(html.contains("table{break-inside:auto"));
+    EXPECT_FALSE(html.contains("h1,h2,h3,h4,h5,h6{break-after:auto"));
+    EXPECT_FALSE(html.contains("@page{"));
+}
+
+// ---------- Typesetting override group tests ----------
+
+static ExportPdfDialog *makeTypesetDialog(CssLoader *loader)
+{
+    auto *d = new ExportPdfDialog("<p>hello</p>", QDir::tempPath() + "/test.md", loader);
+    d->show();
+    QApplication::processEvents();
+    return d;
+}
+
+TEST_F(PrintExportTest, TypesettingGroupSeededFromSettings)
+{
+    QSettings s;
+    s.setValue(Preferences::PrintCodeSplit, "large");
+    s.setValue(Preferences::PrintKeepTables, false);
+    s.setValue(Preferences::PrintKeepHeadings, false);
+    s.setValue(Preferences::PrintKeepFigures, false);
+    s.setValue(Preferences::PrintOrphanControl, false);
+    s.setValue(Preferences::PrintPageMargin, "18mm");
+    s.setValue(Preferences::PrintPageSize, "A4");
+
+    auto *fresh = makeTypesetDialog(loader);
+
+    EXPECT_EQ(PrintExportAccess::codeSplitCombo(fresh)->currentData().toString(), "large");
+    EXPECT_FALSE(PrintExportAccess::keepTables(fresh)->isChecked());
+    EXPECT_FALSE(PrintExportAccess::keepHeadings(fresh)->isChecked());
+    EXPECT_FALSE(PrintExportAccess::keepFigures(fresh)->isChecked());
+    EXPECT_FALSE(PrintExportAccess::orphanControl(fresh)->isChecked());
+    EXPECT_EQ(PrintExportAccess::marginEdit(fresh)->text(), "18mm");
+    EXPECT_EQ(PrintExportAccess::sizeEdit(fresh)->text(), "A4");
+
+    delete fresh;
+}
+
+TEST_F(PrintExportTest, TypesettingChangeRegeneratesFullHtml)
+{
+    QSettings s;
+    s.setValue(Preferences::PrintCodeSplit, "never");
+    s.setValue(Preferences::PrintKeepTables, true);
+    s.setValue(Preferences::PrintKeepHeadings, true);
+    s.setValue(Preferences::PrintKeepFigures, true);
+    s.setValue(Preferences::PrintOrphanControl, true);
+    s.setValue(Preferences::PrintPageMargin, "");
+    s.setValue(Preferences::PrintPageSize, "");
+    PrintExportAccess::resetTypesetting(dlg); // re-seed dlg to defaults + regenerate
+
+    auto &opts = PrintExportAccess::printOptions(dlg);
+
+    PrintExportAccess::keepTables(dlg)->setChecked(false);
+    QApplication::processEvents();
+    EXPECT_FALSE(opts.keepTables);
+    EXPECT_TRUE(PrintExportAccess::currentFullHtml(dlg).contains("table{break-inside:auto"));
+
+    PrintExportAccess::codeSplitCombo(dlg)->setCurrentIndex(2); // >100 lines
+    QApplication::processEvents();
+    EXPECT_EQ(opts.codeSplit, PrintOptions::CodeSplit::SplitLarge);
+    EXPECT_TRUE(PrintExportAccess::currentFullHtml(dlg).contains("pre.scriba-split-large"));
+
+    PrintExportAccess::sizeEdit(dlg)->setText("A5");
+    PrintExportAccess::syncTypesetting(dlg);
+    PrintExportAccess::triggerCssChange(dlg);
+    QApplication::processEvents();
+    EXPECT_EQ(opts.pageSize, "A5");
+    EXPECT_TRUE(PrintExportAccess::currentFullHtml(dlg).contains("@page{size:A5}"));
+}
+
+TEST_F(PrintExportTest, ResetTypesettingRestoresSavedDefaults)
+{
+    QSettings s;
+    s.setValue(Preferences::PrintCodeSplit, "large");
+    s.setValue(Preferences::PrintKeepTables, false);
+    s.setValue(Preferences::PrintKeepHeadings, true);
+    s.setValue(Preferences::PrintKeepFigures, true);
+    s.setValue(Preferences::PrintOrphanControl, true);
+    s.setValue(Preferences::PrintPageMargin, "18mm");
+    s.setValue(Preferences::PrintPageSize, "A4");
+
+    auto *fresh = makeTypesetDialog(loader);
+
+    // Override the seeded state, then reset.
+    PrintExportAccess::keepTables(fresh)->setChecked(true);
+    PrintExportAccess::codeSplitCombo(fresh)->setCurrentIndex(0);
+    PrintExportAccess::marginEdit(fresh)->setText("10mm");
+    PrintExportAccess::sizeEdit(fresh)->setText("Letter");
+    PrintExportAccess::syncTypesetting(fresh);
+    EXPECT_TRUE(PrintExportAccess::printOptions(fresh).keepTables);
+    EXPECT_EQ(PrintExportAccess::printOptions(fresh).pageMargin, "10mm");
+
+    PrintExportAccess::resetTypesetting(fresh);
+    QApplication::processEvents();
+
+    auto &opts = PrintExportAccess::printOptions(fresh);
+    EXPECT_EQ(opts.codeSplit, PrintOptions::CodeSplit::SplitLarge);
+    EXPECT_FALSE(opts.keepTables);
+    EXPECT_TRUE(opts.keepHeadings);
+    EXPECT_TRUE(opts.keepFigures);
+    EXPECT_TRUE(opts.orphanControl);
+    EXPECT_EQ(opts.pageMargin, "18mm");
+    EXPECT_EQ(opts.pageSize, "A4");
+
+    delete fresh;
+}
+
+
 TEST_F(PrintExportTest, BuildHtmlEmojiModeColor)
 {
     QSettings s;
@@ -169,9 +329,7 @@ TEST_F(PrintExportTest, BuildHtmlEmojiModeColor)
     QString html = PrintExportAccess::buildFullHtml(dlg, "/* emoji */");
 
     EXPECT_TRUE(html.contains("twemojiParse('color')"));
-}
-
-TEST_F(PrintExportTest, BuildHtmlEmojiModeBw)
+}TEST_F(PrintExportTest, BuildHtmlEmojiModeBw)
 {
     QSettings s;
     s.setValue(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw));
@@ -285,6 +443,25 @@ TEST_F(PrintExportTest, ParsePageSizeExplicit)
         "@page { size: 210mm 297mm; }");
     EXPECT_NEAR(s.width(), 595.28, 0.1);
     EXPECT_NEAR(s.height(), 841.89, 0.1);
+}
+
+TEST_F(PrintExportTest, ParsePageSizeLastAtPageWins)
+{
+    QSizeF s = PrintExportAccess::parsePageSize(dlg,
+        "@page { size: A4; } body {} @page{size:letter;margin:0}");
+    EXPECT_NEAR(s.width(), 612.0, 0.1);
+    EXPECT_NEAR(s.height(), 792.0, 0.1);
+}
+
+TEST_F(PrintExportTest, ParsePageMarginsLastAtPageWins)
+{
+    // Override appended last, margin is the final declaration (no trailing ';').
+    QMarginsF m = PrintExportAccess::parsePageMargins(dlg,
+        "@page { margin: 15mm; } @page{size:A4;margin:18mm}");
+    EXPECT_NEAR(m.left(), 18.0 * 72.0 / 25.4, 0.01);
+    EXPECT_NEAR(m.top(), 18.0 * 72.0 / 25.4, 0.01);
+    EXPECT_NEAR(m.right(), 18.0 * 72.0 / 25.4, 0.01);
+    EXPECT_NEAR(m.bottom(), 18.0 * 72.0 / 25.4, 0.01);
 }
 
 // ---------- buildHeaderFooterCss tests ----------

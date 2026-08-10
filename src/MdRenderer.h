@@ -15,6 +15,7 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
 #include <md4c.h>
 
 #include "Typography.h"
@@ -57,6 +58,16 @@ private:
     void enterAlignedCell(void *detail, const char *tag);
     void leaveMathSpan();
 
+    // Directive support (Task 0.2): top-level paragraphs are captured so the
+    // renderer can strip SCRIBADIR[KB]<n> tokens and convert them into
+    // scriba-keep / scriba-page-break classes on the next top-level block.
+    void startParagraphCapture();
+    void finishParagraphCapture();
+    // Merges m_pendingClasses into `tag` if the current block is top-level.
+    QString withPendingClasses(const QString &tag);
+    static QString injectClasses(const QString &tag, const QStringList &classes);
+    static QString stripTokens(const QString &str);
+
     // 0 = not in math, 1 = inline ($...$), 2 = display ($$...$$)
     int m_mathType = 0;
     QString m_mathBuf;
@@ -64,6 +75,10 @@ private:
 
     QString m_output;
     int m_currentLine = 1;
+    int m_blockDepth = 0;
+    QString m_pBuf;
+    QString *m_capture = nullptr;
+    QStringList m_pendingClasses;
     ImageState m_img;
     Typography::Options m_typography;
     Typography::State m_typoState;

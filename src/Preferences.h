@@ -152,6 +152,16 @@ namespace Preferences {
     constexpr const char *ShowCodeLangPreview = "showCodeLangPreview";
     constexpr const char *ShowCodeLangExport = "showCodeLangExport";
 
+    // Printing (PrintOptions model): defaults mirror DR-2 (all "on"/no split),
+    // so the all-defaults buildCss() output is empty.
+    constexpr const char *PrintCodeSplit = "printCodeSplit";            // "never"|"small"|"large"
+    constexpr const char *PrintKeepTables = "printKeepTables";          // default true
+    constexpr const char *PrintKeepHeadings = "printKeepHeadings";      // default true
+    constexpr const char *PrintKeepFigures = "printKeepFigures";        // default true
+    constexpr const char *PrintOrphanControl = "printOrphanControl";    // default true
+    constexpr const char *PrintPageMargin = "printPageMargin";          // "" = base default (15mm)
+    constexpr const char *PrintPageSize = "printPageSize";              // "" = default
+
     enum class EmojiRendering { Bw, Color };
 
     enum class Formula {

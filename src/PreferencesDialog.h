@@ -143,6 +143,13 @@ private:
     QCheckBox *m_typographyArrowsCheck = nullptr;
     QLabel *m_typographyPlainLabel = nullptr;
     QLabel *m_typographyExampleLabel = nullptr;
+    QComboBox *m_printCodeSplitCombo = nullptr;
+    QCheckBox *m_printKeepTablesCheck = nullptr;
+    QCheckBox *m_printKeepHeadingsCheck = nullptr;
+    QCheckBox *m_printKeepFiguresCheck = nullptr;
+    QCheckBox *m_printOrphanControlCheck = nullptr;
+    QLineEdit *m_printMarginEdit = nullptr;
+    QLineEdit *m_printSizeEdit = nullptr;
     QCheckBox *m_centreSingleViewCheck;
     QSpinBox *m_centreSingleViewWidthSpin;
     QCheckBox *m_splitEditorAutoCheck;

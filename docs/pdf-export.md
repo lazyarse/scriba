@@ -16,7 +16,11 @@ generates a PDF using one of two paths:
 ## Page size parsing
 
 The `@page { size: ... }` CSS rule is parsed to determine the viewport width for
-JS rendering (so ECharts charts render at the correct dimensions).
+JS rendering (so ECharts charts render at the correct dimensions) and the page
+geometry for the Qt `printToPdf` fallback. When more than one `@page` block is
+present, the **last** one wins — the per-export typesetting override is appended
+after `print-base.css`'s own `@page { margin: 15mm; }` precisely so it overrides
+the base block.
 
 ### Supported named sizes
 
@@ -34,12 +38,52 @@ accordingly. Explicit dimensions (e.g. `size: 210mm 297mm`) are also supported.
 
 ### Limitations
 
-- Only the **first** `@page` block is parsed. Multiple `@page` rules targeting
+- Only the **last** `@page` block is parsed. Multiple `@page` rules targeting
   different pages (`:first`, `:left`, `:right`, named pages) are ignored.
 - Only `size` and `margin` are read from the `@page` block. Other properties
   (`marks`, `bleed`, etc.) are not inspected by the dialog — they pass through
   to the browser engine normally.
 - If no `@page` block is found, defaults to A4 portrait with zero margins.
+
+## Typesetting options
+
+Typesetting for PDF export is controlled by defaults in **Preferences →
+Printing**, overridable per export via the **Typesetting** group in the export
+dialog (any change there applies only to that export; **Reset to saved
+defaults** reverts to the saved settings).
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| Split code blocks | Never | Never: code blocks never split across pages. Over 50/100 lines: blocks taller than the page content box are allowed to split; everything else stays together. |
+| Keep tables together | On | Tables stay on one page where possible. |
+| Keep headings with following text | On | Headings avoid a page break directly after them. |
+| Keep figures together | On | Mermaid, KaTeX, ECharts, admonitions and code blocks stay on one page where possible. |
+| Avoid orphan/widow lines | On | `orphans`/`widows` set to 1 on paragraphs. **Caveat:** Chromium's support in print layout is partial/unreliable — best-effort only. |
+| Margin / Page size | Base default | Free-form CSS values, e.g. `18mm` or `A4 landscape`. |
+
+### In-source directives
+
+Two HTML-comment directives control page breaks at specific points in the
+document. They are invisible in the rendered preview and in the exported PDF,
+and are a documented extension — see `docs/gotchas.md` for the exact contract
+(flush-left, own line, blank-line-after):
+
+```markdown
+<!-- keep -->
+```python
+def hello():
+    print("Hello, Scriba!")
+```
+```
+
+```markdown
+<!-- page-break -->
+
+## Next Section
+```
+
+`<!-- keep -->` pins the next top-level block (code, table, figure, paragraph,
+…) to one page. `<!-- page-break -->` forces a page break before it.
 
 ## Requirements
 

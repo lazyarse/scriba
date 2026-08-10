@@ -17,11 +17,101 @@
 #include "Preferences.h"
 #include "Typography.h"
 #include <md4c.h>
+#include <QRegularExpression>
 #include <QSettings>
+
+QString MarkdownParser::substituteDirectives(const QString &markdown)
+{
+    static const QRegularExpression directiveRe(
+        QStringLiteral(R"(^<!--\s*(keep|keep-together|no-break|page-break|break|new-page)\s*-->\s*$)"));
+
+    // Length of a leading code-fence run (` ``` ` / ` ~~~ `, up to 3 leading
+    // spaces) of the given char, or 0 if the line is not such a fence.
+    auto fenceRun = [](const QString &line, QChar ch) -> int {
+        int i = 0;
+        while (i < 3 && i < line.size() && line[i] == QLatin1Char(' '))
+            ++i;
+        int len = 0;
+        while (i < line.size() && line[i] == ch) {
+            ++i;
+            ++len;
+        }
+        return len >= 3 ? len : 0;
+    };
+
+    const QStringList lines = markdown.split(QLatin1Char('\n'));
+    QStringList out;
+    out.reserve(lines.size());
+
+    bool inFence = false;
+    QChar fenceChar;
+    int fenceLen = 0;
+    int keepCounter = 0;
+    int breakCounter = 0;
+
+    for (const QString &line : lines) {
+        bool fenceLine = false;
+        if (inFence) {
+            // Closing fence: same char, at least as long, then whitespace only.
+            int i = 0;
+            while (i < 3 && i < line.size() && line[i] == QLatin1Char(' '))
+                ++i;
+            int len = 0;
+            while (i < line.size() && line[i] == fenceChar) {
+                ++i;
+                ++len;
+            }
+            bool onlyWs = true;
+            while (i < line.size()) {
+                if (line[i] != QLatin1Char(' ') && line[i] != QLatin1Char('\t')) {
+                    onlyWs = false;
+                    break;
+                }
+                ++i;
+            }
+            if (len >= fenceLen && onlyWs)
+                inFence = false;
+            fenceLine = true;
+        } else {
+            for (QChar ch : {QLatin1Char('`'), QLatin1Char('~')}) {
+                if (int len = fenceRun(line, ch)) {
+                    inFence = true;
+                    fenceChar = ch;
+                    fenceLen = len;
+                    fenceLine = true;
+                    break;
+                }
+            }
+        }
+
+        if (fenceLine || inFence) {
+            out.append(line);
+            continue;
+        }
+
+        const QRegularExpressionMatch m = directiveRe.match(line);
+        if (m.hasMatch()) {
+            const QString word = m.captured(1);
+            if (word == QLatin1String("page-break")
+                || word == QLatin1String("break")
+                || word == QLatin1String("new-page")) {
+                out.append(QStringLiteral("SCRIBADIRB%1").arg(++breakCounter));
+            } else {
+                out.append(QStringLiteral("SCRIBADIRK%1").arg(++keepCounter));
+            }
+        } else {
+            out.append(line);
+        }
+    }
+
+    // Preserve the trailing newline (no trimmed()): data-line behavior must
+    // stay identical to today.
+    return out.join(QLatin1Char('\n'));
+}
 
 QString MarkdownParser::toHtml(const QString &markdown, bool noHtml)
 {
-    QByteArray utf8 = markdown.toUtf8();
+    QByteArray utf8 = substituteDirectives(markdown).toUtf8();
 
     unsigned long parserFlags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH
                               | MD_FLAG_TASKLISTS | MD_FLAG_PERMISSIVEAUTOLINKS

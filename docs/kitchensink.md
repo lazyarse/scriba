@@ -99,6 +99,8 @@ Task lists:
 
 ### Code
 
+<!-- keep -->
+
 ```python
 def hello():
     print("Hello, Scriba!")
@@ -155,6 +157,8 @@ one line in the preview even though the source is wrapped.
 With the setting enabled every newline
 in the source produces a visible line break
 in the preview.
+
+<!-- page-break -->
 
 ## LaTeX Math
 

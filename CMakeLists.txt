@@ -114,6 +114,7 @@ add_executable(scriba WIN32
     src/UnitConverter.cpp
     src/CssValueParser.cpp
     src/CsvReader.cpp
+    src/PrintOptions.cpp
     src/CsvColumnMapDialog.cpp
     src/SpellChecker.cpp
     src/SpellCheckDialog.cpp
@@ -250,6 +251,7 @@ if(BUILD_TESTS)
         src/CsvReader.cpp
         src/EChartsParser.cpp
         src/MermaidParser.cpp
+        src/PrintOptions.cpp
         vendor/md4c/src/md4c.c
         vendor/md4c/src/entity.c
     )
@@ -299,6 +301,10 @@ if(BUILD_TESTS)
     add_executable(test_markdown_parser tests/test_markdown_parser.cpp)
     target_link_libraries(test_markdown_parser PRIVATE scriba_core scriba_test_main)
     add_test(NAME test_markdown_parser COMMAND ${_TEST_PREFIX} ./test_markdown_parser)
+
+    add_executable(test_print_options tests/test_print_options.cpp)
+    target_link_libraries(test_print_options PRIVATE scriba_core scriba_test_main)
+    add_test(NAME test_print_options COMMAND ${_TEST_PREFIX} ./test_print_options)
 
     add_executable(test_md_renderer_helpers tests/test_md_renderer_helpers.cpp)
     target_link_libraries(test_md_renderer_helpers PRIVATE scriba_core GTest::gtest_main)
@@ -704,6 +710,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
     add_executable(test_pdf_export tests/test_pdf_export.cpp
         src/ExportPdfDialog.cpp src/JsRenderEngine.cpp src/Preview.cpp
         src/CssConfig.cpp src/CssLoader.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/PrintOptions.cpp
         resources/scriba.qrc)
     target_include_directories(test_pdf_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_pdf_export PRIVATE

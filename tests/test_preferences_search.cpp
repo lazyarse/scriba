@@ -22,9 +22,12 @@
 #include "PreferencesDialog.h"
 #include "CssConfig.h"
 #include "CssLoader.h"
+#include "Preferences.h"
 #include "TestConfig.h"
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QDialogButtonBox>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -112,8 +115,8 @@ protected:
 
 TEST_F(PreferencesSearchTest, EmptySearchShowsAllPagesAndNoDim)
 {
-    ASSERT_EQ(pageList()->count(), 10);
-    EXPECT_EQ(visiblePageCount(), 10);
+    ASSERT_EQ(pageList()->count(), 11);
+    EXPECT_EQ(visiblePageCount(), 11);
     EXPECT_FALSE(infoLabel()->isVisible());
     const auto all = m_dialog->findChildren<QWidget *>();
     for (QWidget *w : all)
@@ -193,7 +196,7 @@ TEST_F(PreferencesSearchTest, ClearRestoresAllPagesAndDims)
 {
     searchEdit()->setText(QStringLiteral("wrap"));
     searchEdit()->clear();
-    EXPECT_EQ(visiblePageCount(), 10);
+    EXPECT_EQ(visiblePageCount(), 11);
     EXPECT_FALSE(infoLabel()->isVisible());
     const auto all = m_dialog->findChildren<QWidget *>();
     for (QWidget *w : all)
@@ -227,6 +230,55 @@ TEST_F(PreferencesSearchTest, FindShortcutFocusesSearch)
     ASSERT_TRUE(QMetaObject::invokeMethod(sc, "activated", Qt::DirectConnection));
     QTest::qWait(20);
     EXPECT_TRUE(searchEdit()->hasFocus());
+}
+
+TEST_F(PreferencesSearchTest, PrintingPagePersistsAndRestores)
+{
+    auto *split = m_dialog->findChild<QComboBox *>(QStringLiteral("printing-code-split"));
+    auto *keepTables = m_dialog->findChild<QCheckBox *>(QStringLiteral("printing-keep-tables"));
+    auto *margin = m_dialog->findChild<QLineEdit *>(QStringLiteral("printing-margin"));
+    auto *size = m_dialog->findChild<QLineEdit *>(QStringLiteral("printing-size"));
+    ASSERT_NE(split, nullptr);
+    ASSERT_NE(keepTables, nullptr);
+    ASSERT_NE(margin, nullptr);
+    ASSERT_NE(size, nullptr);
+
+    // Defaults (mirrors PrintOptions / DR-2).
+    EXPECT_EQ(split->currentData().toString(), QStringLiteral("never"));
+    EXPECT_TRUE(keepTables->isChecked());
+    EXPECT_TRUE(margin->text().isEmpty());
+    EXPECT_TRUE(size->text().isEmpty());
+
+    // Change values, then save via OK.
+    split->setCurrentIndex(split->findData(QStringLiteral("large")));
+    keepTables->setChecked(false);
+    margin->setText(QStringLiteral("18mm"));
+    size->setText(QStringLiteral("A5"));
+    auto *box = m_dialog->findChild<QDialogButtonBox *>();
+    ASSERT_NE(box, nullptr);
+    box->button(QDialogButtonBox::Ok)->click();
+    QApplication::processEvents();
+
+    QSettings s;
+    EXPECT_EQ(s.value(Preferences::PrintCodeSplit).toString(), QStringLiteral("large"));
+    EXPECT_FALSE(s.value(Preferences::PrintKeepTables).toBool());
+    EXPECT_EQ(s.value(Preferences::PrintPageMargin).toString(), QStringLiteral("18mm"));
+    EXPECT_EQ(s.value(Preferences::PrintPageSize).toString(), QStringLiteral("A5"));
+
+    // Reopen the dialog and verify the page restores from settings.
+    auto *d2 = new PreferencesDialog(m_config, m_loader, nullptr,
+        QStringLiteral("#ffffff"), QStringLiteral("#000000"));
+    d2->show();
+    auto *split2 = d2->findChild<QComboBox *>(QStringLiteral("printing-code-split"));
+    auto *keepTables2 = d2->findChild<QCheckBox *>(QStringLiteral("printing-keep-tables"));
+    auto *margin2 = d2->findChild<QLineEdit *>(QStringLiteral("printing-margin"));
+    ASSERT_NE(split2, nullptr);
+    ASSERT_NE(keepTables2, nullptr);
+    ASSERT_NE(margin2, nullptr);
+    EXPECT_EQ(split2->currentData().toString(), QStringLiteral("large"));
+    EXPECT_FALSE(keepTables2->isChecked());
+    EXPECT_EQ(margin2->text(), QStringLiteral("18mm"));
+    delete d2;
 }
 
 } // namespace

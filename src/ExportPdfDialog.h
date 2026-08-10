@@ -19,11 +19,15 @@
 #include <QScopedPointer>
 #include <QProcess>
 
+#include "PrintOptions.h"
+
 class QWebEngineView;
 class QCheckBox;
 class QRadioButton;
 class QPushButton;
 class QPlainTextEdit;
+class QComboBox;
+class QLineEdit;
 class QLabel;
 class QTemporaryFile;
 class QPrinter;
@@ -54,10 +58,13 @@ private:
     static QSizeF parsePageSize(const QString &css);
     void setupUi();
     QString buildFullHtml(const QString &printCss) const;
+    QString buildMergedPrintCss(const QString &printCss) const;
     QString buildHeaderFooterCss() const;
     QString loadCustomCss() const;
     void generatePdfViaChromium(const QString &printCss);
     void accept() override;
+    void syncPrintOptionsFromUi();
+    void applyPrintOptionsToUi(const PrintOptions::Options &o);
 
     CssLoader *m_loader;
     QString m_html;
@@ -86,7 +93,16 @@ private:
     QPlainTextEdit *m_footerCenter = nullptr;
     QPlainTextEdit *m_footerRight = nullptr;
     QPushButton *m_regenerateBtn = nullptr;
+    QComboBox *m_codeSplitCombo = nullptr;
+    QCheckBox *m_keepTables = nullptr;
+    QCheckBox *m_keepHeadings = nullptr;
+    QCheckBox *m_keepFigures = nullptr;
+    QCheckBox *m_orphanControl = nullptr;
+    QLineEdit *m_marginEdit = nullptr;
+    QLineEdit *m_sizeEdit = nullptr;
+    QPushButton *m_resetTypesettingBtn = nullptr;
     QString m_pdfUrl;
     int m_generationId = 0;
+    PrintOptions::Options m_printOptions;
 };
 

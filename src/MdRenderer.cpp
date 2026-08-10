@@ -26,6 +26,10 @@ QString MdRenderer::render(const char *input, MD_SIZE size, unsigned parserFlags
 {
     m_output.clear();
     m_currentLine = 1;
+    m_blockDepth = 0;
+    m_pBuf.clear();
+    m_capture = nullptr;
+    m_pendingClasses.clear();
 
     MD_PARSER parser = {};
     parser.abi_version = 0;
@@ -49,6 +53,10 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
 {
     auto *self = static_cast<MdRenderer*>(userdata);
 
+    const bool isTopLevel = (type != MD_BLOCK_DOC) && (self->m_blockDepth == 0);
+    if (type != MD_BLOCK_DOC)
+        self->m_blockDepth++;
+
     switch (type) {
     case MD_BLOCK_DOC:
         break;
@@ -56,6 +64,8 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->m_typoState.lastChar = QChar(' ');
         self->m_typoState.inMath = false;
         self->m_typoState.inDisplayMath = false;
+        if (isTopLevel)
+            self->startParagraphCapture();
         self->writeHtml(QString("<p data-line=\"%1\">").arg(self->m_currentLine));
         break;
     case MD_BLOCK_H: {
@@ -63,17 +73,18 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->m_typoState.lastChar = QChar(' ');
         self->m_typoState.inMath = false;
         self->m_typoState.inDisplayMath = false;
-        self->writeHtml(QString("<h%1 data-line=\"%2\">").arg(d->level).arg(self->m_currentLine));
+        self->writeHtml(self->withPendingClasses(
+            QString("<h%1 data-line=\"%2\">").arg(d->level).arg(self->m_currentLine)));
         break;
     }
     case MD_BLOCK_CODE:
         self->enterCodeBlock(detail);
         break;
     case MD_BLOCK_UL:
-        self->writeHtml("<ul>");
+        self->writeHtml(self->withPendingClasses("<ul>"));
         break;
     case MD_BLOCK_OL:
-        self->writeHtml("<ol>");
+        self->writeHtml(self->withPendingClasses("<ol>"));
         break;
     case MD_BLOCK_LI:
         self->m_typoState.lastChar = QChar(' ');
@@ -82,7 +93,8 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->enterListItem(detail);
         break;
     case MD_BLOCK_HR:
-        self->writeHtml(QString("<hr data-line=\"%1\">").arg(self->m_currentLine));
+        self->writeHtml(self->withPendingClasses(
+            QString("<hr data-line=\"%1\">").arg(self->m_currentLine)));
         break;
     case MD_BLOCK_HTML:
         break;
@@ -90,7 +102,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->m_typoState.lastChar = QChar(' ');
         self->m_typoState.inMath = false;
         self->m_typoState.inDisplayMath = false;
-        self->writeHtml("<blockquote>");
+        self->writeHtml(self->withPendingClasses("<blockquote>"));
         break;
     case MD_BLOCK_ADMONITION:
         self->enterAdmonition(detail);
@@ -99,7 +111,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->m_typoState.lastChar = QChar(' ');
         self->m_typoState.inMath = false;
         self->m_typoState.inDisplayMath = false;
-        self->writeHtml("<section class=\"footnotes\"><ol>");
+        self->writeHtml(self->withPendingClasses("<section class=\"footnotes\"><ol>"));
         break;
     case MD_BLOCK_FOOTNOTE_DEF: {
         auto *d = static_cast<MD_BLOCK_FOOTNOTE_DEF_DETAIL*>(detail);
@@ -110,7 +122,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         break;
     }
     case MD_BLOCK_TABLE:
-        self->writeHtml("<table>");
+        self->writeHtml(self->withPendingClasses("<table>"));
         break;
     case MD_BLOCK_THEAD:
         self->writeHtml("<thead>");
@@ -143,11 +155,17 @@ int MdRenderer::leaveBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
 {
     auto *self = static_cast<MdRenderer*>(userdata);
 
+    if (type != MD_BLOCK_DOC)
+        self->m_blockDepth--;
+
     switch (type) {
     case MD_BLOCK_DOC:
         break;
     case MD_BLOCK_P:
-        self->writeHtml("</p>");
+        if (self->m_capture)
+            self->finishParagraphCapture();
+        else
+            self->writeHtml("</p>");
         break;
     case MD_BLOCK_H: {
         auto *d = static_cast<MD_BLOCK_H_DETAIL*>(detail);
@@ -468,14 +486,15 @@ void MdRenderer::enterCodeBlock(void *detail)
         lang = QString::fromUtf8(d->lang.text, d->lang.size);
     if (d->fence_char) {
         if (lang.isEmpty()) {
-            writeHtml(QString("<pre data-line=\"%1\"><code class=\"language-\">")
-                .arg(m_currentLine));
+            writeHtml(withPendingClasses(QString(
+                "<pre data-line=\"%1\"><code class=\"language-\">").arg(m_currentLine)));
         } else {
-            writeHtml(QString("<pre data-line=\"%1\" data-lang=\"%2\"><code class=\"language-%2\">")
-                .arg(m_currentLine).arg(lang));
+            writeHtml(withPendingClasses(QString(
+                "<pre data-line=\"%1\" data-lang=\"%2\"><code class=\"language-%2\">")
+                .arg(m_currentLine).arg(lang)));
         }
     } else {
-        writeHtml(QString("<pre data-line=\"%1\"><code>").arg(m_currentLine));
+        writeHtml(withPendingClasses(QString("<pre data-line=\"%1\"><code>").arg(m_currentLine)));
     }
 }
 
@@ -505,9 +524,9 @@ void MdRenderer::enterAdmonition(void *detail)
         title = QString::fromUtf8(d->title.text, d->title.size);
     else
         title = type.left(1).toUpper() + type.mid(1);
-    writeHtml(QString("<div class=\"admonition %1\" data-line=\"%2\">"
+    writeHtml(withPendingClasses(QString("<div class=\"admonition %1\" data-line=\"%2\">"
         "<p class=\"admonition-title\">%3</p>")
-        .arg(type, QString::number(m_currentLine), title));
+        .arg(type, QString::number(m_currentLine), title)));
 }
 
 void MdRenderer::enterAlignedCell(void *detail, const char *tag)
@@ -544,12 +563,98 @@ void MdRenderer::leaveMathSpan()
 
 void MdRenderer::writeHtml(const char *data, MD_SIZE size)
 {
-    m_output.append(QString::fromUtf8(data, size));
+    writeHtml(QString::fromUtf8(data, size));
 }
 
 void MdRenderer::writeHtml(const QString &str)
 {
-    m_output.append(str);
+    if (m_capture) {
+        m_capture->append(str);
+        return;
+    }
+    m_output.append(stripTokens(str));
+}
+
+void MdRenderer::startParagraphCapture()
+{
+    m_pBuf.clear();
+    m_capture = &m_pBuf;
+}
+
+void MdRenderer::finishParagraphCapture()
+{
+    m_capture = nullptr;
+    m_pBuf.append("</p>");
+
+    // Collect directive classes from the tokens in this paragraph, then strip
+    // the token text so it never reaches the output.
+    static const QRegularExpression tokenRe(QStringLiteral("SCRIBADIR([KB])\\d+"));
+    QStringList ownClasses;
+    QRegularExpressionMatchIterator it = tokenRe.globalMatch(m_pBuf);
+    QString processed = m_pBuf;
+    QList<QPair<int, int>> spans;
+    while (it.hasNext()) {
+        const QRegularExpressionMatch mm = it.next();
+        spans.append({mm.capturedStart(), mm.capturedLength()});
+        ownClasses.append(mm.captured(1) == QLatin1Char('K')
+            ? QStringLiteral("scriba-keep") : QStringLiteral("scriba-page-break"));
+    }
+    for (auto s = spans.crbegin(); s != spans.crend(); ++s)
+        processed.remove(s->first, s->second);
+
+    // A paragraph whose only content was directive tokens is the directive
+    // itself: suppress it and carry its classes to the next top-level block.
+    const int openEnd = processed.indexOf(QLatin1Char('>'));
+    const int closeStart = processed.lastIndexOf(QStringLiteral("</p>"));
+    const bool tokenOnly = !ownClasses.isEmpty()
+        && processed.mid(openEnd + 1, closeStart - openEnd - 1).trimmed().isEmpty();
+
+    if (tokenOnly) {
+        for (const QString &c : std::as_const(ownClasses))
+            if (!m_pendingClasses.contains(c))
+                m_pendingClasses.append(c);
+        return;
+    }
+
+    if (!m_pendingClasses.isEmpty()) {
+        processed = injectClasses(processed, m_pendingClasses);
+        m_pendingClasses.clear();
+    }
+    m_output.append(processed);
+}
+
+QString MdRenderer::withPendingClasses(const QString &tag)
+{
+    if (m_blockDepth != 1 || m_pendingClasses.isEmpty())
+        return tag;
+    const QString merged = injectClasses(tag, m_pendingClasses);
+    m_pendingClasses.clear();
+    return merged;
+}
+
+QString MdRenderer::injectClasses(const QString &tag, const QStringList &classes)
+{
+    if (classes.isEmpty())
+        return tag;
+    const int gt = tag.indexOf(QLatin1Char('>'));
+    if (gt < 0)
+        return tag;
+    const QString merged = classes.join(QLatin1Char(' '));
+    const QString head = tag.left(gt);
+    static const QRegularExpression classRe(QStringLiteral("class=\"[^\"]*\""));
+    const QRegularExpressionMatch m = classRe.match(head);
+    if (m.hasMatch()) {
+        QString result = head;
+        result.insert(m.capturedEnd() - 1, QLatin1Char(' ') + merged);
+        return result + tag.mid(gt);
+    }
+    return head + QStringLiteral(" class=\"") + merged + QLatin1Char('"') + tag.mid(gt);
+}
+
+QString MdRenderer::stripTokens(const QString &str)
+{
+    static const QRegularExpression tokenRe(QStringLiteral("SCRIBADIR[KB]\\d+"));
+    return str.contains(tokenRe) ? QString(str).replace(tokenRe, QString()) : str;
 }
 
 QString MdRenderer::escapeHtml(const QString &str)

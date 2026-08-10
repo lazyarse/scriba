@@ -740,7 +740,78 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         m_pageList->addItem("Preview");
     }
 
-    /* --- Page 4: Advanced --- */
+    /* --- Page: Printing --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        QGroupBox *printGroup = new QGroupBox("PDF Typesetting");
+        QVBoxLayout *printLayout = new QVBoxLayout(printGroup);
+        printLayout->addSpacing(8);
+
+        auto *note = new QLabel(tr(
+            "Default typesetting for PDF export. These are the saved defaults; the "
+            "export dialog's Typesetting group can override them for a single export."));
+        note->setWordWrap(true);
+        note->setStyleSheet("color: gray; padding: 8px;");
+        printLayout->addWidget(note);
+
+        auto *splitRow = new QHBoxLayout;
+        auto *splitLabel = new QLabel(tr("Split code blocks:"));
+        m_printCodeSplitCombo = new QComboBox;
+        m_printCodeSplitCombo->setObjectName(QStringLiteral("printing-code-split"));
+        m_printCodeSplitCombo->addItem(tr("Never"), QVariant(QStringLiteral("never")));
+        m_printCodeSplitCombo->addItem(tr("Blocks over 50 lines"), QVariant(QStringLiteral("small")));
+        m_printCodeSplitCombo->addItem(tr("Blocks over 100 lines"), QVariant(QStringLiteral("large")));
+        const int splitIdx = m_printCodeSplitCombo->findData(
+            settings.value(Preferences::PrintCodeSplit, QStringLiteral("never")).toString());
+        m_printCodeSplitCombo->setCurrentIndex(qMax(0, splitIdx));
+        splitRow->addWidget(splitLabel);
+        splitRow->addWidget(m_printCodeSplitCombo, 1);
+        printLayout->addLayout(splitRow);
+
+        m_printKeepTablesCheck = new QCheckBox(tr("Keep tables together"));
+        m_printKeepTablesCheck->setObjectName(QStringLiteral("printing-keep-tables"));
+        m_printKeepTablesCheck->setChecked(settings.value(Preferences::PrintKeepTables, true).toBool());
+        printLayout->addWidget(m_printKeepTablesCheck);
+        m_printKeepHeadingsCheck = new QCheckBox(tr("Keep headings with following text"));
+        m_printKeepHeadingsCheck->setObjectName(QStringLiteral("printing-keep-headings"));
+        m_printKeepHeadingsCheck->setChecked(settings.value(Preferences::PrintKeepHeadings, true).toBool());
+        printLayout->addWidget(m_printKeepHeadingsCheck);
+        m_printKeepFiguresCheck = new QCheckBox(tr("Keep figures together"));
+        m_printKeepFiguresCheck->setObjectName(QStringLiteral("printing-keep-figures"));
+        m_printKeepFiguresCheck->setChecked(settings.value(Preferences::PrintKeepFigures, true).toBool());
+        printLayout->addWidget(m_printKeepFiguresCheck);
+        m_printOrphanControlCheck = new QCheckBox(tr("Avoid orphan/widow lines"));
+        m_printOrphanControlCheck->setObjectName(QStringLiteral("printing-orphan-control"));
+        m_printOrphanControlCheck->setChecked(settings.value(Preferences::PrintOrphanControl, true).toBool());
+        printLayout->addWidget(m_printOrphanControlCheck);
+
+        auto *geoRow = new QHBoxLayout;
+        geoRow->addWidget(new QLabel(tr("Margin:")));
+        m_printMarginEdit = new QLineEdit;
+        m_printMarginEdit->setObjectName(QStringLiteral("printing-margin"));
+        m_printMarginEdit->setPlaceholderText(tr("e.g. 18mm"));
+        m_printMarginEdit->setText(settings.value(Preferences::PrintPageMargin, QString()).toString());
+        geoRow->addWidget(m_printMarginEdit, 1);
+        geoRow->addWidget(new QLabel(tr("Page size:")));
+        m_printSizeEdit = new QLineEdit;
+        m_printSizeEdit->setObjectName(QStringLiteral("printing-size"));
+        m_printSizeEdit->setPlaceholderText(tr("e.g. A4"));
+        m_printSizeEdit->setText(settings.value(Preferences::PrintPageSize, QString()).toString());
+        geoRow->addWidget(m_printSizeEdit, 1);
+        printLayout->addLayout(geoRow);
+
+        layout->addWidget(printGroup);
+        layout->addStretch();
+
+        m_pages->addWidget(wrapPage(page));
+        m_pageList->addItem("Printing");
+    }
+
+    /* --- Page: Advanced --- */
     {
         QWidget *page = new QWidget;
         QVBoxLayout *layout = new QVBoxLayout(page);
@@ -1651,6 +1722,13 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::TypographyNbsp, m_typographyNbspCheck->isChecked());
         settings.setValue(Preferences::TypographySymbols, m_typographySymbolsCheck->isChecked());
         settings.setValue(Preferences::TypographyArrows, m_typographyArrowsCheck->isChecked());
+        settings.setValue(Preferences::PrintCodeSplit, m_printCodeSplitCombo->currentData().toString());
+        settings.setValue(Preferences::PrintKeepTables, m_printKeepTablesCheck->isChecked());
+        settings.setValue(Preferences::PrintKeepHeadings, m_printKeepHeadingsCheck->isChecked());
+        settings.setValue(Preferences::PrintKeepFigures, m_printKeepFiguresCheck->isChecked());
+        settings.setValue(Preferences::PrintOrphanControl, m_printOrphanControlCheck->isChecked());
+        settings.setValue(Preferences::PrintPageMargin, m_printMarginEdit->text().trimmed());
+        settings.setValue(Preferences::PrintPageSize, m_printSizeEdit->text().trimmed());
         QStringList autoCorrectPairs;
         for (int r = 0; r < m_replacementsTable->rowCount(); ++r) {
             const QString typo = m_replacementsTable->item(r, 0)

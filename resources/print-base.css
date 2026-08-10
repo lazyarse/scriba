@@ -270,3 +270,16 @@ section.footnotes a.footnote-backref {
     text-decoration: none;
     font-weight: bold;
 }
+
+/* In-source directives (`<!-- keep -->` / `<!-- page-break -->`): the
+   MarkdownParser attaches these classes to the next top-level block. The
+   preview CSS deliberately leaves them unstyled. */
+.scriba-keep {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.scriba-page-break {
+    break-before: page;
+    page-break-before: always;
+}

@@ -25,6 +25,8 @@
 #include <QGroupBox>
 #include <QRadioButton>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QWebEngineView>
@@ -58,6 +60,7 @@ Q_LOGGING_CATEGORY(lcPdf, "scriba.pdf", QtWarningMsg)
 #include <QPrinter>
 #include <QPrintDialog>
 #include <QEventLoop>
+#include <QSignalBlocker>
 #include "JsRenderEngine.h"
 
 enum class CssUnit { Mm, Cm, In, Pt, Px, Pc };
@@ -127,13 +130,18 @@ static qreal cssLengthToPt(const QString &s)
 
 static QSizeF doParsePageSize(const QString &css)
 {
+    // Take the LAST @page block: the PrintOptions override is appended after
+    // print-base.css's own `@page { margin: 15mm; }`, and the last one wins.
     static const QRegularExpression pageRe(QStringLiteral("@page\\s*\\{([^}]*)\\}"),
                                            QRegularExpression::CaseInsensitiveOption);
-    auto pageMatch = pageRe.match(css);
-    if (!pageMatch.hasMatch())
+    QString block;
+    auto it = pageRe.globalMatch(css);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch &m = it.next();
+        block = m.captured(1);
+    }
+    if (block.isEmpty())
         return QSizeF(595.0, 842.0);
-
-    QString block = pageMatch.captured(1);
     QRegularExpression sizeRe(QStringLiteral("size\\s*:\\s*([^;}]+)"),
                               QRegularExpression::CaseInsensitiveOption);
     auto sizeMatch = sizeRe.match(block);
@@ -183,12 +191,19 @@ QMarginsF ExportPdfDialog::parsePageMargins(const QString &css)
 {
     static const QRegularExpression pageRe(QStringLiteral("@page\\s*\\{([^}]*)\\}"),
                                            QRegularExpression::CaseInsensitiveOption);
-    auto pageMatch = pageRe.match(css);
-    if (!pageMatch.hasMatch())
+    // Last @page wins (override appended after base, see doParsePageSize).
+    QString block;
+    auto it = pageRe.globalMatch(css);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch &m = it.next();
+        block = m.captured(1);
+    }
+    if (block.isEmpty())
         return QMarginsF();
 
-    QString block = pageMatch.captured(1);
-    QRegularExpression marginRe(QStringLiteral("margin\\s*:\\s*([^;]+)\\s*;"),
+    // margin may be the last declaration without a trailing ';' (e.g. the
+    // generated `@page{size:A4;margin:18mm}`).
+    QRegularExpression marginRe(QStringLiteral("margin\\s*:\\s*([^;}]+)"),
                                 QRegularExpression::CaseInsensitiveOption);
     auto marginMatch = marginRe.match(block);
     if (!marginMatch.hasMatch())
@@ -228,6 +243,7 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, const QString &defaultFile
     , m_loader(loader)
     , m_html(html)
     , m_defaultFilePath(defaultFilePath)
+    , m_printOptions(PrintOptions::fromSettings())
 {
     setWindowTitle("Print / Export PDF");
     resize(1100, 700);
@@ -402,6 +418,52 @@ void ExportPdfDialog::setupUi()
     groupLayout->addWidget(m_regenerateBtn);
 
     leftLayout->addWidget(exportGroup);
+
+    auto *typesetGroup = new QGroupBox("Typesetting", this);
+    auto *tsLayout = new QVBoxLayout(typesetGroup);
+
+    auto *splitRow = new QHBoxLayout();
+    auto *splitLabel = new QLabel("Split code blocks:", typesetGroup);
+    m_codeSplitCombo = new QComboBox(typesetGroup);
+    m_codeSplitCombo->addItem("Never", QVariant(QStringLiteral("never")));
+    m_codeSplitCombo->addItem("Blocks over 50 lines", QVariant(QStringLiteral("small")));
+    m_codeSplitCombo->addItem("Blocks over 100 lines", QVariant(QStringLiteral("large")));
+    splitRow->addWidget(splitLabel);
+    splitRow->addWidget(m_codeSplitCombo, 1);
+    tsLayout->addLayout(splitRow);
+
+    m_keepTables = new QCheckBox("Keep tables together", typesetGroup);
+    m_keepHeadings = new QCheckBox("Keep headings with following text", typesetGroup);
+    m_keepFigures = new QCheckBox("Keep figures together", typesetGroup);
+    m_orphanControl = new QCheckBox("Avoid orphan/widow lines", typesetGroup);
+    tsLayout->addWidget(m_keepTables);
+    tsLayout->addWidget(m_keepHeadings);
+    tsLayout->addWidget(m_keepFigures);
+    tsLayout->addWidget(m_orphanControl);
+
+    auto *geoRow = new QHBoxLayout();
+    geoRow->addWidget(new QLabel("Margin:", typesetGroup));
+    m_marginEdit = new QLineEdit(typesetGroup);
+    m_marginEdit->setPlaceholderText("e.g. 18mm");
+    geoRow->addWidget(m_marginEdit, 1);
+    geoRow->addWidget(new QLabel("Page size:", typesetGroup));
+    m_sizeEdit = new QLineEdit(typesetGroup);
+    m_sizeEdit->setPlaceholderText("e.g. A4");
+    geoRow->addWidget(m_sizeEdit, 1);
+    tsLayout->addLayout(geoRow);
+
+    auto *tsHint = new QLabel(
+        "Overrides apply to this export only. Saved defaults are set in "
+        "Preferences → Printing.", typesetGroup);
+    tsHint->setWordWrap(true);
+    tsHint->setStyleSheet("color: #888;");
+    tsLayout->addWidget(tsHint);
+
+    m_resetTypesettingBtn = new QPushButton(tr("&Reset to saved defaults"), typesetGroup);
+    stripButtonIcon(m_resetTypesettingBtn);
+    tsLayout->addWidget(m_resetTypesettingBtn);
+
+    leftLayout->addWidget(typesetGroup);
     leftLayout->addStretch();
 
     m_preview = createPreviewView(this, m_loader->themeCss());
@@ -440,6 +502,28 @@ void ExportPdfDialog::setupUi()
     connect(m_defaultRadio, &QRadioButton::toggled, this, &ExportPdfDialog::onCssModeChanged);
     connect(m_customRadio, &QRadioButton::toggled, this, &ExportPdfDialog::onCssModeChanged);
     connect(m_browseBtn, &QPushButton::clicked, this, &ExportPdfDialog::browseCustomCss);
+
+    // Typesetting group: seeded from saved defaults, changes override this
+    // export only (never persisted). All controls regenerate the full HTML.
+    auto regenerate = [this]() {
+        syncPrintOptionsFromUi();
+        onCssModeChanged();
+    };
+    connect(m_codeSplitCombo, &QComboBox::currentIndexChanged,
+            this, [regenerate](int) { regenerate(); });
+    connect(m_keepTables, &QCheckBox::toggled, this, [regenerate](bool) { regenerate(); });
+    connect(m_keepHeadings, &QCheckBox::toggled, this, [regenerate](bool) { regenerate(); });
+    connect(m_keepFigures, &QCheckBox::toggled, this, [regenerate](bool) { regenerate(); });
+    connect(m_orphanControl, &QCheckBox::toggled, this, [regenerate](bool) { regenerate(); });
+    connect(m_marginEdit, &QLineEdit::editingFinished, this, [regenerate]() { regenerate(); });
+    connect(m_sizeEdit, &QLineEdit::editingFinished, this, [regenerate]() { regenerate(); });
+    connect(m_resetTypesettingBtn, &QPushButton::clicked, this, [this]() {
+        applyPrintOptionsToUi(PrintOptions::fromSettings());
+        syncPrintOptionsFromUi();
+        onCssModeChanged();
+    });
+
+    applyPrintOptionsToUi(m_printOptions);
 }
 
 void ExportPdfDialog::onCssModeChanged()
@@ -455,8 +539,8 @@ void ExportPdfDialog::onCssModeChanged()
         m_currentPrintCss += buildHeaderFooterCss();
 
     {
-        QSizeF pagePt = parsePageSize(m_currentPrintCss);
-        QMarginsF marginsPt = parsePageMargins(m_currentPrintCss);
+        QSizeF pagePt = parsePageSize(buildMergedPrintCss(m_currentPrintCss));
+        QMarginsF marginsPt = parsePageMargins(buildMergedPrintCss(m_currentPrintCss));
         double cwPt = pagePt.width() - marginsPt.left() - marginsPt.right();
         int cwPx = static_cast<int>(cwPt * 96.0 / 72.0 + 0.5);
         m_hiddenEngine->setFixedSize(std::max(400, cwPx), 600);
@@ -514,7 +598,53 @@ QString ExportPdfDialog::loadCustomCss() const
     return {};
 }
 
-QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
+void ExportPdfDialog::syncPrintOptionsFromUi()
+{
+    const QString split = m_codeSplitCombo->currentData().toString();
+    if (split == QLatin1String("small"))
+        m_printOptions.codeSplit = PrintOptions::CodeSplit::SplitSmall;
+    else if (split == QLatin1String("large"))
+        m_printOptions.codeSplit = PrintOptions::CodeSplit::SplitLarge;
+    else
+        m_printOptions.codeSplit = PrintOptions::CodeSplit::NeverSplit;
+
+    m_printOptions.keepTables = m_keepTables->isChecked();
+    m_printOptions.keepHeadings = m_keepHeadings->isChecked();
+    m_printOptions.keepFigures = m_keepFigures->isChecked();
+    m_printOptions.orphanControl = m_orphanControl->isChecked();
+    m_printOptions.pageMargin = m_marginEdit->text().trimmed();
+    m_printOptions.pageSize = m_sizeEdit->text().trimmed();
+}
+
+void ExportPdfDialog::applyPrintOptionsToUi(const PrintOptions::Options &o)
+{
+    // Blocking signals keeps seeding from firing the regenerate path before
+    // m_hiddenEngine exists (constructor) or double-regenerating (reset).
+    const QSignalBlocker b1(m_codeSplitCombo);
+    const QSignalBlocker b2(m_keepTables);
+    const QSignalBlocker b3(m_keepHeadings);
+    const QSignalBlocker b4(m_keepFigures);
+    const QSignalBlocker b5(m_orphanControl);
+    const QSignalBlocker b6(m_marginEdit);
+    const QSignalBlocker b7(m_sizeEdit);
+
+    QString split = QStringLiteral("never");
+    switch (o.codeSplit) {
+    case PrintOptions::CodeSplit::SplitSmall: split = QStringLiteral("small"); break;
+    case PrintOptions::CodeSplit::SplitLarge: split = QStringLiteral("large"); break;
+    case PrintOptions::CodeSplit::NeverSplit: split = QStringLiteral("never"); break;
+    }
+    int idx = m_codeSplitCombo->findData(QVariant(split));
+    m_codeSplitCombo->setCurrentIndex(qMax(0, idx));
+    m_keepTables->setChecked(o.keepTables);
+    m_keepHeadings->setChecked(o.keepHeadings);
+    m_keepFigures->setChecked(o.keepFigures);
+    m_orphanControl->setChecked(o.orphanControl);
+    m_marginEdit->setText(o.pageMargin);
+    m_sizeEdit->setText(o.pageSize);
+}
+
+QString ExportPdfDialog::buildMergedPrintCss(const QString &printCss) const
 {
     QSettings settings;
     bool striping = settings.value(Preferences::TableStriping, true).toBool();
@@ -528,6 +658,24 @@ QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
     bool showCodeLang = settings.value(Preferences::ShowCodeLangExport, true).toBool();
     if (!showCodeLang)
         mergedCss += QStringLiteral("\n") + QLatin1String(Preferences::HideCodeLangCss);
+
+    // Typesetting override fragments, appended LAST so they win the cascade
+    // over print-base.css (DR-2: defaults emit nothing; DR-4: the @page block
+    // must be last for both the chromium path and the Qt fallback).
+    const QString optionCss = PrintOptions::buildCss(m_printOptions);
+    if (!optionCss.isEmpty())
+        mergedCss += QStringLiteral("\n") + optionCss;
+    const QString pageCss = PrintOptions::buildPageOverrideCss(m_printOptions);
+    if (!pageCss.isEmpty())
+        mergedCss += QStringLiteral("\n") + pageCss;
+
+    return mergedCss;
+}
+
+QString ExportPdfDialog::buildFullHtml(const QString &printCss) const
+{
+    QSettings settings;
+    const QString mergedCss = buildMergedPrintCss(printCss);
 
     QString emojiMode = settings.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
@@ -544,32 +692,72 @@ void ExportPdfDialog::onPageLoaded(bool ok)
 
     int genId = m_generationId;
 
+    const QString css = buildMergedPrintCss(m_currentPrintCss);
+
+    // Prepare-print pass: in a code-split mode, tag every <pre> that is taller
+    // than the page content box with the mode's split class. Base print-base.css
+    // keeps all <pre> together; only tagged blocks fall back to break-inside:auto
+    // and split across pages. Blocks that fit on one page keep their class off.
+    QString mode = QStringLiteral("never");
+    switch (m_printOptions.codeSplit) {
+    case PrintOptions::CodeSplit::SplitSmall: mode = QStringLiteral("small"); break;
+    case PrintOptions::CodeSplit::SplitLarge: mode = QStringLiteral("large"); break;
+    case PrintOptions::CodeSplit::NeverSplit: break;
+    }
+    QSizeF pagePt = parsePageSize(css);
+    QMarginsF marginsPt = parsePageMargins(css);
+    const double contentH = pagePt.height() - marginsPt.top() - marginsPt.bottom();
+
+    const QString passJs = QStringLiteral(
+        "(function(){"
+        "  var mode='%1';"
+        "  var contentH=%2;"
+        "  if(mode==='never')return true;"
+        "  var cls=(mode==='large')?'scriba-split-large':'scriba-split-small';"
+        "  var els=document.querySelectorAll('pre');"
+        "  for(var i=0;i<els.length;i++){"
+        "    var r=els[i].getBoundingClientRect();"
+        "    var hPt=r.height*72.0/96.0;"
+        "    if(hPt>contentH)els[i].classList.add(cls);"
+        "  }"
+        "  return true;"
+        "})()"
+    ).arg(mode, QString::number(contentH));
+
     // Wait for async ECharts rendering (echarts.init + setOption stores a
     // Promise on window.echartsReady).  If there are no ec charts the promise
     // resolves immediately so this is a no-op for documents without charts.
-    QString css = m_currentPrintCss;
     m_hiddenEngine->page()->runJavaScript(
         QStringLiteral("Promise.all([window.echartsReady||Promise.resolve(),window.mermaidReady||Promise.resolve()]).then(function(){return true;})"),
-        [this, genId, css](const QVariant &) {
+        [this, genId, css, passJs](const QVariant &) {
             if (genId != m_generationId) return;
+            m_hiddenEngine->page()->runJavaScript(passJs, [this, genId, css](const QVariant &) {
+                if (genId != m_generationId) return;
 
-            if (m_chromiumBinary.isEmpty()) {
-                qCDebug(lcPdf, "no chromium binary found, using Qt printToPdf (headers cannot be suppressed)");
-                QPageLayout layout(QPageSize(QPageSize::A4), QPageLayout::Portrait,
-                                   QMarginsF(), QPageLayout::Point);
-                m_hiddenEngine->page()->printToPdf([this, genId](const QByteArray &data) {
-                    if (genId != m_generationId) return;
-                    m_pdfData = data;
-                    m_tempFile.reset(new QTemporaryFile());
-                    if (m_tempFile->open()) {
-                        m_tempFile->write(data);
-                        m_tempFile->flush();
-                        m_preview->load(QUrl::fromLocalFile(m_tempFile->fileName()));
-                    }
-                }, layout);
-            } else {
-                generatePdfViaChromium(css);
-            }
+                if (m_chromiumBinary.isEmpty()) {
+                    qCDebug(lcPdf, "no chromium binary found, using Qt printToPdf (headers cannot be suppressed)");
+                    QSizeF sizePt = parsePageSize(css);
+                    QMarginsF m = parsePageMargins(css);
+                    bool landscape = sizePt.width() > sizePt.height();
+                    QSizeF normalPt = landscape
+                        ? QSizeF(sizePt.height(), sizePt.width()) : sizePt;
+                    QPageLayout layout(QPageSize(normalPt, QPageSize::Point),
+                                       landscape ? QPageLayout::Landscape : QPageLayout::Portrait,
+                                       m, QPageLayout::Point);
+                    m_hiddenEngine->page()->printToPdf([this, genId](const QByteArray &data) {
+                        if (genId != m_generationId) return;
+                        m_pdfData = data;
+                        m_tempFile.reset(new QTemporaryFile());
+                        if (m_tempFile->open()) {
+                            m_tempFile->write(data);
+                            m_tempFile->flush();
+                            m_preview->load(QUrl::fromLocalFile(m_tempFile->fileName()));
+                        }
+                    }, layout);
+                } else {
+                    generatePdfViaChromium(css);
+                }
+            });
         }
     );
 }

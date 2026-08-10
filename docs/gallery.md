@@ -28,9 +28,9 @@ The pencil in the gutter edits the mermaid/ECharts code block it sits beside usi
 | --- | --- | --- | --- |
 | [![Typography](images/preferences-typography.png)](images/preferences-typography.png) | [![Replacements](images/preferences-replacements.png)](images/preferences-replacements.png) | [![Spelling](images/preferences-spelling.png)](images/preferences-spelling.png) | [![Security](images/preferences-security.png)](images/preferences-security.png) |
 
-| Preview | Advanced |
-| --- | --- |
-| [![Preview](images/preferences-preview.png)](images/preferences-preview.png) | [![Advanced](images/preferences-advanced.png)](images/preferences-advanced.png) |
+| Preview | Printing | Advanced |
+| --- | --- | --- |
+| [![Preview](images/preferences-preview.png)](images/preferences-preview.png) | [![Printing](images/preferences-printing.png)](images/preferences-printing.png) | [![Advanced](images/preferences-advanced.png)](images/preferences-advanced.png) |
 
 ## Dialogues
 
