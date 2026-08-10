@@ -337,10 +337,16 @@ attachment in `src/MdRenderer.cpp`) and must satisfy a strict contract:
 - **Flush-left and on their own line.** A directive indented inside a list item,
   or trailing after paragraph text, is not recognized (it stays an ordinary
   HTML comment — which md4c strips in the preview/export anyway).
-- **Blank line after the directive.** The directive attaches to the next
-  top-level block. A directive on the line immediately after paragraph text is
-  merged into that paragraph and silently unsupported — put a blank line between
-  the directive and the block it governs.
+- **It must form its own block.** The directive attaches to the *next
+  top-level block*. A directive on the line immediately after paragraph text is
+  merged into that paragraph and silently ignored — keep a blank line *before*
+  the directive when it follows paragraph text. When the target is a paragraph,
+  separate it from the directive with a blank line; targets that interrupt a
+  paragraph themselves (ATX headings, fenced code blocks) need no blank line
+  after the directive (verified: `<!-- page-break -->\n## Heading` and
+  `<!-- keep -->\n```cpp …` both work). A blank line after the directive is
+  always safe, so the example doc (`docs/typesetting-example.md`) uses it
+  everywhere.
 - **They must stay comments.** The scanner matches `^<!--\s*(keep|...)\s*-->$`
   exactly. A directive written as plain text (without `<!-- -->`) is just prose
   and has no effect. Because it *is* a comment, it disappears from both the

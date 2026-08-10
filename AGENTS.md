@@ -111,6 +111,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
 
 ## Conventions
 
+- Every Bash invocation must start with `date -R` — prefix commands as `date -R && <cmd>` (use `;` instead of `&&` when a later step must run even if an earlier one fails) so each tool execution and each command in the persistent shell session is time-stamped.
 - Do not git commit, revert, add, delete, or otherwise mutate repo history without explicit permission
 - Two build dirs: `build-dbg/` for the Debug dev/test loop, `build/` for the Release binary (see Build above)
 - C++23, Qt coding style, `CMAKE_AUTOMOC`/`CMAKE_AUTORCC` enabled
@@ -157,5 +158,6 @@ sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
 - `Qt6::WebEngineWidgets` is a heavy dependency; requires `xvfb` for headless/CI — install with `sudo apt install xvfb`.
 - Admonition support is CSS-only (`::before` pseudo-elements), not markdown parser extensions.
 - `docs/kitchensink.md` is the full-rendering example document (used by `scripts/update-screenshot.sh`): it exercises every renderer the preview supports — mermaid, KaTeX, ECharts, highlight.js, tables, admonitions, emoji. When changing rendering, open it in the app to visually check all features.
+- `docs/typesetting-example.md` is the printable PDF-typesetting demo and tutorial (directives + every option); export it to PDF for the manual eyeball check of the print feature.
 - The code-fence language autocomplete list is hardcoded in `src/Editor.cpp` (`codeLanguages()`). When bumping `resources/highlight.min.js`, re-extract the bundled languages with `grep -oE 'grmr_[a-zA-Z0-9+-]+' resources/highlight.min.js` and keep that table (and its aliases) in sync. The table also includes app-rendered languages that hljs has no grammar for (e.g. `mermaid`, `ec` — rendered by mermaid.js/ECharts in the preview) — keep those too.
 - This app must work fully offline. No CDN, no network-dependent features. All assets (JS, fonts, SVG) must be bundled via qrc.

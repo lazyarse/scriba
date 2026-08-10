@@ -66,7 +66,7 @@ defaults** reverts to the saved settings).
 Two HTML-comment directives control page breaks at specific points in the
 document. They are invisible in the rendered preview and in the exported PDF,
 and are a documented extension — see `docs/gotchas.md` for the exact contract
-(flush-left, own line, blank-line-after):
+(flush-left, own line; it must form its own block):
 
 ```markdown
 <!-- keep -->
@@ -84,6 +84,10 @@ def hello():
 
 `<!-- keep -->` pins the next top-level block (code, table, figure, paragraph,
 …) to one page. `<!-- page-break -->` forces a page break before it.
+
+For a printable demonstration of every option and both directives, export
+[`docs/typesetting-example.md`](typesetting-example.md) to PDF — the file is a
+brief tutorial and a live example in one.
 
 ## Requirements
 
