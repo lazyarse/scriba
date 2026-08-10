@@ -18,6 +18,10 @@
 #include <QTemporaryDir>
 #include <QFile>
 #include <QTextStream>
+#include <QEventLoop>
+#include <QTimer>
+#include <QWebEnginePage>
+#include <memory>
 
 #include "TestConfig.h"
 #include "PdfImporter.h"
@@ -28,40 +32,47 @@
 // word, with baselines spaced far enough apart for the importer's y-gap
 // heuristics to separate them cleanly.
 static const char *kFixturePdfB64 =
-"JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4K"
-"ZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4K"
-"ZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAxMDQ2ID4+CnN0cmVhbQpCVCAvSGVsdi1Cb2xkIDI0"
-"IFRmIDQwIDcwMCBUZCAoTWFpbiBUaXRsZSkgVGogRVQKQlQgL0hlbHYtQm9sZCAxNCBUZiA0MCA2"
-"NjAgVGQgKFNlY3Rpb24gSGVhZGluZykgVGogRVQKQlQgL0hlbHYgMTIgVGYgNDAgNjIwIFRkIChB"
-"IG5vcm1hbCBib2R5IHBhcmFncmFwaCB3aXRoIHNldmVyYWwgd29yZHMgdG8gdGVzdCB3cmFwcGlu"
-"Zy4pIFRqIEVUCkJUIC9IZWx2IDEyIFRmIDQwIDU5NiBUZCAoUGFyYWdyYXBoIHR3byBvZiB0aGUg"
-"c2VjdGlvbiBib2R5IHRleHQuKSBUaiBFVApCVCAvSGVsdi1PYmwgMTIgVGYgNDAgNTYwIFRkIChB"
-"biBlbXBoYXNpemVkIGZyYWdtZW50IHdpdGggYm9sZCBpbnNpZGUuKSBUaiBFVApCVCAvQ291ciAx"
-"MCBUZiA0MCA1MjAgVGQgKGRlZiBmaWIobik6KSBUaiBFVApCVCAvQ291ciAxMCBUZiA3MiA1MDAg"
-"VGQgKCAgICByZXR1cm4gbikgVGogRVQKQlQgL0hlbHYgMTEgVGYgNDAgNDYwIFRkIChcMjY3IGZp"
-"cnN0IGJ1bGxldCkgVGogRVQKQlQgL0hlbHYgMTEgVGYgNDQgNDQwIFRkIChcMjY3IHNlY29uZCBi"
-"dWxsZXQpIFRqIEVUCkJUIC9IZWx2IDExIFRmIDQwIDQwMCBUZCAoMS4gZmlyc3QgaXRlbSkgVGog"
-"RVQKQlQgL0hlbHYgMTEgVGYgNDAgMzgwIFRkICgyLiBzZWNvbmQgaXRlbSkgVGogRVQKQlQgL0hl"
-"bHYgMTAgVGYgODAgMzM2IFRkIChDb2x1bW4gQSkgVGogRVQKQlQgL0hlbHYgMTAgVGYgMjQwIDMz"
-"NiBUZCAoQ29sdW1uIEIpIFRqIEVUCkJUIC9IZWx2IDEwIFRmIDgwIDMxOCBUZCAoVmFsdWUgMSkg"
-"VGogRVQKQlQgL0hlbHYgMTAgVGYgMjQwIDMxOCBUZCAoVmFsdWUgMikgVGogRVQKQlQgL0hlbHYg"
-"MTAgVGYgODAgMzAwIFRkIChWYWx1ZSAzKSBUaiBFVApCVCAvSGVsdiAxMCBUZiAyNDAgMzAwIFRk"
-"IChWYWx1ZSA0KSBUaiBFVApCVCAvSGVsdiAxMiBUZiA0MCAyNjAgVGQgKFRoaXMgbGluZSBlbmRz"
-"IGluIGEgaGFyZCBoeXBoZW4tKSBUaiBFVApCVCAvSGVsdiAxMiBUZiA0MCAyNDAgVGQgKGF0aW9u"
-"IGNvbnRpbnVhdGlvbi4pIFRqIEVUCkJUIC9IZWx2IDggVGYgNTAwIDQwIFRkIChQYWdlIDEpIFRq"
-"IEVUCgplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5"
-"cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago2IDAgb2JqCjw8IC9UeXBlIC9Gb250"
-"IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYS1Cb2xkID4+CmVuZG9iago3IDAg"
-"b2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYS1P"
-"YmxpcXVlID4+CmVuZG9iago4IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAv"
-"QmFzZUZvbnQgL0NvdXJpZXIgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVu"
-"dCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9I"
-"ZWx2IDUgMCBSIC9IZWx2LUJvbGQgNiAwIFIgL0hlbHYtT2JsIDcgMCBSIC9Db3VyIDggMCBSID4+"
-"ID4+IC9Db250ZW50cyA0IDAgUiA+PgplbmRvYmoKeHJlZgowIDkKMDAwMDAwMDAwMCA2NTUzNSBm"
-"IAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjQgMDAwMDAgbiAKMDAwMDAwMTUxMCAwMDAw"
-"MCBuIAowMDAwMDAwMTIxIDAwMDAwIG4gCjAwMDAwMDEyMTkgMDAwMDAgbiAKMDAwMDAwMTI4OSAw"
-"MDAwMCBuIAowMDAwMDAxMzY0IDAwMDAwIG4gCjAwMDAwMDE0NDIgMDAwMDAgbiAKdHJhaWxlcgo8"
-"PCAvU2l6ZSA5IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgoxNjgzCiUlRU9GCg==";
+"JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMg"
+"MiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFsz"
+"IDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2Ug"
+"L1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2Vz"
+"IDw8IC9Gb250IDw8IC9IZWx2IDUgMCBSIC9IZWx2LUJvbGQgNiAwIFIgL0hlbHYt"
+"T2JsIDcgMCBSIC9Db3VyIDggMCBSID4+ID4+IC9Db250ZW50cyA0IDAgUiA+Pgpl"
+"bmRvYmoKNCAwIG9iago8PCAvTGVuZ3RoIDEwNDYgPj4Kc3RyZWFtCkJUIC9IZWx2"
+"LUJvbGQgMjQgVGYgNDAgNzAwIFRkIChNYWluIFRpdGxlKSBUaiBFVApCVCAvSGVs"
+"di1Cb2xkIDE0IFRmIDQwIDY2MCBUZCAoU2VjdGlvbiBIZWFkaW5nKSBUaiBFVApC"
+"VCAvSGVsdiAxMiBUZiA0MCA2MjAgVGQgKEEgbm9ybWFsIGJvZHkgcGFyYWdyYXBo"
+"IHdpdGggc2V2ZXJhbCB3b3JkcyB0byB0ZXN0IHdyYXBwaW5nLikgVGogRVQKQlQg"
+"L0hlbHYgMTIgVGYgNDAgNTk2IFRkIChQYXJhZ3JhcGggdHdvIG9mIHRoZSBzZWN0"
+"aW9uIGJvZHkgdGV4dC4pIFRqIEVUCkJUIC9IZWx2LU9ibCAxMiBUZiA0MCA1NjAg"
+"VGQgKEFuIGVtcGhhc2l6ZWQgZnJhZ21lbnQgd2l0aCBib2xkIGluc2lkZS4pIFRq"
+"IEVUCkJUIC9Db3VyIDEwIFRmIDQwIDUyMCBUZCAoZGVmIGZpYihuKTopIFRqIEVU"
+"CkJUIC9Db3VyIDEwIFRmIDcyIDUwMCBUZCAoICAgIHJldHVybiBuKSBUaiBFVApC"
+"VCAvSGVsdiAxMSBUZiA0MCA0NjAgVGQgKFwyNjcgZmlyc3QgYnVsbGV0KSBUaiBF"
+"VApCVCAvSGVsdiAxMSBUZiA0NCA0NDAgVGQgKFwyNjcgc2Vjb25kIGJ1bGxldCkg"
+"VGogRVQKQlQgL0hlbHYgMTEgVGYgNDAgNDAwIFRkICgxLiBmaXJzdCBpdGVtKSBU"
+"aiBFVApCVCAvSGVsdiAxMSBUZiA0MCAzODAgVGQgKDIuIHNlY29uZCBpdGVtKSBU"
+"aiBFVApCVCAvSGVsdiAxMCBUZiA4MCAzMzYgVGQgKENvbHVtbiBBKSBUaiBFVApC"
+"VCAvSGVsdiAxMCBUZiAyNDAgMzM2IFRkIChDb2x1bW4gQikgVGogRVQKQlQgL0hl"
+"bHYgMTAgVGYgODAgMzE4IFRkIChWYWx1ZSAxKSBUaiBFVApCVCAvSGVsdiAxMCBU"
+"ZiAyNDAgMzE4IFRkIChWYWx1ZSAyKSBUaiBFVApCVCAvSGVsdiAxMCBUZiA4MCAz"
+"MDAgVGQgKFZhbHVlIDMpIFRqIEVUCkJUIC9IZWx2IDEwIFRmIDI0MCAzMDAgVGQg"
+"KFZhbHVlIDQpIFRqIEVUCkJUIC9IZWx2IDEyIFRmIDQwIDI2MCBUZCAoVGhpcyBs"
+"aW5lIGVuZHMgaW4gYSBoYXJkIGh5cGhlbi0pIFRqIEVUCkJUIC9IZWx2IDEyIFRm"
+"IDQwIDI0MCBUZCAoYXRpb24gY29udGludWF0aW9uLikgVGogRVQKQlQgL0hlbHYg"
+"OCBUZiA1MDAgNDAgVGQgKFBhZ2UgMSkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoK"
+"NSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250"
+"IC9IZWx2ZXRpY2EgPj4KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1"
+"YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhLUJvbGQgPj4KZW5kb2Jq"
+"CjcgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9u"
+"dCAvSGVsdmV0aWNhLU9ibGlxdWUgPj4KZW5kb2JqCjggMCBvYmoKPDwgL1R5cGUg"
+"L0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvQ291cmllciA+PgplbmRv"
+"YmoKeHJlZgowIDkKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAw"
+"IG4gCjAwMDAwMDAwNjQgMDAwMDAgbiAKMDAwMDAwMDEyMSAwMDAwMCBuIAowMDAw"
+"MDAwMjk0IDAwMDAwIG4gCjAwMDAwMDEzOTIgMDAwMDAgbiAKMDAwMDAwMTQ2MiAw"
+"MDAwMCBuIAowMDAwMDAxNTM3IDAwMDAwIG4gCjAwMDAwMDE2MTUgMDAwMDAgbiAK"
+"dHJhaWxlcgo8PCAvU2l6ZSA5IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgoxNjgz"
+"CiUlRU9GCg==";
 
 static QString writeFixturePdf(QTemporaryDir &dir)
 {
@@ -76,6 +87,62 @@ static QString writeFixturePdf(QTemporaryDir &dir)
 static QString norm(const QString &s)
 {
     return s.simplified();
+}
+
+// Drives pdf2md.js's heuristic module directly with synthetic
+// getTextContent()-shaped JSON, bypassing pdf.js entirely. Inlines both the
+// synthetic items and the script into a hidden page and returns the module's
+// output (or a short error marker prefixed with "ERROR:").
+static QString runHeuristics(const QString &itemsJson)
+{
+    QFile js(QStringLiteral(":/pdf2md.js"));
+    if (!js.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QStringLiteral("ERROR: pdf2md.js not readable");
+
+    struct Ctx {
+        QEventLoop loop;
+        QString result;
+        bool timeout = false;
+    };
+    auto ctx = std::make_shared<Ctx>();
+
+    auto page = new QWebEnginePage();
+    QObject::connect(page, &QWebEnginePage::loadFinished, page, [ctx, page](bool ok) {
+        if (ctx->timeout)
+            return;
+        if (!ok) {
+            ctx->loop.quit();
+            return;
+        }
+        // The test hook stashes scribaPdf2Md's return (or an __error object)
+        // on window.__scribaTestResult. Read it back as a string.
+        page->runJavaScript(
+            QStringLiteral("typeof window.__scribaTestResult === 'object'"
+                           " ? 'ERROR: ' + (window.__scribaTestResult.__error || 'unknown')"
+                           " : String(window.__scribaTestResult)"),
+            [ctx](const QVariant &v) {
+                ctx->result = v.toString();
+                ctx->loop.quit();
+            });
+    });
+
+    QTimer::singleShot(15000, [ctx]() {
+        ctx->timeout = true;
+        ctx->loop.quit();
+    });
+
+    QString wrapper = QStringLiteral(
+        "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head>"
+        "<body><script>window.__scribaTestItems = %%ITEMS%%;</script>"
+        "<script>@@PDF2MD@@</script></body></html>");
+    wrapper.replace(QStringLiteral("%%ITEMS%%"), itemsJson);
+    wrapper.replace(QStringLiteral("@@PDF2MD@@"),
+                    QString::fromUtf8(js.readAll()));
+
+    page->setHtml(wrapper);
+    ctx->loop.exec(QEventLoop::ExcludeUserInputEvents);
+    page->deleteLater();
+    return ctx->result;
 }
 
 // The converter is fully offline (pdf.js + worker + pdf2md bundled as qrc
@@ -113,6 +180,162 @@ TEST(PdfImporter, StructuredDocumentBecomesMarkdown)
     EXPECT_TRUE(md.contains("| Value 3 | Value 4 |"));
     // Cross-line hyphenation is rejoined without the break marker.
     EXPECT_TRUE(md.contains("This line ends in a hard hyphenation continuation."));
+}
+
+// ---- Synthetic heuristic tests (no PdfImporter/pdf.js, no disk) -----------
+//
+// These exercise pdf2md.js directly on hand-built getTextContent()-shaped
+// JSON, so each heuristic is pinned to exact behavior rather than to whatever
+// the fixture PDF happens to produce. They run in WebEngine like the fixture
+// tests (RESOURCE_LOCK webkit), but only spin the hidden probe page.
+
+namespace {
+
+// One body-size 12/11 font plus bold/italic/mono variants, mirroring what
+// real pdf.js pages expose.
+const char *const kFonts =
+    "{\"Helv\":{\"name\":\"Helvetica\",\"isMonospace\":false,\"black\":false,\"italic\":false},"
+    "\"Helv-Bold\":{\"name\":\"Helvetica-Bold\",\"isMonospace\":false,\"black\":false,\"italic\":false},"
+    "\"Helv-Obl\":{\"name\":\"Helvetica-Oblique\",\"isMonospace\":false,\"black\":false,\"italic\":true},"
+    "\"Courier\":{\"name\":\"Courier\",\"isMonospace\":true,\"black\":false,\"italic\":false}}";
+
+QString wrapPages(const QString &pagesJson)
+{
+    return QStringLiteral("{\"pages\":[%1],\"height\":792}").arg(pagesJson);
+}
+
+// Single-line convenience: build one page whose items are plain words spread
+// on separate lines (dy apart).
+QString linesPage(const QString &itemsJson)
+{
+    return wrapPages(QStringLiteral("{\"fontStyles\":%1,\"items\":[%2]}")
+                         .arg(kFonts, itemsJson));
+}
+
+} // namespace
+
+TEST(PdfImporterHeuristics, LineAssemblyGroupsSameBaselineLeftToRight)
+{
+    // Two items on the same baseline form one line, sorted by x.
+    const QString md = runHeuristics(linesPage(
+        QStringLiteral("{\"str\":\"world\",\"tx\":200,\"ty\":600,\"width\":40,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"hello\",\"tx\":40,\"ty\":600,\"width\":40,\"height\":12,\"fontName\":\"Helv\"}")));
+    EXPECT_EQ(norm(md), "hello world");
+}
+
+TEST(PdfImporterHeuristics, ParagraphGroupingRespectsVerticalGaps)
+{
+    // Line without a gap follows into the same paragraph; a big gap starts a
+    // new paragraph (blank-line separation in the markdown).
+    const QString md = runHeuristics(linesPage(
+        QStringLiteral("{\"str\":\"first line\",\"tx\":40,\"ty\":600,\"width\":80,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"second line\",\"tx\":40,\"ty\":588,\"width\":80,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"third block\",\"tx\":40,\"ty\":560,\"width\":80,\"height\":12,\"fontName\":\"Helv\"}")));
+    EXPECT_TRUE(md.contains("first line\nsecond line")) << md.toStdString();
+    EXPECT_TRUE(md.contains("third block")) << md.toStdString();
+    // The 12pt gap split the groups into two paragraphs: each page's lines
+    // are joined with \n, blocks with \n\n, so the split must be present.
+    EXPECT_TRUE(md.contains("second line\n\nthird block")) << md.toStdString();
+}
+
+TEST(PdfImporterHeuristics, HeadingsFromFontSizeStats)
+{
+    // Body size 12 dominates; the 24 and 18 point lines map to # and ##.
+    const QString md = runHeuristics(linesPage(
+        QStringLiteral("{\"str\":\"Main Title\",\"tx\":40,\"ty\":600,\"width\":200,\"height\":24,\"fontName\":\"Helv-Bold\"},"
+                       "{\"str\":\"Section\",\"tx\":40,\"ty\":580,\"width\":100,\"height\":18,\"fontName\":\"Helv-Bold\"},"
+                       "{\"str\":\"body text\",\"tx\":40,\"ty\":560,\"width\":80,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"more body\",\"tx\":40,\"ty\":548,\"width\":80,\"height\":12,\"fontName\":\"Helv\"}")));
+    EXPECT_TRUE(md.contains("# Main Title")) << md.toStdString();
+    EXPECT_TRUE(md.contains("## Section")) << md.toStdString();
+    EXPECT_TRUE(md.contains("body text")) << md.toStdString();
+}
+
+TEST(PdfImporterHeuristics, BoldAndItalicFromFontName)
+{
+    const QString md = runHeuristics(linesPage(
+        QStringLiteral("{\"str\":\"heavy\",\"tx\":40,\"ty\":600,\"width\":50,\"height\":12,\"fontName\":\"Helv-Bold\"},"
+                       "{\"str\":\"slant\",\"tx\":40,\"ty\":588,\"width\":50,\"height\":12,\"fontName\":\"Helv-Obl\"}")));
+    EXPECT_TRUE(md.contains("**heavy**")) << md.toStdString();
+    EXPECT_TRUE(md.contains("*slant*")) << md.toStdString();
+}
+
+TEST(PdfImporterHeuristics, MonospaceLinesBecomeFencedCode)
+{
+    const QString md = runHeuristics(linesPage(
+        QStringLiteral("{\"str\":\"def run():\",\"tx\":40,\"ty\":600,\"width\":120,\"height\":12,\"fontName\":\"Courier\"},"
+                       "{\"str\":\"return 1\",\"tx\":40,\"ty\":588,\"width\":120,\"height\":12,\"fontName\":\"Courier\"}")));
+    EXPECT_TRUE(md.contains("```")) << md.toStdString();
+    EXPECT_TRUE(md.contains("def run():")) << md.toStdString();
+    EXPECT_TRUE(md.contains("return 1")) << md.toStdString();
+}
+
+TEST(PdfImporterHeuristics, AlignedColumnsBecomePipeTable)
+{
+    // Two lines of two chunks each with matching x-starts => a table whose
+    // first line becomes the header row.
+    const QString md = runHeuristics(linesPage(
+        QStringLiteral("{\"str\":\"H1\",\"tx\":80,\"ty\":600,\"width\":30,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"H2\",\"tx\":240,\"ty\":600,\"width\":30,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"a\",\"tx\":80,\"ty\":588,\"width\":20,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"b\",\"tx\":240,\"ty\":588,\"width\":20,\"height\":12,\"fontName\":\"Helv\"}")));
+    EXPECT_TRUE(md.contains("| H1 | H2 |")) << md.toStdString();
+    EXPECT_TRUE(md.contains("| a | b |")) << md.toStdString();
+    EXPECT_TRUE(md.contains("---")) << md.toStdString();
+}
+
+TEST(PdfImporterHeuristics, BulletAndNumberedLists)
+{
+    const QString md = runHeuristics(linesPage(
+        QStringLiteral("{\"str\":\"- first\",\"tx\":40,\"ty\":600,\"width\":60,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"- second\",\"tx\":40,\"ty\":588,\"width\":60,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"1. one\",\"tx\":40,\"ty\":560,\"width\":60,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"2. two\",\"tx\":40,\"ty\":548,\"width\":60,\"height\":12,\"fontName\":\"Helv\"}")));
+    EXPECT_TRUE(md.contains("- first")) << md.toStdString();
+    EXPECT_TRUE(md.contains("- second")) << md.toStdString();
+    EXPECT_TRUE(md.contains("1. one")) << md.toStdString();
+    EXPECT_TRUE(md.contains("1. two")) << md.toStdString();
+}
+
+TEST(PdfImporterHeuristics, CrossLineHyphenationRejoined)
+{
+    const QString md = runHeuristics(linesPage(
+        QStringLiteral("{\"str\":\"hyphen-\",\"tx\":40,\"ty\":600,\"width\":60,\"height\":12,\"fontName\":\"Helv\"},"
+                       "{\"str\":\"ation\",\"tx\":40,\"ty\":588,\"width\":50,\"height\":12,\"fontName\":\"Helv\"}")));
+    EXPECT_TRUE(md.contains("hyphenation")) << md.toStdString();
+    EXPECT_FALSE(md.contains("hyphen-")) << md.toStdString();
+}
+
+TEST(PdfImporterHeuristics, RepeatedHeaderFooterStrippedAcrossPages)
+{
+    // Three pages all carrying the same top line ("Quarterly Report") and
+    // bottom line ("Page Footer") plus distinct body text. Both repeated bands
+    // must vanish from the markdown.
+    QString pages = QStringLiteral(
+        "{\"fontStyles\":%1,\"items\":["
+        "{\"str\":\"Quarterly Report\",\"tx\":40,\"ty\":760,\"width\":120,\"height\":10,\"fontName\":\"Helv\"},"
+        "{\"str\":\"Page Footer\",\"tx\":40,\"ty\":30,\"width\":80,\"height\":10,\"fontName\":\"Helv\"},"
+        "{\"str\":\"body page one\",\"tx\":40,\"ty\":400,\"width\":100,\"height\":12,\"fontName\":\"Helv\"}]},")
+        .arg(kFonts);
+    pages += QStringLiteral(
+        "{\"fontStyles\":%1,\"items\":["
+        "{\"str\":\"Quarterly Report\",\"tx\":40,\"ty\":760,\"width\":120,\"height\":10,\"fontName\":\"Helv\"},"
+        "{\"str\":\"Page Footer\",\"tx\":40,\"ty\":30,\"width\":80,\"height\":10,\"fontName\":\"Helv\"},"
+        "{\"str\":\"body page two\",\"tx\":40,\"ty\":400,\"width\":100,\"height\":12,\"fontName\":\"Helv\"}]},")
+        .arg(kFonts);
+    pages += QStringLiteral(
+        "{\"fontStyles\":%1,\"items\":["
+        "{\"str\":\"Quarterly Report\",\"tx\":40,\"ty\":760,\"width\":120,\"height\":10,\"fontName\":\"Helv\"},"
+        "{\"str\":\"Page Footer\",\"tx\":40,\"ty\":30,\"width\":80,\"height\":10,\"fontName\":\"Helv\"},"
+        "{\"str\":\"body page three\",\"tx\":40,\"ty\":400,\"width\":120,\"height\":12,\"fontName\":\"Helv\"}]}")
+        .arg(kFonts);
+
+    const QString md = runHeuristics(wrapPages(pages));
+    EXPECT_TRUE(md.contains("body page one")) << md.toStdString();
+    EXPECT_TRUE(md.contains("body page two")) << md.toStdString();
+    EXPECT_TRUE(md.contains("body page three")) << md.toStdString();
+    EXPECT_FALSE(md.contains("Quarterly Report")) << md.toStdString();
+    EXPECT_FALSE(md.contains("Page Footer")) << md.toStdString();
 }
 
 TEST(PdfImporter, MissingFileFailsGracefully)
