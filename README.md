@@ -29,15 +29,16 @@ Designed to *actually* do what you need without a plugin ecosystem. No node, rea
 - **Fold headers, fenced-code blocks, tables, and lists** to reduce vertical space
 - **Source auto-correct for commonly mis-spelt words** like "_hte_" -> "_the_", "_nad_" -> "_and_" and add your own
 - **Auto-save**
-- **[Themes](docs/themes.md)**
+- **[Themes](docs/themes.md)** --- Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
 - **Keyboard shortcuts to make you more productive**: [keyboard shortcuts](docs/shortcuts.md) for amost everything; a [kitchensink.md](docs/kitchensink.md) with full feature examples that isn't a Markdown 101; an internal cache of page renders to prevent preview regeneration when switching tabs; and, jump up and down the document from header to header with a simple keyboard shortcut
-- **Accessibility support** to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview and chrome all styled from one file whilst the editor's colours stay in sync. **Override the editor's font family, size, and line-height, change the caret width to improve visibility, and more**. Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
+- **Accessibility support** to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview and chrome all styled from one file whilst the editor's colours stay in sync.
+- **Override the editor's font family, size, and line-height, change the caret width to improve visibility, and more**
 - [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and other injection vectors to protect you and your audience.
 - **Searchable settings** to help you modify Scriba quickly.
 
 ### Standing on the Shoulders of Giants:
 
-- Our [Stoppard](https://www.github.com/lazyarse/stoppard) engine for fast, privacy-first spell and grammar checking, 2x faster than Hunspell, and 7x faster than Harper
+- Our [Stoppard](https://www.github.com/lazyarse/stoppard) engine for fast, privacy-first spell and grammar checking
 - [highlight.js](https://highlightjs.org/) for themable syntax highlighting in fenced code blocks which auto-detects language
 - [KaTeX mathematics rendering](https://katex.org/) with the [MChem macro](https://mhchem.github.io/MathJax-mhchem/)
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.)
