@@ -658,7 +658,7 @@ TEST_F(EditorTestHarness, BorderlessSpacedFirstRowCreatesSeparatorAndDataRow)
 {
     typeText("foo | bar");
     enter();
-    EXPECT_EQ(text(), "foo | bar\n--- | ---\n    |    ");
+    EXPECT_EQ(text(), "foo | bar\n--- | ---\n   |    ");
     assertCursor(2, 0);
 }
 
@@ -666,7 +666,7 @@ TEST_F(EditorTestHarness, BorderlessTightFirstRowCreatesSeparatorAndDataRow)
 {
     typeText("foo|bar");
     enter();
-    EXPECT_EQ(text(), "foo | bar\n--- | ---\n    |    ");
+    EXPECT_EQ(text(), "foo | bar\n--- | ---\n   |    ");
     assertCursor(2, 0);
 }
 

@@ -100,6 +100,29 @@ TEST(MarkdownParserTest, PaddingZeroFormattedTableStillRenders) {
     EXPECT_TRUE(html.contains("bb"));
 }
 
+TEST(MarkdownParserTest, PaddedBorderlessEmptyRowStaysInTable) {
+    // The app caps a borderless empty row's leading padding at three spaces.
+    // md4c's indented-code check runs before its table-continuation check, so a
+    // continuation line with four or more leading spaces silently ends the
+    // table (GFM keeps the row); padding≥2 would otherwise push borderless rows
+    // past the limit — see docs/gotchas.md.
+    QString md = "foo | bar\n--- | ---\na | b\n   |    ";
+    QString html = MarkdownParser::toHtml(md);
+    EXPECT_TRUE(html.contains("<table>"));
+    EXPECT_TRUE(html.contains("<tbody>"));
+    EXPECT_FALSE(html.contains("<pre"));
+}
+
+TEST(MarkdownParserTest, PaddedBorderedEmptyRowStaysInTable) {
+    // Bordered rows start with a pipe, so padding never produces leading spaces
+    // and there is no md4c indented-code risk (regression guard).
+    QString md = "| foo | bar |\n|-----|-----|\n| a | b |\n|     |     |";
+    QString html = MarkdownParser::toHtml(md);
+    EXPECT_TRUE(html.contains("<table>"));
+    EXPECT_TRUE(html.contains("<tbody>"));
+    EXPECT_FALSE(html.contains("<pre"));
+}
+
 TEST(MarkdownParserTest, TableEndsAtAtxHeader) {
     // GFM: a table is broken at the start of another block-level structure.
     // A "# " line following table rows must become a header, not a table row.

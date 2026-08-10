@@ -103,6 +103,23 @@ QList<int> mdPipeIndexes(const QString &line)
     return pipes;
 }
 
+// md4c terminates a table at any continuation line with four or more leading
+// spaces (its indented-code check runs before the table-continuation check;
+// GFM keeps such rows in the table — see docs/gotchas.md). A borderless row
+// has no leading pipe to anchor column zero, so padding-driven leading spaces
+// can push a row past that limit. Cap the leading whitespace at three so the
+// row stays in the table; the first pipe may sit one column left of aligned
+// rows, a cosmetic cost of the cap.
+QString capTableRowIndent(const QString &row)
+{
+    int lead = 0;
+    while (lead < row.size() && row[lead] == ' ')
+        ++lead;
+    if (lead <= 3)
+        return row;
+    return QString(3, ' ') + row.mid(lead);
+}
+
 } // namespace
 
 QString handleTableReturn(const QString &line, const QString &prevLine, int padding)
@@ -296,8 +313,13 @@ QString makeEmptyTableRow(int cols, const MdRowStyle &style, int padding)
     for (int c = 0; c < cols; ++c)
         cells << QString(2 * padding, ' ');
     QString row = cells.join(QString(padding, ' ') + "|" + QString(padding, ' '));
-    if (style.hasLeadingPipe)
+    if (style.hasLeadingPipe) {
         row.prepend('|');
+    } else {
+        // Borderless rows have no leading pipe to anchor column zero; keep
+        // their leading padding under md4c's four-space indented-code limit.
+        row = capTableRowIndent(row);
+    }
     if (style.hasTrailingPipe)
         row.append('|');
     return row;
@@ -547,7 +569,7 @@ QString formatMdTable(const QStringList &rows, int padding)
                     const QString content = c < cells.size() ? cells[c] : QString();
                     lineCells << padMdCell(content, width[c], align[c]);
                 }
-                out << lineCells.join(pipeSpacing);
+                out << capTableRowIndent(lineCells.join(pipeSpacing));
             }
         }
     }

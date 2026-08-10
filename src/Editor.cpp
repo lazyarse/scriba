@@ -1602,10 +1602,10 @@ void Editor::formatTableAt(int documentPos)
 }
 
 // Reads the configured table cell padding (Editor → Tables → Cell padding),
-// clamped to the spin box's 0..4 range.
+// clamped to the spin box's 1..4 range.
 int Editor::tablePadding() const
 {
-    return qBound(0, QSettings().value(Preferences::TablePadding,
+    return qBound(1, QSettings().value(Preferences::TablePadding,
                                        Preferences::DefaultTablePadding).toInt(), 4);
 }
 

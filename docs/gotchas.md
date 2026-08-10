@@ -190,7 +190,7 @@ adding a matching-color bottom border is not needed and risks a 1px seam.
 ## Empty borderless table rows have a lone pipe
 
 An empty row of a borderless table (`foo | bar`, no edge pipes) is written with
-leading and trailing spaces: `    |    `. To a row-parser that trims leading
+leading and trailing spaces: `   |    `. To a row-parser that trims leading
 whitespace this looks like a fully-bordered row (`|    |`), which made Enter
 land the cursor in cell 2 and made Tab from cell 1 create a new row. The
 disambiguation lives in `mdRowStyle`: a leading/trailing pipe only counts as a
@@ -199,6 +199,22 @@ bordered row always pairs its edge pipe with a separator pipe after the first
 cell. A lone pipe is always a cell separator, never a border. Keep this rule
 when reworking the table helpers — and note `formatMdTable` derives the border
 style from the separator row, so it is immune to the ambiguity.
+
+## md4c ends a table at any row with four or more leading spaces
+
+md4c's indented-code check runs *before* its table-continuation check, so a
+table row that starts with 4+ spaces is reclassified as an indented code block
+and the table silently ends: an empty row typed with padding ≥ 2 (or a wide
+right/center-aligned first column) rendered as its own block. GFM (pandoc) keeps
+such rows in the table, so this is an md4c divergence. Borderless rows are the
+target (they have no leading pipe to anchor column zero); bordered rows start
+with `|` and are immune.
+
+The fix: `capTableRowIndent` in `src/MdTable.cpp` caps the leading whitespace of
+every no-leading-pipe row (`makeEmptyTableRow` and `formatMdTable`) at three
+spaces. The cost: a capped row's first pipe may sit one column left of its
+aligned neighbours (e.g. `   |    ` under `foo | bar`). Render-validity wins;
+if you ever align borderless rows by hand, keep them under four leading spaces.
 
 ### Git Graph topology
 

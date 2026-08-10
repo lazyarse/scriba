@@ -29,7 +29,7 @@ Use true `Debug`, NOT `RelWithDebInfo`: RelWithDebInfo still compiles at `-O2`/`
 # clean only needed after branch switches (stale _autogen dirs);
 # normal incremental rebuilds: skip clean, just configure + build
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build build -j4
-timeout 10 build/scriba || true   # smoke-test the freshly linked binary — AFTER this build
+timeout 10 xvfb-run -a build/scriba || true   # smoke-test the freshly linked binary — AFTER this build, under Xvfb so it never opens on the main display
 ```
 
 Binary: `build/scriba`
@@ -43,7 +43,7 @@ Full check after any code/resource change:
 1. `cmake --build build-dbg -j4` — dev/test loop build
 2. `cd build-dbg && ctest --output-on-failure -j4` — tests pass
 3. `cmake --build build -j4` — rebuild the Release binary
-4. `timeout 10 build/scriba || true` — smoke-test the **freshly** built Release binary
+4. `timeout 10 xvfb-run -a build/scriba || true` — smoke-test the **freshly** built Release binary (under Xvfb so it never shows on the main display)
 5. (UI changes only) `scripts/update-screenshot.sh <affected targets>` — regenerate the screenshot gallery from the **freshly** built Release binary
 
 Steps 4 and 5 must come AFTER step 3. Running them right after step 1/2 smoke-tests / captures screenshots from a stale `build/scriba` from the previous Release build. The screenshot script expects a pre-built binary at `build/scriba` (it only builds one if none exists, which would then be a Release build anyway — but if a stale one is present it will happily capture that instead, so always rebuild first).
@@ -123,7 +123,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
 - Tests must only ever touch `~/.config/scribaTest/` (see `tests/TestConfig.h` / `setupTestConfig()`); never write to the real `~/.config/scriba/` from a test. Suites with a custom `main()` must call `setupTestConfig()`; config-focused suites link the `scriba_test_main` static library
 - Dialog buttons (QDialogButtonBox and standalone QPushButton) must have icons stripped: `for (auto *btn : buttonBox->buttons()) btn->setIcon(QIcon());`. Add `&` keyboard shortcuts to all dialog buttons where possible (unique per dialog).
 - Always rebuild after making changes — CSS, resource, or source files all require a rebuild to take effect
-- After building the Release binary, run it briefly to check for segfaults: `timeout 10 build/scriba || true`. This must run AFTER `cmake --build build -j4` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build (see the ordered Verification sequence under Build)
+- After building the Release binary, run it briefly to check for segfaults: `timeout 10 xvfb-run -a build/scriba || true` (Xvfb so it never opens on the main display). This must run AFTER `cmake --build build -j4` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build (see the ordered Verification sequence under Build)
 - Only rebuild the .deb package when explicitly asked to — do not rebuild it automatically after changes
 - After adding a new keyboard shortcut, update `resources/shortcuts.html` to document it
 - When you discover a markdown/rendering constraint, an edge case, or behavior that *looks* like a bug but is spec-correct (e.g. tight-vs-loose lists, or CommonMark's content-column indent rule for nested lists), document it in `docs/gotchas.md` rather than just a code comment — give future debugging a canonical place to look

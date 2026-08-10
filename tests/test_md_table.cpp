@@ -305,7 +305,15 @@ TEST(MakeEmptyTableRow, PaddingScalesBorderedCells) {
 }
 
 TEST(MakeEmptyTableRow, PaddingScalesBorderlessCells) {
-    EXPECT_EQ(makeEmptyTableRow(2, MdRowStyle{false, false}, 2), "      |      ");
+    // Borderless rows have no leading pipe to anchor column zero, and md4c
+    // turns any table-continuation line with four or more leading spaces into
+    // an indented code block — so the leading padding is capped at three.
+    for (int p = 1; p <= 4; ++p) {
+        const QString row = makeEmptyTableRow(2, MdRowStyle{false, false}, p);
+        EXPECT_LE(row.indexOf('|'), 3) << "padding " << p;
+        EXPECT_GT(row.size(), 0) << "padding " << p;
+    }
+    EXPECT_EQ(makeEmptyTableRow(2, MdRowStyle{false, false}, 2), "   |      ");
 }
 
 TEST(MakeSeparatorRow, PaddingScalesDashes) {

@@ -695,12 +695,12 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QHBoxLayout *paddingRow = new QHBoxLayout();
         QLabel *paddingLabel = new QLabel("Cell padding:");
         m_tablePaddingSpin = new QSpinBox();
-        m_tablePaddingSpin->setRange(0, 4);
+        m_tablePaddingSpin->setRange(1, 4);
         m_tablePaddingSpin->setValue(settings.value(Preferences::TablePadding,
                                                      Preferences::DefaultTablePadding).toInt());
         m_tablePaddingSpin->setToolTip("Number of spaces around each cell's content when the "
-            "table columns are aligned. 0 packs cells tightly against the pipes; 1 (the "
-            "default) matches the historic layout; larger values space the columns out.");
+            "table columns are aligned. 1 (the default) matches the historic "
+            "layout; larger values space the columns out.");
         paddingRow->addWidget(paddingLabel);
         paddingRow->addWidget(m_tablePaddingSpin);
         paddingRow->addStretch();
