@@ -463,8 +463,14 @@ Two corollaries:
   re-render, otherwise the base stays stale until the next edit/tab switch
   (`saveFile`/`renameCurrentFile` only signal when the base dir actually
   changed). This mirrors the same "base desync" failure mode.
-- Untitled documents (no file path) legitimately pass an empty base URL and
-  drop the element — there's nothing for relative paths to anchor to.
+- Untitled documents (no file path) default their base to the **corpus root**
+  while a corpus is open (`MainWindow::updatePreview`, guard:
+  `baseUrl.isEmpty() && !m_corpus.filePath.isEmpty()`); with no corpus open they
+  pass an empty base URL and drop the element — there's nothing for relative
+  paths to anchor to. `saveFile` must force a re-render when the tab was
+  untitled (`wasUntitled`), not just when the directory changed: the empty-path
+  sentinel resolves to the CWD, so saving an untitled doc into the CWD would
+  otherwise leave the base stuck on the corpus root.
 
 ## Corpus export: embedded (untitled) documents are exported but not TOC-linked
 

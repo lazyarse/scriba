@@ -1534,6 +1534,11 @@ void MainWindow::updatePreview(bool tabSwitch)
     const int curIdx = m_tabBar->currentIndex();
     if (m_tocTabs.contains(curIdx))
         baseUrl = QUrl::fromLocalFile(m_corpus.rootDir() + "/");
+    // Untitled documents in an open corpus default to the corpus root as their
+    // base dir (relative images resolve against the corpus). Saving the document
+    // moves the base to the saved file's directory (see saveFile's re-render).
+    if (baseUrl.isEmpty() && !m_corpus.filePath.isEmpty())
+        baseUrl = QUrl::fromLocalFile(m_corpus.rootDir() + "/");
 
     QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
@@ -2744,6 +2749,7 @@ void MainWindow::saveFile(const QString &filePath)
     TabInfo *info = activeTabInfo();
     if (!info) return;
 
+    const bool wasUntitled = info->filePath.isEmpty();
     bool pathChanged = (info->filePath != filePath);
     // A new directory changes how relative image paths resolve (they hang off
     // the shared page's <base> element), so re-render to move the base over.
@@ -2761,7 +2767,11 @@ void MainWindow::saveFile(const QString &filePath)
     statusBar()->showMessage("Saved", 2000);
 
     if (pathChanged) {
-        if (QFileInfo(filePath).absolutePath() != oldDir && m_previewInitialized)
+        // Saving an untitled tab always moves the base (corpus root or none →
+        // the saved file's directory), even when it lands in the same directory
+        // that the empty-path sentinel happens to resolve to.
+        if (wasUntitled
+            || (QFileInfo(filePath).absolutePath() != oldDir && m_previewInitialized))
             updatePreview();
     }
 }

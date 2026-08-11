@@ -24,6 +24,7 @@
 #include <QSettings>
 #include <QDir>
 #include <QDialog>
+#include <QFileDialog>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
@@ -34,6 +35,7 @@
 #include "Preview.h"
 #include "StaticHelpers.h"
 #include "Preferences.h"
+#include "Corpus.h"
 #include "TestConfig.h"
 
 /* ========== Test A: Preview::scrollToPercent ========== */
@@ -825,6 +827,88 @@ TEST_F(ScrollSyncIntegrationTest, BaseUrlSurvivesEdits) {
     cursor3.insertText("\nEDITED IN B");
     EXPECT_TRUE(previewSettlesOn("EDITED IN B", "AAA-EDITED"));
     EXPECT_TRUE(waitForBasePrefix(expB));
+}
+
+/* ========== Untitled documents in a corpus resolve relative assets against the corpus root ========== */
+
+TEST_F(ScrollSyncIntegrationTest, UntitledTabInCorpusUsesCorpusRootAsBase) {
+    // Force Qt's widget file dialog so the test can drive it programmatically;
+    // the GTK native dialog cannot be accepted from outside.
+    QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs, true);
+
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+
+    const QString corpusPath = dir.filePath("corpus.scriba");
+    Corpus c;
+    c.filePath = corpusPath;
+    c.name = QStringLiteral("BaseTest");
+    c.active = 0;
+    c.documents = {
+        CorpusDocument{ .path = QString(),
+                        .content = QStringLiteral("CORPUS-UNTITLED\n\n![img](pic.png)\n") },
+    };
+    ASSERT_TRUE(c.save());
+
+    window->openCorpusFile(corpusPath, /*skipPrompt=*/true);
+    QApplication::processEvents();
+
+    // openCorpusFile keeps the empty placeholder tab (index 0) and adds the
+    // embedded document after it; m_corpus.active would select the placeholder.
+    auto *tabBar = window->findChild<QTabBar *>();
+    ASSERT_NE(tabBar, nullptr);
+    ASSERT_GE(tabBar->count(), 2);
+    tabBar->setCurrentIndex(tabBar->count() - 1);
+    QApplication::processEvents();
+
+    auto evalStr = [this](const QString &js) {
+        QString v;
+        window->preview()->page()->runJavaScript(js, [&](const QVariant &r) { v = r.toString(); });
+        QTest::qWait(300);
+        return v;
+    };
+    auto waitForBasePrefix = [&](const QString &prefix) {
+        for (int attempt = 0; attempt < 12; ++attempt) {
+            const QString base = evalStr("document.baseURI");
+            const QString src = evalStr("var i=document.querySelector('img');i?i.src:''");
+            if (base.startsWith(prefix) && src.startsWith(prefix))
+                return true;
+            QTest::qWait(500);
+        }
+        return false;
+    };
+
+    const QString corpusBase = QUrl::fromLocalFile(dir.path() + "/").toString();
+    EXPECT_TRUE(waitForBasePrefix(corpusBase))
+        << "Untitled corpus document must resolve relative assets against the corpus root";
+
+    // Saving the document elsewhere moves the base to the saved file's directory.
+    QTemporaryDir other;
+    ASSERT_TRUE(other.isValid());
+    const QString target = other.filePath("saved.md");
+    QTimer::singleShot(0, [&]() {
+        auto *dlg = qobject_cast<QFileDialog *>(qApp->activeModalWidget());
+        if (!dlg)
+            return;
+        dlg->selectFile(target);
+        QMetaObject::invokeMethod(dlg, "accept", Qt::QueuedConnection);
+    });
+    const auto actions = window->findChildren<QAction *>();
+    bool triggered = false;
+    for (QAction *a : actions) {
+        if (a->text().contains(QStringLiteral("Save &As"))) {
+            a->trigger();
+            triggered = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(triggered) << "Save As action must exist";
+
+    const QString savedBase = QUrl::fromLocalFile(other.path() + "/").toString();
+    EXPECT_TRUE(waitForBasePrefix(savedBase))
+        << "After saving an untitled corpus document, relative assets must resolve "
+           "against the saved file's directory";
+    EXPECT_TRUE(QFile::exists(target));
 }
 
 /* ========== Regression: reordering tabs must move each tab's cached render with it ========== */
