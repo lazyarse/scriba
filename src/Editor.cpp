@@ -830,6 +830,18 @@ void Editor::keyPressEvent(QKeyEvent *event)
     }
 }
 
+void Editor::insertFromMimeData(const QMimeData *source)
+{
+    const int posBefore = textCursor().position();
+    QTextEdit::insertFromMimeData(source);
+    // A paste that drops a whole markdown table bypasses the leave-to-format
+    // tracking in onCursorPositionChanged: the insert's contentsChanged fires
+    // before the cursor lands inside the table, so the table is never marked
+    // dirty and clicking away would not realign it. Align right away, like the
+    // Insert Table dialog does. No-op for non-table content.
+    formatTableAt(posBefore);
+}
+
 bool Editor::eventFilter(QObject *obj, QEvent *event)
 {
     if (obj == m_underlineOverlay && event->type() == QEvent::Paint && m_spellHighlighter) {
@@ -1672,10 +1684,13 @@ void Editor::formatMdTableBlock(int startBlock)
             break;
     }
 
-    // Only real markdown tables (those with a separator row) are aligned.
+    // Only real markdown tables (those with a separator row) are aligned. Use
+    // the canonical separator test rather than a `---` substring: isMdSeparatorRow
+    // also accepts narrow separators such as `--|--`, `|:--:|` or `--:` (see
+    // MdTable.cpp), which a `contains("---")` check would silently skip.
     bool hasSeparator = false;
     for (const QString &row : rows) {
-        if (row.contains("---")) {
+        if (MdTable::isMdSeparatorRow(row)) {
             hasSeparator = true;
             break;
         }

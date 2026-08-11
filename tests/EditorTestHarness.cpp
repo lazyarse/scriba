@@ -15,6 +15,7 @@
 #include "EditorTestHarness.h"
 
 #include <QApplication>
+#include <QClipboard>
 #include <QSettings>
 #include <QTest>
 #include <QTextCursor>
@@ -66,6 +67,13 @@ void EditorTestHarness::typeLine(const QString &text)
 {
     typeText(text);
     enter();
+}
+
+void EditorTestHarness::pasteText(const QString &text)
+{
+    QApplication::clipboard()->setText(text);
+    editor->paste();
+    QApplication::processEvents();
 }
 
 void EditorTestHarness::setContent(const QString &content)

@@ -43,6 +43,9 @@ protected:
     void press(Qt::Key key, Qt::KeyboardModifiers mods = Qt::NoModifier);
     void enter();
     void typeLine(const QString &text);
+    // Sets `text` on the clipboard and pastes it through the editor's real
+    // QTextEdit::paste() -> insertFromMimeData path.
+    void pasteText(const QString &text);
 
     template <typename... Items>
     void run(Items... items)

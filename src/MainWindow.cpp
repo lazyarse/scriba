@@ -3009,6 +3009,10 @@ void MainWindow::pasteAsMarkdown()
     }
 
     ed->textCursor().insertText(text);
+    // The converted text is inserted directly (bypassing the editor's
+    // insertFromMimeData), so a table in it never marks the paste-time dirty
+    // flag; align it right away. No-op for non-table content.
+    ed->formatTableAt(ed->textCursor().position());
 }
 
 void MainWindow::exportPdf()

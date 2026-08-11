@@ -121,6 +121,7 @@ signals:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    void insertFromMimeData(const QMimeData *source) override;
     void resizeEvent(QResizeEvent *event) override;
     void scrollContentsBy(int dx, int dy) override;
     void contextMenuEvent(QContextMenuEvent *event) override;

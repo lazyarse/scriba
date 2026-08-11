@@ -309,6 +309,29 @@ TEST_F(EditorTestHarness, EditingTableThenLeavingAlignsColumns)
     EXPECT_EQ(text(), "| a    | bb |\n|------|----|\n| ccc! | d  |\nend");
 }
 
+TEST_F(EditorTestHarness, PasteTableAlignsImmediately)
+{
+    pasteText("foo|bar\n--|--\nasdf | adsf\nasdf22 | adsads");
+    EXPECT_EQ(text(), "foo    | bar   \n"
+                      "------ | ------\n"
+                      "asdf   | adsf  \n"
+                      "asdf22 | adsads");
+}
+
+TEST_F(EditorTestHarness, PasteTableThenDoubleEnterAlignsRows)
+{
+    pasteText("foo|bar\n--|--\nasdf | adsf\nasdf22 | adsads");
+    placeCursorAtEnd();
+    enter();   // auto-continues a blank data row (borderless, padding 1)
+    enter();   // blank-row exit leaves the table, realigning it
+    EXPECT_EQ(text(), "foo    | bar   \n"
+                      "------ | ------\n"
+                      "asdf   | adsf  \n"
+                      "asdf22 | adsads\n"
+                      "\n");
+    assertCursor(5, 0);
+}
+
 TEST_F(EditorTestHarness, LeavingUntouchedTableDoesNotReformat)
 {
     setContent("| a | bb |\n|---|---|\n| ccc | d |\nend");
