@@ -93,6 +93,14 @@ add_executable(scriba WIN32
     src/HtmlToMarkdown.cpp
     src/PdfImporter.cpp
     src/FindDialog.cpp
+    src/Corpus.cpp
+    src/Corpus.h
+    src/CorpusWatcher.cpp
+    src/CorpusWatcher.h
+    src/LinkFixer.cpp
+    src/LinkFixer.h
+    src/CorpusIndex.cpp
+    src/CorpusIndex.h
     src/TableDialog.cpp
     src/ChartDialog.cpp
     src/StockChartDialog.cpp
@@ -334,6 +342,26 @@ if(BUILD_TESTS)
     target_link_libraries(test_css_highlighter PRIVATE scriba_test_main)
     add_test(NAME test_css_highlighter COMMAND ${_TEST_PREFIX} ./test_css_highlighter)
 
+    add_executable(test_corpus tests/test_corpus.cpp src/Corpus.cpp)
+    target_include_directories(test_corpus PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_corpus PRIVATE scriba_core scriba_test_main)
+    add_test(NAME test_corpus COMMAND ${_TEST_PREFIX} ./test_corpus)
+
+    add_executable(test_corpus_watcher tests/test_corpus_watcher.cpp src/CorpusWatcher.cpp)
+    target_include_directories(test_corpus_watcher PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_corpus_watcher PRIVATE scriba_core scriba_test_main Qt6::Test)
+    add_test(NAME test_corpus_watcher COMMAND ${_TEST_PREFIX} ./test_corpus_watcher)
+
+    add_executable(test_corpus_linkfix tests/test_corpus_linkfix.cpp src/LinkFixer.cpp)
+    target_include_directories(test_corpus_linkfix PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_corpus_linkfix PRIVATE scriba_core scriba_test_main)
+    add_test(NAME test_corpus_linkfix COMMAND ${_TEST_PREFIX} ./test_corpus_linkfix)
+
+    add_executable(test_corpus_index tests/test_corpus_index.cpp src/CorpusIndex.cpp src/Corpus.cpp)
+    target_include_directories(test_corpus_index PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_corpus_index PRIVATE scriba_core scriba_spell scriba_test_main)
+    add_test(NAME test_corpus_index COMMAND ${_TEST_PREFIX} ./test_corpus_index)
+
     add_executable(test_static_helpers tests/test_static_helpers.cpp resources/scriba.qrc resources/twemoji-svg.qrc)
     target_link_libraries(test_static_helpers PRIVATE scriba_core GTest::gtest_main)
     add_test(NAME test_static_helpers COMMAND ${_TEST_PREFIX} ./test_static_helpers)
@@ -527,7 +555,7 @@ if(BUILD_TESTS)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -558,7 +586,7 @@ if(BUILD_TESTS)
 
     add_executable(test_anchor_navigation tests/test_anchor_navigation.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -579,7 +607,7 @@ if(BUILD_TESTS)
 
     add_executable(test_emoji_preview tests/test_emoji_preview.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -601,7 +629,7 @@ if(BUILD_TESTS)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -620,7 +648,7 @@ if(BUILD_TESTS)
 
     add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -637,9 +665,28 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz)
     add_test(NAME test_multi_tab_typing COMMAND ${_TEST_PREFIX} ./test_multi_tab_typing)
 
+    add_executable(test_corpus_recent tests/test_corpus_recent.cpp
+        src/PreviewPagination.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
+        src/LogWindow.cpp
+        src/MermaidDialog.cpp
+        src/KatexHelperDialog.cpp
+        src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
+        src/TableDialog.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_corpus_recent PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_corpus_recent PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz)
+    add_test(NAME test_corpus_recent COMMAND ${_TEST_PREFIX} ./test_corpus_recent)
+
     add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -656,9 +703,28 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz)
     add_test(NAME test_dirty_on_load COMMAND ${_TEST_PREFIX} ./test_dirty_on_load)
 
+    add_executable(test_corpus_watcher_integration tests/test_corpus_watcher_integration.cpp
+        src/PreviewPagination.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
+        src/LogWindow.cpp
+        src/MermaidDialog.cpp
+        src/KatexHelperDialog.cpp
+        src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
+        src/TableDialog.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_corpus_watcher_integration PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_corpus_watcher_integration PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz)
+    add_test(NAME test_corpus_watcher_integration COMMAND ${_TEST_PREFIX} ./test_corpus_watcher_integration)
+
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
     src/PreviewPagination.cpp
-    src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+    src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
     src/CssConfig.cpp src/CssLoader.cpp
     src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -678,7 +744,7 @@ add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_init
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -815,7 +881,8 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         test_emoji_preview test_auto_save test_multi_tab_typing
         test_dirty_on_load test_editor_initial_css test_find_dialog
         test_pdf_export test_preview_pagination test_export_html test_docx_image_export test_docx_import
-        test_pdf_import
+        test_pdf_import test_corpus_recent
+        test_corpus_watcher_integration
         PROPERTIES RESOURCE_LOCK webkit)
 endif()
 

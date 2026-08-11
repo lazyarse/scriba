@@ -1,0 +1,348 @@
+// Copyright (C) 2026 LazyArse
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// End-to-end corpus monitoring: a real MainWindow drives a CorpusWatcher;
+// edits/renames on disk flow through the watcher into reloads, path updates
+// and (per policy) link rewrites.
+#include <gtest/gtest.h>
+
+#include <QApplication>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
+#include <QSettings>
+#include <QStackedWidget>
+#include <QTabBar>
+#include <QTemporaryDir>
+#include <QTest>
+
+#include <functional>
+
+#include "MainWindow.h"
+#include "Editor.h"
+#include "Corpus.h"
+#include "Preferences.h"
+#include "TestConfig.h"
+
+namespace {
+
+void writeFile(const QString &path, const QString &content)
+{
+    QFile f(path);
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate));
+    f.write(content.toUtf8());
+    f.close();
+}
+
+QString readFile(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return {};
+    return QString::fromUtf8(f.readAll());
+}
+
+bool waitFor(const std::function<bool()> &cond, int timeoutMs = 5000)
+{
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < timeoutMs) {
+        QApplication::processEvents();
+        QTest::qWait(50);
+        if (cond())
+            return true;
+    }
+    QApplication::processEvents();
+    return cond();
+}
+
+class CorpusWatcherIntegrationTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestSuite()
+    {
+        if (!QCoreApplication::instance()) {
+            static int argc = 1;
+            static char arg0[] = "test_corpus_watcher_integration";
+            static char *argv[] = { arg0, nullptr };
+            new QApplication(argc, argv);
+        }
+    }
+
+    void SetUp() override
+    {
+        QSettings s;
+        s.clear();
+        s.setValue(Preferences::ReopenLastCorpus, false);
+        s.setValue(Preferences::AutoSaveOnExit, false);
+        s.setValue(Preferences::AutoSaveInterval, 0);
+
+        m_dir.reset(new QTemporaryDir);
+        ASSERT_TRUE(m_dir->isValid());
+        m_root = m_dir->path();
+        m_corpusPath = m_root + "/corpus.scriba";
+    }
+
+    void TearDown() override
+    {
+        delete m_window;
+        m_window = nullptr;
+    }
+
+    void makeCorpus(const QStringList &docPaths)
+    {
+        Corpus c;
+        c.filePath = m_corpusPath;
+        c.name = QStringLiteral("test");
+        c.monitor = true;
+        c.active = 0;
+        for (const QString &p : docPaths)
+            c.documents.append({p});
+        ASSERT_TRUE(c.save());
+    }
+
+    void openCorpus()
+    {
+        m_window = new MainWindow(nullptr, /*skipCorpusRestore=*/true);
+        QApplication::processEvents();
+        m_window->openCorpusFile(m_corpusPath, /*skipPrompt=*/true);
+        QApplication::processEvents();
+        QTest::qWait(200);      // let the watcher settle on the initial paths
+    }
+
+    // closeAllTabs() leaves a single empty "Untitled" tab, so corpus document
+    // tabs always sit one index above their position in m_corpus.documents.
+    static const int kUntitledTabOffset = 1;
+
+    Editor *tabEditor(int index) const
+    {
+        auto *stack = m_window->findChild<QStackedWidget *>();
+        const int i = index + kUntitledTabOffset;
+        if (!stack || i < 0 || i >= stack->count())
+            return nullptr;
+        return qobject_cast<Editor *>(stack->widget(i));
+    }
+
+    QString tabTooltip(int index) const
+    {
+        auto *tabs = m_window->findChild<QTabBar *>();
+        const int i = index + kUntitledTabOffset;
+        if (!tabs || i < 0 || i >= tabs->count())
+            return QString();
+        return tabs->tabToolTip(i);
+    }
+
+    bool tabDirty(int index) const
+    {
+        auto *tabs = m_window->findChild<QTabBar *>();
+        const int i = index + kUntitledTabOffset;
+        if (!tabs || i < 0 || i >= tabs->count())
+            return false;
+        return tabs->tabText(i).contains(QLatin1Char('*'));
+    }
+
+    Editor *stackEditor(int index) const
+    {
+        auto *stack = m_window->findChild<QStackedWidget *>();
+        if (!stack || index < 0 || index >= stack->count())
+            return nullptr;
+        return qobject_cast<Editor *>(stack->widget(index));
+    }
+
+    int tocTabIndex() const
+    {
+        auto *tabs = m_window->findChild<QTabBar *>();
+        if (!tabs)
+            return -1;
+        for (int i = 0; i < tabs->count(); ++i) {
+            if (tabs->tabText(i).contains(QStringLiteral("Table of Contents")))
+                return i;
+        }
+        return -1;
+    }
+
+    static void triggerAction(MainWindow *win, const QString &textSubstring)
+    {
+        const auto actions = win->findChildren<QAction *>();
+        for (QAction *a : actions) {
+            if (a->text().contains(textSubstring)) {
+                a->trigger();
+                return;
+            }
+        }
+        FAIL() << "No action containing text: " << textSubstring.toStdString();
+    }
+
+    std::unique_ptr<QTemporaryDir> m_dir;
+    QString m_root;
+    QString m_corpusPath;
+    MainWindow *m_window = nullptr;
+};
+
+TEST_F(CorpusWatcherIntegrationTest, ExternalEditReloadsCleanTab)
+{
+    writeFile(m_root + "/doc.md", "one");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    ASSERT_EQ(tabEditor(0)->toPlainText(), QStringLiteral("one"));
+    writeFile(m_root + "/doc.md", "two");
+
+    EXPECT_TRUE(waitFor([&] {
+        return tabEditor(0) && tabEditor(0)->toPlainText() == QStringLiteral("two");
+    }));
+    EXPECT_FALSE(tabDirty(0));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, RenameUpdatesTabAndCorpusJson)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("ignore"));
+    writeFile(m_root + "/doc.md", "content");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    const QString oldAbs = QFileInfo(m_root + "/doc.md").absoluteFilePath();
+    const QString newAbs = QFileInfo(m_root + "/renamed.md").absoluteFilePath();
+    ASSERT_TRUE(QFile::rename(m_root + "/doc.md", m_root + "/renamed.md"));
+
+    EXPECT_TRUE(waitFor([&] { return tabTooltip(0) == newAbs; }));
+    EXPECT_TRUE(waitFor([&] { return readFile(m_corpusPath).contains(QStringLiteral("renamed.md")); }));
+    EXPECT_FALSE(readFile(m_corpusPath).contains(QStringLiteral("doc.md")));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, PolicyIgnoreSkipsRewrite)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("ignore"));
+    writeFile(m_root + "/a.md", "a content");
+    writeFile(m_root + "/b.md", "See [x](a.md)");
+    makeCorpus({"a.md", "b.md"});
+    openCorpus();
+
+    ASSERT_TRUE(QFile::rename(m_root + "/a.md", m_root + "/a2.md"));
+    EXPECT_TRUE(waitFor([&] {
+        return tabTooltip(0) == QFileInfo(m_root + "/a2.md").absoluteFilePath();
+    }));
+    QTest::qWait(400);          // give any (wrong) rewrite time to happen
+    EXPECT_EQ(tabEditor(1)->toPlainText(), QStringLiteral("See [x](a.md)"));
+    EXPECT_FALSE(tabDirty(1));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, PolicySilentRewritesOpenTabAndMarksDirty)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("silent"));
+    writeFile(m_root + "/a.md", "a content");
+    writeFile(m_root + "/b.md", "See [x](a.md)");
+    makeCorpus({"a.md", "b.md"});
+    openCorpus();
+
+    ASSERT_TRUE(QFile::rename(m_root + "/a.md", m_root + "/a2.md"));
+    EXPECT_TRUE(waitFor([&] {
+        return tabEditor(1) && tabEditor(1)->toPlainText().contains(QStringLiteral("a2.md"));
+    }));
+    EXPECT_TRUE(tabDirty(1));
+    EXPECT_EQ(tabEditor(1)->toPlainText(), QStringLiteral("See [x](a2.md)"));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, ViewTocCreatesReadOnlyTocTabWithRootRelativeLinks)
+{
+    writeFile(m_root + "/doc.md", "# Alpha\n\n## Sub\n");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    triggerAction(m_window, QStringLiteral("View Table of Contents"));
+    QApplication::processEvents();
+
+    const int toc = tocTabIndex();
+    ASSERT_GE(toc, 0);
+    Editor *ed = stackEditor(toc);
+    ASSERT_NE(ed, nullptr);
+    EXPECT_TRUE(ed->isReadOnly());
+    const QString text = ed->toPlainText();
+    EXPECT_TRUE(text.contains(QStringLiteral("# Table of Contents")));
+    EXPECT_TRUE(text.contains(QStringLiteral("- [doc.md](doc.md)")));
+    EXPECT_TRUE(text.contains(QStringLiteral("[Alpha](doc.md#alpha)")));
+    EXPECT_FALSE(text.contains(QStringLiteral("External documents")));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, TocTabExcludedFromSavedCorpus)
+{
+    writeFile(m_root + "/doc.md", "# Alpha\n");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    triggerAction(m_window, QStringLiteral("View Table of Contents"));
+    QApplication::processEvents();
+    triggerAction(m_window, QStringLiteral("Save Corpus"));
+    QApplication::processEvents();
+
+    const QString json = readFile(m_corpusPath);
+    EXPECT_TRUE(json.contains(QStringLiteral("doc.md")));
+    EXPECT_FALSE(json.contains(QStringLiteral("Table of Contents")));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, TocTabRefreshesOnExternalRename)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("ignore"));
+    writeFile(m_root + "/doc.md", "# Alpha\n");
+    makeCorpus({"doc.md"});
+    openCorpus();
+    triggerAction(m_window, QStringLiteral("View Table of Contents"));
+    QApplication::processEvents();
+    ASSERT_GE(tocTabIndex(), 0);
+
+    ASSERT_TRUE(QFile::rename(m_root + "/doc.md", m_root + "/renamed.md"));
+
+    EXPECT_TRUE(waitFor([&] {
+        Editor *ed = stackEditor(tocTabIndex());
+        return ed && ed->toPlainText().contains(QStringLiteral("renamed.md"))
+                 && !ed->toPlainText().contains(QStringLiteral("[doc.md]"));
+    }));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, TocTabClosedWhenCorpusReopened)
+{
+    writeFile(m_root + "/doc.md", "# Alpha\n");
+    makeCorpus({"doc.md"});
+    openCorpus();
+    triggerAction(m_window, QStringLiteral("View Table of Contents"));
+    QApplication::processEvents();
+    ASSERT_GE(tocTabIndex(), 0);
+
+    writeFile(m_root + "/doc2.md", "# Beta\n");
+    Corpus c2;
+    c2.filePath = m_root + "/corpus2.scriba";
+    c2.name = QStringLiteral("test2");
+    c2.monitor = true;
+    c2.active = 0;
+    c2.documents.append({QStringLiteral("doc2.md")});
+    ASSERT_TRUE(c2.save());
+    m_window->openCorpusFile(c2.filePath, /*skipPrompt=*/true);
+    QApplication::processEvents();
+
+    EXPECT_EQ(tocTabIndex(), -1);
+    auto *tabs = m_window->findChild<QTabBar *>();
+    ASSERT_NE(tabs, nullptr);
+    EXPECT_EQ(tabs->count(), 2); // Untitled placeholder + doc2.md
+}
+
+} // namespace
+
+int main(int argc, char **argv)
+{
+    QApplication app(argc, argv);
+    setupTestConfig();
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

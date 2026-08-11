@@ -68,7 +68,7 @@ protected:
     {
         QSettings settings;
         settings.remove(Preferences::LastOpenedFile);
-        settings.setValue(Preferences::ReopenLastSession, false);
+        settings.setValue(Preferences::ReopenLastCorpus, false);
         settings.setValue(Preferences::PreviewState, 1);
         ASSERT_TRUE(m_dir.isValid());
         window = new MainWindow();
@@ -82,7 +82,7 @@ protected:
         delete window;
         QSettings settings;
         settings.remove(Preferences::LastOpenedFile);
-        settings.setValue(Preferences::ReopenLastSession, false);
+        settings.setValue(Preferences::ReopenLastCorpus, false);
     }
 
     // Writes `content` into `name` inside the temp dir and opens it in the

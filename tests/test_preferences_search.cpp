@@ -115,8 +115,8 @@ protected:
 
 TEST_F(PreferencesSearchTest, EmptySearchShowsAllPagesAndNoDim)
 {
-    ASSERT_EQ(pageList()->count(), 11);
-    EXPECT_EQ(visiblePageCount(), 11);
+    ASSERT_EQ(pageList()->count(), 12);
+    EXPECT_EQ(visiblePageCount(), 12);
     EXPECT_FALSE(infoLabel()->isVisible());
     const auto all = m_dialog->findChildren<QWidget *>();
     for (QWidget *w : all)
@@ -162,17 +162,17 @@ TEST_F(PreferencesSearchTest, DimsNonMatchingWidgetsOnShownPage)
     ASSERT_EQ(currentPage(), QStringLiteral("General"));
 
     QLabel *wrapLabel = nullptr;
-    QCheckBox *reopenCheck = nullptr;
+    QCheckBox *syncCheck = nullptr;
     for (QLabel *l : m_dialog->findChildren<QLabel *>())
         if (l->text().contains(QStringLiteral("Wrap text"), Qt::CaseInsensitive))
             wrapLabel = l;
     for (QCheckBox *cb : m_dialog->findChildren<QCheckBox *>())
-        if (cb->text().contains(QStringLiteral("Open last session"), Qt::CaseInsensitive))
-            reopenCheck = cb;
+        if (cb->text().contains(QStringLiteral("Sync editor and preview scrolling"), Qt::CaseInsensitive))
+            syncCheck = cb;
     ASSERT_TRUE(wrapLabel);
-    ASSERT_TRUE(reopenCheck);
+    ASSERT_TRUE(syncCheck);
     EXPECT_FALSE(wrapLabel->property("scribaPrefDim").toBool());
-    EXPECT_TRUE(reopenCheck->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(syncCheck->property("scribaPrefDim").toBool());
 }
 
 TEST_F(PreferencesSearchTest, GroupBoxContainingMatchStaysVisible)
@@ -196,11 +196,65 @@ TEST_F(PreferencesSearchTest, ClearRestoresAllPagesAndDims)
 {
     searchEdit()->setText(QStringLiteral("wrap"));
     searchEdit()->clear();
-    EXPECT_EQ(visiblePageCount(), 11);
+    EXPECT_EQ(visiblePageCount(), 12);
     EXPECT_FALSE(infoLabel()->isVisible());
     const auto all = m_dialog->findChildren<QWidget *>();
     for (QWidget *w : all)
         EXPECT_FALSE(w->property("scribaPrefDim").toBool());
+}
+
+TEST_F(PreferencesSearchTest, CorpusPageHasExpectedSettingsAndStartupMoved)
+{
+    int corpusIdx = -1;
+    for (int i = 0; i < pageList()->count(); ++i) {
+        if (pageList()->item(i)->text() == QStringLiteral("Corpus")) {
+            corpusIdx = i;
+            break;
+        }
+    }
+    ASSERT_GE(corpusIdx, 0);
+
+    // Every new Corpus-page setting is searchable and routes to that page.
+    const QStringList queries = {
+        QStringLiteral("Open last corpus on startup"),
+        QStringLiteral("Recent Corpora"),
+        QStringLiteral("Monitor corpus directory"),
+        QStringLiteral("When a document changes on disk"),
+        QStringLiteral("When a corpus document is renamed/moved"),
+        QStringLiteral("Documents outside the corpus root"),
+    };
+    for (const QString &query : queries) {
+        searchEdit()->setText(query);
+        EXPECT_EQ(currentPage(), QStringLiteral("Corpus"))
+            << "query: " << query.toUtf8().constData();
+    }
+
+    // The startup checkbox now lives on the Corpus page, not the General page.
+    auto *reopenCheck = m_dialog->findChild<QCheckBox *>(QStringLiteral("corpus-reopen-startup"));
+    ASSERT_TRUE(reopenCheck);
+    QWidget *corpusPageWidget = pages()->widget(corpusIdx);
+    ASSERT_TRUE(corpusPageWidget);
+    bool onCorpusPage = false;
+    for (QWidget *p = reopenCheck->parentWidget(); p; p = p->parentWidget()) {
+        if (p == corpusPageWidget) {
+            onCorpusPage = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(onCorpusPage);
+
+    // General page widgets still include the sync check but no corpus startup.
+    int generalIdx = -1;
+    for (int i = 0; i < pageList()->count(); ++i) {
+        if (pageList()->item(i)->text() == QStringLiteral("General")) {
+            generalIdx = i;
+            break;
+        }
+    }
+    ASSERT_GE(generalIdx, 0);
+    QWidget *generalPageWidget = pages()->widget(generalIdx);
+    ASSERT_TRUE(generalPageWidget);
+    EXPECT_EQ(generalPageWidget->findChildren<QCheckBox *>(QStringLiteral("corpus-reopen-startup")).size(), 0);
 }
 
 TEST_F(PreferencesSearchTest, NoMatchShowsInfoLabel)

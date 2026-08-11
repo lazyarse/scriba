@@ -432,6 +432,68 @@ TEST_F(SpellCheckerTest, UnchangedConfigurationSkipsRebuild)
     EXPECT_EQ(checker.configLoads(), 3);
 }
 
+TEST_F(SpellCheckerTest, CorpusOverrideReplacesGlobalUserWords)
+{
+    // With a corpus active in the default (override) mode the corpus word
+    // sets replace the global user.dic/ignored.dic sets entirely.
+    SpellChecker::writeUserDictionaryWords({"qqcglobwone"});
+    SpellChecker::writeIgnoredWords({"qqcglobigna"});
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+
+    EXPECT_TRUE(checker.checkWord("qqcglobwone"));    // global user word applies
+    EXPECT_TRUE(checker.checkWord("qqcglobigna"));   // global ignored applies
+
+    checker.setCorpusWords({"qqccorpushwo"});
+    EXPECT_TRUE(checker.checkWord("qqccorpushwo"));
+    EXPECT_FALSE(checker.checkWord("qqcglobwone"));   // override drops the globals
+    EXPECT_FALSE(checker.checkWord("qqcglobigna"));
+}
+
+TEST_F(SpellCheckerTest, CorpusMergeUnionsGlobalAndCorpusWords)
+{
+    SpellChecker::writeUserDictionaryWords({"qqcglobwone"});
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+
+    checker.setCorpusMerge(true);
+    checker.setCorpusWords({"qqccorpushwo"});
+    EXPECT_TRUE(checker.checkWord("qqcglobwone"));    // globals still apply
+    EXPECT_TRUE(checker.checkWord("qqccorpushwo"));
+}
+
+TEST_F(SpellCheckerTest, CorpusOverrideWithEmptySetsKeepsGlobalWords)
+{
+    // Regression guard: a plain editor has no corpus words, so even the
+    // default override mode must keep the global user dictionary.
+    SpellChecker::writeUserDictionaryWords({"qqcglobwone"});
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+    EXPECT_TRUE(checker.checkWord("qqcglobwone"));
+}
+
+TEST_F(SpellCheckerTest, CorpusWordsRoundTripAndAddRemove)
+{
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+    checker.addCorpusWord(" qqccorpusalpha ");     // leading/trailing trimmed
+    checker.addCorpusWord("qqccorpusbeta");
+    checker.removeCorpusWord("qqccorpusbeta");
+    checker.removeCorpusWord("missingWord");       // no-op
+    EXPECT_EQ(checker.corpusWords(), QStringList({"qqccorpusalpha"}));
+    EXPECT_TRUE(checker.checkWord("qqccorpusalpha"));
+    EXPECT_FALSE(checker.checkWord("qqccorpusbeta"));
+}
+
+TEST_F(SpellCheckerTest, CorpusIgnoredAppliedAndRoundTrip)
+{
+    SpellChecker checker;
+    ASSERT_TRUE(checker.loadLanguage("en_US"));
+    checker.setCorpusIgnored({"qqcignoredzn"});
+    EXPECT_EQ(checker.corpusIgnored(), QStringList({"qqcignoredzn"}));
+    EXPECT_TRUE(checker.checkWord("qqcignoredzn"));
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

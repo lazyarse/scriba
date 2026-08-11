@@ -2,25 +2,24 @@
 
 ![C++23 Badge](docs/images/badge-cpp23.svg)
 ![Qt6 Badge](docs/images/badge-qt6.svg)
-![Tests Badge](docs/images/badge-tests.svg)
 
 # Scriba Markdown Editor
 
-**A privacy-first, no-nonsense, full-featured, and configurable Markdown editor for people who write.** 
+**A privacy-first, no-nonsense, full-featured, and configurable Markdown editor for people who write.**
 
-Designed to *actually* do what you need without a plugin ecosystem. No node, react, angular, or bloat; instead, a single binary on your computer that respects your privacy and that of your clients. Get ready to leave your Google Docs trauma behind.
+Designed to *actually* do what you need quickly and without a plugin ecosystem. No node, react, angular, or bloat; instead, a single binary on your computer that respects your privacy and that of your clients. Get ready to leave your Google Docs trauma behind.
 
 ---
 
 ## Features
 
-- **Load / Save multiple documents** in a `session` with a tabbed interface
-- Pick up exactly where you left-off with **cursor and view-port restore** on restart
-- **Offline, in-editor spell and grammar checks** with various dialects. **Import custom `session`-specific word sets** with ease: legal, medical, technical, etc.
+- **Load / Save multiple documents** in a `corpus` with a tabbed interface. A corpus is a saved group of documents (`.scriba` file) with a **Recent Corpus** menu, **live directory monitoring** for external changes (auto-reload / prompt policies), **automatic link rewriting** when a document is renamed or moved, and a **corpus-specific spell-check dictionary** (override or merge with your global one).
+- Pick up exactly where you left-off with per-tab **cursor and view-port restore** on restart
+- **Offline, in-editor spell and grammar checks** with various dialects. **Import custom `corpus`-specific word sets** with ease: legal, medical, technical, etc.
 - Print and PDF export use **print-specific CSS stylesheets** and adhere to common typesetting principles including **orphan, split quote / codeblock, and hanging-line prevention**
-- **Readability metrics in realtime** to keep your writing audience-focused including sentence / word / character / paragraph / syllable counts, estimated reading and speaking times, and more --- as you type. Choose what metrics are important to you
+- **Readability metrics in real-time** to keep your writing audience-focused including sentence / word / character / paragraph / syllable counts, estimated reading and speaking times, and more --- as you type. Choose what metrics are important to you
 - **In-editor underlining** for: typos, not-good grammar, markdown lint issues, malformed urls, and broken links to local files and navigation header sections
-- **A validation report** to validate all documents in a `session` according to your needs
+- **A validation report** to validate all documents in a `corpus` according to your needs
 - **Create _and_ edit charts and diagrams with ease** using two-way [chart assistants](docs/chart-assistants.md) for ECharts and [Mermaid](docs/mermaid.md) diagrams, manual or CSV-file (+ field mappings) data-entry; extra assistants for LaTeX, MChem, and creating tables
 - **"Find and Replace" with regex search _and_ replacement back-references**
 - **Export**: PDF, DOCX, and HTML; **Import**: HTML and DOCX
@@ -28,8 +27,7 @@ Designed to *actually* do what you need without a plugin ecosystem. No node, rea
 - **Fuzzy auto-complete suggestions** for links to local filenames, and even emojis; 
 - **Fold headers, fenced-code blocks, tables, and lists** to reduce vertical space
 - **Source auto-correct for commonly mis-spelt words** like "_hte_" -> "_the_", "_nad_" -> "_and_" and add your own
-- **Auto-save**
-- **[Themes](docs/themes.md)** --- Fair warning: Qt can't style application or dialog title bars differently to the system theme. 
+- **Auto-save**, - **[Themes](docs/themes.md)** (Fair warning: Qt can't style application or dialog title bars differently to the system theme), and crash recovery of the last corpus.
 - **Keyboard shortcuts to make you more productive**: [keyboard shortcuts](docs/shortcuts.md) for amost everything; a [kitchensink.md](docs/kitchensink.md) with full feature examples that isn't a Markdown 101; an internal cache of page renders to prevent preview regeneration when switching tabs; and, jump up and down the document from header to header with a simple keyboard shortcut
 - **Accessibility support** to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview and chrome all styled from one file whilst the editor's colours stay in sync.
 - **Override the editor's font family, size, and line-height, change the caret width to improve visibility, and more**
@@ -60,120 +58,24 @@ _See the [Gallery](docs/gallery.md) for more screenshots..._
 
 ---
 
-## Prerequisites
-
-- CMake 3.16+
-- Qt6 development libraries
-  ```bash
-  sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
-  ```
-- GCC/Clang with C++23 support (Linux) or Visual Studio 2022 with "Desktop development with C++" workload (Windows)
-- On Windows: Qt 6.8+ (MSVC 2022 64-bit) from qt.io, CMake, Git for Windows
-- **Chromium ≥ 140** (for PDF export). Install on Debian/Ubuntu:
-  ```bash
-  sudo apt install chromium
-  ```
-  If Chromium is not found, PDF export falls back to Qt's built-in renderer
-  (cannot suppress default page headers/footers).
-- Approximately 10 minutes of your time that you will never get back.
-
----
-
-## Building
-
-### Build on Linux
-
-```bash
-mkdir -p build
-cmake --build build --target clean 2>/dev/null   # remove stale _autogen dirs after branch switches
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
-```
-
-The post-build step automatically removes cached base stylesheets (`~/.config/scriba/*.css`), so no manual cleanup needed on rebuild.
-
-### Build on Windows
-
-In an **x64 Native Tools Command Prompt for VS 2022**:
-
-```cmd
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.10.3\msvc2022_64"
-cmake --build build -j4 --config Release
-```
-
-Binary: `build\Release\scriba.exe`
-
-Copy from QEMU to host (host needs an ssh-server running): `scp file.txt user@10.0.2.2:~/`
-
-### Build Windows installer
-
-Requires [NSIS](https://nsis.sourceforge.io/) installed (`choco install nsis`). In an **x64 Native Tools Command Prompt for VS 2022**:
-
-```cmd
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.10.3\msvc2022_64"
-cmake --build build -j4 --config Release
-cpack --config build/CPackConfig.cmake -G NSIS
-```
-
-Output: `scriba-<version>-win64.exe` (version derived from `git describe --tags --always --dirty`; includes a `-dirty` suffix if the working tree has uncommitted changes)
-
-The NSIS installer adds Scriba to the Start Menu and registers `.md` files to open with Scriba.
-
-> **Windows filename note:** colons (`:`) are not allowed in filenames on Windows. If your git tag
-> contains a colon, `cpack` will fail. Stick to semver tags like `v1.2.3` to avoid this.
-
-### Build .deb package
-
-```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && cpack --config build/CPackConfig.cmake -G DEB
-```
-
-Copy the `.deb` to `/tmp/` before installing — your home directory likely blocks `_apt`:
-```bash
-cp scriba-*-Linux.deb /tmp/ && sudo apt install /tmp/scriba-*-Linux.deb
-```
-
-If you install straight from `./scriba-...deb` and your home directory is mode `700` (the default for `~/`) you may see:
-
-```
-'...scriba-...-Linux.deb' couldn't be accessed by user '_apt'. - pkgAcquire::Run (13: Permission denied)
-```
-
-and the same message for every parent directory of the `.deb`.
-
-**This is an apt behaviour, not a Scriba bug.** To isolate package acquisition, `apt` reads the file as the unprivileged `_apt` user, which must be able to traverse *every* directory above the `.deb` — not just read the file itself. `apt` can reach `/var/cache/apt/archives/` (where it downloads normally-installed packages itself), but `_apt` cannot step into a `700` home directory, so it falls back to running as root. The install still succeeds; the message is non-fatal.
-
-It surfaces for `./scriba` because it's a *locally-built* `.deb` inside a restrictive home directory — any hand-built package there triggers it, while repos-installed software never does. Fix by copying the `.deb` to a world-traversable location like `/tmp/` (above), or install without apt's sandbox:
-
-```bash
-sudo dpkg -i scriba-*-Linux.deb
-```
-
-Output: `scriba-1.0.0-Linux.deb` (may include a `-dirty` suffix if the working tree has uncommitted changes)
-
-### Build with tests
-
-During development, build the test suite in a separate Debug build dir (`build-dbg/`) — it compiles faster than a Release test build and keeps `build/` for the Release binary:
-
-```bash
-cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j$(nproc)
-```
-
-The `-D` flags are only needed the first time a build dir is configured; CMake caches them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j$(nproc)`.
-
-### Run tests
-
-```bash
-cd build-dbg && ctest --output-on-failure -j4
-```
-
-Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't crash on your headless CI. Parallel runs are safe: WebEngine suites serialize via `RESOURCE_LOCK webkit`, and each test's config is isolated to a per-process temp dir.
-
 ## Running
 
 ```bash
 ./scriba                    # empty editor
 ./scriba file.md            # open file
 ./scriba file1.md file2.md  # open files
+```
+
+---
+
+## Building
+
+Full build instructions for Linux, Windows, and the installers — plus how to build and run the test suite — are in [docs/build.md](docs/build.md).
+
+Quick start on Linux:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ```
 
 On Windows, add Qt's bin directory to PATH first:
@@ -209,5 +111,3 @@ JS console messages are captured via the Debug Log window (Tools → Debug Log).
 ## License
 
 Scriba is free software released under the [GNU General Public License v3.0](LICENSE) (or, at your option, any later version). It comes with ABSOLUTELY NO WARRANTY.
-
-

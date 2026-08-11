@@ -59,7 +59,7 @@ class MultiTabWindowTest : public testing::Test {
 protected:
     void SetUp() override {
         QSettings s;
-        s.setValue(Preferences::ReopenLastSession, false);
+        s.setValue(Preferences::ReopenLastCorpus, false);
         s.setValue(Preferences::AutoSaveOnExit, false);
         s.setValue(Preferences::AutoSaveInterval, 0);
 

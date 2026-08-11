@@ -30,6 +30,7 @@
 #include <QActionGroup>
 
 #include "ValidationReport.h"
+#include "Corpus.h"
 
 class Editor;
 class Preview;
@@ -46,7 +47,9 @@ class MermaidDialog;
 class KatexHelperDialog;
 class MchemHelperDialog;
 class SpellCheckDialog;
+class CorpusWatcher;
 class QWebChannel;
+class QMenu;
 
 struct TabInfo {
     Editor *editor = nullptr;
@@ -63,9 +66,11 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr, bool skipSessionRestore = false);
+    MainWindow(QWidget *parent = nullptr, bool skipCorpusRestore = false);
     ~MainWindow() = default;
     void loadFile(const QString &filePath, bool forceReload = false);
+    // Exposed for tests; the UI path is openCorpusAction().
+    void openCorpusFile(const QString &path, bool skipPrompt = false);
     Editor *editor() const { return currentEditor(); }
     Preview *preview() const { return m_preview; }
 
@@ -74,6 +79,10 @@ public:
     static void setNotifyStaleCss(bool enabled) { s_notifyStaleCss = enabled; }
 
     enum class ClosePromptResult { Save, Cancel, Discard };
+
+    // Exposed for tests (recent-corpora menu); UI-internal otherwise.
+    void addRecentCorpus(const QString &path);
+    void updateRecentCorporaMenu();
 
 private slots:
     void updatePreview();
@@ -158,11 +167,28 @@ private:
     TabInfo *activeTabInfo();
     void showSaveDiscardDialog(int index);
 
-    QJsonObject serializeSession() const;
-    void restoreSession(const QJsonObject &session);
-    void saveSessionAction();
-    void saveSessionAsAction();
-    void loadSessionAction();
+    QJsonObject serializeCorpus();
+    QString tabTitleForEmbedded(int index) const;
+    void refreshCorpusFromTabs();
+    void restoreTabState(int idx, const CorpusDocument &d);
+    void restoreCorpus(const QJsonObject &corpus);
+    void saveCorpusAction();
+    void saveCorpusAsAction();
+    void openCorpusAction();
+    bool maybeDiscardCurrentTabs();
+    bool saveAllDirtyTabs();
+    void closeAllTabs();
+    void applyCorpusDictionary();
+    void startCorpusWatcher();
+    void stopCorpusWatcher();
+    void handleExternalEdit(const QString &path);
+    void handleExternalRename(const QString &from, const QString &to);
+    void handleExternalDelete(const QString &path);
+    void rewriteLinksForFile(const QString &oldAbs, const QString &newAbs);
+    void viewTableOfContents();
+    QString renderTocMarkdown() const;
+    void refreshOpenToc();
+    void refreshPreviewForTocTab(int index, const QString &rootDir);
 
     // Validation Report (Tools → Validation Report…): snapshots the open
     // documents, scans spelling/links/markdown synchronously, runs the
@@ -180,6 +206,7 @@ private:
     CssConfig *m_cssConfig;
     CssLoader *m_cssLoader;
     QFileSystemWatcher *m_cssWatcher;
+    CorpusWatcher *m_corpusWatcher = nullptr;
     QTabBar *m_tabBar;
     QStackedWidget *m_editorStack;
     QVector<TabInfo> m_tabs;
@@ -209,6 +236,8 @@ private:
     QTimer *m_anchorTimer = nullptr;
     QString m_pendingAnchor;
     int m_anchorTries = 0;
+    Corpus m_corpus;
+    QMenu *m_recentCorpusMenu = nullptr;
 
     // Validation Report state. m_reportSources/m_reportDocs are snapshots made
     // on the UI thread before the grammar worker starts; the worker's results
@@ -218,6 +247,9 @@ private:
     bool m_reportInFlight = false;
     QThread *m_reportThread = nullptr;
     QHash<int, QString> m_reportTitles;
+    // Table-of-Contents tabs: index -> fixed tab title. Like m_reportTitles,
+    // these are generated, unbacked virtual documents excluded from the corpus.
+    QHash<int, QString> m_tocTabs;
     QVector<ValidationReport::DocumentSource> m_reportSources;
     QVector<ValidationReport::DocumentReport> m_reportDocs;
     ValidationReport::ValidationOptions m_reportOptions;

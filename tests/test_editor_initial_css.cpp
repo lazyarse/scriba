@@ -30,7 +30,7 @@ class EditorInitialCssTest : public testing::Test {
 protected:
     void SetUp() override {
         QSettings settings;
-        settings.setValue(Preferences::ReopenLastSession, false);
+        settings.setValue(Preferences::ReopenLastCorpus, false);
         settings.remove(Preferences::EditorFontFamily);
         settings.remove(Preferences::EditorFontSize);
         settings.remove(Preferences::EditorPadding);

@@ -42,8 +42,8 @@ protected:
 
     void SetUp() override {
         QSettings s;
-        s.remove(Preferences::SessionData);
-        s.setValue(Preferences::ReopenLastSession, false);
+        s.remove(Preferences::OnExitCorpusData);
+        s.setValue(Preferences::ReopenLastCorpus, false);
         s.setValue(Preferences::AutoSaveOnExit, false);
         s.setValue(Preferences::AutoSaveInterval, 0);
 
@@ -190,13 +190,20 @@ TEST_F(DirtyOnLoadTest, AcceptingPreferencesDoesNotDirtyAnyTab) {
 
 TEST_F(DirtyOnLoadTest, SessionRestoreDoesNotMarkTabDirty) {
     QSettings s;
-    s.setValue(Preferences::ReopenLastSession, true);
+    s.setValue(Preferences::ReopenLastCorpus, true);
     QJsonObject session;
     session["version"] = 1;
-    session["files"] = QJsonArray{ tmpFile->fileName() };
-    session["cursors"] = QJsonArray{};
+    QJsonObject doc;
+    doc["path"] = tmpFile->fileName();
+    QJsonObject cursor;
+    cursor["block"] = 0;
+    cursor["col"] = 0;
+    doc["cursor"] = cursor;
+    doc["scroll"] = 0;
+    doc["folds"] = QJsonArray{};
+    session["documents"] = QJsonArray{ doc };
     session["active"] = 0;
-    s.setValue(Preferences::SessionData,
+    s.setValue(Preferences::OnExitCorpusData,
                QString::fromUtf8(QJsonDocument(session).toJson(QJsonDocument::Compact)));
 
     window = new MainWindow();

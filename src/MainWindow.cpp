@@ -15,6 +15,10 @@
 #include "MainWindow.h"
 #include "Editor.h"
 #include "Preview.h"
+#include "Corpus.h"
+#include "CorpusIndex.h"
+#include "CorpusWatcher.h"
+#include "LinkFixer.h"
 #include "PreviewBridge.h"
 #include "MarkdownParser.h"
 #include "CssConfig.h"
@@ -140,7 +144,7 @@ private:
 
 bool MainWindow::s_notifyStaleCss = false;
 
-MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
+MainWindow::MainWindow(QWidget *parent, bool skipCorpusRestore)
     : QMainWindow(parent)
     , m_parser(new MarkdownParser())
     , m_cssConfig(new CssConfig())
@@ -153,6 +157,14 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
 
     setupUi();
     setupMenuBar();
+
+    m_corpusWatcher = new CorpusWatcher(this);
+    connect(m_corpusWatcher, &CorpusWatcher::edited, this,
+            &MainWindow::handleExternalEdit);
+    connect(m_corpusWatcher, &CorpusWatcher::renamed, this,
+            &MainWindow::handleExternalRename);
+    connect(m_corpusWatcher, &CorpusWatcher::deleted, this,
+            &MainWindow::handleExternalDelete);
 
     QFontDatabase::addApplicationFont(":/fonts/Symbola.ttf");
 
@@ -267,14 +279,19 @@ MainWindow::MainWindow(QWidget *parent, bool skipSessionRestore)
     QSettings s;
     applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
 
-    if (!skipSessionRestore) {
-        bool reopen = settings.value(Preferences::ReopenLastSession, true).toBool();
+    if (!skipCorpusRestore) {
+        bool reopen = settings.value(Preferences::ReopenLastCorpus, true).toBool();
         if (reopen) {
-            QString raw = settings.value(Preferences::SessionData).toString();
-            if (!raw.isEmpty()) {
-                QJsonDocument doc = QJsonDocument::fromJson(raw.toUtf8());
-                if (doc.isObject())
-                    restoreSession(doc.object());
+            const QString last = settings.value(Preferences::LastCorpusPath).toString();
+            if (!last.isEmpty() && QFileInfo::exists(last)) {
+                openCorpusFile(last, /*skipPrompt=*/true);
+            } else {
+                QString raw = settings.value(Preferences::OnExitCorpusData).toString();
+                if (!raw.isEmpty()) {
+                    QJsonDocument doc = QJsonDocument::fromJson(raw.toUtf8());
+                    if (doc.isObject())
+                        restoreCorpus(doc.object());
+                }
             }
         }
     }
@@ -510,6 +527,13 @@ void MainWindow::removeTab(int index)
         shifted.insert(key > index ? key - 1 : key, it.value());
     }
     m_reportTitles = shifted;
+    m_tocTabs.remove(index);
+    QHash<int, QString> tocShifted;
+    for (auto it = m_tocTabs.constBegin(); it != m_tocTabs.constEnd(); ++it) {
+        const int key = it.key();
+        tocShifted.insert(key > index ? key - 1 : key, it.value());
+    }
+    m_tocTabs = tocShifted;
 
     updateTabBarVisibility();
 }
@@ -534,6 +558,11 @@ void MainWindow::onTabMoved(int from, int to)
     for (int i = 0; i < m_tabs.size(); ++i) {
         if (m_reportTitles.contains(i))
             oldReportTitles.insert(m_tabs[i].editor, m_reportTitles.value(i));
+    }
+    QHash<Editor *, QString> oldTocTitles;
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (m_tocTabs.contains(i))
+            oldTocTitles.insert(m_tabs[i].editor, m_tocTabs.value(i));
     }
 
     QVector<TabInfo> reordered;
@@ -571,6 +600,14 @@ void MainWindow::onTabMoved(int from, int to)
         if (auto it = oldReportTitles.constFind(m_tabs[i].editor);
             it != oldReportTitles.constEnd()) {
             m_reportTitles.insert(i, it.value());
+        }
+    }
+
+    m_tocTabs.clear();
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (auto it = oldTocTitles.constFind(m_tabs[i].editor);
+            it != oldTocTitles.constEnd()) {
+            m_tocTabs.insert(i, it.value());
         }
     }
 
@@ -676,6 +713,8 @@ void MainWindow::updateTabLabel(int index)
     QString name;
     if (m_reportTitles.contains(index))
         name = m_reportTitles.value(index);
+    else if (m_tocTabs.contains(index))
+        name = m_tocTabs.value(index);
     else
         name = info.filePath.isEmpty() ? QStringLiteral("Untitled")
                                        : QFileInfo(info.filePath).fileName();
@@ -688,6 +727,11 @@ void MainWindow::updateTabLabel(int index)
 
 void MainWindow::updateWindowTitle()
 {
+    if (!m_corpus.filePath.isEmpty()) {
+        setWindowTitle(QFileInfo(m_corpus.filePath).completeBaseName()
+                       + QStringLiteral(" — Scriba"));
+        return;
+    }
     TabInfo *info = activeTabInfo();
     if (!info) {
         setWindowTitle(QStringLiteral("Scriba"));
@@ -822,12 +866,19 @@ void MainWindow::setupMenuBar()
         addTab();
     });
 
-    QMenu *sessionMenu = fileMenu->addMenu("S&ession");
-    QAction *saveSessionAction = sessionMenu->addAction("&Save Session As...");
-    connect(saveSessionAction, &QAction::triggered, this, &MainWindow::saveSessionAsAction);
-
-    QAction *loadSessionAction = sessionMenu->addAction("&Load Session...");
-    connect(loadSessionAction, &QAction::triggered, this, &MainWindow::loadSessionAction);
+    QMenu *corpusMenu = fileMenu->addMenu(tr("C&orpus"));
+    QAction *saveCorpusAct = corpusMenu->addAction(tr("&Save Corpus"));
+    connect(saveCorpusAct, &QAction::triggered, this, &MainWindow::saveCorpusAction);
+    QAction *saveCorpusAsAct = corpusMenu->addAction(tr("Save Corpus &As…"));
+    connect(saveCorpusAsAct, &QAction::triggered, this, &MainWindow::saveCorpusAsAction);
+    QAction *openCorpusAct = corpusMenu->addAction(tr("&Open Corpus…"));
+    connect(openCorpusAct, &QAction::triggered, this, &MainWindow::openCorpusAction);
+    QAction *tocAction = corpusMenu->addAction(tr("&View Table of Contents"));
+    tocAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
+    connect(tocAction, &QAction::triggered, this, &MainWindow::viewTableOfContents);
+    corpusMenu->addSeparator();
+    m_recentCorpusMenu = corpusMenu->addMenu(tr("Recent C&orpus"));
+    updateRecentCorporaMenu();
 
     fileMenu->addSeparator();
 
@@ -1472,6 +1523,11 @@ void MainWindow::updatePreview(bool tabSwitch)
     if (!docPath.isEmpty()) {
         baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
     }
+    // A Table-of-Contents tab is unbacked, but its relative links resolve
+    // against the corpus root; mirror the per-file base for it.
+    const int curIdx = m_tabBar->currentIndex();
+    if (m_tocTabs.contains(curIdx))
+        baseUrl = QUrl::fromLocalFile(m_corpus.rootDir() + "/");
 
     QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
@@ -1646,7 +1702,7 @@ void MainWindow::showPreferences()
     QString oldStylesheet = m_cssConfig->activeStylesheet();
     CssUtils::ThemeColors tc = CssUtils::themeColors(m_cssLoader->themeCss());
     PreferencesDialog dlg(m_cssConfig, m_cssLoader, this,
-        tc.background.name(), tc.text.name());
+        tc.background.name(), tc.text.name(), &m_corpus);
     auto updateAll = [this]() {
         syncCssWatcher();
         refreshPreviewCss();
@@ -1703,6 +1759,18 @@ void MainWindow::showPreferences()
 
         m_updateTimer->setInterval(s.value(Preferences::PreviewUpdateDelay,
             Preferences::DefaultPreviewUpdateDelay).toInt());
+
+        // Corpus page may have changed the recent list, the dictionary
+        // merge/override mode, or the active corpus's monitor flag.
+        updateRecentCorporaMenu();
+        applyCorpusDictionary();
+        if (!m_corpus.filePath.isEmpty()) {
+            m_corpus.save();
+            if (m_corpus.monitor)
+                startCorpusWatcher();
+            else
+                stopCorpusWatcher();
+        }
     } else {
         m_cssConfig->setActiveStylesheet(oldStylesheet);
         m_cssLoader->invalidateCache();
@@ -1944,8 +2012,14 @@ void MainWindow::generateValidationReport()
     }
 
     QSettings settings;
-    const QString dialect = settings
-        .value(Preferences::GrammarDialect, QStringLiteral("American")).toString();
+    // An active corpus's dictionary overrides the global dialect/language for
+    // the report; empty corpus fields fall back to the per-user preferences.
+    const CorpusDictionary &dict = m_corpus.dictionary;
+    const bool corpusActive = !m_corpus.filePath.isEmpty();
+    const QString dialect = corpusActive && !dict.dialect.isEmpty()
+        ? dict.dialect
+        : settings
+              .value(Preferences::GrammarDialect, QStringLiteral("American")).toString();
 
     // Spelling: a fresh checker honors the configured dictionary and dialect
     // regardless of which tab is active. Used only on the UI thread, and only
@@ -1954,7 +2028,9 @@ void MainWindow::generateValidationReport()
     if (m_reportOptions.categories.contains(ValidationReport::Category::Spelling)) {
         spellChecker = std::make_unique<SpellChecker>();
         spellChecker->setDialect(dialect);
-        const QString language = settings.value(Preferences::DictionaryLanguage).toString();
+        const QString language = corpusActive && !dict.language.isEmpty()
+            ? dict.language
+            : settings.value(Preferences::DictionaryLanguage).toString();
         const QString resolved = language.isEmpty()
             ? SpellChecker::defaultLanguageForDialect(dialect) : language;
         if (!spellChecker->loadLanguage(resolved)) {
@@ -2021,6 +2097,81 @@ void MainWindow::openValidationReport()
         tr("Validation Report - ") + now.toString(QStringLiteral("yyyy-MM-dd HH:mm")));
     updateTabLabel(idx);
     m_tabBar->setTabToolTip(idx, tr("Validation report (regenerate with Ctrl+Shift+F7)"));
+}
+
+void MainWindow::viewTableOfContents()
+{
+    if (m_corpus.documents.isEmpty()) {
+        showCenteredWarning(tr("No Corpus"), tr("No corpus is open."), QString());
+        return;
+    }
+    const QString md = renderTocMarkdown();
+
+    // Refresh an existing TOC tab in place and bring it to the front.
+    if (!m_tocTabs.isEmpty()) {
+        refreshOpenToc();
+        for (auto it = m_tocTabs.begin(); it != m_tocTabs.end(); ++it) {
+            if (it.key() < m_tabs.size() && m_tabs[it.key()].editor) {
+                m_tabBar->setCurrentIndex(it.key());
+                break;
+            }
+        }
+        return;
+    }
+
+    const int idx = addTab(QString());
+    if (idx < 0 || idx >= m_tabs.size())
+        return;
+    Editor *ed = m_tabs[idx].editor;
+    ed->setReadOnly(true);
+    ed->setPlainText(md);
+    ed->document()->setModified(false);
+    m_tabs[idx].dirty = false;
+    m_tocTabs.insert(idx, QStringLiteral("📑 Table of Contents"));
+    updateTabLabel(idx);
+    m_tabBar->setCurrentIndex(idx);
+    refreshPreviewForTocTab(idx, m_corpus.rootDir());
+}
+
+QString MainWindow::renderTocMarkdown() const
+{
+    QHash<QString, QString> links;
+    for (const CorpusDocument &d : m_corpus.documents) {
+        if (d.path.isEmpty())
+            continue;
+        const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
+        if (QFileInfo(d.path).isAbsolute())
+            links.insert(abs, QUrl::fromLocalFile(abs).toString());   // out-of-root: absolute URL
+        else
+            links.insert(abs, d.path);                                 // in-root: relative to the corpus root
+    }
+    return CorpusIndex::renderToc(m_corpus, links);
+}
+
+void MainWindow::refreshOpenToc()
+{
+    const QString md = renderTocMarkdown();
+    for (auto it = m_tocTabs.begin(); it != m_tocTabs.end(); ++it) {
+        if (it.key() >= m_tabs.size() || m_tabs[it.key()].editor == nullptr)
+            continue;
+        m_tabs[it.key()].editor->setPlainText(md);
+        m_tabs[it.key()].editor->document()->setModified(false);
+        m_tabs[it.key()].dirty = false;
+        if (m_tabBar->currentIndex() == it.key())
+            refreshPreviewForTocTab(it.key(), m_corpus.rootDir());
+    }
+}
+
+void MainWindow::refreshPreviewForTocTab(int index, const QString &rootDir)
+{
+    Q_UNUSED(rootDir);
+    if (index < 0 || index >= m_tabs.size())
+        return;
+    // Force a re-parse so the (unchanged) cached previewHtml can't serve
+    // stale link resolution; updatePreview derives the <base> from m_tocTabs.
+    m_tabs[index].previewHtmlValid = false;
+    if (m_tabBar->currentIndex() == index)
+        updatePreview(true);
 }
 
 void MainWindow::stopValidationReport()
@@ -2568,10 +2719,6 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
     m_preview->setDocumentPath(filePath);
     m_previewInitialized = false;
     updatePreview();
-
-    QSettings settings;
-    if (!replacedUntitled)
-        settings.setValue(Preferences::LastSessionName, filePath);
 }
 
 void MainWindow::saveFile(const QString &filePath)
@@ -2607,11 +2754,9 @@ void MainWindow::saveFile(const QString &filePath)
     m_preview->setDocumentPath(filePath);
     statusBar()->showMessage("Saved", 2000);
 
-    QSettings settings;
     if (pathChanged) {
         if (QFileInfo(filePath).absolutePath() != oldDir && m_previewInitialized)
             updatePreview();
-        settings.setValue(Preferences::LastSessionName, filePath);
     }
 }
 
@@ -2655,6 +2800,7 @@ void MainWindow::renameCurrentFile()
     if (!ed)
         return;
     QString oldDir = QFileInfo(info->filePath).absolutePath();
+    const QString oldAbs = QFileInfo(info->filePath).absoluteFilePath();
     info->filePath = newPath;
     ed->setCurrentFile(newPath);
 
@@ -2670,6 +2816,9 @@ void MainWindow::renameCurrentFile()
     // against the shared page's <base> element) follow the new location.
     if (QFileInfo(newPath).absolutePath() != oldDir && m_previewInitialized)
         updatePreview();
+
+    // Update any corpus links that pointed at the old path.
+    rewriteLinksForFile(oldAbs, newPath);
 }
 
 void MainWindow::autoSave()
@@ -3058,56 +3207,95 @@ void MainWindow::exportHtml()
     statusBar()->showMessage("Exported as HTML", 2000);
 }
 
-QJsonObject MainWindow::serializeSession() const
+void MainWindow::refreshCorpusFromTabs()
 {
-    QJsonObject root;
-    root["version"] = 1;
-    QJsonArray files;
-    QJsonArray cursors;
-
-    int rawActive = m_tabBar->currentIndex();
+    m_corpus.documents.clear();
+    const int rawActive = m_tabBar->currentIndex();
     int fileActive = 0;
     int activeIndex = -1;
     for (int i = 0; i < m_tabs.size(); ++i) {
-        if (m_tabs[i].filePath.isEmpty()) continue;
-        if (i == rawActive) { activeIndex = fileActive; break; }
+        const TabInfo &info = m_tabs[i];
+        if (m_reportTitles.contains(i) || m_tocTabs.contains(i))
+            continue;   // generated report/TOC tabs are not part of the corpus
+
+        CorpusDocument d;
+        if (!info.filePath.isEmpty())
+            d.path = Corpus::storedPath(m_corpus.rootDir(), info.filePath);
+        else {
+            d.content = info.editor->toPlainText();
+            d.name = tabTitleForEmbedded(i);
+        }
+        d.cursorBlock = info.editor->textCursor().blockNumber();
+        d.cursorCol = info.editor->textCursor().positionInBlock();
+        d.scroll = info.editor->verticalScrollBar()->value();
+        d.folds = info.editor->foldedBlockNumbers();
+        m_corpus.documents.append(d);
+
+        if (i == rawActive)
+            activeIndex = fileActive;
         ++fileActive;
     }
-    root["active"] = activeIndex;
-
-    for (int i = 0; i < m_tabs.size(); ++i) {
-        const TabInfo &info = m_tabs[i];
-        if (info.filePath.isEmpty())
-            continue;
-
-        files.append(info.filePath);
-
-        QJsonObject cursor;
-        cursor["block"] = info.editor->textCursor().blockNumber();
-        cursor["col"] = info.editor->textCursor().positionInBlock();
-        cursor["scroll"] = info.editor->verticalScrollBar()->value();
-        QJsonArray folds;
-        for (int bn : info.editor->foldedBlockNumbers())
-            folds.append(bn);
-        cursor["folds"] = folds;
-        cursors.append(cursor);
-    }
-
-    root["files"] = files;
-    root["cursors"] = cursors;
-    return root;
+    m_corpus.active = activeIndex;
 }
 
-void MainWindow::restoreSession(const QJsonObject &session)
+QJsonObject MainWindow::serializeCorpus()
 {
-    int version = session["version"].toInt();
-    if (version != 1) return;
+    refreshCorpusFromTabs();
+    return m_corpus.toJson();
+}
 
-    QJsonArray files = session["files"].toArray();
-    QJsonArray cursors = session["cursors"].toArray();
-    int active = session["active"].toInt(0);
+QString MainWindow::tabTitleForEmbedded(int index) const
+{
+    if (index < 0 || index >= m_tabs.size())
+        return QString();
+    if (m_reportTitles.contains(index))
+        return m_reportTitles.value(index);
+    if (m_tocTabs.contains(index))
+        return m_tocTabs.value(index);
+    return m_tabs[index].filePath.isEmpty() ? QStringLiteral("Untitled")
+                                            : QFileInfo(m_tabs[index].filePath).fileName();
+}
 
-    if (files.isEmpty()) return;
+void MainWindow::restoreTabState(int idx, const CorpusDocument &d)
+{
+    if (idx < 0 || idx >= m_tabs.size())
+        return;
+    Editor *ed = m_tabs[idx].editor;
+    if (!ed)
+        return;
+
+    if (!d.folds.isEmpty())
+        ed->restoreFolds(d.folds);
+    QTextCursor tc = restoreCursorPosition(ed->document(), d.cursorBlock, d.cursorCol);
+    ed->setTextCursor(tc);
+    const int scroll = d.scroll;
+    QTimer::singleShot(0, [this, idx, scroll]() {
+        if (idx < m_tabs.size() && m_tabs[idx].editor)
+            m_tabs[idx].editor->verticalScrollBar()->setValue(scroll);
+    });
+}
+
+void MainWindow::restoreCorpus(const QJsonObject &corpus)
+{
+    if (corpus["version"].toInt() != 1) return;
+    QJsonArray docs = corpus["documents"].toArray();
+    if (docs.isEmpty()) return;
+
+    QVector<CorpusDocument> parsed;
+    for (const QJsonValue &v : docs) {
+        const QJsonObject o = v.toObject();
+        CorpusDocument d;
+        d.path = o["path"].toString();
+        d.content = o["content"].toString();
+        d.name = o["name"].toString();
+        const QJsonObject c = o["cursor"].toObject();
+        d.cursorBlock = c["block"].toInt();
+        d.cursorCol = c["col"].toInt();
+        d.scroll = o["scroll"].toInt();
+        for (const QJsonValue &f : o["folds"].toArray())
+            d.folds.append(f.toInt());
+        parsed.append(d);
+    }
 
     bool firstTabIsEmpty = (m_tabs.size() == 1 && m_tabs[0].filePath.isEmpty()
                             && !m_tabs[0].dirty && m_tabs[0].editor->toPlainText().isEmpty());
@@ -3122,16 +3310,20 @@ void MainWindow::restoreSession(const QJsonObject &session)
         delete ed;
     }
 
-    for (int i = 0; i < files.size(); ++i) {
-        QString path = files[i].toString();
-        QFile f(path);
-        if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
-            continue;
+    for (const CorpusDocument &d : parsed) {
+        const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
+        QString content;
+        if (!d.path.isEmpty()) {
+            QFile f(abs);
+            if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+                continue;   // missing document: don't resurrect a blank tab
+            content = QString::fromUtf8(f.readAll());
+            f.close();
+        } else {
+            content = d.content;
+        }
 
-        QString content = QString::fromUtf8(f.readAll());
-        f.close();
-
-        int idx = addTab(path);
+        int idx = addTab(abs);
         QSignalBlocker blocker(m_tabs[idx].editor);
         m_tabs[idx].editor->setPlainText(content);
         m_tabs[idx].previewHtmlValid = false;
@@ -3146,90 +3338,181 @@ void MainWindow::restoreSession(const QJsonObject &session)
         }
         m_tabs[idx].dirty = false;
         updateTabLabel(idx);
-
-        // Restore folds
-        if (i < cursors.size()) {
-            QJsonObject c = cursors[i].toObject();
-            QJsonArray folds = c["folds"].toArray();
-            QList<int> foldedBlocks;
-            for (const auto &v : folds)
-                foldedBlocks.append(v.toInt());
-            if (!foldedBlocks.isEmpty())
-                m_tabs[idx].editor->restoreFolds(foldedBlocks);
-        }
-
-        if (i < cursors.size()) {
-            QJsonObject c = cursors[i].toObject();
-            int block = c["block"].toInt();
-            int col = c["col"].toInt();
-            int scroll = c["scroll"].toInt();
-            QTextCursor tc = restoreCursorPosition(m_tabs[idx].editor->document(), block, col);
-            m_tabs[idx].editor->setTextCursor(tc);
-            QTimer::singleShot(0, [this, idx, scroll]() {
-                if (idx < m_tabs.size() && m_tabs[idx].editor)
-                    m_tabs[idx].editor->verticalScrollBar()->setValue(scroll);
-            });
-        }
+        restoreTabState(idx, d);
     }
 
-    if (active >= 0 && active < m_tabBar->count())
-        m_tabBar->setCurrentIndex(active);
+    if (corpus["active"].toInt(0) >= 0 && corpus["active"].toInt(0) < m_tabBar->count())
+        m_tabBar->setCurrentIndex(corpus["active"].toInt(0));
 
     updateTabBarVisibility();
     if (auto *ed = currentEditor())
         ed->setFocus();
 }
 
-void MainWindow::saveSessionAction()
+void MainWindow::saveCorpusAction()
 {
-    QSettings settings;
-    QString name = settings.value(Preferences::LastSessionName).toString();
-    if (name.isEmpty())
-        saveSessionAsAction();
-    else {
-        QJsonObject session = serializeSession();
-        QSettings s;
-        s.setValue(Preferences::SessionData, QString::fromUtf8(QJsonDocument(session).toJson(QJsonDocument::Compact)));
-        s.setValue(Preferences::LastSessionName, name);
-        statusBar()->showMessage("Session saved", 2000);
+    if (m_corpus.filePath.isEmpty()) {
+        saveCorpusAsAction();
+        return;
     }
+    refreshCorpusFromTabs();
+    QString error;
+    if (!m_corpus.save(&error)) {
+        showCenteredWarning(tr("Save Corpus Failed"),
+            tr("Could not save the corpus file."),
+            tr("Check that the file is not open in another application and that the path is writable."));
+        return;
+    }
+    addRecentCorpus(m_corpus.filePath);
+    QSettings().setValue(Preferences::LastCorpusPath, m_corpus.filePath);
+    updateWindowTitle();
+    statusBar()->showMessage(tr("Corpus saved: %1").arg(QFileInfo(m_corpus.filePath).fileName()), 2000);
 }
 
-void MainWindow::saveSessionAsAction()
+void MainWindow::saveCorpusAsAction()
 {
-    bool ok;
-    QString name = QInputDialog::getText(this, "Save Session As",
-        "Session name:", QLineEdit::Normal, QString(), &ok);
-    if (!ok || name.isEmpty())
+    QString startDir;
+    if (TabInfo *info = activeTabInfo(); info && !info->filePath.isEmpty())
+        startDir = QFileInfo(info->filePath).absolutePath();
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Save Corpus As"), startDir, tr("Scriba Corpus (*.scriba)"));
+    if (path.isEmpty())
         return;
-
-    QJsonObject session = serializeSession();
-    QSettings s;
-    s.setValue(Preferences::SessionData, QString::fromUtf8(QJsonDocument(session).toJson(QJsonDocument::Compact)));
-    s.setValue(Preferences::LastSessionName, name);
-    statusBar()->showMessage("Session saved as \"" + name + "\"", 2000);
+    m_corpus.filePath = QFileInfo(path).absoluteFilePath();
+    refreshCorpusFromTabs();
+    QString error;
+    if (!m_corpus.save(&error)) {
+        showCenteredWarning(tr("Save Corpus Failed"),
+            tr("Could not save the corpus file."),
+            tr("Check that the file is not open in another application and that the path is writable."));
+        return;
+    }
+    addRecentCorpus(m_corpus.filePath);
+    QSettings().setValue(Preferences::LastCorpusPath, m_corpus.filePath);
+    updateWindowTitle();
+    statusBar()->showMessage(tr("Corpus saved: %1").arg(QFileInfo(m_corpus.filePath).fileName()), 2000);
 }
 
-void MainWindow::loadSessionAction()
+void MainWindow::openCorpusAction()
 {
-    QSettings s;
-    QString raw = s.value(Preferences::SessionData).toString();
-    if (raw.isEmpty()) {
-        statusBar()->showMessage("No saved session found", 3000);
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Open Corpus"), QString(), tr("Scriba Corpus (*.scriba)"));
+    if (path.isEmpty())
+        return;
+    openCorpusFile(path, /*skipPrompt=*/false);
+}
+
+void MainWindow::openCorpusFile(const QString &path, bool skipPrompt)
+{
+    Corpus loaded;
+    QString error;
+    if (!Corpus::loadFile(path, &loaded, &error)) {
+        showCenteredWarning(tr("Open Corpus Failed"),
+            tr("Could not open the corpus file."), error);
         return;
     }
-
-    QJsonDocument doc = QJsonDocument::fromJson(raw.toUtf8());
-    if (!doc.isObject()) {
-        statusBar()->showMessage("Invalid session data", 3000);
+    if (!skipPrompt && !maybeDiscardCurrentTabs())
         return;
-    }
 
+    closeAllTabs();
+
+    m_corpus = loaded;
+
+    int missing = 0;
+    for (int i = 0; i < m_corpus.documents.size(); ++i) {
+        const CorpusDocument &d = m_corpus.documents.at(i);
+        if (!d.path.isEmpty()) {
+            const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
+            QFile f(abs);
+            if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) { ++missing; continue; }
+            const QString content = QString::fromUtf8(f.readAll());
+            f.close();
+            const int idx = addTab(abs);
+            QSignalBlocker blocker(m_tabs[idx].editor);
+            m_tabs[idx].editor->setPlainText(content);
+            m_tabs[idx].dirty = false;
+            m_tabs[idx].previewHtmlValid = false;
+            updateTabLabel(idx);
+            restoreTabState(idx, d);
+        } else {
+            const int idx = addTab(QString());
+            QSignalBlocker blocker(m_tabs[idx].editor);
+            m_tabs[idx].editor->setPlainText(d.content);
+            m_tabs[idx].dirty = false;
+            updateTabLabel(idx);
+            restoreTabState(idx, d);
+        }
+    }
+    if (m_corpus.active >= 0 && m_corpus.active < m_tabBar->count())
+        m_tabBar->setCurrentIndex(m_corpus.active);
+
+    applyCorpusDictionary();
+    startCorpusWatcher();
+
+    addRecentCorpus(m_corpus.filePath);
+    QSettings().setValue(Preferences::LastCorpusPath, m_corpus.filePath);
+    updateWindowTitle();
+    updateTabBarVisibility();
+    updateRecentCorporaMenu();
+    if (missing > 0)
+        statusBar()->showMessage(tr("Corpus opened; %1 document(s) missing").arg(missing), 4000);
+    else
+        statusBar()->showMessage(tr("Corpus opened: %1").arg(QFileInfo(m_corpus.filePath).fileName()), 2000);
+}
+
+bool MainWindow::maybeDiscardCurrentTabs()
+{
+    bool anyDirty = false;
+    bool hasUntitledDirty = false;
+    for (const TabInfo &info : m_tabs) {
+        if (info.dirty) {
+            anyDirty = true;
+            if (info.filePath.isEmpty())
+                hasUntitledDirty = true;
+        }
+    }
+    if (!anyDirty)
+        return true;
+    const ClosePromptResult ret = promptUnsavedChanges(hasUntitledDirty);
+    if (ret == ClosePromptResult::Cancel)
+        return false;
+    if (ret == ClosePromptResult::Save)
+        return saveAllDirtyTabs();
+    return true;   // Discard
+}
+
+bool MainWindow::saveAllDirtyTabs()
+{
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        TabInfo &info = m_tabs[i];
+        if (!info.dirty)
+            continue;
+        if (info.filePath.isEmpty()) {
+            const QString file = saveAsDialogPath();
+            if (file.isEmpty())
+                return false;
+            info.filePath = file;
+        }
+        QFile file(info.filePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            showCenteredWarning(tr("Save Failed"),
+                tr("Could not save \"%1\".\n%2").arg(info.filePath, file.errorString()),
+                QString());
+            return false;
+        }
+        file.write(info.editor->toPlainText().toUtf8());
+        info.dirty = false;
+        updateTabLabel(i);
+    }
+    return true;
+}
+
+void MainWindow::closeAllTabs()
+{
     while (m_tabs.size() > 1) {
         int idx = m_tabBar->currentIndex();
         removeTab(idx);
     }
-
     if (m_tabs.size() == 1) {
         int idx = 0;
         disconnectTabEditor(idx);
@@ -3237,10 +3520,214 @@ void MainWindow::loadSessionAction()
         m_tabs[0].previewHtmlValid = false;
         m_tabs[0].filePath.clear();
         m_tabs[0].dirty = false;
+        // A virtual TOC/report tab left as the sole tab is blanked into an
+        // Untitled placeholder; drop its mapping so it can't haunt the next corpus.
+        m_tocTabs.remove(idx);
+        m_reportTitles.remove(idx);
+    }
+}
+
+void MainWindow::addRecentCorpus(const QString &path)
+{
+    const QString abs = QFileInfo(path).absoluteFilePath();
+    QSettings s;
+    QStringList recents = s.value(Preferences::RecentCorpora).toStringList();
+    recents.removeAll(abs);
+    recents.prepend(abs);
+    while (recents.size() > Preferences::MaxRecentCorpora)
+        recents.removeLast();
+    s.setValue(Preferences::RecentCorpora, recents);
+    updateRecentCorporaMenu();
+}
+
+void MainWindow::updateRecentCorporaMenu()
+{
+    if (!m_recentCorpusMenu)
+        return;
+    QSettings s;
+    QStringList recents = s.value(Preferences::RecentCorpora).toStringList();
+    recents.erase(std::remove_if(recents.begin(), recents.end(),
+        [](const QString &p) { return !QFileInfo::exists(p); }), recents.end());
+    s.setValue(Preferences::RecentCorpora, recents);
+
+    m_recentCorpusMenu->clear();
+    if (recents.isEmpty()) {
+        QAction *emptyAction = m_recentCorpusMenu->addAction(tr("(empty)"));
+        emptyAction->setEnabled(false);
+        return;
+    }
+    for (const QString &p : recents) {
+        QAction *a = m_recentCorpusMenu->addAction(QFileInfo(p).fileName());
+        a->setToolTip(p);
+        connect(a, &QAction::triggered, this, [this, p]() { openCorpusFile(p); });
+    }
+}
+
+void MainWindow::applyCorpusDictionary()
+{
+    if (m_corpus.filePath.isEmpty())
+        return;
+    const QString mode = QSettings().value(
+        Preferences::CorpusDictionaryMode, QStringLiteral("override")).toString();
+    const bool merge = (mode == QLatin1String("merge"));
+    for (const TabInfo &tab : m_tabs) {
+        if (tab.editor)
+            tab.editor->applyCorpusDictionary(m_corpus.dictionary, merge);
+    }
+}
+
+void MainWindow::startCorpusWatcher()
+{
+    stopCorpusWatcher();
+    if (!m_corpus.monitor || m_corpus.filePath.isEmpty())
+        return;
+    QStringList files;
+    for (const CorpusDocument &d : m_corpus.documents) {
+        if (!d.path.isEmpty()) {
+            const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
+            if (QFileInfo::exists(abs))
+                files.append(abs);
+        }
+    }
+    m_corpusWatcher->setMonitoredFiles(files);
+}
+
+void MainWindow::stopCorpusWatcher()
+{
+    m_corpusWatcher->clear();
+}
+
+void MainWindow::handleExternalEdit(const QString &path)
+{
+    const int idx = findTabByPath(path);
+    if (idx < 0)
+        return;
+    const QString policy = QSettings().value(
+        Preferences::CorpusExternalEditPolicy, QStringLiteral("autoReload")).toString();
+    if (policy == QLatin1String("prompt")) {
+        if (QMessageBox::question(this, tr("File changed on disk"),
+                 tr("%1 was modified outside Scriba. Reload it?")
+                     .arg(QFileInfo(path).fileName())) != QMessageBox::Yes)
+            return;
+        loadFile(path, /*forceReload=*/true);
+    } else if (policy == QLatin1String("autoReload")) {
+        if (m_tabs[idx].dirty) {
+            if (QMessageBox::question(this, tr("File changed on disk"),
+                     tr("%1 was modified outside Scriba. Reload it and discard your changes?")
+                         .arg(QFileInfo(path).fileName())) != QMessageBox::Yes)
+                return;
+        }
+        loadFile(path, /*forceReload=*/true);
+    } else {                                     // autoReloadDirty
+        loadFile(path, /*forceReload=*/true);
+    }
+}
+
+void MainWindow::handleExternalRename(const QString &from, const QString &to)
+{
+    const int idx = findTabByPath(from);
+    if (idx >= 0) {
+        m_tabs[idx].filePath = to;
+        m_tabs[idx].editor->setCurrentFile(to);
+        updateTabLabel(idx);
+        m_tabBar->setTabToolTip(idx, to);
+        m_preview->setDocumentPath(to);
+    }
+    for (CorpusDocument &d : m_corpus.documents) {
+        const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
+        if (QFileInfo(abs).absoluteFilePath() == QFileInfo(from).absoluteFilePath()) {
+            d.path = Corpus::storedPath(m_corpus.rootDir(), to);
+            break;
+        }
+    }
+    m_corpus.save();
+    statusBar()->showMessage(tr("Corpus updated: %1 → %2")
+                                 .arg(QFileInfo(from).fileName(), QFileInfo(to).fileName()),
+                             4000);
+    rewriteLinksForFile(from, to);
+    if (!m_tocTabs.isEmpty())
+        refreshOpenToc();
+}
+
+void MainWindow::handleExternalDelete(const QString &path)
+{
+    const int idx = findTabByPath(path);
+    if (idx < 0)
+        return;
+    statusBar()->showMessage(tr("%1 was deleted on disk").arg(QFileInfo(path).fileName()), 4000);
+    if (!m_tocTabs.isEmpty())
+        refreshOpenToc();
+}
+
+void MainWindow::rewriteLinksForFile(const QString &oldAbs, const QString &newAbs)
+{
+    const QSettings prefs;
+    const QString policy = prefs.value(Preferences::CorpusLinkRewritePolicy,
+                                       QStringLiteral("prompt")).toString();
+    if (policy == QLatin1String("ignore"))
+        return;
+
+    struct TabEdit { Editor *editor = nullptr; int tabIndex = -1; QString replaced; };
+    QStringList affectedDocs;
+    QList<TabEdit> tabEdits;
+    const bool scopeAll = prefs.value(Preferences::CorpusLinkRewriteScope,
+                                      QStringLiteral("open")).toString() == QLatin1String("all");
+
+    auto consider = [&](const QString &absPath, Editor *ed, int tabIndex, bool onDisk) {
+        const QString source = ed ? ed->toPlainText() : [&]{
+            QFile f(absPath);
+            if (!f.open(QIODevice::ReadOnly))
+                return QString();
+            const QString s = QString::fromUtf8(f.readAll());
+            f.close();
+            return s;
+        }();
+        const QString docDir = QFileInfo(absPath).absolutePath();
+        const QString rewritten = LinkFixer::rewrite(source, docDir, oldAbs, newAbs);
+        if (rewritten == source)
+            return;
+        affectedDocs.append(absPath);
+        if (ed)
+            tabEdits.append({ed, tabIndex, rewritten});
+        else if (onDisk) {
+            QFile f(absPath);
+            if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                f.write(rewritten.toUtf8());
+                f.close();
+            }
+        }
+    };
+
+    for (const CorpusDocument &d : m_corpus.documents) {
+        if (d.path.isEmpty())
+            continue;
+        const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
+        if (QFileInfo(abs).absoluteFilePath() == QFileInfo(oldAbs).absoluteFilePath())
+            continue;                                  // the renamed doc itself
+        const int tabIdx = findTabByPath(abs);
+        if (tabIdx >= 0)
+            consider(abs, m_tabs[tabIdx].editor, tabIdx, false);
+        else if (scopeAll)
+            consider(abs, nullptr, -1, true);
     }
 
-    restoreSession(doc.object());
-    statusBar()->showMessage("Session loaded", 2000);
+    if (affectedDocs.isEmpty())
+        return;
+    if (policy == QLatin1String("prompt")) {
+        if (QMessageBox::question(this, tr("Update links"),
+                 tr("Update links to %1 in %2 document(s)?")
+                     .arg(QFileInfo(oldAbs).fileName()).arg(affectedDocs.size())) != QMessageBox::Yes)
+            return;
+    }
+    for (const TabEdit &te : tabEdits) {
+        te.editor->setPlainText(te.replaced);
+        if (te.tabIndex >= 0) {
+            setTabDirty(te.tabIndex, true);
+            updateTabLabel(te.tabIndex);
+        }
+    }
+    statusBar()->showMessage(tr("Updated links to %1 in %2 document(s)")
+                                 .arg(QFileInfo(oldAbs).fileName()).arg(affectedDocs.size()), 4000);
 }
 
 void MainWindow::updateTabBarVisibility()
@@ -3321,12 +3808,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
         }
     }
 
-    QJsonObject session = serializeSession();
+    QJsonObject corpus = serializeCorpus();
 
-    if (session["files"].toArray().isEmpty()) {
-        s.remove(Preferences::SessionData);
+    if (corpus["files"].toArray().isEmpty()) {
+        s.remove(Preferences::OnExitCorpusData);
     } else {
-        s.setValue(Preferences::SessionData, QString::fromUtf8(QJsonDocument(session).toJson(QJsonDocument::Compact)));
+        s.setValue(Preferences::OnExitCorpusData, QString::fromUtf8(QJsonDocument(corpus).toJson(QJsonDocument::Compact)));
     }
 
     QMainWindow::closeEvent(event);

@@ -318,7 +318,7 @@ On the first run of a session, `MainWindow` shows a one-time dialog listing supe
 
 `Preferences.h` maintains a `ConfigVersion` key and a `CurrentConfigVersion` counter. `Preferences::migrateSettings(QSettings&)` is called from `main.cpp` at startup and upgrades old configs in place:
 
-- renames renamed keys (e.g. `reopenLastFile` → `reopenLastSession`)
+- renames renamed keys (e.g. `reopenLastFile` → `reopenLastCorpus`)
 - removes keys for options that no longer exist (`darkMode`, `editorOnLeft`, `showFoldIcons`, `firstRun`, `printCssFiles`, `activePrintCssFile`, `cssDirectory`, `enabledCssFiles`, `EditorFont`/`editorFont`)
 - stamps `ConfigVersion`; already-current configs and unknown keys are left untouched
 

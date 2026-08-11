@@ -37,7 +37,7 @@ protected:
         settings.remove(Preferences::LastOpenedFile);
         settings.remove(Preferences::CssFiles);
         settings.remove(Preferences::ActiveCssFile);
-        settings.setValue(Preferences::ReopenLastSession, false);
+        settings.setValue(Preferences::ReopenLastCorpus, false);
         settings.setValue(Preferences::PreviewState, 1);
         settings.setValue(Preferences::EmojiMode,
             Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw));

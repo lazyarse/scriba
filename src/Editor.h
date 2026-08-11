@@ -30,6 +30,7 @@ class QFontMetrics;
 class Gutter;
 class SpellChecker;
 class GrammarChecker;
+struct CorpusDictionary;
 
 class Editor : public QTextEdit
 {
@@ -52,6 +53,9 @@ public:
     void setInsertActions(const QList<QAction *> &actions);
     void setMermaidAction(QAction *action);
     void recheckSpelling();
+    // Push an active corpus's dictionary (word sets, language, dialect and the
+    // override/merge mode) onto this editor's spell checker and rehighlight.
+    void applyCorpusDictionary(const CorpusDictionary &dict, bool merge);
     // Reloads the underline colors from settings and repaints the squiggle
     // overlay. Call after a preference change that doesn't need a full
     // re-check (e.g. the underline color swatches).
@@ -144,6 +148,8 @@ private:
     bool showLanguageCompletion(const QString &partialLang);
 
     void applySpellSettings();
+    // Push an active corpus's dictionary (word sets, language, dialect and the
+    // override/merge mode) onto this editor's spell checker and rehighlight.
     SpellHighlighter::WordHit misspelledWordAt(const QTextCursor &cursor) const;
     void paintHitRange(QPainter &painter, const QTextBlock &block, int start, int length,
                        const QColor &color, const QFontMetrics &fm, int underlineY);
@@ -202,6 +208,11 @@ private:
     std::unique_ptr<GrammarChecker> m_grammarChecker;
     SpellHighlighter *m_spellHighlighter = nullptr;
     QWidget *m_underlineOverlay = nullptr;
+    // True once a corpus dictionary has been applied; routes the "Add to
+    // Dictionary" context action to the corpus word set instead of the global
+    // user.dic. Sticky for the editor's lifetime (a corpus, once opened, stays
+    // active until the app closes or another corpus supersedes it).
+    bool m_corpusActive = false;
     // The explanation currently shown in the hover tooltip, so identical
     // hovers do not re-trigger QToolTip::showText on every mouse move.
     QString m_activeTooltip;

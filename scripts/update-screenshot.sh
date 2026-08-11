@@ -10,7 +10,7 @@ OUT_DIR="$PROJECT_DIR/docs/images"
 # is selected by clicking the list; each Down moves to the next page (see
 # shot_preference_page). When adding a new page, extend this list AND the
 # idx mapping in shot_preference_page.
-PREF_PAGES=(general themes editor preview printing advanced writing typography replacements spelling security)
+PREF_PAGES=(general themes editor preview printing advanced writing typography replacements spelling corpus security)
 
 # Table of available targets: <argument> -> "<shot function>|<one-line help>".
 # This is the single source of truth for --help, argument validation, the full
@@ -34,6 +34,7 @@ declare -A TARGETS=(
     [mermaid-gitgraph]="shot_mermaid_gitgraph|Mermaid Git Graph helper (loads the scriba repo)"
     [check-spelling]="shot_check_spelling|Check Spelling dialog"
     [validation-report]="shot_validation_report|Validation Report options"
+    [toc]="shot_toc|Table of Contents tab with a fixture corpus open"
     [print-pdf-dialog]="shot_print_pdf_dialog|Print / Export PDF dialog"
 )
 
@@ -41,7 +42,7 @@ declare -A TARGETS=(
 # preserve insertion order).
 TARGET_ORDER=(screenshot tabbar gutter-pencil preferences table-dialog emoji-picker katex-dialog
               mchem-dialog chart-dialog stock-chart-dialog advanced-charts mermaid-dialog mermaid-gitgraph
-              check-spelling validation-report print-pdf-dialog)
+              check-spelling validation-report toc print-pdf-dialog)
 
 usage() {
     cat <<'EOF'
@@ -275,7 +276,8 @@ shot_preference_page() {
         typography) idx=7 ;;
         replacements) idx=8 ;;
         spelling) idx=9 ;;
-        security) idx=10 ;;
+        corpus) idx=10 ;;
+        security) idx=11 ;;
         *) echo "WARN: unknown preferences page \"$page\""; return 1 ;;
     esac
     open ctrl+alt+p
@@ -467,6 +469,64 @@ shot_validation_report() {
 shot_print_pdf_dialog() {
     open ctrl+p
     capture "Print / Export PDF" "$OUT_DIR/print-pdf-dialog.png" 20
+}
+
+# --- Table of Contents (Corpus → View Table of Contents / Ctrl+Shift+T) ---
+# Build a small fixture corpus (in-root docs + one out-of-root doc), open it
+# via File → Corpus → Open Corpus… (alt+f, Down to the Corpus submenu, Right,
+# then the 'o' mnemonic), then Ctrl+Shift+T. The capture shows the read-only
+# TOC tab active, with the rendered TOC in the preview pane.
+shot_toc() {
+    local demo=/tmp/scriba-toc-demo
+    rm -rf "$demo"
+    mkdir -p "$demo/docs"
+    printf '# Alpha\n\nIntro to Alpha.\n\n## Sub A\n\nDetail under Alpha.\n\n### Deep A\n\nDeepest.\n' > "$demo/docs/a.md"
+    printf '# Beta\n\nIntro to Beta.\n' > "$demo/docs/b.md"
+    printf '## External\n\nOut-of-root document.\n' > "$demo/ext.md"
+    cat > "$demo/corpus.scriba" <<JSON
+{
+    "version": 1,
+    "name": "TOC Demo",
+    "active": 0,
+    "monitor": false,
+    "dictionary": {},
+    "documents": [
+        { "path": "docs/a.md" },
+        { "path": "docs/b.md" },
+        { "path": "$demo/ext.md" }
+    ]
+}
+JSON
+
+    xdotool windowfocus "$WID"
+    sleep 0.2
+    xdotool key alt+f
+    sleep 0.5
+    xdotool key Down          # highlight "C&orpus" submenu
+    sleep 0.3
+    xdotool key Right         # open the Corpus submenu
+    sleep 0.5
+    xdotool key o             # highlight &Open Corpus… ('o' also matches File → &Open…, so Return confirms)
+    sleep 0.3
+    xdotool key Return
+    sleep 2
+    local FD
+    FD=$(xdotool search --onlyvisible --name "Open Corpus" | head -1)
+    if [ -z "$FD" ]; then
+        echo "WARN: Open Corpus dialog not found"; xdotool key Escape; return 1
+    fi
+    xdotool windowfocus "$FD"; sleep 1
+    xdotool key ctrl+l; sleep 0.5
+    xdotool type -- "$demo/corpus.scriba"; sleep 0.5
+    xdotool key Return; sleep 1   # jump to the directory
+    xdotool key Return; sleep 3   # confirm Open, let the docs load
+    open ctrl+shift+t
+    sleep 5                       # WebEngine renders the TOC preview
+    import -window "$WID" "$OUT_DIR/toc.png"
+    echo "  -> $OUT_DIR/toc.png"
+    xdotool key Escape
+    sleep 1
+    xdotool windowfocus "$WID"
 }
 
 run_all() {

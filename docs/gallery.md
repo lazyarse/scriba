@@ -2,9 +2,15 @@
 
 ![Screenshot](images/screenshot.png)
 
-## Tabs in a `Session`
+## Tabs in a `Corpus`
 
 [![Three tabs — the divider runs under the inactive tabs, while the active tab merges into the content](images/tabbar.png)](images/tabbar.png)
+
+## Table of Contents
+
+Auto-generated table of contents
+
+[![Read-only Table of Contents tab generated from the open corpus (Ctrl+Shift+T)](images/toc.png)](images/toc.png)
 
 ## Gutter — chart edit pencil
 
@@ -24,13 +30,17 @@ The pencil in the gutter edits the mermaid/ECharts code block it sits beside usi
 | --- | --- | --- | --- |
 | [![General](images/preferences-general.png)](images/preferences-general.png) | [![Themes](images/preferences-themes.png)](images/preferences-themes.png) | [![Editor](images/preferences-editor.png)](images/preferences-editor.png) | [![Writing](images/preferences-writing.png)](images/preferences-writing.png) |
 
-| Typography | Replacements | Spelling | Security |
+| Typography | Replacements | Spelling | Corpus |
 | --- | --- | --- | --- |
-| [![Typography](images/preferences-typography.png)](images/preferences-typography.png) | [![Replacements](images/preferences-replacements.png)](images/preferences-replacements.png) | [![Spelling](images/preferences-spelling.png)](images/preferences-spelling.png) | [![Security](images/preferences-security.png)](images/preferences-security.png) |
+| [![Typography](images/preferences-typography.png)](images/preferences-typography.png) | [![Replacements](images/preferences-replacements.png)](images/preferences-replacements.png) | [![Spelling](images/preferences-spelling.png)](images/preferences-spelling.png) | [![Corpus](images/preferences-corpus.png)](images/preferences-corpus.png) |
 
-| Preview | Printing | Advanced |
-| --- | --- | --- |
-| [![Preview](images/preferences-preview.png)](images/preferences-preview.png) | [![Printing](images/preferences-printing.png)](images/preferences-printing.png) | [![Advanced](images/preferences-advanced.png)](images/preferences-advanced.png) |
+|   Security                                                                          |   Preview                                                                        |   Printing                                                                          |   Advanced                                                                          |
+|-------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
+|   [![Security](images/preferences-security.png)](images/preferences-security.png)   |   [![Preview](images/preferences-preview.png)](images/preferences-preview.png)   |   [![Printing](images/preferences-printing.png)](images/preferences-printing.png)   |   [![Advanced](images/preferences-advanced.png)](images/preferences-advanced.png)   |
+
+
+
+
 
 ## Dialogues
 
@@ -42,13 +52,9 @@ The pencil in the gutter edits the mermaid/ECharts code block it sits beside usi
 | --- | --- | --- | --- |
 | [![Chart Builder](images/chart-dialog.png)](images/chart-dialog.png) | [![Stock Chart Builder](images/stock-chart-dialog.png)](images/stock-chart-dialog.png) | [![Advanced Charts](images/advanced-charts.png)](images/advanced-charts.png) | [![Mermaid Diagrams](images/mermaid-dialog.png)](images/mermaid-dialog.png) |
 
-| Mermaid Git Graph |
-| --- |
-| [![Mermaid Git Graph](images/mermaid-gitgraph.png)](images/mermaid-gitgraph.png) |
-
-| Check Spelling | Validation Report Options |
-| --- | --- |
-| [![Check Spelling](images/check-spelling.png)](images/check-spelling.png) | [![Validation Report Options](images/validation-report.png)](images/validation-report.png) |
+| Mermaid Git Graph | Check Spelling | Validation Report Options |
+| --- | --- | --- |
+| [![Mermaid Git Graph](images/mermaid-gitgraph.png)](images/mermaid-gitgraph.png) | [![Check Spelling](images/check-spelling.png)](images/check-spelling.png) | [![Validation Report Options](images/validation-report.png)](images/validation-report.png) |
 
 
 | Print / Export PDF |

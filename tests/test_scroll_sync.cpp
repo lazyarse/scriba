@@ -214,7 +214,7 @@ protected:
         // stale last-file path or blocking warning dialogs
         QSettings settings;
         settings.remove(Preferences::LastOpenedFile);
-        settings.setValue(Preferences::ReopenLastSession, false);
+        settings.setValue(Preferences::ReopenLastCorpus, false);
 
         tmpFile = new QTemporaryFile();
         ASSERT_TRUE(tmpFile->open());
@@ -894,7 +894,7 @@ protected:
     void SetUp() override {
         QSettings settings;
         settings.remove(Preferences::LastOpenedFile);
-        settings.setValue(Preferences::ReopenLastSession, false);
+        settings.setValue(Preferences::ReopenLastCorpus, false);
         settings.setValue(Preferences::PreviewState, 1);
     }
 
@@ -933,7 +933,7 @@ protected:
         settings.remove(Preferences::LastOpenedFile);
         settings.remove(Preferences::CssFiles);
         settings.remove(Preferences::ActiveCssFile);
-        settings.setValue(Preferences::ReopenLastSession, false);
+        settings.setValue(Preferences::ReopenLastCorpus, false);
         settings.setValue(Preferences::PreviewState, 1);
     }
 

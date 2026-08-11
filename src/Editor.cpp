@@ -17,6 +17,7 @@
 #include "Gutter.h"
 #include "StoppardEngine.h"
 #include "Preferences.h"
+#include "Corpus.h"
 #include "MarkdownChecker.h"
 #include "SpellChecker.h"
 #include "StaticHelpers.h"
@@ -1380,6 +1381,47 @@ void Editor::recheckSpelling()
     applySpellSettings();
 }
 
+void Editor::applyCorpusDictionary(const CorpusDictionary &dict, bool merge)
+{
+    if (!m_spellChecker || !m_spellHighlighter)
+        return;
+    m_corpusActive = true;
+    m_spellChecker->setCorpusMerge(merge);
+    m_spellChecker->setCorpusWords(dict.customWords);
+    m_spellChecker->setCorpusIgnored(dict.ignoredWords);
+
+    // The corpus language/dialect override the global preferences when set;
+    // empty fields fall back to the per-user settings, mirroring
+    // applySpellSettings().
+    const QSettings s;
+    const QString language = dict.language.isEmpty()
+        ? s.value(Preferences::DictionaryLanguage).toString()
+        : dict.language;
+    const QString dialect = dict.dialect.isEmpty()
+        ? s.value(Preferences::GrammarDialect, QStringLiteral("American")).toString()
+        : dict.dialect;
+    m_spellChecker->setDialect(dialect);
+
+    const bool spellEnabled = s.value(Preferences::SpellCheckEnabled, true).toBool();
+    bool loaded = false;
+    if (spellEnabled) {
+        const QString resolved = language.isEmpty()
+            ? SpellChecker::defaultLanguageForDialect(dialect)
+            : language;
+        loaded = m_spellChecker->loadLanguage(resolved);
+        if (!loaded) {
+            for (const QString &lang : SpellChecker::availableLanguages()) {
+                if (m_spellChecker->loadLanguage(lang)) {
+                    loaded = true;
+                    break;
+                }
+            }
+        }
+    }
+    m_spellHighlighter->setSpellCheckingEnabled(spellEnabled && loaded);
+    m_spellHighlighter->refresh();
+}
+
 void Editor::refreshUnderlines()
 {
     SpellHighlighter::reloadUnderlineColors();
@@ -1963,7 +2005,10 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
 
         QAction *addAction = menu.addAction("Add to Dictionary: " + misspelled.text);
         connect(addAction, &QAction::triggered, this, [this, misspelled]() {
-            m_spellChecker->addToUserDictionary(misspelled.text);
+            if (m_corpusActive)
+                m_spellChecker->addCorpusWord(misspelled.text);
+            else
+                m_spellChecker->addToUserDictionary(misspelled.text);
             m_spellHighlighter->refresh();
         });
 

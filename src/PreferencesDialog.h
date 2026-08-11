@@ -34,6 +34,8 @@
 #include <QStringList>
 #include <utility>
 
+#include "Corpus.h"
+
 class CssConfig;
 class CssLoader;
 
@@ -43,7 +45,8 @@ class PreferencesDialog : public QDialog
 
 public:
     explicit PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent,
-        const QString &themeBgColor, const QString &themeFgColor);
+        const QString &themeBgColor, const QString &themeFgColor,
+        Corpus *corpus = nullptr);
 
 signals:
     void stylesheetChanged();
@@ -202,6 +205,18 @@ private:
     QPushButton *m_grammarColorBtn;
     QPushButton *m_linkColorBtn;
     QPushButton *m_markdownColorBtn;
+
+    // Corpus
+    Corpus *m_corpus = nullptr;
+    QCheckBox *m_corpusMonitorCheck = nullptr;
+    QListWidget *m_recentCorpusList = nullptr;
+    QComboBox *m_corpusEditPolicyCombo = nullptr;
+    QComboBox *m_linkRewritePolicyCombo = nullptr;
+    QComboBox *m_linkRewriteScopeCombo = nullptr;
+    QComboBox *m_externalExportCombo = nullptr;
+    QLineEdit *m_externalExportDirEdit = nullptr;
+    QRadioButton *m_corpusDictOverride = nullptr;
+    QRadioButton *m_corpusDictMerge = nullptr;
 
     // Settings search
     QLineEdit *m_searchEdit = nullptr;

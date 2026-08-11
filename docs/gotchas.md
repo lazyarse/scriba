@@ -1,5 +1,15 @@
 # Gotchas
 
+## "Corpus" disambiguation: ECharts test suite vs. the Corpus feature
+
+The word "corpus" has two unrelated meanings in this repo. The **ECharts test
+suite** (the 21-block sample document in `docs/echarts.md`, serializers in
+`tests/test_chartsource_docs.cpp`) calls its collection of chart blocks a
+"corpus" for round-trip testing. That predates and is unrelated to the
+**session→corpus feature**: a saved group of documents (`.scriba` file, Corpus
+menu, directory monitoring, corpus dictionary). When searching for "corpus",
+don't conflate the two — the ECharts corpus is purely a markdown data fixture.
+
 ## Tight vs Loose Lists (blank lines between items)
 
 Blank lines between list items are not an error and do **not** split a list into

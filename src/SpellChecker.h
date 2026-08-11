@@ -63,6 +63,20 @@ public:
     static QStringList readIgnoredWords();
     static void writeIgnoredWords(const QStringList &words);
 
+    // Corpus-scoped word sets. While a corpus is active these replace
+    // (override) or union (merge) with the global user.dic/ignored.dic sets
+    // (§22 of the corpus plan). With no corpus words set — or with merge
+    // enabled — the global sets always apply, so a plain editor keeps its user
+    // dictionary even in the default override mode.
+    void setCorpusWords(const QStringList &words);
+    void setCorpusIgnored(const QStringList &words);
+    void setCorpusMerge(bool merge);
+    void addCorpusWord(const QString &word);
+    void removeCorpusWord(const QString &word);
+    void addCorpusIgnored(const QString &word);
+    QStringList corpusWords() const;
+    QStringList corpusIgnored() const;
+
     // The base language a dialect selects under the "follow dialect" setting.
     static QString defaultLanguageForDialect(const QString &dialect);
 
@@ -98,4 +112,7 @@ private:
     quint64 m_configLoads = 0;
     QSet<QString> m_userWords;
     QSet<QString> m_ignoredWords;
+    QSet<QString> m_corpusWords;
+    QSet<QString> m_corpusIgnored;
+    bool m_corpusMerge = false;
 };

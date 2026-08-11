@@ -23,9 +23,16 @@
 namespace Preferences {
     constexpr const char *CssFiles = "cssFiles";
     constexpr const char *ActiveCssFile = "activeCssFile";
-    constexpr const char *ReopenLastSession = "reopenLastSession";
-    constexpr const char *SessionData = "sessionData";
-    constexpr const char *LastSessionName = "lastSessionName";
+    constexpr const char *ReopenLastCorpus = "reopenLastCorpus";
+    constexpr const char *OnExitCorpusData = "onExitCorpusData";
+    constexpr const char *LastCorpusPath = "lastCorpusPath";
+    constexpr const char *RecentCorpora = "recentCorpora";
+    constexpr int MaxRecentCorpora = 5;
+    constexpr const char *CorpusDictionaryMode = "corpusDictionaryMode";
+    constexpr const char *CorpusExternalEditPolicy = "corpusExternalEditPolicy";
+    constexpr const char *CorpusLinkRewritePolicy = "corpusLinkRewritePolicy";
+    constexpr const char *CorpusLinkRewriteScope = "corpusLinkRewriteScope";
+    constexpr const char *CorpusExternalExportDirName = "corpusExternalExportDirName";
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *LastCursorBlock = "lastCursorBlock";
@@ -79,7 +86,7 @@ namespace Preferences {
     constexpr const char *ImportImageDir = "importImageDir";
 
     constexpr const char *ConfigVersion = "configVersion";
-    constexpr int CurrentConfigVersion = 1;
+    constexpr int CurrentConfigVersion = 2;
 
     constexpr const char *EditorFontFamily = "editorFontFamily";
     constexpr const char *EditorFontSize = "editorFontSize";
@@ -254,9 +261,15 @@ namespace Preferences {
         if (settings.value(ConfigVersion, 0).toInt() >= CurrentConfigVersion)
             return;
 
-        if (!settings.contains(ReopenLastSession) && settings.contains("reopenLastFile"))
-            settings.setValue(ReopenLastSession, settings.value("reopenLastFile"));
+        if (!settings.contains(ReopenLastCorpus) && settings.contains("reopenLastFile"))
+            settings.setValue(ReopenLastCorpus, settings.value("reopenLastFile"));
         settings.remove("reopenLastFile");
+
+        // No backward compatibility with the former "session" feature: old
+        // session keys are removed and their values discarded.
+        settings.remove("reopenLastSession");
+        settings.remove("sessionData");
+        settings.remove("lastSessionName");
 
         static const QStringList removedKeys = {
             QStringLiteral("darkMode"),

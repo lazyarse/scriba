@@ -74,10 +74,11 @@ public:
 } // namespace
 
 PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidget *parent,
-    const QString &themeBgColor, const QString &themeFgColor)
+    const QString &themeBgColor, const QString &themeFgColor, Corpus *corpus)
     : QDialog(parent)
     , m_config(config)
     , m_loader(loader)
+    , m_corpus(corpus)
 {
     setupUi(themeBgColor, themeFgColor);
     setWindowTitle("Preferences");
@@ -138,10 +139,6 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         QVBoxLayout *layout = new QVBoxLayout(page);
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
-
-        m_reopenCheck = new QCheckBox("Open last session on startup");
-        m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastSession, true).toBool());
-        layout->addWidget(m_reopenCheck);
 
         m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
         m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
@@ -1426,6 +1423,33 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(dictionaryGroup);
 
+        if (m_corpus && !m_corpus->filePath.isEmpty()) {
+            // A corpus's dictionary overrides the global language/dialect for
+            // spell-checking while the corpus is active; show its values
+            // read-only so the global selections are preserved untouched.
+            const CorpusDictionary &dict = m_corpus->dictionary;
+            if (!dict.language.isEmpty()) {
+                const int li = m_languageCombo->findData(dict.language);
+                if (li >= 0)
+                    m_languageCombo->setCurrentIndex(li);
+                m_languageCombo->setEnabled(false);
+            }
+            if (!dict.dialect.isEmpty()) {
+                const int di = m_grammarDialectCombo->findText(dict.dialect);
+                if (di >= 0)
+                    m_grammarDialectCombo->setCurrentIndex(di);
+                m_grammarDialectCombo->setEnabled(false);
+            }
+            if (!dict.language.isEmpty() || !dict.dialect.isEmpty()) {
+                auto *corpusNote = new QLabel(tr(
+                    "A corpus is open; its dictionary language/dialect override "
+                    "these selections for spell-checking while the corpus is active."));
+                corpusNote->setWordWrap(true);
+                corpusNote->setStyleSheet("color: gray; padding: 8px;");
+                dictionaryLayout->addRow(QString(), corpusNote);
+            }
+        }
+
         QGroupBox *importGroup = new QGroupBox("Imported Word Lists");
         QVBoxLayout *importLayout = new QVBoxLayout(importGroup);
         importLayout->addSpacing(8);
@@ -1540,6 +1564,35 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         layout->addWidget(ignoredGroup);
 
+        QGroupBox *corpusDictGroup = new QGroupBox("Corpus Dictionary");
+        QVBoxLayout *corpusDictLayout = new QVBoxLayout(corpusDictGroup);
+        corpusDictLayout->addSpacing(8);
+
+        auto *corpusDictLabel = new QLabel(tr("When a Corpus is open, its custom words:"));
+        corpusDictLabel->setWordWrap(true);
+        corpusDictLayout->addWidget(corpusDictLabel);
+
+        m_corpusDictOverride = new QRadioButton(tr("&Replace the global dictionary"));
+        m_corpusDictOverride->setObjectName("corpus-dict-override");
+        m_corpusDictMerge = new QRadioButton(tr("&Merge with the global dictionary"));
+        m_corpusDictMerge->setObjectName("corpus-dict-merge");
+        if (settings.value(Preferences::CorpusDictionaryMode, QStringLiteral("override"))
+                .toString() == QLatin1String("merge"))
+            m_corpusDictMerge->setChecked(true);
+        else
+            m_corpusDictOverride->setChecked(true);
+        corpusDictLayout->addWidget(m_corpusDictOverride);
+        corpusDictLayout->addWidget(m_corpusDictMerge);
+
+        auto *corpusDictNote = new QLabel(tr(
+            "Replace uses only the corpus's custom words; merge adds them to your "
+            "global user dictionary."));
+        corpusDictNote->setWordWrap(true);
+        corpusDictNote->setStyleSheet("color: gray; padding: 8px;");
+        corpusDictLayout->addWidget(corpusDictNote);
+
+        layout->addWidget(corpusDictGroup);
+
         connect(m_ignoredWordsList, &QListWidget::itemSelectionChanged, this,
                 [this, removeIgnoredBtn]() {
                     removeIgnoredBtn->setEnabled(m_ignoredWordsList->currentItem() != nullptr);
@@ -1608,6 +1661,168 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
 
         m_pages->addWidget(wrapPage(page));
         m_pageList->addItem("Spelling");
+    }
+
+    /* --- Page 7: Corpus --- */
+    {
+        QWidget *page = new QWidget;
+        QVBoxLayout *layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 16, 0, 0);
+        layout->setSpacing(8);
+
+        const bool corpusOpen = m_corpus && !m_corpus->filePath.isEmpty();
+
+        auto stripButtonIcons = [](const QList<QPushButton *> &buttons) {
+            for (auto *btn : buttons)
+                btn->setIcon(QIcon());
+        };
+
+        QGroupBox *startupGroup = new QGroupBox("Startup");
+        QVBoxLayout *startupLayout = new QVBoxLayout(startupGroup);
+        startupLayout->addSpacing(8);
+
+        m_reopenCheck = new QCheckBox("Open last corpus on startup");
+        m_reopenCheck->setObjectName("corpus-reopen-startup");
+        m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastCorpus, true).toBool());
+        startupLayout->addWidget(m_reopenCheck);
+
+        layout->addWidget(startupGroup);
+
+        QGroupBox *recentGroup = new QGroupBox("Recent Corpora");
+        QVBoxLayout *recentLayout = new QVBoxLayout(recentGroup);
+        recentLayout->addSpacing(8);
+
+        m_recentCorpusList = new QListWidget;
+        m_recentCorpusList->setObjectName("corpus-recent-list");
+        m_recentCorpusList->setSelectionMode(QAbstractItemView::SingleSelection);
+        m_recentCorpusList->setMinimumHeight(60);
+        m_recentCorpusList->addItems(
+            settings.value(Preferences::RecentCorpora).toStringList().mid(0, Preferences::MaxRecentCorpora));
+        recentLayout->addWidget(m_recentCorpusList);
+
+        QHBoxLayout *recentButtons = new QHBoxLayout();
+        auto *clearRecentsBtn = new QPushButton(tr("&Clear List"));
+        auto *removeRecentBtn = new QPushButton(tr("&Remove Selected"));
+        removeRecentBtn->setEnabled(false);
+        recentButtons->addWidget(clearRecentsBtn);
+        recentButtons->addWidget(removeRecentBtn);
+        recentButtons->addStretch();
+        stripButtonIcons({clearRecentsBtn, removeRecentBtn});
+        recentLayout->addLayout(recentButtons);
+
+        connect(clearRecentsBtn, &QPushButton::clicked, this, [this]() {
+            m_recentCorpusList->clear();
+        });
+        connect(removeRecentBtn, &QPushButton::clicked, this, [this]() {
+            delete m_recentCorpusList->currentItem();
+        });
+        connect(m_recentCorpusList, &QListWidget::itemSelectionChanged, this,
+                [this, removeRecentBtn]() {
+                    removeRecentBtn->setEnabled(m_recentCorpusList->currentItem() != nullptr);
+                });
+
+        layout->addWidget(recentGroup);
+
+        QGroupBox *monitorGroup = new QGroupBox("Monitoring");
+        QVBoxLayout *monitorLayout = new QVBoxLayout(monitorGroup);
+        monitorLayout->addSpacing(8);
+
+        m_corpusMonitorCheck = new QCheckBox("Monitor corpus directory for external changes");
+        m_corpusMonitorCheck->setObjectName("corpus-monitor");
+        m_corpusMonitorCheck->setChecked(m_corpus ? m_corpus->monitor : true);
+        m_corpusMonitorCheck->setEnabled(corpusOpen);
+        monitorLayout->addWidget(m_corpusMonitorCheck);
+
+        QHBoxLayout *editPolicyRow = new QHBoxLayout();
+        auto *editPolicyLabel = new QLabel(tr("When a document changes on disk:"));
+        editPolicyRow->addWidget(editPolicyLabel);
+        m_corpusEditPolicyCombo = new QComboBox;
+        m_corpusEditPolicyCombo->setObjectName("corpus-edit-policy");
+        m_corpusEditPolicyCombo->addItem(tr("Reload clean tabs; prompt when dirty"), "autoReload");
+        m_corpusEditPolicyCombo->addItem(tr("Always prompt"), "prompt");
+        m_corpusEditPolicyCombo->addItem(tr("Auto-reload always"), "autoReloadDirty");
+        const QString editPolicy = settings.value(
+            Preferences::CorpusExternalEditPolicy, QStringLiteral("autoReload")).toString();
+        const int epIdx = m_corpusEditPolicyCombo->findData(editPolicy);
+        m_corpusEditPolicyCombo->setCurrentIndex(epIdx < 0 ? 0 : epIdx);
+        editPolicyRow->addWidget(m_corpusEditPolicyCombo, 1);
+        monitorLayout->addLayout(editPolicyRow);
+
+        layout->addWidget(monitorGroup);
+
+        QGroupBox *linksGroup = new QGroupBox("Links");
+        QVBoxLayout *linksLayout = new QVBoxLayout(linksGroup);
+        linksLayout->addSpacing(8);
+
+        QHBoxLayout *rewritePolicyRow = new QHBoxLayout();
+        auto *rewritePolicyLabel = new QLabel(tr("When a corpus document is renamed/moved:"));
+        rewritePolicyRow->addWidget(rewritePolicyLabel);
+        m_linkRewritePolicyCombo = new QComboBox;
+        m_linkRewritePolicyCombo->setObjectName("corpus-link-rewrite-policy");
+        m_linkRewritePolicyCombo->addItem(tr("Ask me first"), "prompt");
+        m_linkRewritePolicyCombo->addItem(tr("Rewrite links automatically"), "silent");
+        m_linkRewritePolicyCombo->addItem(tr("Do nothing"), "ignore");
+        const QString rewritePolicy = settings.value(
+            Preferences::CorpusLinkRewritePolicy, QStringLiteral("prompt")).toString();
+        const int rwIdx = m_linkRewritePolicyCombo->findData(rewritePolicy);
+        m_linkRewritePolicyCombo->setCurrentIndex(rwIdx < 0 ? 0 : rwIdx);
+        rewritePolicyRow->addWidget(m_linkRewritePolicyCombo, 1);
+        linksLayout->addLayout(rewritePolicyRow);
+
+        QHBoxLayout *scopeRow = new QHBoxLayout();
+        auto *scopeLabel = new QLabel(tr("Links to update:"));
+        scopeRow->addWidget(scopeLabel);
+        m_linkRewriteScopeCombo = new QComboBox;
+        m_linkRewriteScopeCombo->setObjectName("corpus-link-rewrite-scope");
+        m_linkRewriteScopeCombo->addItem(tr("Only open documents"), "open");
+        m_linkRewriteScopeCombo->addItem(tr("All corpus documents"), "all");
+        const QString scope = settings.value(
+            Preferences::CorpusLinkRewriteScope, QStringLiteral("open")).toString();
+        const int scIdx = m_linkRewriteScopeCombo->findData(scope);
+        m_linkRewriteScopeCombo->setCurrentIndex(scIdx < 0 ? 0 : scIdx);
+        scopeRow->addWidget(m_linkRewriteScopeCombo, 1);
+        linksLayout->addLayout(scopeRow);
+
+        layout->addWidget(linksGroup);
+
+        QGroupBox *externalGroup = new QGroupBox("External Documents");
+        QVBoxLayout *externalLayout = new QVBoxLayout(externalGroup);
+        externalLayout->addSpacing(8);
+
+        QHBoxLayout *exportRow = new QHBoxLayout();
+        auto *exportLabel = new QLabel(tr("Documents outside the corpus root:"));
+        exportRow->addWidget(exportLabel);
+        m_externalExportCombo = new QComboBox;
+        m_externalExportCombo->setObjectName("corpus-external-export");
+        m_externalExportCombo->addItem(tr("Don't export"), QString());
+        m_externalExportCombo->addItem(tr("Export to subfolder"), "subfolder");
+        exportRow->addWidget(m_externalExportCombo, 1);
+        externalLayout->addLayout(exportRow);
+
+        QHBoxLayout *folderRow = new QHBoxLayout();
+        auto *folderLabel = new QLabel(tr("Export subfolder:"));
+        folderRow->addWidget(folderLabel);
+        m_externalExportDirEdit = new QLineEdit;
+        m_externalExportDirEdit->setObjectName("corpus-external-export-dir");
+        m_externalExportDirEdit->setPlaceholderText("external");
+        folderRow->addWidget(m_externalExportDirEdit, 1);
+        externalLayout->addLayout(folderRow);
+
+        const QString exportDir = settings.value(Preferences::CorpusExternalExportDirName).toString();
+        const bool exportOn = !exportDir.isEmpty();
+        m_externalExportCombo->setCurrentIndex(exportOn ? 1 : 0);
+        m_externalExportDirEdit->setText(exportOn ? exportDir : QString());
+        m_externalExportDirEdit->setEnabled(exportOn);
+        connect(m_externalExportCombo, &QComboBox::currentIndexChanged, this, [this](int index) {
+            m_externalExportDirEdit->setEnabled(index == 1);
+        });
+
+        layout->addWidget(externalGroup);
+
+        layout->addStretch();
+
+        m_pages->addWidget(wrapPage(page));
+        m_pageList->addItem("Corpus");
     }
 
     /* --- Page 6: Security --- */
@@ -1707,7 +1922,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     mainLayout->addWidget(buttonBox);
     connect(buttonBox, &QDialogButtonBox::accepted, this, [this]() {
         QSettings settings;
-        settings.setValue(Preferences::ReopenLastSession, m_reopenCheck->isChecked());
+        settings.setValue(Preferences::ReopenLastCorpus, m_reopenCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         settings.setValue(Preferences::ShowCodeLangPreview, m_showCodeLangPreviewCheck->isChecked());
@@ -1816,8 +2031,13 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::GrammarUnderlineColor, m_grammarColorBtn->text());
         settings.setValue(Preferences::LinkUnderlineColor, m_linkColorBtn->text());
         settings.setValue(Preferences::MarkdownUnderlineColor, m_markdownColorBtn->text());
-        settings.setValue(Preferences::DictionaryLanguage, m_languageCombo->currentData().toString());
-        settings.setValue(Preferences::GrammarDialect, m_grammarDialectCombo->currentText());
+        // An active corpus's dictionary language/dialect override the global
+        // selections for spell-checking; when a corpus is open the combos show
+        // the corpus values read-only, so don't clobber the global prefs.
+        if (!m_corpus || m_corpus->filePath.isEmpty()) {
+            settings.setValue(Preferences::DictionaryLanguage, m_languageCombo->currentData().toString());
+            settings.setValue(Preferences::GrammarDialect, m_grammarDialectCombo->currentText());
+        }
         QStringList customWords;
         for (int i = 0; i < m_customWordsList->count(); ++i)
             customWords << m_customWordsList->item(i)->text();
@@ -1832,6 +2052,24 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         else if (m_imgTempDir->isChecked()) imgLocation = QStringLiteral("tempDir");
         settings.setValue(Preferences::ImportImageLocation, imgLocation);
         settings.setValue(Preferences::ImportImageDir, m_imgDirEdit->text());
+        QStringList recentCorpora;
+        for (int i = 0; i < m_recentCorpusList->count(); ++i)
+            recentCorpora << m_recentCorpusList->item(i)->text();
+        settings.setValue(Preferences::RecentCorpora, recentCorpora);
+        settings.setValue(Preferences::CorpusExternalEditPolicy,
+            m_corpusEditPolicyCombo->currentData().toString());
+        settings.setValue(Preferences::CorpusLinkRewritePolicy,
+            m_linkRewritePolicyCombo->currentData().toString());
+        settings.setValue(Preferences::CorpusLinkRewriteScope,
+            m_linkRewriteScopeCombo->currentData().toString());
+        const bool exportExternal =
+            m_externalExportCombo->currentData().toString() == QLatin1String("subfolder");
+        settings.setValue(Preferences::CorpusExternalExportDirName,
+            exportExternal ? m_externalExportDirEdit->text().trimmed() : QString());
+        settings.setValue(Preferences::CorpusDictionaryMode,
+            m_corpusDictMerge->isChecked() ? QStringLiteral("merge") : QStringLiteral("override"));
+        if (m_corpus && m_corpusMonitorCheck)
+            m_corpus->monitor = m_corpusMonitorCheck->isChecked();
         accept();
     });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

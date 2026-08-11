@@ -345,8 +345,20 @@ void SpellChecker::applyEngineConfig()
     // tables — a costly, tab-count-scaling operation that ran on every
     // Preferences OK even when nothing had changed. Skip it when the effective
     // configuration is identical to the last one applied.
-    QStringList merged = m_userWords.values();
-    merged << m_ignoredWords.values();
+    //
+    // With a corpus active in override mode (sect.22) the corpus word sets
+    // replace the global user.dic/ignored.dic sets entirely; otherwise all of
+    // them union. "Corpus active" here means non-empty corpus sets — a plain
+    // editor (no corpus, still the default override flag) must keep its global
+    // user dictionary, so empty corpus sets behave exactly like merge mode.
+    const bool corpusActive = !m_corpusWords.isEmpty() || !m_corpusIgnored.isEmpty();
+    QStringList merged;
+    if (m_corpusMerge || !corpusActive) {
+        merged = m_userWords.values();
+        merged << m_ignoredWords.values();
+    }
+    merged << m_corpusWords.values();
+    merged << m_corpusIgnored.values();
     merged << importedWords();
     merged.removeDuplicates();
     merged.sort();
@@ -445,6 +457,65 @@ void SpellChecker::removeFromIgnored(const QString &word)
 QStringList SpellChecker::ignoredWords() const
 {
     QStringList words = m_ignoredWords.values();
+    words.sort();
+    return words;
+}
+
+void SpellChecker::setCorpusWords(const QStringList &words)
+{
+    m_corpusWords = QSet<QString>(words.begin(), words.end());
+    applyEngineConfig();
+}
+
+void SpellChecker::setCorpusIgnored(const QStringList &words)
+{
+    m_corpusIgnored = QSet<QString>(words.begin(), words.end());
+    applyEngineConfig();
+}
+
+void SpellChecker::setCorpusMerge(bool merge)
+{
+    if (m_corpusMerge == merge)
+        return;
+    m_corpusMerge = merge;
+    applyEngineConfig();
+}
+
+void SpellChecker::addCorpusWord(const QString &word)
+{
+    QString trimmed = word.trimmed();
+    if (trimmed.isEmpty() || m_corpusWords.contains(trimmed))
+        return;
+    m_corpusWords.insert(trimmed);
+    applyEngineConfig();
+}
+
+void SpellChecker::removeCorpusWord(const QString &word)
+{
+    if (!m_corpusWords.remove(word))
+        return;
+    applyEngineConfig();
+}
+
+void SpellChecker::addCorpusIgnored(const QString &word)
+{
+    QString trimmed = word.trimmed();
+    if (trimmed.isEmpty() || m_corpusIgnored.contains(trimmed))
+        return;
+    m_corpusIgnored.insert(trimmed);
+    applyEngineConfig();
+}
+
+QStringList SpellChecker::corpusWords() const
+{
+    QStringList words = m_corpusWords.values();
+    words.sort();
+    return words;
+}
+
+QStringList SpellChecker::corpusIgnored() const
+{
+    QStringList words = m_corpusIgnored.values();
     words.sort();
     return words;
 }

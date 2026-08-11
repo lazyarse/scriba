@@ -33,7 +33,7 @@ TEST_F(SettingsMigrationTest, MigratesRenamedKeyAndStampsVersion)
 
     Preferences::migrateSettings(settings);
 
-    EXPECT_EQ(settings.value(Preferences::ReopenLastSession).toBool(), true);
+    EXPECT_EQ(settings.value(Preferences::ReopenLastCorpus).toBool(), true);
     EXPECT_FALSE(settings.contains("reopenLastFile"));
     EXPECT_EQ(settings.value(Preferences::ConfigVersion).toInt(),
               Preferences::CurrentConfigVersion);
@@ -63,6 +63,22 @@ TEST_F(SettingsMigrationTest, RemovedOptionsAreDropped)
         EXPECT_FALSE(settings.contains(key)) << key.toStdString();
 }
 
+TEST_F(SettingsMigrationTest, LegacySessionKeysAreDroppedNotPorted)
+{
+    QSettings settings;
+    settings.setValue("reopenLastSession", true);
+    settings.setValue("sessionData", "{}");
+    settings.setValue("lastSessionName", "x");
+
+    Preferences::migrateSettings(settings);
+
+    EXPECT_FALSE(settings.contains("reopenLastSession"));
+    EXPECT_FALSE(settings.contains("sessionData"));
+    EXPECT_FALSE(settings.contains("lastSessionName"));
+    EXPECT_FALSE(settings.contains("reopenLastCorpus"));
+    EXPECT_FALSE(settings.contains("onExitCorpusData"));
+}
+
 TEST_F(SettingsMigrationTest, UnknownKeysArePreserved)
 {
     QSettings settings;
@@ -84,7 +100,7 @@ TEST_F(SettingsMigrationTest, AlreadyMigratedConfigIsUntouched)
     Preferences::migrateSettings(settings);
 
     EXPECT_TRUE(settings.contains("reopenLastFile"));
-    EXPECT_FALSE(settings.contains(Preferences::ReopenLastSession));
+    EXPECT_FALSE(settings.contains(Preferences::ReopenLastCorpus));
 }
 
 TEST_F(SettingsMigrationTest, PreviewRenderDelayDefaultsMatchDebounceConstants)
