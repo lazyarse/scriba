@@ -27,6 +27,7 @@ class QCompleter;
 class QAction;
 class QContextMenuEvent;
 class QFontMetrics;
+class QKeyEvent;
 class Gutter;
 class SpellChecker;
 class GrammarChecker;
@@ -134,6 +135,15 @@ private:
     bool isInsideLinkContext(const QTextCursor &cursor, QString &partialPath) const;
     bool isInsideHtmlPathContext(const QTextCursor &cursor, QString &partialPath) const;
     void applyAutoCorrect(bool separatorTyped);
+    bool handleEscapeKey();                              // completer popup dismiss
+    bool handleEnterKey(QKeyEvent *event);               // list/table/fold return
+    bool handleTabKey(QKeyEvent *event);                 // indent/dedent incl. Backtab
+    bool handleDownKey();                                // fold expand
+    bool handleCtrlAltScroll(int key);                   // viewport scroll
+    bool handleHeaderJump(int direction);                // Ctrl+Up/Down
+    bool handleZoom(int direction);                      // Ctrl+=/-
+    bool handleHardwrap();                               // Ctrl+D
+    bool handleBackspaceDelete(QKeyEvent *event);        // Backspace/Delete list ops
     bool isInsideInlineCode() const;
     bool showFileCompletion(const QString &partialPath);
     void acceptCompletion(const QString &completion);

@@ -244,516 +244,58 @@ void Editor::insertParagraphWithLineHeight(QKeyEvent *event)
 
 void Editor::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Escape) {
-        if (m_completer && m_completer->popup()->isVisible()) {
-            m_completer->popup()->hide();
-            return;
-        }
-    }
-
-    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
-        if (m_completer && m_completer->popup()->isVisible()) {
-            QAbstractItemModel *model = m_completer->completionModel();
-            QModelIndex idx = m_completer->popup()->currentIndex();
-            if (!idx.isValid() && model && model->rowCount() > 0)
-                idx = model->index(0, 0);
-            if (idx.isValid()) {
-                acceptCompletion(model->data(idx).toString());
-                return;
-            }
-        }
-
-        // Enter completes the word on the current line, so correct a finished
-        // typo before the paragraph is split.
-        applyAutoCorrect(false);
-
-        QTextCursor cursor = textCursor();
-        QString line = cursor.block().text();
-        // The fold whose hidden region holds the caret block, or -1. Inside a
-        // folded region Enter redirects below the fold (headers and list items)
-        // instead of auto-continuing a list marker into hidden text.
-        int foldedRegion = -1;
-        {
-            int bn = cursor.blockNumber();
-            for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
-                if (foldRegionContains(*it, bn) && (foldedRegion < 0 || *it > foldedRegion))
-                    foldedRegion = *it;
-            }
-        }
-        // Only auto-continue list markers when the caret is at the end of the
-        // block; pressing Enter mid-line (or at the start) should split normally.
-        if (cursor.positionInBlock() == line.length()) {
-            QString result = handleListReturn(line);
-            if (!result.isEmpty() && foldedRegion < 0) {
-                if (result == QString(clearSentinel)) {
-                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                    cursor.removeSelectedText();
-                    insertParagraphWithLineHeight(event);
-                    return;
-                }
-                QTextEdit::keyPressEvent(event);
-                insertPlainText(result);
-                return;
-            }
-        } else {
-            // Splitting a list item mid-line should carry the list marker onto
-            // the new line instead of leaving a bare paragraph split.
-            QString marker = handleListSplitReturn(line, cursor.positionInBlock());
-            if (!marker.isEmpty() && foldedRegion < 0) {
-                QTextEdit::keyPressEvent(event);
-                insertPlainText(marker);
-                return;
-            }
-        }
-
-        QTextBlock prevBlock = cursor.block().previous();
-        // Auto-continue table rows when the caret is at the end of the block.
-        // Enter mid-row normally splits the paragraph, but an empty data row
-        // (e.g. the one just auto-completed below a header) exits the table
-        // even when the caret sits inside a cell rather than at the row's end,
-        // while Enter on a data/header row's content keeps working the table.
-        if (MdTable::isMdTableLikeRow(line) && MdTable::isMdSeparatorRow(line)) {
-            // Separator row: never split. Jump to the first data row below, or
-            // create an empty one if the table has no data rows yet.
-            QTextBlock block = cursor.block().next();
-            while (block.isValid()) {
-                QString t = block.text();
-                if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
-                    QTextCursor tc = textCursor();
-                    tc.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
-                    setTextCursor(tc);
-                    return;
-                }
-                block = block.next();
-            }
-            const MdTable::MdRowStyle style = MdTable::mdRowStyle(line);
-            int cols = qMax(MdTable::splitMdTableRow(line).size(), 1);
-            QString newRow = MdTable::makeEmptyTableRow(cols, style, tablePadding());
-            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
-            cursor.insertText("\n" + newRow);
-            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, MdTable::mdRowFirstCellPos(newRow));
-            setTextCursor(cursor);
-            return;
-        }
-
-        QString result;
-        if (cursor.positionInBlock() == line.length()) {
-            result = MdTable::handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString(), tablePadding());
-        } else if (MdTable::isBlankMdTableRow(line)) {
-            result = QString(clearSentinel);
-        } else if (MdTable::isMdTableLikeRow(line)) {
-            // Mid-cell Enter on a data or header row: let MdTable::handleTableReturn
-            // decide — data rows continue with an empty row below, header rows
-            // fall through to the header-skip block to jump to the first data
-            // row (or create a fresh table).
-            const QString r = MdTable::handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString(), tablePadding());
-            if (!r.isEmpty() && r != QString(clearSentinel))
-                result = r;
-        }
-        if (!result.isEmpty()) {
-            if (result == QString(clearSentinel)) {
-                if (line.contains("<tr>") && line.contains("<td>")) {
-                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
-                    cursor.removeSelectedText();
-                    QTextCursor search = document()->find("</table>", cursor);
-                    if (!search.isNull()) {
-                        search.movePosition(QTextCursor::EndOfLine);
-                        setTextCursor(search);
-                        insertPlainText("\n\n");
-                        return;
-                    }
-                }
-                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                cursor.removeSelectedText();
-                insertParagraphWithLineHeight(event);
-                return;
-            }
-
-            // Header row: skip to first data row below separator
-            QTextBlock nextBlock = cursor.block().next();
-            if (nextBlock.isValid() && MdTable::isMdSeparatorRow(nextBlock.text())) {
-                QTextBlock block = nextBlock.next();
-                while (block.isValid()) {
-                    QString t = block.text();
-                    if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
-                        QTextCursor tc = textCursor();
-                        tc.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
-                        setTextCursor(tc);
-                        return;
-                    }
-                    block = block.next();
-                }
-            }
-
-            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
-            cursor.insertText("\n" + result);
-            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-            // `result` is multi-line when Enter builds a whole table; the cursor
-            // sits on its last line, so measure the first cell of that line.
-            const QString lastLine = result.mid(result.lastIndexOf('\n') + 1);
-            int cellPos = result.startsWith("<tr>")
-                ? result.indexOf("<td>") + 4
-                : MdTable::mdRowFirstCellPos(lastLine);
-            cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
-            setTextCursor(cursor);
-            // Typing a header row then Enter creates a fresh table
-            // (separator + empty data row) — align it right away.
-            if (result.contains("---")
-                && QSettings().value(Preferences::AutoAlignTables, true).toBool())
-                formatMdTableBlock(cursor.blockNumber());
-            return;
-        }
-
-        // Folded region: Enter at the end of a folded foldable line (or while the
-        // cursor sits in the hidden body) inserts the new paragraph just below the
-        // fold so typed text stays visible instead of vanishing into hidden blocks.
-        int bn = cursor.blockNumber();
-        int folded = -1;
-        for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
-            if (*it <= bn && foldRegionContains(*it, bn) && (folded < 0 || *it > folded))
-                folded = *it;
-        }
-        if (folded >= 0) {
-            int end = foldEnd(folded);
-            bool onStart = bn == folded;
-            bool atStartEnd = onStart && cursor.positionInBlock() == cursor.block().text().length();
-            if ((atStartEnd || (!onStart && bn < end)) && bn < end) {
-                QTextCursor target = textCursor();
-                if (end == document()->blockCount()
-                    && (m_headerLevel.contains(folded) || m_listItems.contains(folded))
-                    && !m_foldEndPins.contains(folded)) {
-                    // Fold runs to EOF: pin the bottom here so the new paragraph
-                    // (and anything typed below it) stays visible past the re-scan.
-                    target.movePosition(QTextCursor::End);
-                    m_foldEndPins.insert(folded, target.position());
-                } else if (end == document()->blockCount()) {
-                    target.movePosition(QTextCursor::End);
-                } else {
-                    QTextBlock eb = document()->findBlockByNumber(end);
-                    target.setPosition(eb.position() + eb.length() - 1);
-                }
-                setTextCursor(target);
-                insertParagraphWithLineHeight(event);
-                event->accept();
-                return;
-            }
-        }
-
-        insertParagraphWithLineHeight(event);
+    // Escape: dismiss the completer popup.
+    if (event->key() == Qt::Key_Escape
+            && m_completer && m_completer->popup()->isVisible()
+            && handleEscapeKey())
         return;
-    }
 
-    if (event->key() == Qt::Key_Tab || event->key() == Qt::Key_Backtab) {
-        bool shift = event->modifiers() & Qt::ShiftModifier;
+    // Return/Enter: completer accept, list continuation, table rows, fold return.
+    if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)
+            && handleEnterKey(event))
+        return;
 
-        if (m_completer && m_completer->popup()->isVisible()) {
-            QAbstractItemView *pv = m_completer->popup();
-            QAbstractItemModel *model = m_completer->completionModel();
-            int rows = model->rowCount();
-            if (rows > 0) {
-                QModelIndex cur = pv->currentIndex().isValid()
-                    ? pv->currentIndex() : model->index(0, 0);
-                int next = shift ? cur.row() - 1 : cur.row() + 1;
-                if (next < 0) next = rows - 1;
-                if (next >= rows) next = 0;
-                pv->setCurrentIndex(model->index(next, 0));
-            }
-            return;
-        }
+    // Tab/Backtab: completion cycling, block indent/dedent, list and table
+    // navigation. Falls through (returns false) for an inert Backtab so the
+    // default handling below runs.
+    if ((event->key() == Qt::Key_Tab || event->key() == Qt::Key_Backtab)
+            && handleTabKey(event))
+        return;
 
-        QTextCursor cursor = textCursor();
-
-        // Block indent/dedent for multi-line selections
-        if (cursor.hasSelection()) {
-            int startPos = cursor.selectionStart();
-            int endPos = cursor.selectionEnd();
-            QTextBlock startBlock = document()->findBlock(startPos);
-            QTextBlock endBlock = document()->findBlock(endPos);
-            if (endBlock.position() == endPos && endBlock.blockNumber() > startBlock.blockNumber())
-                endBlock = endBlock.previous();
-
-            int startNum = startBlock.blockNumber();
-            int endNum = endBlock.blockNumber();
-
-            bool dedent = shift || event->key() == Qt::Key_Backtab;
-
-            if (dedent) {
-                for (int i = endNum; i >= startNum; --i) {
-                    QTextBlock block = document()->findBlockByNumber(i);
-                    QString text = block.text();
-                    int toRemove = 0;
-                    while (toRemove < 4 && toRemove < text.size() && text[toRemove] == ' ')
-                        ++toRemove;
-                    if (toRemove > 0) {
-                        QTextCursor tc = textCursor();
-                        tc.setPosition(block.position());
-                        tc.setPosition(block.position() + toRemove, QTextCursor::KeepAnchor);
-                        tc.removeSelectedText();
-                    }
-                }
-            } else {
-                for (int i = endNum; i >= startNum; --i) {
-                    QTextBlock block = document()->findBlockByNumber(i);
-                    QTextCursor tc = textCursor();
-                    tc.setPosition(block.position());
-                    tc.insertText("    ");
-                }
-            }
-
-            // Reselect the modified range
-            QTextBlock newStart = document()->findBlockByNumber(startNum);
-            QTextBlock newEnd = document()->findBlockByNumber(endNum);
-            cursor.setPosition(newStart.position());
-            cursor.setPosition(newEnd.position() + newEnd.length() - 1, QTextCursor::KeepAnchor);
-            setTextCursor(cursor);
-            return;
-        }
-
-        QString line = cursor.block().text();
-
-        // Table cell navigation
-        if (MdTable::isMdTableLikeRow(line)) {
-            int pos = cursor.positionInBlock();
-            int cellPos = MdTable::tableNavCell(line, pos, !shift);
-            if (cellPos >= 0) {
-                cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
-                setTextCursor(cursor);
-                return;
-            }
-            if (!shift) {
-                QTextBlock block = cursor.block().next();
-                while (block.isValid()) {
-                    QString t = block.text();
-                    if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
-                        cursor.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
-                        setTextCursor(cursor);
-                        return;
-                    }
-                    block = block.next();
-                }
-                // No next row — create a new empty row
-                const MdTable::MdRowStyle style = MdTable::mdRowStyle(line);
-                int cols = MdTable::splitMdTableRow(line).size();
-                if (cols > 0) {
-                    QString newRow = MdTable::makeEmptyTableRow(cols, style, tablePadding());
-                    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
-                    bool hasSep = false;
-                    QTextBlock b = cursor.block();
-                    while (b.isValid() && MdTable::isMdTableLikeRow(b.text())) {
-                        if (MdTable::isMdSeparatorRow(b.text())) { hasSep = true; break; }
-                        b = b.previous();
-                    }
-                    QString sep = hasSep ? QString() : (MdTable::makeTableSeparatorRow(cols, style, tablePadding()) + "\n");
-                    cursor.insertText("\n" + sep + newRow);
-                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, MdTable::mdRowFirstCellPos(newRow));
-                    setTextCursor(cursor);
-                    return;
-                }
-            } else {
-                QTextBlock block = cursor.block().previous();
-                while (block.isValid()) {
-                    QString t = block.text();
-                    if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
-                        cursor.setPosition(block.position() + MdTable::mdRowLastCellPos(t), QTextCursor::MoveAnchor);
-                        setTextCursor(cursor);
-                        return;
-                    }
-                    block = block.previous();
-                }
-            }
-        }
-
-        // HTML table cell navigation
-        if (line.contains("<tr>") && line.contains("<td>")) {
-            int pos = cursor.positionInBlock();
-            int cellPos = MdTable::tableNavHtmlCell(line, pos, !shift);
-            if (cellPos >= 0) {
-                cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
-                setTextCursor(cursor);
-                return;
-            }
-            if (!shift) {
-                QTextBlock block = cursor.block().next();
-                while (block.isValid()) {
-                    QString t = block.text();
-                    if (t.contains("<tr>") && t.contains("<td>")) {
-                        int p = t.indexOf("<td>") + 4;
-                        cursor.setPosition(block.position() + p, QTextCursor::MoveAnchor);
-                        setTextCursor(cursor);
-                        return;
-                    }
-                    block = block.next();
-                }
-                // No next row — create a new empty row
-                int cols = line.count("<td>");
-                if (cols > 0) {
-                    QString newRow = MdTable::makeEmptyHtmlTableRow(cols);
-                    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
-                    cursor.insertText("\n" + newRow);
-                    cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                    cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, newRow.indexOf("<td>") + 4);
-                    setTextCursor(cursor);
-                    return;
-                }
-            }
-        }
-
-        static const QRegularExpression unorderedRe(R"(^\s*[-*+]\s?)");
-        static const QRegularExpression orderedRe(R"(^\s*\d+[.)]\s?)");
-        auto matchUnordered = unorderedRe.match(line);
-        auto matchOrdered = orderedRe.match(line);
-        bool isList = matchUnordered.hasMatch() || matchOrdered.hasMatch();
-
-        if (event->key() == Qt::Key_Backtab || shift) {
-            if (isList) {
-                QString outdented = outdentListLine(line);
-                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                cursor.removeSelectedText();
-                cursor.insertText(outdented);
-                // Only renumber when the outdent actually moved the item to a
-                // shallower level — an already-top-level line stays untouched.
-                int oldIndent = 0;
-                for (QChar c : line) {
-                    if (c == ' ') ++oldIndent;
-                    else break;
-                }
-                int newIndent = 0;
-                for (QChar c : outdented) {
-                    if (c == ' ') ++newIndent;
-                    else break;
-                }
-                if (newIndent < oldIndent)
-                    renumberOutdentedOrderedList(cursor.block().blockNumber());
-                return;
-            }
-        } else {
-            if (isList) {
-                QString indented = indentListLine(line);
-                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                cursor.removeSelectedText();
-                cursor.insertText(indented);
-                renumberNestedOrderedList(cursor.block().blockNumber());
-                return;
-            }
-            insertPlainText("    ");
-            return;
-        }
-    }
-
-    if (event->key() == Qt::Key_Down) {
-        if (!m_completer || !m_completer->popup()->isVisible()) {
-            QTextCursor cursor = textCursor();
-            QTextCursor probe = cursor;
-            if (!probe.movePosition(QTextCursor::Down)) {
-                cursor.movePosition(QTextCursor::EndOfBlock);
-                setTextCursor(cursor);
-                return;
-            }
-        }
-    }
+    // Down: fold expand, but only when no completion popup is showing — the
+    // popup owns Down while it is open.
+    if (event->key() == Qt::Key_Down
+            && (!m_completer || !m_completer->popup()->isVisible())
+            && handleDownKey())
+        return;
 
     bool ctrl = event->modifiers() & Qt::ControlModifier;
     bool alt = event->modifiers() & Qt::AltModifier;
 
     // Ctrl+Alt+Up/Down: scroll viewport
-    if (ctrl && alt && event->key() == Qt::Key_Up) {
-        verticalScrollBar()->setValue(verticalScrollBar()->value() - verticalScrollBar()->singleStep());
-        event->accept();
-        return;
-    }
-    if (ctrl && alt && event->key() == Qt::Key_Down) {
-        verticalScrollBar()->setValue(verticalScrollBar()->value() + verticalScrollBar()->singleStep());
+    if (ctrl && alt && (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down)
+            && handleCtrlAltScroll(event->key())) {
         event->accept();
         return;
     }
 
     // Ctrl+Up/Down: jump to prev/next header
-    if (ctrl && !alt && event->key() == Qt::Key_Up) {
-        int target = findPrevHeader(textCursor().blockNumber());
-        if (target >= 0) {
-            QTextBlock block = document()->findBlockByNumber(target);
-            QTextCursor cursor(block);
-            setTextCursor(cursor);
-            centerCursor();
-        }
-        event->accept();
-        return;
-    }
-    if (ctrl && !alt && event->key() == Qt::Key_Down) {
-        int target = findNextHeader(textCursor().blockNumber());
-        if (target >= 0) {
-            QTextBlock block = document()->findBlockByNumber(target);
-            QTextCursor cursor(block);
-            setTextCursor(cursor);
-            centerCursor();
-        }
+    if (ctrl && !alt && (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down)
+            && handleHeaderJump(event->key())) {
         event->accept();
         return;
     }
 
     // Ctrl+= expand, Ctrl+- fold
-    if (ctrl && !alt && event->key() == Qt::Key_Equal) {
-        int bn = textCursor().blockNumber();
-        int folded = -1;
-        for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
-            if (foldRegionContains(*it, bn)) {
-                if (folded < 0 || *it > folded)
-                    folded = *it;
-            }
-        }
-        if (folded >= 0)
-            toggleFold(folded);
-        event->accept();
-        return;
-    }
-    if (ctrl && !alt && event->key() == Qt::Key_Minus) {
-        int bn = textCursor().blockNumber();
-        if (isFoldableBlock(bn) && !m_foldedBlocks.contains(bn)) {
-            toggleFold(bn);
-        }
+    if (ctrl && !alt && (event->key() == Qt::Key_Equal || event->key() == Qt::Key_Minus)
+            && handleZoom(event->key())) {
         event->accept();
         return;
     }
 
-    if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_D) {
-        QTextCursor cursor = textCursor();
-        QTextDocument *doc = document();
-        bool hasSel = cursor.hasSelection();
-
-        QTextBlock startBlock = hasSel
-            ? doc->findBlock(cursor.selectionStart())
-            : cursor.block();
-        QTextBlock endBlock = hasSel
-            ? doc->findBlock(cursor.selectionEnd())
-            : startBlock;
-
-        QStringList lines;
-        QTextBlock b = startBlock;
-        while (true) {
-            lines << b.text();
-            if (b == endBlock) break;
-            b = b.next();
-        }
-        QString blockText = lines.join('\n');
-
-        cursor.beginEditBlock();
-        if (endBlock.blockNumber() == doc->blockCount() - 1) {
-            cursor.movePosition(QTextCursor::End);
-            cursor.insertText('\n' + blockText);
-        } else {
-            QTextBlock next = endBlock.next();
-            cursor.setPosition(next.position());
-            cursor.insertText(blockText + '\n');
-        }
-        cursor.endEditBlock();
-
+    // Ctrl+D: hardwrap (copy the current block below, or the selection).
+    if ((event->modifiers() & Qt::ControlModifier) && event->key() == Qt::Key_D
+            && handleHardwrap()) {
         event->accept();
         return;
     }
@@ -764,46 +306,15 @@ void Editor::keyPressEvent(QKeyEvent *event)
         return;
     }
 
+    // Backspace/Delete: perform the default deletion, then keep the completer
+    // popup in sync with the edited text.
+    if ((event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete)
+            && handleBackspaceDelete(event))
+        return;
+
     QTextEdit::keyPressEvent(event);
 
-    if (event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete) {
-        if (m_completer && m_completer->popup()->isVisible()) {
-            QString partialCode;
-            if (isInsideEmojiContext(textCursor(), partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool()) {
-                if (partialCode.isEmpty())
-                    m_completer->popup()->hide();
-                else
-                    showEmojiCompletion(partialCode);
-            } else {
-                QString partialPath;
-                if (isInsideLinkContext(textCursor(), partialPath)) {
-                    if (partialPath.isEmpty())
-                        m_completer->popup()->hide();
-                    else
-                        showFileCompletion(partialPath);
-                } else {
-                    QString htmlPath;
-                    if (isInsideHtmlPathContext(textCursor(), htmlPath)) {
-                        if (htmlPath.isEmpty())
-                            m_completer->popup()->hide();
-                        else
-                            showFileCompletion(htmlPath);
-                    } else {
-                        QString partialLang;
-                        if (isInsideLanguageContext(textCursor(), partialLang) &&
-                            QSettings().value(Preferences::LanguageAutoComplete, true).toBool()) {
-                            if (partialLang.isEmpty())
-                                m_completer->popup()->hide();
-                            else
-                                showLanguageCompletion(partialLang);
-                        } else {
-                            m_completer->popup()->hide();
-                        }
-                    }
-                }
-            }
-        }
-    } else if (!event->text().isEmpty()) {
+    if (!event->text().isEmpty()) {
         // A space or punctuation just completed the word before the cursor, so
         // apply any configured typo replacement before re-evaluating completions.
         applyAutoCorrect(true);
@@ -828,6 +339,558 @@ void Editor::keyPressEvent(QKeyEvent *event)
         if (!shown && m_completer && m_completer->popup()->isVisible())
             m_completer->popup()->hide();
     }
+}
+
+bool Editor::handleEscapeKey()
+{
+    m_completer->popup()->hide();
+    return true;
+}
+
+bool Editor::handleEnterKey(QKeyEvent *event)
+{
+    if (m_completer && m_completer->popup()->isVisible()) {
+        QAbstractItemModel *model = m_completer->completionModel();
+        QModelIndex idx = m_completer->popup()->currentIndex();
+        if (!idx.isValid() && model && model->rowCount() > 0)
+            idx = model->index(0, 0);
+        if (idx.isValid()) {
+            acceptCompletion(model->data(idx).toString());
+            return true;
+        }
+    }
+
+    // Enter completes the word on the current line, so correct a finished
+    // typo before the paragraph is split.
+    applyAutoCorrect(false);
+
+    QTextCursor cursor = textCursor();
+    QString line = cursor.block().text();
+    // The fold whose hidden region holds the caret block, or -1. Inside a
+    // folded region Enter redirects below the fold (headers and list items)
+    // instead of auto-continuing a list marker into hidden text.
+    int foldedRegion = -1;
+    {
+        int bn = cursor.blockNumber();
+        for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
+            if (foldRegionContains(*it, bn) && (foldedRegion < 0 || *it > foldedRegion))
+                foldedRegion = *it;
+        }
+    }
+    // Only auto-continue list markers when the caret is at the end of the
+    // block; pressing Enter mid-line (or at the start) should split normally.
+    if (cursor.positionInBlock() == line.length()) {
+        QString result = handleListReturn(line);
+        if (!result.isEmpty() && foldedRegion < 0) {
+            if (result == QString(clearSentinel)) {
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+                insertParagraphWithLineHeight(event);
+                return true;
+            }
+            QTextEdit::keyPressEvent(event);
+            insertPlainText(result);
+            return true;
+        }
+    } else {
+        // Splitting a list item mid-line should carry the list marker onto
+        // the new line instead of leaving a bare paragraph split.
+        QString marker = handleListSplitReturn(line, cursor.positionInBlock());
+        if (!marker.isEmpty() && foldedRegion < 0) {
+            QTextEdit::keyPressEvent(event);
+            insertPlainText(marker);
+            return true;
+        }
+    }
+
+    QTextBlock prevBlock = cursor.block().previous();
+    // Auto-continue table rows when the caret is at the end of the block.
+    // Enter mid-row normally splits the paragraph, but an empty data row
+    // (e.g. the one just auto-completed below a header) exits the table
+    // even when the caret sits inside a cell rather than at the row's end,
+    // while Enter on a data/header row's content keeps working the table.
+    if (MdTable::isMdTableLikeRow(line) && MdTable::isMdSeparatorRow(line)) {
+        // Separator row: never split. Jump to the first data row below, or
+        // create an empty one if the table has no data rows yet.
+        QTextBlock block = cursor.block().next();
+        while (block.isValid()) {
+            QString t = block.text();
+            if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
+                QTextCursor tc = textCursor();
+                tc.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
+                setTextCursor(tc);
+                return true;
+            }
+            block = block.next();
+        }
+        const MdTable::MdRowStyle style = MdTable::mdRowStyle(line);
+        int cols = qMax(MdTable::splitMdTableRow(line).size(), 1);
+        QString newRow = MdTable::makeEmptyTableRow(cols, style, tablePadding());
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+        cursor.insertText("\n" + newRow);
+        cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+        cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, MdTable::mdRowFirstCellPos(newRow));
+        setTextCursor(cursor);
+        return true;
+    }
+
+    QString result;
+    if (cursor.positionInBlock() == line.length()) {
+        result = MdTable::handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString(), tablePadding());
+    } else if (MdTable::isBlankMdTableRow(line)) {
+        result = QString(clearSentinel);
+    } else if (MdTable::isMdTableLikeRow(line)) {
+        // Mid-cell Enter on a data or header row: let MdTable::handleTableReturn
+        // decide — data rows continue with an empty row below, header rows
+        // fall through to the header-skip block to jump to the first data
+        // row (or create a fresh table).
+        const QString r = MdTable::handleTableReturn(line, prevBlock.isValid() ? prevBlock.text() : QString(), tablePadding());
+        if (!r.isEmpty() && r != QString(clearSentinel))
+            result = r;
+    }
+    if (!result.isEmpty()) {
+        if (result == QString(clearSentinel)) {
+            if (line.contains("<tr>") && line.contains("<td>")) {
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+                QTextCursor search = document()->find("</table>", cursor);
+                if (!search.isNull()) {
+                    search.movePosition(QTextCursor::EndOfLine);
+                    setTextCursor(search);
+                    insertPlainText("\n\n");
+                    return true;
+                }
+            }
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            cursor.removeSelectedText();
+            insertParagraphWithLineHeight(event);
+            return true;
+        }
+
+        // Header row: skip to first data row below separator
+        QTextBlock nextBlock = cursor.block().next();
+        if (nextBlock.isValid() && MdTable::isMdSeparatorRow(nextBlock.text())) {
+            QTextBlock block = nextBlock.next();
+            while (block.isValid()) {
+                QString t = block.text();
+                if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
+                    QTextCursor tc = textCursor();
+                    tc.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
+                    setTextCursor(tc);
+                    return true;
+                }
+                block = block.next();
+            }
+        }
+
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+        cursor.insertText("\n" + result);
+        cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+        // `result` is multi-line when Enter builds a whole table; the cursor
+        // sits on its last line, so measure the first cell of that line.
+        const QString lastLine = result.mid(result.lastIndexOf('\n') + 1);
+        int cellPos = result.startsWith("<tr>")
+            ? result.indexOf("<td>") + 4
+            : MdTable::mdRowFirstCellPos(lastLine);
+        cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, cellPos);
+        setTextCursor(cursor);
+        // Typing a header row then Enter creates a fresh table
+        // (separator + empty data row) — align it right away.
+        if (result.contains("---")
+            && QSettings().value(Preferences::AutoAlignTables, true).toBool())
+            formatMdTableBlock(cursor.blockNumber());
+        return true;
+    }
+
+    // Folded region: Enter at the end of a folded foldable line (or while the
+    // cursor sits in the hidden body) inserts the new paragraph just below the
+    // fold so typed text stays visible instead of vanishing into hidden blocks.
+    int bn = cursor.blockNumber();
+    int folded = -1;
+    for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
+        if (*it <= bn && foldRegionContains(*it, bn) && (folded < 0 || *it > folded))
+            folded = *it;
+    }
+    if (folded >= 0) {
+        int end = foldEnd(folded);
+        bool onStart = bn == folded;
+        bool atStartEnd = onStart && cursor.positionInBlock() == cursor.block().text().length();
+        if ((atStartEnd || (!onStart && bn < end)) && bn < end) {
+            QTextCursor target = textCursor();
+            if (end == document()->blockCount()
+                && (m_headerLevel.contains(folded) || m_listItems.contains(folded))
+                && !m_foldEndPins.contains(folded)) {
+                // Fold runs to EOF: pin the bottom here so the new paragraph
+                // (and anything typed below it) stays visible past the re-scan.
+                target.movePosition(QTextCursor::End);
+                m_foldEndPins.insert(folded, target.position());
+            } else if (end == document()->blockCount()) {
+                target.movePosition(QTextCursor::End);
+            } else {
+                QTextBlock eb = document()->findBlockByNumber(end);
+                target.setPosition(eb.position() + eb.length() - 1);
+            }
+            setTextCursor(target);
+            insertParagraphWithLineHeight(event);
+            event->accept();
+            return true;
+        }
+    }
+
+    insertParagraphWithLineHeight(event);
+    return true;
+}
+
+bool Editor::handleTabKey(QKeyEvent *event)
+{
+    bool shift = event->modifiers() & Qt::ShiftModifier;
+
+    if (m_completer && m_completer->popup()->isVisible()) {
+        QAbstractItemView *pv = m_completer->popup();
+        QAbstractItemModel *model = m_completer->completionModel();
+        int rows = model->rowCount();
+        if (rows > 0) {
+            QModelIndex cur = pv->currentIndex().isValid()
+                ? pv->currentIndex() : model->index(0, 0);
+            int next = shift ? cur.row() - 1 : cur.row() + 1;
+            if (next < 0) next = rows - 1;
+            if (next >= rows) next = 0;
+            pv->setCurrentIndex(model->index(next, 0));
+        }
+        return true;
+    }
+
+    QTextCursor cursor = textCursor();
+
+    // Block indent/dedent for multi-line selections
+    if (cursor.hasSelection()) {
+        int startPos = cursor.selectionStart();
+        int endPos = cursor.selectionEnd();
+        QTextBlock startBlock = document()->findBlock(startPos);
+        QTextBlock endBlock = document()->findBlock(endPos);
+        if (endBlock.position() == endPos && endBlock.blockNumber() > startBlock.blockNumber())
+            endBlock = endBlock.previous();
+
+        int startNum = startBlock.blockNumber();
+        int endNum = endBlock.blockNumber();
+
+        bool dedent = shift || event->key() == Qt::Key_Backtab;
+
+        if (dedent) {
+            for (int i = endNum; i >= startNum; --i) {
+                QTextBlock block = document()->findBlockByNumber(i);
+                QString text = block.text();
+                int toRemove = 0;
+                while (toRemove < 4 && toRemove < text.size() && text[toRemove] == ' ')
+                    ++toRemove;
+                if (toRemove > 0) {
+                    QTextCursor tc = textCursor();
+                    tc.setPosition(block.position());
+                    tc.setPosition(block.position() + toRemove, QTextCursor::KeepAnchor);
+                    tc.removeSelectedText();
+                }
+            }
+        } else {
+            for (int i = endNum; i >= startNum; --i) {
+                QTextBlock block = document()->findBlockByNumber(i);
+                QTextCursor tc = textCursor();
+                tc.setPosition(block.position());
+                tc.insertText("    ");
+            }
+        }
+
+        // Reselect the modified range
+        QTextBlock newStart = document()->findBlockByNumber(startNum);
+        QTextBlock newEnd = document()->findBlockByNumber(endNum);
+        cursor.setPosition(newStart.position());
+        cursor.setPosition(newEnd.position() + newEnd.length() - 1, QTextCursor::KeepAnchor);
+        setTextCursor(cursor);
+        return true;
+    }
+
+    QString line = cursor.block().text();
+
+    // Table cell navigation
+    if (MdTable::isMdTableLikeRow(line)) {
+        int pos = cursor.positionInBlock();
+        int cellPos = MdTable::tableNavCell(line, pos, !shift);
+        if (cellPos >= 0) {
+            cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
+            setTextCursor(cursor);
+            return true;
+        }
+        if (!shift) {
+            QTextBlock block = cursor.block().next();
+            while (block.isValid()) {
+                QString t = block.text();
+                if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
+                    cursor.setPosition(block.position() + MdTable::mdRowFirstCellPos(t), QTextCursor::MoveAnchor);
+                    setTextCursor(cursor);
+                    return true;
+                }
+                block = block.next();
+            }
+            // No next row — create a new empty row
+            const MdTable::MdRowStyle style = MdTable::mdRowStyle(line);
+            int cols = MdTable::splitMdTableRow(line).size();
+            if (cols > 0) {
+                QString newRow = MdTable::makeEmptyTableRow(cols, style, tablePadding());
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+                bool hasSep = false;
+                QTextBlock b = cursor.block();
+                while (b.isValid() && MdTable::isMdTableLikeRow(b.text())) {
+                    if (MdTable::isMdSeparatorRow(b.text())) { hasSep = true; break; }
+                    b = b.previous();
+                }
+                QString sep = hasSep ? QString() : (MdTable::makeTableSeparatorRow(cols, style, tablePadding()) + "\n");
+                cursor.insertText("\n" + sep + newRow);
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, MdTable::mdRowFirstCellPos(newRow));
+                setTextCursor(cursor);
+                return true;
+            }
+        } else {
+            QTextBlock block = cursor.block().previous();
+            while (block.isValid()) {
+                QString t = block.text();
+                if (MdTable::isMdTableLikeRow(t) && !MdTable::isMdSeparatorRow(t)) {
+                    cursor.setPosition(block.position() + MdTable::mdRowLastCellPos(t), QTextCursor::MoveAnchor);
+                    setTextCursor(cursor);
+                    return true;
+                }
+                block = block.previous();
+            }
+        }
+    }
+
+    // HTML table cell navigation
+    if (line.contains("<tr>") && line.contains("<td>")) {
+        int pos = cursor.positionInBlock();
+        int cellPos = MdTable::tableNavHtmlCell(line, pos, !shift);
+        if (cellPos >= 0) {
+            cursor.setPosition(cursor.block().position() + cellPos, QTextCursor::MoveAnchor);
+            setTextCursor(cursor);
+            return true;
+        }
+        if (!shift) {
+            QTextBlock block = cursor.block().next();
+            while (block.isValid()) {
+                QString t = block.text();
+                if (t.contains("<tr>") && t.contains("<td>")) {
+                    int p = t.indexOf("<td>") + 4;
+                    cursor.setPosition(block.position() + p, QTextCursor::MoveAnchor);
+                    setTextCursor(cursor);
+                    return true;
+                }
+                block = block.next();
+            }
+            // No next row — create a new empty row
+            int cols = line.count("<td>");
+            if (cols > 0) {
+                QString newRow = MdTable::makeEmptyHtmlTableRow(cols);
+                cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
+                cursor.insertText("\n" + newRow);
+                cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+                cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, newRow.indexOf("<td>") + 4);
+                setTextCursor(cursor);
+                return true;
+            }
+        }
+    }
+
+    static const QRegularExpression unorderedRe(R"(^\s*[-*+]\s?)");
+    static const QRegularExpression orderedRe(R"(^\s*\d+[.)]\s?)");
+    auto matchUnordered = unorderedRe.match(line);
+    auto matchOrdered = orderedRe.match(line);
+    bool isList = matchUnordered.hasMatch() || matchOrdered.hasMatch();
+
+    if (event->key() == Qt::Key_Backtab || shift) {
+        if (isList) {
+            QString outdented = outdentListLine(line);
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            cursor.removeSelectedText();
+            cursor.insertText(outdented);
+            // Only renumber when the outdent actually moved the item to a
+            // shallower level — an already-top-level line stays untouched.
+            int oldIndent = 0;
+            for (QChar c : line) {
+                if (c == ' ') ++oldIndent;
+                else break;
+            }
+            int newIndent = 0;
+            for (QChar c : outdented) {
+                if (c == ' ') ++newIndent;
+                else break;
+            }
+            if (newIndent < oldIndent)
+                renumberOutdentedOrderedList(cursor.block().blockNumber());
+            return true;
+        }
+    } else {
+        if (isList) {
+            QString indented = indentListLine(line);
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            cursor.removeSelectedText();
+            cursor.insertText(indented);
+            renumberNestedOrderedList(cursor.block().blockNumber());
+            return true;
+        }
+        insertPlainText("    ");
+        return true;
+    }
+
+    // Backtab on a non-list line: nothing to outdent, so fall through to the
+    // default handling in keyPressEvent.
+    return false;
+}
+
+bool Editor::handleDownKey()
+{
+    QTextCursor cursor = textCursor();
+    QTextCursor probe = cursor;
+    if (!probe.movePosition(QTextCursor::Down)) {
+        cursor.movePosition(QTextCursor::EndOfBlock);
+        setTextCursor(cursor);
+        return true;
+    }
+    return false;
+}
+
+bool Editor::handleCtrlAltScroll(int key)
+{
+    if (key == Qt::Key_Up)
+        verticalScrollBar()->setValue(verticalScrollBar()->value() - verticalScrollBar()->singleStep());
+    else
+        verticalScrollBar()->setValue(verticalScrollBar()->value() + verticalScrollBar()->singleStep());
+    return true;
+}
+
+bool Editor::handleHeaderJump(int direction)
+{
+    if (direction == Qt::Key_Up) {
+        int target = findPrevHeader(textCursor().blockNumber());
+        if (target >= 0) {
+            QTextBlock block = document()->findBlockByNumber(target);
+            QTextCursor cursor(block);
+            setTextCursor(cursor);
+            centerCursor();
+        }
+        return true;
+    }
+    int target = findNextHeader(textCursor().blockNumber());
+    if (target >= 0) {
+        QTextBlock block = document()->findBlockByNumber(target);
+        QTextCursor cursor(block);
+        setTextCursor(cursor);
+        centerCursor();
+    }
+    return true;
+}
+
+bool Editor::handleZoom(int direction)
+{
+    if (direction == Qt::Key_Equal) {
+        int bn = textCursor().blockNumber();
+        int folded = -1;
+        for (auto it = m_foldedBlocks.constBegin(); it != m_foldedBlocks.constEnd(); ++it) {
+            if (foldRegionContains(*it, bn)) {
+                if (folded < 0 || *it > folded)
+                    folded = *it;
+            }
+        }
+        if (folded >= 0)
+            toggleFold(folded);
+        return true;
+    }
+    int bn = textCursor().blockNumber();
+    if (isFoldableBlock(bn) && !m_foldedBlocks.contains(bn)) {
+        toggleFold(bn);
+    }
+    return true;
+}
+
+bool Editor::handleHardwrap()
+{
+    QTextCursor cursor = textCursor();
+    QTextDocument *doc = document();
+    bool hasSel = cursor.hasSelection();
+
+    QTextBlock startBlock = hasSel
+        ? doc->findBlock(cursor.selectionStart())
+        : cursor.block();
+    QTextBlock endBlock = hasSel
+        ? doc->findBlock(cursor.selectionEnd())
+        : startBlock;
+
+    QStringList lines;
+    QTextBlock b = startBlock;
+    while (true) {
+        lines << b.text();
+        if (b == endBlock) break;
+        b = b.next();
+    }
+    QString blockText = lines.join('\n');
+
+    cursor.beginEditBlock();
+    if (endBlock.blockNumber() == doc->blockCount() - 1) {
+        cursor.movePosition(QTextCursor::End);
+        cursor.insertText('\n' + blockText);
+    } else {
+        QTextBlock next = endBlock.next();
+        cursor.setPosition(next.position());
+        cursor.insertText(blockText + '\n');
+    }
+    cursor.endEditBlock();
+
+    return true;
+}
+
+bool Editor::handleBackspaceDelete(QKeyEvent *event)
+{
+    QTextEdit::keyPressEvent(event);
+
+    if (m_completer && m_completer->popup()->isVisible()) {
+        QString partialCode;
+        if (isInsideEmojiContext(textCursor(), partialCode) && QSettings().value(Preferences::EmojiAutoComplete, true).toBool()) {
+            if (partialCode.isEmpty())
+                m_completer->popup()->hide();
+            else
+                showEmojiCompletion(partialCode);
+        } else {
+            QString partialPath;
+            if (isInsideLinkContext(textCursor(), partialPath)) {
+                if (partialPath.isEmpty())
+                    m_completer->popup()->hide();
+                else
+                    showFileCompletion(partialPath);
+            } else {
+                QString htmlPath;
+                if (isInsideHtmlPathContext(textCursor(), htmlPath)) {
+                    if (htmlPath.isEmpty())
+                        m_completer->popup()->hide();
+                    else
+                        showFileCompletion(htmlPath);
+                } else {
+                    QString partialLang;
+                    if (isInsideLanguageContext(textCursor(), partialLang) &&
+                        QSettings().value(Preferences::LanguageAutoComplete, true).toBool()) {
+                        if (partialLang.isEmpty())
+                            m_completer->popup()->hide();
+                        else
+                            showLanguageCompletion(partialLang);
+                    } else {
+                        m_completer->popup()->hide();
+                    }
+                }
+            }
+        }
+    }
+    return true;
 }
 
 void Editor::insertFromMimeData(const QMimeData *source)
