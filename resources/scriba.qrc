@@ -1,6 +1,8 @@
 <RCC>
     <qresource prefix="/">
         <file>emoji.js</file>
+        <file>preview-shell.html</file>
+        <file>preview-script.js</file>
         <file>fonts/Symbola.ttf</file>
         <file>preview-base.css</file>
         <file>checkbox-checked.svg</file>

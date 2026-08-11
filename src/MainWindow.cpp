@@ -1514,6 +1514,73 @@ void MainWindow::updatePreview(bool tabSwitch)
         }
     }
 
+    const PreviewEnviron env = computePreviewCssAndEnviron();
+
+    const QUrl baseUrl = computePreviewBaseUrl(info);
+
+    QString emojiMode = prefs.value(Preferences::EmojiMode,
+        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
+    bool cspEnabled = prefs.value(Preferences::EnableCspPreview, true).toBool();
+    if (!m_previewInitialized) {
+        m_cachedPreviewBaseCss = env.baseCss;
+        int heavyRenderDelay = prefs.value(Preferences::HeavyRenderDelay,
+            Preferences::DefaultHeavyRenderDelay).toInt();
+        QString renderCss = CssUtils::renderOverlayCss(env.rawThemeCss);
+        m_cachedOverlayCss = renderCss;
+        bool striping = prefs.value(Preferences::TableStriping, true).toBool();
+        QString stripeInit = striping ? QString()
+            : QLatin1String(Preferences::TableStripeCss);
+        bool showCodeLang = prefs.value(Preferences::ShowCodeLangPreview, true).toBool();
+        QString codeLangInit = showCodeLang ? QString()
+            : QLatin1String(Preferences::HideCodeLangCss);
+        QString centerCss = env.printLayoutCss;
+        if (!m_printLayoutMode && m_previewState == 3) {
+            bool centre = prefs.value(Preferences::CentreSingleViewContent, true).toBool();
+            int centreWidth = prefs.value(Preferences::CentreSingleViewWidth, 800).toInt();
+            if (centre)
+                centerCss = QString("body{margin:0 auto!important;max-width:%1px!important}").arg(centreWidth);
+        }
+        QString splitCss;
+        if (!m_printLayoutMode && (m_previewState == 1 || m_previewState == 2)) {
+            int splitWidth = prefs.value(Preferences::SplitViewPreviewMaxWidth, 0).toInt();
+            splitCss = CssUtils::splitViewMaxWidthCss(splitWidth);
+        }
+        QString fullHtml = buildPreviewShellHtml(heavyRenderDelay, env.mermaidTheme,
+            emojiMode, env.baseCss, env.previewCss, html, stripeInit, centerCss,
+            splitCss, codeLangInit, renderCss);
+        if (m_printLayoutMode) {
+            // Re-paginate after each render pass (see PreviewPagination) and
+            // embed the print option overrides + paginator for this geometry.
+            fullHtml = PreviewPagination::patchIncrementalPaginate(fullHtml);
+            const QString printOptionsCss = PrintOptions::buildCss(env.printOpts);
+            int headEnd = fullHtml.indexOf("</head>");
+            if (headEnd >= 0)
+                fullHtml.insert(headEnd,
+                    QStringLiteral("<style id=\"print-options-css\">%1</style>").arg(printOptionsCss));
+            int bodyEnd = fullHtml.indexOf("</body>");
+            if (bodyEnd >= 0)
+                fullHtml.insert(bodyEnd,
+                    PreviewPagination::paginatorScript(env.printOpts, env.printContentHpx));
+        }
+        if (cspEnabled) {
+            int headEnd = fullHtml.indexOf("</head>");
+            if (headEnd >= 0)
+                fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader));
+        }
+        m_preview->setHtmlWithOverlay(fullHtml, baseUrl);
+    } else {
+        QString js = buildUpdateCallJavascript(html, env.cssChanged, env.previewCss,
+            env.mermaidTheme, emojiMode, baseUrl, tabSwitch);
+        m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
+            if (result.toBool())
+                syncPreviewScroll();
+        });
+    }
+}
+
+MainWindow::PreviewEnviron MainWindow::computePreviewCssAndEnviron()
+{
+    QSettings prefs;
     QString rawThemeCss = m_cssLoader->themeCss();
     QString baseCss = m_cssLoader->previewBaseCss();
     int uiFontSize = prefs.value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt();
@@ -1557,6 +1624,20 @@ void MainWindow::updatePreview(bool tabSwitch)
         m_cachedPreviewCss = previewCss;
     }
 
+    PreviewEnviron env;
+    env.rawThemeCss = rawThemeCss;
+    env.baseCss = baseCss;
+    env.previewCss = previewCss;
+    env.mermaidTheme = mermaidTheme;
+    env.printOpts = printOpts;
+    env.printLayoutCss = printLayoutCss;
+    env.printContentHpx = printContentHpx;
+    env.cssChanged = cssChanged;
+    return env;
+}
+
+QUrl MainWindow::computePreviewBaseUrl(const TabInfo *info) const
+{
     QUrl baseUrl;
     QString docPath = info ? info->filePath : QString();
     if (!docPath.isEmpty()) {
@@ -1572,133 +1653,63 @@ void MainWindow::updatePreview(bool tabSwitch)
     // moves the base to the saved file's directory (see saveFile's re-render).
     if (baseUrl.isEmpty() && !m_corpus.filePath.isEmpty())
         baseUrl = QUrl::fromLocalFile(m_corpus.rootDir() + "/");
+    return baseUrl;
+}
 
-    QString emojiMode = prefs.value(Preferences::EmojiMode,
-        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
-    bool cspEnabled = prefs.value(Preferences::EnableCspPreview, true).toBool();
-    if (!m_previewInitialized) {
-        m_cachedPreviewBaseCss = baseCss;
-        int heavyRenderDelay = prefs.value(Preferences::HeavyRenderDelay,
+QString MainWindow::buildPreviewShellHtml(int heavyRenderDelay, const QString &mermaidTheme,
+                                          const QString &emojiMode, const QString &baseCss,
+                                          const QString &previewCss, const QString &html,
+                                          const QString &stripeInit, const QString &centerCss,
+                                          const QString &splitCss, const QString &codeLangInit,
+                                          const QString &renderCss) const
+{
+    QString script = readResourceFile(":/preview-script.js");
+    script.replace("{{MERMAID_THEME}}", mermaidTheme);
+    script.replace("{{EMOJI_MODE}}", emojiMode);
+
+    QString headScript = QStringLiteral("window._scribaHeavyDelay=%1;").arg(heavyRenderDelay)
+        + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + echartsInitJs
+        + setImgTitlesJs + setFootnoteTitlesJs + imageOverlayJs + chartEditJs + script;
+
+    QString shell = readResourceFile(":/preview-shell.html");
+    shell.replace("/* SCRIBA_SCRIPT */", headScript);
+    shell.replace("{{BASE_CSS}}", baseCss);
+    shell.replace("{{THEME_CSS}}", previewCss);
+    shell.replace("{{STRIPE_CSS}}", stripeInit);
+    shell.replace("{{CENTER_CSS}}", centerCss);
+    shell.replace("{{SPLIT_CSS}}", splitCss);
+    shell.replace("{{CODE_LANG_CSS}}", codeLangInit);
+    shell.replace("{{RENDER_CSS}}", renderCss);
+    shell.replace("{{CONTENT}}", html);
+    return shell;
+}
+
+QString MainWindow::buildUpdateCallJavascript(const QString &html, bool cssChanged,
+                                              const QString &previewCss,
+                                              const QString &mermaidTheme,
+                                              const QString &emojiMode,
+                                              const QUrl &baseUrl, bool tabSwitch) const
+{
+    QSettings prefs;
+    QString escapedHtml = escapeJsString(html);
+    QString escapedCss = cssChanged ? escapeJsString(previewCss) : QString();
+    int delay = -1;
+    if (tabSwitch) {
+        int heavyDelay = prefs.value(Preferences::HeavyRenderDelay,
             Preferences::DefaultHeavyRenderDelay).toInt();
-        QString renderCss = CssUtils::renderOverlayCss(rawThemeCss);
-        m_cachedOverlayCss = renderCss;
-        bool striping = prefs.value(Preferences::TableStriping, true).toBool();
-        QString stripeInit = striping ? QString()
-            : QLatin1String(Preferences::TableStripeCss);
-        bool showCodeLang = prefs.value(Preferences::ShowCodeLangPreview, true).toBool();
-        QString codeLangInit = showCodeLang ? QString()
-            : QLatin1String(Preferences::HideCodeLangCss);
-        QString centerCss = printLayoutCss;
-        if (!m_printLayoutMode && m_previewState == 3) {
-            bool centre = prefs.value(Preferences::CentreSingleViewContent, true).toBool();
-            int centreWidth = prefs.value(Preferences::CentreSingleViewWidth, 800).toInt();
-            if (centre)
-                centerCss = QString("body{margin:0 auto!important;max-width:%1px!important}").arg(centreWidth);
-        }
-        QString splitCss;
-        if (!m_printLayoutMode && (m_previewState == 1 || m_previewState == 2)) {
-            int splitWidth = prefs.value(Preferences::SplitViewPreviewMaxWidth, 0).toInt();
-            splitCss = CssUtils::splitViewMaxWidthCss(splitWidth);
-        }
-        QString fullHtml = QString(
-            "<!DOCTYPE html><html><head>"
-            "<meta charset=\"utf-8\">"
-            "<style id=\"base-css\">%1</style>"
-            "<style id=\"theme-css\">%2</style>"
-            "<style id=\"stripe-css\">%4</style>"
-            "<style id=\"center-css\">%5</style>"
-            "<style id=\"split-css\">%6</style>"
-            "<style id=\"code-lang-css\">%7</style>"
-            "<style id=\"render-css\">%8</style>"
-            "<style id=\"image-overlay-css\">#scriba-image-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9999;display:none;align-items:center;justify-content:center}#scriba-image-overlay .scriba-image-box{position:relative;max-width:92%;max-height:92%;display:flex;flex-direction:column;align-items:center}#scriba-image-overlay .scriba-image-view{max-width:92vw;max-height:85vh;object-fit:contain;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.5)}#scriba-image-overlay .scriba-image-caption{color:#eee;font-size:13px;margin-top:8px;max-width:92vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#scriba-image-overlay .scriba-image-close{position:absolute;top:-14px;right:-14px;width:28px;height:28px;border-radius:50%;border:none;background:#333;color:#fff;font-size:16px;line-height:1;cursor:pointer}#scriba-image-overlay .scriba-image-close:hover{background:#555}</style>"
-            "<style id=\"edit-btn-css\">.scriba-chart-wrap{position:relative;display:block}.scriba-mathbox{position:relative;white-space:normal}.scriba-math{white-space:normal}.scriba-edit-btn{position:absolute;top:4px;right:4px;z-index:6;display:inline-block;padding:2px 7px;font-size:12px;line-height:1.3;color:#fff;background:rgba(60,60,60,.75);border:1px solid rgba(255,255,255,.35);border-radius:4px;text-decoration:none;cursor:pointer;opacity:0;transition:opacity .15s ease}.scriba-chart-wrap:hover .scriba-edit-btn,.scriba-mathbox:hover .scriba-edit-btn{opacity:1}@media print{.scriba-edit-btn{display:none!important}}</style>"
-            "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
-            "<script src=\"qrc:///highlight.min.js\"></script>"
-            "<script src=\"qrc:///mermaid.min.js\"></script>"
-            "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
-            "<script src=\"qrc:///katex.min.js\"></script>"
-            "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
-            "<script src=\"qrc:///echarts.min.js\"></script>"
-            "<script src=\"qrc:///twemoji.min.js\"></script>"
-            "<script src=\"qrc:///emoji.js\"></script>"
-            "<script src=\"qrc:///qtwebchannel/qwebchannel.js\"></script>"
-            "<script>window._scribaHeavyDelay=" + QString::number(heavyRenderDelay) + ";" + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + echartsInitJs + setImgTitlesJs + setFootnoteTitlesJs + imageOverlayJs + chartEditJs + "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}function scribaUpdate(html,themeCss,mermaidTheme,emojiMode,delay,baseUrl){if(!document.body)return false;try{window._scribaGen=(window._scribaGen||0)+1;var gen=window._scribaGen;var sy=window.scrollY;var sh=document.body.scrollHeight;var ih=window.innerHeight;var pct=sh>ih?sy/(sh-ih):0;if(themeCss){var tc=document.getElementById('theme-css');if(tc)tc.textContent=themeCss;}if(baseUrl){var b=document.getElementById('scriba-base');if(!b){b=document.createElement('base');b.id='scriba-base';var hd=document.head;hd.insertBefore(b,hd.firstChild);}b.href=baseUrl;}else{var b2=document.getElementById('scriba-base');if(b2)b2.remove();}window._scribaBasePath=baseUrl?new URL(baseUrl).pathname:location.pathname;var sc=document.getElementById('scriba-content');if(sc)sc.innerHTML=html;else return false;clearTimeout(window._scribaHeavyTimer);window._scribaHeavyTimer=setTimeout(function(){if(gen!==window._scribaGen)return;mermaid.initialize({startOnLoad:false,theme:mermaidTheme});var mp=initMermaid();initKaTeX();var vp=initECharts();hljs.highlightAll();generateHeadingIds();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse(emojiMode);function restoreScroll(){if(Math.abs(window.scrollY-sy)<2){var ih2=window.innerHeight;window.scrollTo(0,pct*Math.max(1,document.body.scrollHeight-ih2));}}var p=[];if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();},(typeof delay==='number'&&delay>=0)?delay:window._scribaHeavyDelay);return true;}catch(e){scribaShowRenderError(e&&e.message?e.message:e);scribaEndRender();return false;}}function scribaBeginRender(){var c=document.getElementById('scriba-content');if(c)c.innerHTML='';var o=document.getElementById('scriba-rendering-overlay');if(!o&&document.body){o=document.createElement('div');o.id='scriba-rendering-overlay';o.textContent='Rendering…';document.body.insertBefore(o,document.body.firstChild);}if(o)o.style.display='flex';}function scribaEndRender(){var o=document.getElementById('scriba-rendering-overlay');if(o)o.style.display='none';}function scribaShowRenderError(m){var c=document.getElementById('scriba-content');if(!c&&document.body){c=document.createElement('div');c.id='scriba-content';document.body.appendChild(c);}if(!c)return;m=String(m==null?'Unknown render error':m);var t=document.createElement('div');t.style.cssText='margin:2rem auto;max-width:720px;padding:1.2rem 1.4rem;border:1px solid #d33;border-radius:6px;background:#fdf0f0;color:#8b0000;font-family:system-ui,sans-serif;';t.innerHTML='<strong>Preview error</strong><pre style=\"white-space:pre-wrap;word-break:break-word;font-family:monospace;margin:0.5rem 0 0;color:#6b0000;\">'+String(m).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';c.innerHTML='';c.appendChild(t);}document.addEventListener('DOMContentLoaded',function(){window._scribaBasePath=location.pathname;mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();initKaTeX();setImgTitles();setFootnoteTitles();replaceEmoji(document.body);twemojiParse('" + emojiMode + "');var p=[];var mp=window.mermaidReady=initMermaid();var vp=window.echartsReady=initECharts();if(typeof mp!=='undefined')p.push(mp);if(typeof vp!=='undefined')p.push(vp);var imgs=document.querySelectorAll('img:not(.emoji)');if(imgs.length>0){p.push(new Promise(function(r){var n=0,t=imgs.length;function c(){n++;if(n>=t)r();}for(var i=0;i<imgs.length;i++){if(imgs[i].complete)c();else{imgs[i].onload=c;imgs[i].onerror=c;}}}));}var scribaHideOverlay=function(){scribaEndRender();};if(p.length)Promise.all(p).then(scribaHideOverlay,scribaHideOverlay);else scribaHideOverlay();setTimeout(scribaHideOverlay,10000);});</script>"
-            "</head><body id=\"preview\">"
-            "<div id=\"scriba-rendering-overlay\">Rendering…</div>"
-            "<div id=\"scriba-content\">%3</div>"
-            "<script>function scribaBridgeOpen(href){if(window.scribaBridge)window.scribaBridge.openLink(href);else window.scribaPendingOpen=href;}"
-            "function scribaBridgeEdit(kind,line,idx,tex){if(window.scribaBridge)window.scribaBridge.editChart(kind,line,idx,tex);else window.scribaPendingEdit={kind:kind,line:line,idx:idx,tex:tex};}"
-            "function scribaBridgeFlush(){if(!window.scribaBridge)return;if(window.scribaPendingOpen!==undefined){window.scribaBridge.openLink(window.scribaPendingOpen);window.scribaPendingOpen=undefined;}if(window.scribaPendingEdit){window.scribaBridge.editChart(window.scribaPendingEdit.kind,window.scribaPendingEdit.line,window.scribaPendingEdit.idx,window.scribaPendingEdit.tex);window.scribaPendingEdit=null;}}"
-            "function scribaBridgeInit(){"
-            "if(window.scribaBridge)return;"
-            "if(typeof QWebChannel==='undefined'||!window.qt||!window.qt.webChannelTransport){setTimeout(scribaBridgeInit,50);return;}"
-            "new QWebChannel(qt.webChannelTransport,function(ch){window.scribaBridge=ch.objects.scriba;scribaBridgeFlush();});"
-            "}"
-            "scribaBridgeInit();"
-            "document.addEventListener('click',function(e){"
-            "var l=e.target.closest('a');if(!l)return;"
-            "if(l.hash&&l.hash.indexOf('#scriba-edit:')===0){"
-            "e.preventDefault();"
-            "var p=l.hash.slice(13).split(':');if(p.length<3)return;"
-            "var tex=p.length>3?p.slice(3).join(':'):'';"
-            "try{tex=decodeURIComponent(tex);}catch(err){}"
-            "scribaBridgeEdit(p[0],parseInt(p[1],10),parseInt(p[2],10),tex);"
-            "return;"
-            "}"
-            "if(l.hash&&l.hash.length>1&&l.pathname===window._scribaBasePath){"
-            "e.preventDefault();"
-            "scribaScrollToSlugRetry(l.hash);"
-            "return;"
-            "}"
-            "e.preventDefault();"
-            "scribaBridgeOpen(l.href)"
-            "})</script>"
-            "</body></html>"
-        ).arg(baseCss, previewCss, html, stripeInit, centerCss, splitCss, codeLangInit, renderCss);
-        if (m_printLayoutMode) {
-            // Re-paginate after each render pass (see PreviewPagination) and
-            // embed the print option overrides + paginator for this geometry.
-            fullHtml = PreviewPagination::patchIncrementalPaginate(fullHtml);
-            const QString printOptionsCss = PrintOptions::buildCss(printOpts);
-            int headEnd = fullHtml.indexOf("</head>");
-            if (headEnd >= 0)
-                fullHtml.insert(headEnd,
-                    QStringLiteral("<style id=\"print-options-css\">%1</style>").arg(printOptionsCss));
-            int bodyEnd = fullHtml.indexOf("</body>");
-            if (bodyEnd >= 0)
-                fullHtml.insert(bodyEnd,
-                    PreviewPagination::paginatorScript(printOpts, printContentHpx));
-        }
-        if (cspEnabled) {
-            int headEnd = fullHtml.indexOf("</head>");
-            if (headEnd >= 0)
-                fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader));
-        }
-        m_preview->setHtmlWithOverlay(fullHtml, baseUrl);
-    } else {
-        QString escapedHtml = escapeJsString(html);
-        QString escapedCss = cssChanged ? escapeJsString(previewCss) : QString();
-        int delay = -1;
-        if (tabSwitch) {
-            int heavyDelay = prefs.value(Preferences::HeavyRenderDelay,
-                Preferences::DefaultHeavyRenderDelay).toInt();
-            delay = std::min(heavyDelay, Debounce::TabSwitchRender);
-        }
-        // Re-assert the active document's base URL on EVERY render, not just
-        // tab switches. Relative image paths resolve against the shared page's
-        // <base> element; with an empty baseUrl scribaUpdate removes it, making
-        // images fall back to the stale page URL from the last full load.
-        QString escapedBaseUrl;
-        if (!baseUrl.isEmpty())
-            escapedBaseUrl = escapeJsString(baseUrl.toString());
-        QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6')")
-            .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode,
-                 QString::number(delay), escapedBaseUrl);
-        m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
-            if (result.toBool())
-                syncPreviewScroll();
-        });
+        delay = std::min(heavyDelay, Debounce::TabSwitchRender);
     }
+    // Re-assert the active document's base URL on EVERY render, not just
+    // tab switches. Relative image paths resolve against the shared page's
+    // <base> element; with an empty baseUrl scribaUpdate removes it, making
+    // images fall back to the stale page URL from the last full load.
+    QString escapedBaseUrl;
+    if (!baseUrl.isEmpty())
+        escapedBaseUrl = escapeJsString(baseUrl.toString());
+    QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6')")
+        .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode,
+             QString::number(delay), escapedBaseUrl);
+    return js;
 }
 
 void MainWindow::syncPreviewScroll()

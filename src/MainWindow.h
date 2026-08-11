@@ -28,9 +28,11 @@
 #include <QHash>
 #include <QJsonObject>
 #include <QActionGroup>
+#include <QUrl>
 
 #include "ValidationReport.h"
 #include "Corpus.h"
+#include "PrintOptions.h"
 
 class Editor;
 class Preview;
@@ -132,6 +134,32 @@ private:
     void buildToolsMenu(QMenuBar *bar);
     void buildHelpMenu(QMenuBar *bar);
     void updatePreview(bool tabSwitch);
+    // Decomposed from updatePreview: per-render CSS/environment computation,
+    // base-URL resolution, and the two JS/DOM assembly helpers. The document
+    // shell and its script payload live in resources/preview-shell.html and
+    // resources/preview-script.js.
+    struct PreviewEnviron {
+        QString rawThemeCss;
+        QString baseCss;
+        QString previewCss;
+        QString mermaidTheme;
+        PrintOptions::Options printOpts;
+        QString printLayoutCss;
+        int printContentHpx = 0;
+        bool cssChanged = false;
+    };
+    PreviewEnviron computePreviewCssAndEnviron();
+    QUrl computePreviewBaseUrl(const TabInfo *info) const;
+    QString buildPreviewShellHtml(int heavyRenderDelay, const QString &mermaidTheme,
+                                  const QString &emojiMode, const QString &baseCss,
+                                  const QString &previewCss, const QString &html,
+                                  const QString &stripeInit, const QString &centerCss,
+                                  const QString &splitCss, const QString &codeLangInit,
+                                  const QString &renderCss) const;
+    QString buildUpdateCallJavascript(const QString &html, bool cssChanged,
+                                      const QString &previewCss, const QString &mermaidTheme,
+                                      const QString &emojiMode, const QUrl &baseUrl,
+                                      bool tabSwitch) const;
     void saveFile(const QString &filePath);
     void renameCurrentFile();
     void importHtmlFromFile();
