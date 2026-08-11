@@ -50,6 +50,7 @@ class SpellCheckDialog;
 class CorpusWatcher;
 class QWebChannel;
 class QMenu;
+class QMenuBar;
 
 struct TabInfo {
     Editor *editor = nullptr;
@@ -125,6 +126,11 @@ public:
 private:
     void setupUi();
     void setupMenuBar();
+    void buildFileMenu(QMenuBar *bar);
+    void buildEditMenu(QMenuBar *bar);
+    void buildViewMenu(QMenuBar *bar);
+    void buildToolsMenu(QMenuBar *bar);
+    void buildHelpMenu(QMenuBar *bar);
     void updatePreview(bool tabSwitch);
     void saveFile(const QString &filePath);
     void renameCurrentFile();

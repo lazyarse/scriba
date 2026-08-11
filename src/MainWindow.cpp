@@ -870,7 +870,16 @@ void MainWindow::closeCurrentTab()
 
 void MainWindow::setupMenuBar()
 {
-    QMenu *fileMenu = menuBar()->addMenu("&File");
+    buildFileMenu(menuBar());
+    buildEditMenu(menuBar());
+    buildViewMenu(menuBar());
+    buildToolsMenu(menuBar());
+    buildHelpMenu(menuBar());
+}
+
+void MainWindow::buildFileMenu(QMenuBar *bar)
+{
+    QMenu *fileMenu = bar->addMenu("&File");
 
     QAction *newAction = fileMenu->addAction("&New Tab");
     newAction->setShortcut(QKeySequence::New);
@@ -988,8 +997,11 @@ void MainWindow::setupMenuBar()
     QAction *quitAction = fileMenu->addAction("&Quit");
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, this, &QWidget::close);
+}
 
-    QMenu *editMenu = menuBar()->addMenu("&Edit");
+void MainWindow::buildEditMenu(QMenuBar *bar)
+{
+    QMenu *editMenu = bar->addMenu("&Edit");
 
     QAction *findAction = editMenu->addAction("Find / &Replace...");
     findAction->setShortcut(QKeySequence::Find);
@@ -1018,8 +1030,11 @@ void MainWindow::setupMenuBar()
     previewAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
     connect(previewAction, &QAction::triggered, this, &MainWindow::togglePreview);
     addAction(previewAction);
+}
 
-    QMenu *viewMenu = menuBar()->addMenu("&View");
+void MainWindow::buildViewMenu(QMenuBar *bar)
+{
+    QMenu *viewMenu = bar->addMenu("&View");
 
     QAction *nextTabAction = viewMenu->addAction("&Next Tab");
     nextTabAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Tab));
@@ -1125,8 +1140,11 @@ void MainWindow::setupMenuBar()
         });
         addAction(tabAction);
     }
+}
 
-    QMenu *toolsMenu = menuBar()->addMenu("&Tools");
+void MainWindow::buildToolsMenu(QMenuBar *bar)
+{
+    QMenu *toolsMenu = bar->addMenu("&Tools");
 
     QAction *tableAction = toolsMenu->addAction("&Table Insert...");
     tableAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
@@ -1195,7 +1213,20 @@ void MainWindow::setupMenuBar()
     logAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
     connect(logAction, &QAction::triggered, this, &MainWindow::showLogWindow);
 
-    QMenu *helpMenu = menuBar()->addMenu("&Help");
+    m_insertActions = {tableAction, emojiAction, katexAction, mchemAction, chartAction};
+    m_mermaidAction = mermaidAction;
+
+    for (TabInfo &info : m_tabs) {
+        if (info.editor) {
+            info.editor->setInsertActions(m_insertActions);
+            info.editor->setMermaidAction(m_mermaidAction);
+        }
+    }
+}
+
+void MainWindow::buildHelpMenu(QMenuBar *bar)
+{
+    QMenu *helpMenu = bar->addMenu("&Help");
     QAction *aboutAction = helpMenu->addAction("&About Scriba...");
     connect(aboutAction, &QAction::triggered, this, [this]() {
         AboutDialog dlg(this);
@@ -1220,16 +1251,6 @@ void MainWindow::setupMenuBar()
         layout->addWidget(btnBox);
         dlg.exec();
     });
-
-    m_insertActions = {tableAction, emojiAction, katexAction, mchemAction, chartAction};
-    m_mermaidAction = mermaidAction;
-
-    for (TabInfo &info : m_tabs) {
-        if (info.editor) {
-            info.editor->setInsertActions(m_insertActions);
-            info.editor->setMermaidAction(m_mermaidAction);
-        }
-    }
 }
 
 void MainWindow::refreshPreviewCss()
