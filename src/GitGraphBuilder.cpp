@@ -117,6 +117,128 @@ struct CommitInfo {
     QString mergedBranch;       // for merges: branch brought in
 };
 
+// Walks the DAG (newest-first) from the given tips, applying date filtering
+// and the commit cap, and fills commits/order. Returns false when the walk
+// cannot be created (caller sets *error and bails).
+bool walkCommits(RepoPtr &repo, const GitGraphBuilder::Options &options,
+                 const QStringList &tips, bool dateFilter,
+                 QMap<QString, CommitInfo> *commits, QStringList *order)
+{
+    qint64 fromSecs = 0, toSecs = 0; // 0 = unbounded
+    if (dateFilter) {
+        if (options.from.isValid())
+            fromSecs = options.from.date().startOfDay().toSecsSinceEpoch();
+        if (options.to.isValid())
+            toSecs = options.to.date().endOfDay().toSecsSinceEpoch();
+    }
+
+    // Walk the DAG (newest-first), applying filters and the commit cap.
+    git_revwalk *w = nullptr;
+    if (git_revwalk_new(&w, repo.get()) != 0)
+        return false;
+    RevwalkPtr walk(w);
+    git_revwalk_sorting(w, GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME);
+    for (const QString &b : tips) {
+        git_reference *ref = nullptr;
+        if (git_branch_lookup(&ref, repo.get(), b.toUtf8().constData(),
+                              GIT_BRANCH_LOCAL) != 0)
+            continue;
+        git_object *obj = nullptr;
+        if (git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) == 0) {
+            git_revwalk_push(w, git_object_id(obj));
+            git_object_free(obj);
+        }
+        git_reference_free(ref);
+    }
+
+    git_oid oid;
+    while (git_revwalk_next(&oid, w) == 0) {
+        const QString key = fullOid(&oid);
+        if (commits->contains(key))
+            continue;
+        git_commit *commit = nullptr;
+        if (git_commit_lookup(&commit, repo.get(), &oid) != 0)
+            continue;
+        const git_signature *sig = git_commit_committer(commit);
+        const qint64 t = static_cast<qint64>(sig ? sig->when.time : 0);
+        if (dateFilter && (t < fromSecs || (toSecs > 0 && t > toSecs))) {
+            git_commit_free(commit);
+            continue;
+        }
+        CommitInfo info;
+        info.id = shortId(&oid);
+        info.time = t;
+        const unsigned n = git_commit_parentcount(commit);
+        for (unsigned p = 0; p < n; ++p) {
+            const git_oid *poid = git_commit_parent_id(commit, p);
+            if (poid)
+                info.parentOids << fullOid(poid);
+        }
+        info.isMerge = n > 1;
+        commits->insert(key, info);
+        order->append(key);
+        git_commit_free(commit);
+        if (options.maxCommits > 0 && order->size() >= options.maxCommits)
+            break;
+    }
+    return true;
+}
+
+// Assigns every commit to a branch via first-parent chains, prioritising the
+// current (main) branch so merges stay on main, then resolves mergedBranch
+// for merge commits.
+void populateBranches(RepoPtr &repo, const QString &mainBranch,
+                      QMap<QString, CommitInfo> *commits)
+{
+    QStringList branches = localBranches(repo.get());
+    branches.removeAll(mainBranch);
+    branches.prepend(mainBranch);
+    for (const QString &b : branches) {
+        if (b.isEmpty())
+            continue;
+        git_reference *ref = nullptr;
+        if (git_branch_lookup(&ref, repo.get(), b.toUtf8().constData(),
+                              GIT_BRANCH_LOCAL) != 0)
+            continue;
+        git_object *obj = nullptr;
+        if (git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) != 0) {
+            git_reference_free(ref);
+            continue;
+        }
+        git_reference_free(ref);
+        QString cur = fullOid(git_object_id(obj));
+        git_object_free(obj);
+        while (commits->contains(cur)) {
+            CommitInfo &ci = (*commits)[cur];
+            if (ci.branch.isEmpty())
+                ci.branch = b;
+            if (ci.parentOids.isEmpty())
+                break;
+            cur = ci.parentOids.first();
+        }
+    }
+    const QStringList keys = commits->keys();
+    for (const QString &key : keys) {
+        if ((*commits)[key].branch.isEmpty())
+            (*commits)[key].branch = mainBranch;
+    }
+
+    // For merge commits, find the branch that was brought in (the first
+    // non-first parent living on a different branch).
+    for (const QString &key : keys) {
+        CommitInfo &ci = (*commits)[key];
+        if (!ci.isMerge)
+            continue;
+        for (int p = 1; p < ci.parentOids.size(); ++p) {
+            const QString &po = ci.parentOids.at(p);
+            if (commits->contains(po) && (*commits)[po].branch != ci.branch) {
+                ci.mergedBranch = (*commits)[po].branch;
+                break;
+            }
+        }
+    }
+}
+
 } // namespace
 
 bool GitGraphBuilder::repoInfo(const QString &repoPath, QStringList *branches,
@@ -210,122 +332,22 @@ QString GitGraphBuilder::build(const QString &repoPath, const Options &options,
         return {};
     }
 
-    qint64 fromSecs = 0, toSecs = 0; // 0 = unbounded
-    if (dateFilter) {
-        if (options.from.isValid())
-            fromSecs = options.from.date().startOfDay().toSecsSinceEpoch();
-        if (options.to.isValid())
-            toSecs = options.to.date().endOfDay().toSecsSinceEpoch();
-    }
-
     // Walk the DAG (newest-first), applying filters and the commit cap.
     QMap<QString, CommitInfo> commits;
     QStringList order; // full oids, newest-first discovery order
-    git_revwalk *w = nullptr;
-    if (git_revwalk_new(&w, repo.get()) != 0) {
+    if (!walkCommits(repo, options, tips, dateFilter, &commits, &order)) {
         if (error)
             *error = QStringLiteral("Could not walk the repository.");
         git_libgit2_shutdown();
         return {};
     }
-    RevwalkPtr walk(w);
-    git_revwalk_sorting(w, GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME);
-    for (const QString &b : tips) {
-        git_reference *ref = nullptr;
-        if (git_branch_lookup(&ref, repo.get(), b.toUtf8().constData(),
-                              GIT_BRANCH_LOCAL) != 0)
-            continue;
-        git_object *obj = nullptr;
-        if (git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) == 0) {
-            git_revwalk_push(w, git_object_id(obj));
-            git_object_free(obj);
-        }
-        git_reference_free(ref);
-    }
-
-    git_oid oid;
-    while (git_revwalk_next(&oid, w) == 0) {
-        const QString key = fullOid(&oid);
-        if (commits.contains(key))
-            continue;
-        git_commit *commit = nullptr;
-        if (git_commit_lookup(&commit, repo.get(), &oid) != 0)
-            continue;
-        const git_signature *sig = git_commit_committer(commit);
-        const qint64 t = static_cast<qint64>(sig ? sig->when.time : 0);
-        if (dateFilter && (t < fromSecs || (toSecs > 0 && t > toSecs))) {
-            git_commit_free(commit);
-            continue;
-        }
-        CommitInfo info;
-        info.id = shortId(&oid);
-        info.time = t;
-        const unsigned n = git_commit_parentcount(commit);
-        for (unsigned p = 0; p < n; ++p) {
-            const git_oid *poid = git_commit_parent_id(commit, p);
-            if (poid)
-                info.parentOids << fullOid(poid);
-        }
-        info.isMerge = n > 1;
-        commits.insert(key, info);
-        order.append(key);
-        git_commit_free(commit);
-        if (options.maxCommits > 0 && order.size() >= options.maxCommits)
-            break;
-    }
 
     // Assign every commit to a branch via first-parent chains, prioritising
     // the current (main) branch so merges stay on main.
-    QStringList branches = localBranches(repo.get());
-    branches.removeAll(mainBranch);
-    branches.prepend(mainBranch);
-    for (const QString &b : branches) {
-        if (b.isEmpty())
-            continue;
-        git_reference *ref = nullptr;
-        if (git_branch_lookup(&ref, repo.get(), b.toUtf8().constData(),
-                              GIT_BRANCH_LOCAL) != 0)
-            continue;
-        git_object *obj = nullptr;
-        if (git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) != 0) {
-            git_reference_free(ref);
-            continue;
-        }
-        git_reference_free(ref);
-        QString cur = fullOid(git_object_id(obj));
-        git_object_free(obj);
-        while (commits.contains(cur)) {
-            CommitInfo &ci = commits[cur];
-            if (ci.branch.isEmpty())
-                ci.branch = b;
-            if (ci.parentOids.isEmpty())
-                break;
-            cur = ci.parentOids.first();
-        }
-    }
-    const QStringList keys = commits.keys();
-    for (const QString &key : keys) {
-        if (commits[key].branch.isEmpty())
-            commits[key].branch = mainBranch;
-    }
-
-    // For merge commits, find the branch that was brought in (the first
-    // non-first parent living on a different branch).
-    for (const QString &key : keys) {
-        CommitInfo &ci = commits[key];
-        if (!ci.isMerge)
-            continue;
-        for (int p = 1; p < ci.parentOids.size(); ++p) {
-            const QString &po = ci.parentOids.at(p);
-            if (commits.contains(po) && commits[po].branch != ci.branch) {
-                ci.mergedBranch = commits[po].branch;
-                break;
-            }
-        }
-    }
+    populateBranches(repo, mainBranch, &commits);
 
     // Emit oldest-first so the graph reads left (old) to right (new).
-    QStringList emitOrder = keys;
+    QStringList emitOrder = commits.keys();
     std::sort(emitOrder.begin(), emitOrder.end(),
               [&commits, &order](const QString &a, const QString &b) {
                   const qint64 ta = commits[a].time, tb = commits[b].time;
