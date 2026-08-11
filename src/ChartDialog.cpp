@@ -110,6 +110,21 @@ static QStringList uniqueCats(const QStringList &values)
     return out;
 }
 
+// True when every non-empty entry parses as a double (and at least one entry
+// is non-empty): used to pick a value axis over a category axis.
+static bool allNumeric(const QStringList &values)
+{
+    bool any = false;
+    for (const QString &v : values) {
+        if (v.isEmpty()) continue;
+        any = true;
+        bool ok = false;
+        v.toDouble(&ok);
+        if (!ok) return false;
+    }
+    return any;
+}
+
 // "2026-07" (all dates share a month) or a [start, end] pair of ISO dates.
 static QJsonValue calendarRange(const QStringList &dates)
 {
@@ -631,35 +646,20 @@ void ChartDialog::updateFieldComboBoxes()
     }
 }
 
-bool ChartDialog::allNumeric(const QStringList &values)
+// --- Per-series-type spec builders. Each consumes `spec` (the animation /
+// title / tooltip keys already set) and returns the serialized JSON, or "{}"
+// when the input data is unusable, mirroring buildSpec's early-return path. ---
+
+// Extracts the x/y/z column values for the selected fields from the data
+// table. Returns false when no row produced a usable x value.
+static bool collectTableColumns(QTableWidget *table, const QString &xField,
+                                const QString &yField, const QString &zField,
+                                QStringList *xValues, QStringList *yValues,
+                                QStringList *zValues)
 {
-    bool any = false;
-    for (const QString &v : values) {
-        if (v.isEmpty()) continue;
-        any = true;
-        bool ok = false;
-        v.toDouble(&ok);
-        if (!ok) return false;
-    }
-    return any;
-}
-
-QString ChartDialog::buildSpec() const
-{
-    QJsonObject spec;
-    if (!m_animateCheck->isChecked())
-        spec["animation"] = false;
-
-    QString xField = m_fieldX->currentText();
-    QString yField = m_fieldY->currentText();
-    QString zField = m_fieldZ->currentText();
-    if (xField.isEmpty() || yField.isEmpty())
-        return QStringLiteral("{}");
-
-    QStringList xValues, yValues, zValues;
-    auto columnIndex = [this](const QString &field) {
-        for (int c = 0; c < m_table->columnCount(); ++c) {
-            QTableWidgetItem *h = m_table->horizontalHeaderItem(c);
+    auto columnIndex = [table](const QString &field) {
+        for (int c = 0; c < table->columnCount(); ++c) {
+            QTableWidgetItem *h = table->horizontalHeaderItem(c);
             if (h && h->text() == field)
                 return c;
         }
@@ -668,31 +668,25 @@ QString ChartDialog::buildSpec() const
     int xCol = columnIndex(xField);
     int yCol = columnIndex(yField);
     int zCol = columnIndex(zField);
-    for (int r = 0; r < m_table->rowCount(); ++r) {
-        QTableWidgetItem *xItem = xCol >= 0 ? m_table->item(r, xCol) : nullptr;
-        QTableWidgetItem *yItem = yCol >= 0 ? m_table->item(r, yCol) : nullptr;
-        QTableWidgetItem *zItem = zCol >= 0 ? m_table->item(r, zCol) : nullptr;
+    for (int r = 0; r < table->rowCount(); ++r) {
+        QTableWidgetItem *xItem = xCol >= 0 ? table->item(r, xCol) : nullptr;
+        QTableWidgetItem *yItem = yCol >= 0 ? table->item(r, yCol) : nullptr;
+        QTableWidgetItem *zItem = zCol >= 0 ? table->item(r, zCol) : nullptr;
         QString xv = xItem ? xItem->text().trimmed() : QString();
         QString yv = yItem ? yItem->text().trimmed() : QString();
         QString zv = zItem ? zItem->text().trimmed() : QString();
         if (xv.isEmpty() && yv.isEmpty()) continue;
-        xValues.append(xv);
-        yValues.append(yv);
-        zValues.append(zv);
+        xValues->append(xv);
+        yValues->append(yv);
+        zValues->append(zv);
     }
-    if (xValues.isEmpty())
-        return QStringLiteral("{}");
+    return !xValues->isEmpty();
+}
 
-    ChartSeries series = static_cast<ChartSeries>(m_chartTypeCombo->currentData().toInt());
-
-    QString title = m_titleEdit->text().trimmed();
-    if (!title.isEmpty()) {
-        QJsonObject t;
-        t["text"] = title;
-        spec["title"] = t;
-    }
-
-    // Data-driven option derivation (gauge max, visualMap bounds, radar maxes).
+// Parses the y/z value columns to doubles (empty cells become 0.0).
+static void deriveNumericLists(const QStringList &yValues, const QStringList &zValues,
+                               QList<double> *ys, QList<double> *zs)
+{
     auto numeric = [](const QStringList &values, QList<double> &out) {
         out.clear();
         for (const QString &v : values) {
@@ -701,185 +695,204 @@ QString ChartDialog::buildSpec() const
         }
         return out;
     };
-    QList<double> ys, zs;
-    numeric(yValues, ys);
-    numeric(zValues, zs);
+    numeric(yValues, *ys);
+    numeric(zValues, *zs);
+}
 
+// Sets spec["tooltip"] honouring the per-series tooltip trigger/position
+// rules and the dialog's tooltip checkbox.
+static void applyTooltipOption(ChartSeries series, QJsonObject &spec, bool tooltipChecked)
+{
     QJsonObject tooltip;
     switch (series) {
     case ChartSeries::Heatmap:
-        if (m_tooltipCheck->isChecked())
+        if (tooltipChecked)
             tooltip["position"] = "top";
         break;
     case ChartSeries::Calendar:
-        if (m_tooltipCheck->isChecked())
+        if (tooltipChecked)
             tooltip = QJsonObject(); // item default; axis/position make no sense
         break;
     default:
-        if (m_tooltipCheck->isChecked())
+        if (tooltipChecked)
             tooltip["trigger"] = "axis";
         break;
     }
     if (!tooltip.isEmpty())
         spec["tooltip"] = tooltip;
+}
 
-    // Item charts (name/value pairs, no axes).
-    if (series == ChartSeries::Pie || series == ChartSeries::Funnel
-        || series == ChartSeries::Gauge || series == ChartSeries::Radar) {
-        QJsonArray sdata;
+// Name/value item charts (pie, funnel, gauge, radar): one entry per non-empty
+// x row, plus the radar indicator/max derivation.
+static QString buildItemChartSpec(QJsonObject spec, ChartSeries series,
+                                  const QStringList &xValues, const QList<double> &ys,
+                                  const QList<double> &zs, const QString &zField,
+                                  const QString &title)
+{
+    QJsonArray sdata;
+    for (int i = 0; i < xValues.size(); ++i) {
+        if (xValues[i].isEmpty())
+            continue;
+        QJsonObject item;
+        item["name"] = xValues[i];
+        item["value"] = ys.value(i, 0.0);
+        sdata.append(item);
+    }
+    if (sdata.isEmpty())
+        return QStringLiteral("{}");
+
+    if (series == ChartSeries::Radar) {
+        if (zField.isEmpty())
+            return QStringLiteral("{}");
+        const double valueMax = maxOf(ys, 0.0);
+        QJsonArray indicators;
+        QJsonArray values;
         for (int i = 0; i < xValues.size(); ++i) {
             if (xValues[i].isEmpty())
                 continue;
-            QJsonObject item;
-            item["name"] = xValues[i];
-            item["value"] = ys.value(i, 0.0);
-            sdata.append(item);
+            QJsonObject ind;
+            ind["name"] = xValues[i];
+            const double userMax = zs.value(i, 0.0);
+            ind["max"] = userMax > 0 ? userMax : niceCeil(valueMax);
+            indicators.append(ind);
+            values.append(ys.value(i, 0.0));
         }
-        if (sdata.isEmpty())
-            return QStringLiteral("{}");
-
-        if (series == ChartSeries::Radar) {
-            if (zField.isEmpty())
-                return QStringLiteral("{}");
-            const double valueMax = maxOf(ys, 0.0);
-            QJsonArray indicators;
-            QJsonArray values;
-            for (int i = 0; i < xValues.size(); ++i) {
-                if (xValues[i].isEmpty())
-                    continue;
-                QJsonObject ind;
-                ind["name"] = xValues[i];
-                const double userMax = zs.value(i, 0.0);
-                ind["max"] = userMax > 0 ? userMax : niceCeil(valueMax);
-                indicators.append(ind);
-                values.append(ys.value(i, 0.0));
-            }
-            QJsonObject radar;
-            radar["indicator"] = indicators;
-            spec["radar"] = radar;
-            QJsonObject s;
-            s["type"] = chartSeriesToString(series);
-            QJsonObject dataItem;
-            dataItem["value"] = values;
-            if (!title.isEmpty())
-                dataItem["name"] = title;
-            s["data"] = QJsonArray{dataItem};
-            spec["series"] = QJsonArray{s};
-            return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
-        }
-
-        QJsonArray seriesArr;
+        QJsonObject radar;
+        radar["indicator"] = indicators;
+        spec["radar"] = radar;
         QJsonObject s;
         s["type"] = chartSeriesToString(series);
-        if (series == ChartSeries::Gauge) {
-            const double maxVal = maxOf(ys, 0.0);
-            s["min"] = 0;
-            s["max"] = niceCeil(maxVal);
-            QJsonObject progress;
-            progress["show"] = true;
-            s["progress"] = progress;
-            QJsonObject axisLine;
-            QJsonObject lineStyle;
-            lineStyle["width"] = 18;
-            axisLine["lineStyle"] = lineStyle;
-            s["axisLine"] = axisLine;
-            QJsonObject detail;
-            detail["formatter"] = "{value}";
-            s["detail"] = detail;
-        }
-        s["data"] = sdata;
-        seriesArr.append(s);
-        spec["series"] = seriesArr;
-        return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
-    }
-
-    // Calendar heatmap: dates in X, values in Y, no axes.
-    if (series == ChartSeries::Calendar) {
-        QJsonArray data;
-        for (int i = 0; i < xValues.size(); ++i) {
-            if (xValues[i].isEmpty() || yValues[i].isEmpty())
-                continue;
-            data.append(QJsonArray{xValues[i], ys.value(i, 0.0)});
-        }
-        if (data.isEmpty())
-            return QStringLiteral("{}");
-
-        QJsonObject calendar;
-        calendar["range"] = calendarRange(xValues);
-        calendar["top"] = 50;
-        calendar["left"] = 60;
-        calendar["cellSize"] = QJsonArray{"auto", 18};
-        spec["calendar"] = calendar;
-
-        QJsonObject visualMap;
-        double vmax = maxOf(ys, 0.0);
-        double vmin = minOf(ys, 0.0);
-        if (vmax - vmin < 1.0)
-            vmax = vmin + 1.0;
-        visualMap["min"] = vmin;
-        visualMap["max"] = vmax;
-        visualMap["calculable"] = false;
-        visualMap["orient"] = "horizontal";
-        visualMap["bottom"] = 20;
-        spec["visualMap"] = visualMap;
-
-        QJsonObject s;
-        s["type"] = "heatmap";
-        s["coordinateSystem"] = "calendar";
-        s["data"] = data;
+        QJsonObject dataItem;
+        dataItem["value"] = values;
+        if (!title.isEmpty())
+            dataItem["name"] = title;
+        s["data"] = QJsonArray{dataItem};
         spec["series"] = QJsonArray{s};
         return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
     }
 
-    // Matrix heatmap: X and Y are category axes, Z is the cell value.
-    if (series == ChartSeries::Heatmap) {
-        if (zField.isEmpty())
-            return QStringLiteral("{}");
-        const QStringList xCats = uniqueCats(xValues);
-        const QStringList yCats = uniqueCats(yValues);
-        if (xCats.isEmpty() || yCats.isEmpty())
-            return QStringLiteral("{}");
-
-        QJsonArray data;
-        for (int i = 0; i < xValues.size(); ++i) {
-            const double v = zs.value(i, 0.0);
-            const int xi = xCats.indexOf(xValues[i]);
-            const int yi = yCats.indexOf(yValues[i]);
-            if (xi < 0 || yi < 0)
-                continue;
-            data.append(QJsonArray{xi, yi, v});
-        }
-        if (data.isEmpty())
-            return QStringLiteral("{}");
-
-        QJsonObject xAxis;
-        xAxis["type"] = "category";
-        xAxis["data"] = QJsonArray::fromStringList(xCats);
-        QJsonObject yAxis;
-        yAxis["type"] = "category";
-        yAxis["data"] = QJsonArray::fromStringList(yCats);
-        spec["xAxis"] = xAxis;
-        spec["yAxis"] = yAxis;
-
-        QJsonObject visualMap;
-        double vmin = minOf(zs, 0.0);
-        double vmax = maxOf(zs, 0.0);
-        if (vmax - vmin < 1.0)
-            vmax = vmin + 1.0;
-        visualMap["min"] = vmin;
-        visualMap["max"] = vmax;
-        visualMap["calculable"] = true;
-        spec["visualMap"] = visualMap;
-
-        QJsonObject s;
-        s["type"] = "heatmap";
-        s["data"] = data;
-        spec["series"] = QJsonArray{s};
-        return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+    QJsonArray seriesArr;
+    QJsonObject s;
+    s["type"] = chartSeriesToString(series);
+    if (series == ChartSeries::Gauge) {
+        const double maxVal = maxOf(ys, 0.0);
+        s["min"] = 0;
+        s["max"] = niceCeil(maxVal);
+        QJsonObject progress;
+        progress["show"] = true;
+        s["progress"] = progress;
+        QJsonObject axisLine;
+        QJsonObject lineStyle;
+        lineStyle["width"] = 18;
+        axisLine["lineStyle"] = lineStyle;
+        s["axisLine"] = axisLine;
+        QJsonObject detail;
+        detail["formatter"] = "{value}";
+        s["detail"] = detail;
     }
+    s["data"] = sdata;
+    seriesArr.append(s);
+    spec["series"] = seriesArr;
+    return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+}
 
-    // Bar / Line / Area / Scatter / Effect Scatter / Pictorial Bar: existing
-    // cartesian path.
+// Calendar heatmap: [date, value] pairs on a calendar coordinate system.
+static QString buildCalendarChartSpec(QJsonObject spec, const QStringList &xValues,
+                                      const QStringList &yValues, const QList<double> &ys)
+{
+    QJsonArray data;
+    for (int i = 0; i < xValues.size(); ++i) {
+        if (xValues[i].isEmpty() || yValues[i].isEmpty())
+            continue;
+        data.append(QJsonArray{xValues[i], ys.value(i, 0.0)});
+    }
+    if (data.isEmpty())
+        return QStringLiteral("{}");
+
+    QJsonObject calendar;
+    calendar["range"] = calendarRange(xValues);
+    calendar["top"] = 50;
+    calendar["left"] = 60;
+    calendar["cellSize"] = QJsonArray{"auto", 18};
+    spec["calendar"] = calendar;
+
+    QJsonObject visualMap;
+    double vmax = maxOf(ys, 0.0);
+    double vmin = minOf(ys, 0.0);
+    if (vmax - vmin < 1.0)
+        vmax = vmin + 1.0;
+    visualMap["min"] = vmin;
+    visualMap["max"] = vmax;
+    visualMap["calculable"] = false;
+    visualMap["orient"] = "horizontal";
+    visualMap["bottom"] = 20;
+    spec["visualMap"] = visualMap;
+
+    QJsonObject s;
+    s["type"] = "heatmap";
+    s["coordinateSystem"] = "calendar";
+    s["data"] = data;
+    spec["series"] = QJsonArray{s};
+    return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+}
+
+// Matrix heatmap: X and Y are category axes, Z is the cell value.
+static QString buildMatrixHeatmapSpec(QJsonObject spec, const QStringList &xValues,
+                                      const QStringList &yValues, const QList<double> &zs,
+                                      const QString &zField)
+{
+    if (zField.isEmpty())
+        return QStringLiteral("{}");
+    const QStringList xCats = uniqueCats(xValues);
+    const QStringList yCats = uniqueCats(yValues);
+    if (xCats.isEmpty() || yCats.isEmpty())
+        return QStringLiteral("{}");
+
+    QJsonArray data;
+    for (int i = 0; i < xValues.size(); ++i) {
+        const double v = zs.value(i, 0.0);
+        const int xi = xCats.indexOf(xValues[i]);
+        const int yi = yCats.indexOf(yValues[i]);
+        if (xi < 0 || yi < 0)
+            continue;
+        data.append(QJsonArray{xi, yi, v});
+    }
+    if (data.isEmpty())
+        return QStringLiteral("{}");
+
+    QJsonObject xAxis;
+    xAxis["type"] = "category";
+    xAxis["data"] = QJsonArray::fromStringList(xCats);
+    QJsonObject yAxis;
+    yAxis["type"] = "category";
+    yAxis["data"] = QJsonArray::fromStringList(yCats);
+    spec["xAxis"] = xAxis;
+    spec["yAxis"] = yAxis;
+
+    QJsonObject visualMap;
+    double vmin = minOf(zs, 0.0);
+    double vmax = maxOf(zs, 0.0);
+    if (vmax - vmin < 1.0)
+        vmax = vmin + 1.0;
+    visualMap["min"] = vmin;
+    visualMap["max"] = vmax;
+    visualMap["calculable"] = true;
+    spec["visualMap"] = visualMap;
+
+    QJsonObject s;
+    s["type"] = "heatmap";
+    s["data"] = data;
+    spec["series"] = QJsonArray{s};
+    return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+}
+
+// Bar / Line / Area / Scatter / Effect Scatter / Pictorial Bar: the existing
+// cartesian path.
+static QString buildCartesianChartSpec(QJsonObject spec, ChartSeries series,
+                                       const QStringList &xValues,
+                                       const QStringList &yValues,
+                                       bool rippleChecked, bool repeatChecked)
+{
     bool numericX = allNumeric(xValues);
     QJsonObject xAxis;
     xAxis["type"] = numericX ? "value" : "category";
@@ -895,13 +908,13 @@ QString ChartDialog::buildSpec() const
     }
     if (series == ChartSeries::EffectScatter) {
         s["symbolSize"] = 28;
-        if (m_rippleCheck->isChecked()) {
+        if (rippleChecked) {
             QJsonObject rippleEffect;
             rippleEffect["scale"] = 4;
             s["rippleEffect"] = rippleEffect;
         }
     }
-    if (series == ChartSeries::PictorialBar && m_repeatCheck->isChecked()) {
+    if (series == ChartSeries::PictorialBar && repeatChecked) {
         s["symbol"] = "rect";
         s["symbolRepeat"] = true;
         s["symbolSize"] = QJsonArray{12, 16};
@@ -940,4 +953,59 @@ QString ChartDialog::buildSpec() const
     spec["series"] = seriesArr;
 
     return QString::fromUtf8(QJsonDocument(spec).toJson(QJsonDocument::Compact));
+}
+
+QString ChartDialog::buildSpec() const
+{
+    QJsonObject spec;
+    if (!m_animateCheck->isChecked())
+        spec["animation"] = false;
+
+    const QString xField = m_fieldX->currentText();
+    const QString yField = m_fieldY->currentText();
+    const QString zField = m_fieldZ->currentText();
+    if (xField.isEmpty() || yField.isEmpty())
+        return QStringLiteral("{}");
+
+    QStringList xValues, yValues, zValues;
+    if (!collectTableColumns(m_table, xField, yField, zField,
+                             &xValues, &yValues, &zValues))
+        return QStringLiteral("{}");
+
+    const ChartSeries series =
+        static_cast<ChartSeries>(m_chartTypeCombo->currentData().toInt());
+
+    const QString title = m_titleEdit->text().trimmed();
+    if (!title.isEmpty()) {
+        QJsonObject t;
+        t["text"] = title;
+        spec["title"] = t;
+    }
+
+    // Data-driven option derivation (gauge max, visualMap bounds, radar maxes).
+    QList<double> ys, zs;
+    deriveNumericLists(yValues, zValues, &ys, &zs);
+    applyTooltipOption(series, spec, m_tooltipCheck->isChecked());
+
+    switch (series) {
+    case ChartSeries::Pie:
+    case ChartSeries::Funnel:
+    case ChartSeries::Gauge:
+    case ChartSeries::Radar:
+        return buildItemChartSpec(spec, series, xValues, ys, zs, zField, title);
+    case ChartSeries::Calendar:
+        return buildCalendarChartSpec(spec, xValues, yValues, ys);
+    case ChartSeries::Heatmap:
+        return buildMatrixHeatmapSpec(spec, xValues, yValues, zs, zField);
+    case ChartSeries::Bar:
+    case ChartSeries::Line:
+    case ChartSeries::Area:
+    case ChartSeries::Scatter:
+    case ChartSeries::EffectScatter:
+    case ChartSeries::PictorialBar:
+        return buildCartesianChartSpec(spec, series, xValues, yValues,
+                                       m_rippleCheck->isChecked(),
+                                       m_repeatCheck->isChecked());
+    }
+    return QStringLiteral("{}");
 }

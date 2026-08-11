@@ -56,7 +56,6 @@ private:
     void populateTableFromCsvData(const struct CsvData &data);
     void prefillFromSpec(const QString &specJson);
     QString buildSpec() const;
-    static bool allNumeric(const QStringList &values);
 
     QComboBox *m_chartTypeCombo;
     QTableWidget *m_table;
