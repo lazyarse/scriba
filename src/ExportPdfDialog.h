@@ -22,6 +22,7 @@
 #include "PrintOptions.h"
 
 class QWebEngineView;
+class QVBoxLayout;
 class QCheckBox;
 class QRadioButton;
 class QPushButton;
@@ -57,6 +58,10 @@ private:
     static QMarginsF parsePageMargins(const QString &css);
     static QSizeF parsePageSize(const QString &css);
     void setupUi();
+    QVBoxLayout *setupLayout(QVBoxLayout *mainLayout);
+    void setupCssModeSection(QVBoxLayout *leftLayout);
+    void setupTypesettingSection(QVBoxLayout *leftLayout);
+    void setupConnections();
     QString buildFullHtml(const QString &printCss) const;
     QString buildMergedPrintCss(const QString &printCss) const;
     QString buildHeaderFooterCss() const;

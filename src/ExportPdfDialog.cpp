@@ -143,6 +143,19 @@ void ExportPdfDialog::setupUi()
 {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
+    QVBoxLayout *leftLayout = setupLayout(mainLayout);
+    setupCssModeSection(leftLayout);
+    setupTypesettingSection(leftLayout);
+    setupConnections();
+
+    applyPrintOptionsToUi(m_printOptions);
+}
+
+// Builds the outer chrome: the horizontal splitter hosting the options panel
+// and the PDF preview, plus the bottom action bar. Returns the left panel's
+// vertical layout so the section builders can add their group boxes to it.
+QVBoxLayout *ExportPdfDialog::setupLayout(QVBoxLayout *mainLayout)
+{
     QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
 
     QWidget *leftPanel = new QWidget(this);
@@ -155,7 +168,45 @@ void ExportPdfDialog::setupUi()
     connect(m_showPdfToolbar, &QCheckBox::toggled, this, &ExportPdfDialog::reloadPdfPreview);
     leftLayout->addWidget(m_showPdfToolbar);
 
-    auto *exportGroup = new QGroupBox(QStringLiteral("Export options"), leftPanel);
+    m_preview = createPreviewView(this, m_loader->themeCss());
+    m_preview->settings()->setAttribute(QWebEngineSettings::PdfViewerEnabled, true);
+    m_preview->settings()->setAttribute(QWebEngineSettings::PluginsEnabled, true);
+
+
+    splitter->addWidget(leftPanel);
+    splitter->addWidget(m_preview);
+    splitter->setStretchFactor(0, 0);
+    splitter->setStretchFactor(1, 1);
+    splitter->setSizes({320, 780});
+    splitter->handle(1)->setEnabled(false);
+
+    mainLayout->addWidget(splitter);
+
+    QHBoxLayout *bottomLayout = new QHBoxLayout();
+    bottomLayout->addStretch();
+
+    auto *cancelBtn = new QPushButton(tr("&Cancel"));
+    auto *exportPdfBtn = new QPushButton(tr("E&xport PDF"));
+    auto *printBtn = new QPushButton(tr("&Print..."));
+    stripButtonIcon(cancelBtn);
+    stripButtonIcon(exportPdfBtn);
+    stripButtonIcon(printBtn);
+
+    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+    connect(exportPdfBtn, &QPushButton::clicked, this, [this]() { accept(); });
+    connect(printBtn, &QPushButton::clicked, this, &ExportPdfDialog::printDocument);
+
+    bottomLayout->addWidget(cancelBtn);
+    bottomLayout->addWidget(exportPdfBtn);
+    bottomLayout->addWidget(printBtn);
+    mainLayout->addLayout(bottomLayout);
+
+    return leftLayout;
+}
+
+void ExportPdfDialog::setupCssModeSection(QVBoxLayout *leftLayout)
+{
+    auto *exportGroup = new QGroupBox(QStringLiteral("Export options"), leftLayout->parentWidget());
     auto *groupLayout = new QVBoxLayout(exportGroup);
 
     groupLayout->addWidget(new QLabel("Print Stylesheet:", exportGroup));
@@ -285,7 +336,10 @@ void ExportPdfDialog::setupUi()
     groupLayout->addWidget(m_regenerateBtn);
 
     leftLayout->addWidget(exportGroup);
+}
 
+void ExportPdfDialog::setupTypesettingSection(QVBoxLayout *leftLayout)
+{
     auto *typesetGroup = new QGroupBox("Typesetting", this);
     auto *tsLayout = new QVBoxLayout(typesetGroup);
 
@@ -332,40 +386,10 @@ void ExportPdfDialog::setupUi()
 
     leftLayout->addWidget(typesetGroup);
     leftLayout->addStretch();
+}
 
-    m_preview = createPreviewView(this, m_loader->themeCss());
-    m_preview->settings()->setAttribute(QWebEngineSettings::PdfViewerEnabled, true);
-    m_preview->settings()->setAttribute(QWebEngineSettings::PluginsEnabled, true);
-
-
-    splitter->addWidget(leftPanel);
-    splitter->addWidget(m_preview);
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 1);
-    splitter->setSizes({320, 780});
-    splitter->handle(1)->setEnabled(false);
-
-    mainLayout->addWidget(splitter);
-
-    QHBoxLayout *bottomLayout = new QHBoxLayout();
-    bottomLayout->addStretch();
-
-    auto *cancelBtn = new QPushButton(tr("&Cancel"));
-    auto *exportPdfBtn = new QPushButton(tr("E&xport PDF"));
-    auto *printBtn = new QPushButton(tr("&Print..."));
-    stripButtonIcon(cancelBtn);
-    stripButtonIcon(exportPdfBtn);
-    stripButtonIcon(printBtn);
-
-    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
-    connect(exportPdfBtn, &QPushButton::clicked, this, [this]() { accept(); });
-    connect(printBtn, &QPushButton::clicked, this, &ExportPdfDialog::printDocument);
-
-    bottomLayout->addWidget(cancelBtn);
-    bottomLayout->addWidget(exportPdfBtn);
-    bottomLayout->addWidget(printBtn);
-    mainLayout->addLayout(bottomLayout);
-
+void ExportPdfDialog::setupConnections()
+{
     connect(m_defaultRadio, &QRadioButton::toggled, this, &ExportPdfDialog::onCssModeChanged);
     connect(m_customRadio, &QRadioButton::toggled, this, &ExportPdfDialog::onCssModeChanged);
     connect(m_browseBtn, &QPushButton::clicked, this, &ExportPdfDialog::browseCustomCss);
@@ -389,8 +413,6 @@ void ExportPdfDialog::setupUi()
         syncPrintOptionsFromUi();
         onCssModeChanged();
     });
-
-    applyPrintOptionsToUi(m_printOptions);
 }
 
 void ExportPdfDialog::onCssModeChanged()
