@@ -65,6 +65,21 @@ private slots:
 private:
     void populateStylesheetList();
     void setupUi(const QString &themeBgColor, const QString &themeFgColor);
+    // Builds one preferences page: wraps the page widget in a scroll area (so
+    // it winds like the rest of the dialog) and registers it in the sidebar.
+    QWidget *addPage(const QString &name);
+    void setupGeneralPage();
+    void setupThemesPage();
+    void setupEditorPage();
+    void setupPreviewPage();
+    void setupPrintingPage();
+    void setupAdvancedPage();
+    void setupWritingPage();
+    void setupTypographyPage();
+    void setupReplacementsPage();
+    void setupSpellingPage();
+    void setupCorpusPage();
+    void setupSecurityPage();
     void buildSearchIndex();
     // Dims the widgets on the given page that don't match the active search
     // query (containers holding a match stay normal). Clears all dimming when
@@ -221,6 +236,10 @@ private:
     // Settings search
     QLineEdit *m_searchEdit = nullptr;
     QLabel *m_searchInfoLabel = nullptr;
+    // Theme colors handed to setupUi by the caller; the Editor page builder
+    // reads them as defaults for the color-override buttons.
+    QString m_themeBgColor;
+    QString m_themeFgColor;
     struct SearchEntry {
         QWidget *widget = nullptr;
         QStringList texts; // normalized searchable text fragments
