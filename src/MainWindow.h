@@ -187,6 +187,9 @@ private:
     void rewriteLinksForFile(const QString &oldAbs, const QString &newAbs);
     void viewTableOfContents();
     QString renderTocMarkdown() const;
+    void exportCorpus();
+    void renderDocumentHtml(const QString &markdown, const QString &baseDir,
+                            bool omml, QString *body);
     void refreshOpenToc();
     void refreshPreviewForTocTab(int index, const QString &rootDir);
 

@@ -18,6 +18,8 @@
 #include "Corpus.h"
 #include "CorpusIndex.h"
 #include "CorpusWatcher.h"
+#include "ExportCorpusDialog.h"
+#include "PdfRenderer.h"
 #include "LinkFixer.h"
 #include "PreviewBridge.h"
 #include "MarkdownParser.h"
@@ -958,6 +960,10 @@ void MainWindow::setupMenuBar()
     QAction *exportHtmlAction = exportMenu->addAction("Export as &HTML...");
     exportHtmlAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H));
     connect(exportHtmlAction, &QAction::triggered, this, &MainWindow::exportHtml);
+
+    QAction *exportCorpusAction = exportMenu->addAction(tr("&Export Corpus…"));
+    exportCorpusAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
+    connect(exportCorpusAction, &QAction::triggered, this, &MainWindow::exportCorpus);
 
     fileMenu->addSeparator();
 
@@ -3205,6 +3211,292 @@ void MainWindow::exportHtml()
     f.write(output.toUtf8());
     f.close();
     statusBar()->showMessage("Exported as HTML", 2000);
+}
+
+void MainWindow::renderDocumentHtml(const QString &markdown, const QString &baseDir,
+                                    bool omml, QString *body)
+{
+    QSettings prefs;
+    const QString html = m_parser->toHtml(
+        markdown, prefs.value(Preferences::BlockRawHtmlExport, true).toBool());
+    const QString css = m_cssLoader->previewBaseCss() + "\n" + m_cssLoader->themeCss();
+    const QString emojiMode = prefs.value(Preferences::EmojiMode,
+        Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
+    const QString mermaidTheme = CssUtils::isDarkTheme(m_cssLoader->themeCss())
+        ? QStringLiteral("dark") : QStringLiteral("default");
+    const QString baseUrl = QUrl::fromLocalFile(baseDir + "/").toString();
+
+    QString fullHtml;
+    if (omml)
+        fullHtml = JsRenderEngine::buildFullHtmlForDocxOmml(html, css, emojiMode, mermaidTheme);
+    else
+        fullHtml = JsRenderEngine::buildFullHtml(html, css, emojiMode, mermaidTheme);
+    if (prefs.value(Preferences::EnableCspExport, true).toBool()) {
+        const int headEnd = fullHtml.indexOf("</head>");
+        if (headEnd >= 0)
+            fullHtml.insert(headEnd, QStringLiteral(
+                "<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">")
+                .arg(Security::CspHeader));
+    }
+
+    QString rendered = JsRenderEngine::renderSync(fullHtml, baseUrl);
+    rendered = JsRenderEngine::replaceQrcUrls(rendered);
+    rendered = JsRenderEngine::embedImages(rendered, QUrl(baseUrl));
+    rendered = JsRenderEngine::embedResources(rendered, ScriptHandling::Strip);
+    *body = rendered;
+}
+
+void MainWindow::exportCorpus()
+{
+    if (m_corpus.filePath.isEmpty()) {
+        showCenteredWarning(tr("Export Corpus"), tr("No corpus is open."), QString());
+        return;
+    }
+    ExportCorpusDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted || dlg.outputDir().isEmpty())
+        return;
+
+    const ExportCorpusDialog::Format format = dlg.format();
+    const QString ext = format == ExportCorpusDialog::Format::Docx ? QStringLiteral("docx")
+                      : format == ExportCorpusDialog::Format::Pdf  ? QStringLiteral("pdf")
+                                                                   : QStringLiteral("html");
+
+    QDir outDir(dlg.outputDir());
+    if (!outDir.exists())
+        QDir().mkpath(outDir.absolutePath());
+    const QString root = m_corpus.rootDir();
+    const QString themeCss = m_cssLoader->themeCss();
+    QSettings prefs;
+
+    // 1. Gather export items: source (abs path or embedded content) + output path.
+    struct Item {
+        QString absPath;      // source document absolute path ("" for embedded)
+        bool embedded = false;
+        QString content;      // embedded content
+        QString outRel;       // output path relative to outDir ("" => skipped)
+        bool inRoot = true;
+    };
+    QVector<Item> items;
+    QHash<QString, QString> untitledByLabel;   // live text of open untitled tabs
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        const TabInfo &ti = m_tabs[i];
+        if (ti.filePath.isEmpty() && !m_reportTitles.contains(i) && !m_tocTabs.contains(i))
+            untitledByLabel.insert(tabTitleForEmbedded(i), ti.editor->toPlainText());
+    }
+    int untitled = 0;
+    for (const CorpusDocument &d : m_corpus.documents) {
+        Item it;
+        if (d.path.isEmpty()) {
+            it.embedded = true;
+            it.content = untitledByLabel.value(d.name, d.content);
+            it.outRel = QStringLiteral("Untitled-%1.%2").arg(++untitled).arg(ext);
+            items.append(it);
+            continue;
+        }
+        const bool isAbs = QFileInfo(d.path).isAbsolute();
+        const QString abs = Corpus::absolutePath(root, d.path);
+        it.absPath = abs;
+        it.inRoot = !isAbs || !QDir(root).relativeFilePath(abs).startsWith(QLatin1String(".."));
+        items.append(it);
+    }
+
+    // 2. External (out-of-root) documents: mirror from their common ancestor
+    //    into the named subfolder; skip when disabled.
+    QStringList externalAbs;
+    for (const Item &it : items) {
+        if (!it.inRoot && !it.absPath.isEmpty())
+            externalAbs.append(it.absPath);
+    }
+    const QString extName = dlg.exportExternal() ? dlg.externalDirName() : QString();
+    QString commonExt;
+    if (!externalAbs.isEmpty()) {
+        commonExt = QFileInfo(externalAbs.first()).absolutePath();
+        for (const QString &p : externalAbs) {
+            QString dir = QFileInfo(p).absolutePath();
+            while (!commonExt.isEmpty() && !dir.startsWith(commonExt)) {
+                const int slash = commonExt.lastIndexOf(QLatin1Char('/'));
+                if (slash <= 0) { commonExt.clear(); break; }
+                commonExt = commonExt.left(slash);
+            }
+        }
+    }
+    int skippedExternal = 0;
+    for (Item &it : items) {
+        if (it.embedded)
+            continue;                          // outRel already set
+        if (it.inRoot) {
+            it.outRel = QDir(root).relativeFilePath(it.absPath) + "." + ext;
+        } else if (!extName.isEmpty() && !commonExt.isEmpty()) {
+            it.outRel = extName + "/" + QDir(commonExt).relativeFilePath(it.absPath) + "." + ext;
+        } else {
+            it.outRel.clear();
+            ++skippedExternal;
+        }
+    }
+
+    // 3. Render each page.
+    auto buildHtmlPage = [&](const QString &body) {
+        QString exportCss = themeCss;
+        exportCss.remove(QRegularExpression(R"(#editor\s*\{[^}]*\})"));
+        exportCss = m_cssLoader->previewBaseCss() + "\n" + exportCss;
+        exportCss += QStringLiteral(
+            "\n.echarts-chart svg{max-width:100%;height:auto;width:auto!important}");
+        if (!prefs.value(Preferences::ShowCodeLangExport, true).toBool())
+            exportCss += QStringLiteral("\n") + QLatin1String(Preferences::HideCodeLangCss);
+        const QString katexCss = JsRenderEngine::katexCss();
+        QString cspMeta;
+        if (prefs.value(Preferences::EnableCspExport, true).toBool())
+            cspMeta = QStringLiteral(
+                "<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">\n")
+                .arg(Security::CspHeader);
+        return QStringLiteral(
+            "<!DOCTYPE html>\n"
+            "<html>\n"
+            "<head>\n"
+            "<meta charset=\"utf-8\">\n"
+            "%4"
+            "<style>%1</style>\n"
+            "<style>%3</style>\n"
+            "</head>\n"
+            "<body>%2</body>\n"
+            "</html>\n").arg(exportCss, body, katexCss, cspMeta);
+    };
+
+    QHash<QString, QString> pageLinks;         // abs path -> exported rel path
+    QStringList embeddedOutRels;               // exported Untitled-N files
+    int exported = 0;
+    int missing = 0;
+    for (const Item &it : items) {
+        if (it.outRel.isEmpty())
+            continue;
+        QString markdown;
+        QString baseDir;
+        if (it.embedded) {
+            markdown = it.content;
+            baseDir = root;
+        } else {
+            QFile f(it.absPath);
+            if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                ++missing;
+                continue;
+            }
+            markdown = QString::fromUtf8(f.readAll());
+            f.close();
+            baseDir = QFileInfo(it.absPath).absolutePath();
+        }
+        if (markdown.isEmpty())
+            continue;
+
+        QString body;
+        renderDocumentHtml(markdown, baseDir, format == ExportCorpusDialog::Format::Docx, &body);
+        if (body.isEmpty())
+            continue;
+
+        const QString finalPath = outDir.filePath(it.outRel);
+        QDir().mkpath(QFileInfo(finalPath).absolutePath());
+        bool ok = false;
+        switch (format) {
+        case ExportCorpusDialog::Format::Html: {
+            QFile out(finalPath);
+            if (out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                out.write(buildHtmlPage(body).toUtf8());
+                out.close();
+                ok = true;
+            }
+            break;
+        }
+        case ExportCorpusDialog::Format::Docx: {
+            DocxExportOptions opts;
+            opts.mathMode = DocxMathMode::Omml;
+            const QString docxCss = m_cssLoader->previewBaseCss() + "\n" + themeCss
+                + "\n" + JsRenderEngine::katexCss();
+            ok = DocxExporter::exportToDocx(body, finalPath, docxCss, opts);
+            break;
+        }
+        case ExportCorpusDialog::Format::Pdf: {
+            ok = PdfRenderer::render(buildHtmlPage(body),
+                                     QUrl::fromLocalFile(baseDir + "/").toString(),
+                                     finalPath);
+            break;
+        }
+        }
+        if (ok) {
+            ++exported;
+            pageLinks.insert(it.absPath, it.outRel);
+            if (it.embedded)
+                embeddedOutRels.append(it.outRel);
+        }
+    }
+
+    // 4. TOC/index page (all formats), linking the exported pages.
+    QHash<QString, QString> indexLinks;
+    const bool indexInFiles = format != ExportCorpusDialog::Format::Html;
+    for (auto it = pageLinks.constBegin(); it != pageLinks.constEnd(); ++it)
+        indexLinks.insert(it.key(), indexInFiles ? "../" + it.value() : it.value());
+    QString indexMd = CorpusIndex::renderToc(m_corpus, indexLinks);
+    // renderToc deliberately skips embedded (untitled) documents; they are still
+    // exported as Untitled-N files, so append them so every exported page is
+    // reachable from the index.
+    if (!embeddedOutRels.isEmpty()) {
+        indexMd += QStringLiteral("\n## Untitled documents\n");
+        for (const QString &rel : embeddedOutRels)
+            indexMd += QStringLiteral("- [%1](%2%1)\n").arg(rel, indexInFiles ? QStringLiteral("../") : QString());
+    }
+
+    QString indexPath;
+    if (format == ExportCorpusDialog::Format::Html) {
+        indexPath = outDir.filePath(QStringLiteral("index.html"));
+        QDir().mkpath(QFileInfo(indexPath).absolutePath());
+        QString body;
+        renderDocumentHtml(indexMd, dlg.outputDir(), false, &body);
+        if (!body.isEmpty()) {
+            QFile out(indexPath);
+            if (out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                out.write(buildHtmlPage(body).toUtf8());
+                out.close();
+            }
+        }
+    } else {
+        const QString baseName = m_corpus.name.isEmpty()
+            ? QFileInfo(m_corpus.filePath).completeBaseName() : m_corpus.name;
+        const QString dir = outDir.filePath(QStringLiteral("files"));
+        QDir().mkpath(dir);
+        indexPath = dir + "/" + baseName + "-index." + ext;
+        QString body;
+        renderDocumentHtml(indexMd, dir, format == ExportCorpusDialog::Format::Docx, &body);
+        if (!body.isEmpty()) {
+            if (format == ExportCorpusDialog::Format::Docx) {
+                DocxExportOptions opts;
+                opts.mathMode = DocxMathMode::Omml;
+                const QString docxCss = m_cssLoader->previewBaseCss() + "\n" + themeCss
+                    + "\n" + JsRenderEngine::katexCss();
+                DocxExporter::exportToDocx(body, indexPath, docxCss, opts);
+            } else {
+                PdfRenderer::render(buildHtmlPage(body),
+                                    QUrl::fromLocalFile(dir + "/").toString(),
+                                    indexPath);
+            }
+        }
+    }
+
+    // 5. Zip (optional).
+    QString zipPath;
+    if (dlg.compressToZip()) {
+        QString baseName = m_corpus.name.isEmpty()
+            ? QFileInfo(m_corpus.filePath).completeBaseName() : m_corpus.name;
+        baseName.replace(QRegularExpression(R"([^A-Za-z0-9 _.-])"), QStringLiteral("_"));
+        zipPath = outDir.filePath(baseName + ".zip");
+        if (!createZipArchive(dlg.outputDir(), zipPath))
+            showCenteredWarning(tr("Export Corpus"),
+                tr("Could not create the zip archive."), QString());
+    }
+
+    QString msg = tr("Corpus exported to %1").arg(dlg.outputDir());
+    if (missing > 0)
+        msg += tr(" (%1 document(s) missing)").arg(missing);
+    if (skippedExternal > 0)
+        msg += tr(" (%1 document(s) outside the corpus root skipped)").arg(skippedExternal);
+    statusBar()->showMessage(msg, 5000);
 }
 
 void MainWindow::refreshCorpusFromTabs()

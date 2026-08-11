@@ -466,3 +466,21 @@ Two corollaries:
 - Untitled documents (no file path) legitimately pass an empty base URL and
   drop the element — there's nothing for relative paths to anchor to.
 
+## Corpus export: embedded (untitled) documents are exported but not TOC-linked
+
+`CorpusIndex::renderToc` deliberately skips embedded/untitled documents (they
+have no stable path or name, so the in-app "Table of Contents" must not show
+them). `MainWindow::exportCorpus` still exports them to `Untitled-N.<ext>`
+files (their content is snapshotted from the open tabs, falling back to the
+stored `CorpusDocument::content`), so the corpus export index page appends a
+"Untitled documents" section after the `renderToc` output to keep every
+exported page reachable. Don't "fix" renderToc to include embedded docs — that
+would leak untitled tabs into the live TOC.
+
+External (out-of-root) corpus documents are mirrored into the named subfolder
+(default `external/`) under their common ancestor directory. When "Export
+documents outside the corpus root" is unchecked, or a single out-of-root
+document exists, the relative path collapses to just the file name — two
+out-of-root documents in unrelated trees never collide because the
+common-ancestor logic is computed once across all of them.
+

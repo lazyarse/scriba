@@ -101,6 +101,10 @@ add_executable(scriba WIN32
     src/LinkFixer.h
     src/CorpusIndex.cpp
     src/CorpusIndex.h
+    src/ExportCorpusDialog.cpp
+    src/ExportCorpusDialog.h
+    src/PdfRenderer.cpp
+    src/PdfRenderer.h
     src/TableDialog.cpp
     src/ChartDialog.cpp
     src/StockChartDialog.cpp
@@ -555,7 +559,7 @@ if(BUILD_TESTS)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -586,7 +590,7 @@ if(BUILD_TESTS)
 
     add_executable(test_anchor_navigation tests/test_anchor_navigation.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -607,7 +611,7 @@ if(BUILD_TESTS)
 
     add_executable(test_emoji_preview tests/test_emoji_preview.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -629,7 +633,7 @@ if(BUILD_TESTS)
 
     add_executable(test_auto_save tests/test_auto_save.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -648,7 +652,7 @@ if(BUILD_TESTS)
 
     add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -667,7 +671,7 @@ if(BUILD_TESTS)
 
     add_executable(test_corpus_recent tests/test_corpus_recent.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -686,7 +690,7 @@ if(BUILD_TESTS)
 
     add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -705,7 +709,7 @@ if(BUILD_TESTS)
 
     add_executable(test_corpus_watcher_integration tests/test_corpus_watcher_integration.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -722,9 +726,28 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz)
     add_test(NAME test_corpus_watcher_integration COMMAND ${_TEST_PREFIX} ./test_corpus_watcher_integration)
 
+    add_executable(test_corpus_export tests/test_corpus_export.cpp
+        src/PreviewPagination.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
+        src/CssConfig.cpp src/CssLoader.cpp
+        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
+        src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp
+        src/LogWindow.cpp
+        src/MermaidDialog.cpp
+        src/KatexHelperDialog.cpp
+        src/MchemHelperDialog.cpp
+        src/CsvColumnMapDialog.cpp
+        src/TableDialog.cpp
+        resources/scriba.qrc)
+    target_include_directories(test_corpus_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_corpus_export PRIVATE
+        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz)
+    add_test(NAME test_corpus_export COMMAND ${_TEST_PREFIX} ./test_corpus_export)
+
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
     src/PreviewPagination.cpp
-    src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+    src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
     src/CssConfig.cpp src/CssLoader.cpp
     src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -744,7 +767,7 @@ add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_init
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp
         src/PreviewPagination.cpp
-        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp
+        src/MainWindow.cpp src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp src/ZipReader.cpp src/OoxmlToHtml.cpp src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp src/SpellCheckDialog.cpp src/Editor.cpp src/Gutter.cpp src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp src/PdfRenderer.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
@@ -883,6 +906,7 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         test_pdf_export test_preview_pagination test_export_html test_docx_image_export test_docx_import
         test_pdf_import test_corpus_recent
         test_corpus_watcher_integration
+        test_corpus_export
         PROPERTIES RESOURCE_LOCK webkit)
 endif()
 
