@@ -185,6 +185,28 @@ TEST_F(AutoSaveTest, SaveAsWritesFileThenCloses) {
     EXPECT_EQ(saved, "precious content");
 }
 
+TEST(MainWindowExtension, AppendsDefaultSuffixToBareName) {
+    EXPECT_EQ(MainWindow::ensureDefaultSuffix(QStringLiteral("notes"), "md"),
+              QStringLiteral("notes.md"));
+    EXPECT_EQ(MainWindow::ensureDefaultSuffix(QStringLiteral("/tmp/book"), "scriba"),
+              QStringLiteral("/tmp/book.scriba"));
+}
+
+TEST(MainWindowExtension, LeavesExistingSuffixUntouched) {
+    EXPECT_EQ(MainWindow::ensureDefaultSuffix(QStringLiteral("notes.txt"), "md"),
+              QStringLiteral("notes.txt"));
+    EXPECT_EQ(MainWindow::ensureDefaultSuffix(QStringLiteral("notes.MD"), "md"),
+              QStringLiteral("notes.MD"));
+    EXPECT_EQ(MainWindow::ensureDefaultSuffix(QStringLiteral("book.json"), "scriba"),
+              QStringLiteral("book.json"));
+    EXPECT_EQ(MainWindow::ensureDefaultSuffix(QStringLiteral("book.scriba"), "scriba"),
+              QStringLiteral("book.scriba"));
+}
+
+TEST(MainWindowExtension, EmptyPathIsUnchanged) {
+    EXPECT_EQ(MainWindow::ensureDefaultSuffix(QString(), "md"), QString());
+}
+
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     setupTestConfig();

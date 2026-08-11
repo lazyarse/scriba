@@ -78,6 +78,11 @@ public:
     // Set from main(); off in unit tests so no modal dialog blocks them.
     static void setNotifyStaleCss(bool enabled) { s_notifyStaleCss = enabled; }
 
+    // Appends a default suffix to a save-dialog result if the chosen path has
+    // no extension at all; any existing suffix (e.g. ".txt") is respected as
+    // typed. Exposed for tests.
+    static QString ensureDefaultSuffix(const QString &path, const char *suffix);
+
     enum class ClosePromptResult { Save, Cancel, Discard };
 
     // Exposed for tests (recent-corpora menu); UI-internal otherwise.

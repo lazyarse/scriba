@@ -65,6 +65,15 @@ static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
 static constexpr const char *kOpenMdFilter = "Markdown Files (*.md *.markdown *.txt);;All Files (*)";
 static constexpr int kMsPerMinute = 60000;
 
+// Appends a default suffix to a save-dialog result if the chosen path has no
+// extension at all; any existing suffix (e.g. ".txt") is respected as typed.
+QString MainWindow::ensureDefaultSuffix(const QString &path, const char *suffix)
+{
+    if (path.isEmpty() || !QFileInfo(path).suffix().isEmpty())
+        return path;
+    return path + QLatin1Char('.') + QLatin1String(suffix);
+}
+
 namespace {
 
 // Runs the whole-document grammar pass for the Validation Report on a
@@ -840,7 +849,8 @@ void MainWindow::showSaveDiscardDialog(int index)
     int ret = msgBox.exec();
     if (ret == QMessageBox::Save) {
         if (info.filePath.isEmpty()) {
-                        QString file = QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter);
+                        QString file = ensureDefaultSuffix(
+                QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter), "md");
             if (file.isEmpty())
                 return;
             info.filePath = file;
@@ -908,7 +918,8 @@ void MainWindow::setupMenuBar()
         TabInfo *info = activeTabInfo();
         if (!info) return;
         if (info->filePath.isEmpty()) {
-            QString file = QFileDialog::getSaveFileName(this, "Save Markdown File", QString(), kMdFilter);
+            QString file = ensureDefaultSuffix(
+                QFileDialog::getSaveFileName(this, "Save Markdown File", QString(), kMdFilter), "md");
             if (!file.isEmpty()) saveFile(file);
         } else {
             saveFile(info->filePath);
@@ -918,7 +929,8 @@ void MainWindow::setupMenuBar()
     QAction *saveAsAction = fileMenu->addAction("Save &As...");
     saveAsAction->setShortcut(QKeySequence::SaveAs);
     connect(saveAsAction, &QAction::triggered, this, [this]() {
-        QString file = QFileDialog::getSaveFileName(this, "Save Markdown File As", QString(), kMdFilter);
+        QString file = ensureDefaultSuffix(
+            QFileDialog::getSaveFileName(this, "Save Markdown File As", QString(), kMdFilter), "md");
         if (!file.isEmpty()) saveFile(file);
     });
 
@@ -3680,8 +3692,10 @@ void MainWindow::saveCorpusAsAction()
     QString startDir;
     if (TabInfo *info = activeTabInfo(); info && !info->filePath.isEmpty())
         startDir = QFileInfo(info->filePath).absolutePath();
-    const QString path = QFileDialog::getSaveFileName(
-        this, tr("Save Corpus As"), startDir, tr("Scriba Corpus (*.scriba)"));
+    const QString path = ensureDefaultSuffix(
+        QFileDialog::getSaveFileName(
+            this, tr("Save Corpus As"), startDir, tr("Scriba Corpus (*.scriba)")),
+        "scriba");
     if (path.isEmpty())
         return;
     m_corpus.filePath = QFileInfo(path).absoluteFilePath();
@@ -4127,7 +4141,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 QString MainWindow::saveAsDialogPath()
 {
-    return QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter);
+    return ensureDefaultSuffix(
+        QFileDialog::getSaveFileName(this, "Save File", QString(), kMdFilter), "md");
 }
 
 MainWindow::ClosePromptResult MainWindow::promptUnsavedChanges(bool hasUntitledDirty)
