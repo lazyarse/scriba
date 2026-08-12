@@ -1,0 +1,227 @@
+diff --git a/vendor/md4c/src/md4c.c b/vendor/md4c/src/md4c.c
+index 85b9935..7da1e8c 100644
+--- a/vendor/md4c/src/md4c.c
++++ b/vendor/md4c/src/md4c.c
+@@ -5162,6 +5162,7 @@ md_process_table_cell(MD_CTX* ctx, MD_BLOCKTYPE cell_type, MD_ALIGN align, OFF b
+         end--;
+ 
+     det.align = align;
++    det.beg = beg;  /* (Local patch.) */
+     line.beg = beg;
+     line.end = end;
+ 
+@@ -5295,6 +5296,9 @@ struct MD_BLOCK_tag {
+      * MD_BLOCK_OL:     Start item number.
+      */
+     MD_SIZE n_lines;
++
++    /* Start offset of the block in the input document (local patch). */
++    OFF beg;
+ };
+ 
+ struct MD_CONTAINER_tag {
+@@ -5430,6 +5434,7 @@ static int
+ md_process_leaf_block(MD_CTX* ctx, MD_BLOCK* block)
+ {
+     union {
++        MD_OFFSET beg;
+         MD_BLOCK_H_DETAIL header;
+         MD_BLOCK_CODE_DETAIL code;
+         MD_BLOCK_TABLE_DETAIL table;
+@@ -5497,6 +5502,10 @@ md_process_leaf_block(MD_CTX* ctx, MD_BLOCK* block)
+             break;
+     }
+ 
++    /* Set after the per-type memset above: the fenced-code path wipes det.code
++     * (and with it any earlier union member). (Local patch.) */
++    det.beg = block->beg;
++
+     if(!is_in_tight_list  ||  block->type != MD_BLOCK_P)
+         MD_ENTER_BLOCK(block->type, (void*) &det);
+ 
+@@ -5557,12 +5566,15 @@ md_process_all_blocks(MD_CTX* ctx)
+     while(byte_off < ctx->n_block_bytes) {
+         MD_BLOCK* block = (MD_BLOCK*)((char*)ctx->block_bytes + byte_off);
+         union {
++            MD_OFFSET beg;
+             MD_BLOCK_UL_DETAIL ul;
+             MD_BLOCK_OL_DETAIL ol;
+             MD_BLOCK_LI_DETAIL li;
+             MD_BLOCK_ADMONITION_DETAIL adm;
+         } det;
+ 
++        det.beg = block->beg;   /* (Local patch.) */
++
+         switch(block->type) {
+             case MD_BLOCK_UL:
+                 det.ul.is_tight = (block->flags & MD_BLOCK_LOOSE_LIST) ? FALSE : TRUE;
+@@ -5734,6 +5746,7 @@ md_start_new_block(MD_CTX* ctx, const MD_LINE_ANALYSIS* line)
+     block->flags = 0;
+     block->data = line->data;
+     block->n_lines = 0;
++    block->beg = line->beg;
+ 
+     ctx->current_block = block;
+     return 0;
+@@ -5874,7 +5887,7 @@ md_add_line_into_current_block(MD_CTX* ctx, const MD_LINE_ANALYSIS* analysis)
+ 
+ static int
+ md_push_container_bytes(MD_CTX* ctx, MD_BLOCKTYPE type, unsigned start,
+-                        unsigned data, unsigned flags)
++                        unsigned data, unsigned flags, OFF beg)
+ {
+     MD_BLOCK* block;
+     int ret = 0;
+@@ -5889,6 +5902,7 @@ md_push_container_bytes(MD_CTX* ctx, MD_BLOCKTYPE type, unsigned start,
+     block->flags = flags;
+     block->data = data;
+     block->n_lines = start;
++    block->beg = beg;
+ 
+ abort:
+     return ret;
+@@ -6335,7 +6349,7 @@ md_push_container(MD_CTX* ctx, const MD_CONTAINER* container)
+ }
+ 
+ static int
+-md_enter_child_containers(MD_CTX* ctx, int n_children)
++md_enter_child_containers(MD_CTX* ctx, int n_children, OFF beg)
+ {
+     int i;
+     int ret = 0;
+@@ -6360,18 +6374,18 @@ md_enter_child_containers(MD_CTX* ctx, int n_children)
+ 
+                 MD_CHECK(md_push_container_bytes(ctx,
+                                 (is_ordered_list ? MD_BLOCK_OL : MD_BLOCK_UL),
+-                                c->start, c->ch, MD_BLOCK_CONTAINER_OPENER));
++                                c->start, c->ch, MD_BLOCK_CONTAINER_OPENER, beg));
+                 MD_CHECK(md_push_container_bytes(ctx, MD_BLOCK_LI,
+                                 c->task_mark_off,
+                                 (c->is_task ? CH(c->task_mark_off) : 0),
+-                                MD_BLOCK_CONTAINER_OPENER));
++                                MD_BLOCK_CONTAINER_OPENER, beg));
+                 break;
+ 
+             case _T('>'):
+                 MD_CHECK(md_push_container_bytes(ctx,
+                                 (c->is_admonition ? MD_BLOCK_ADMONITION : MD_BLOCK_QUOTE),
+                                 (c->is_admonition ? c->admonition_title_off : 0),
+-                                c->admonition_type, MD_BLOCK_CONTAINER_OPENER));
++                                c->admonition_type, MD_BLOCK_CONTAINER_OPENER, beg));
+                 break;
+ 
+             default:
+@@ -6404,16 +6418,16 @@ md_leave_child_containers(MD_CTX* ctx, int n_keep)
+             case _T('*'):
+                 MD_CHECK(md_push_container_bytes(ctx, MD_BLOCK_LI,
+                                 c->task_mark_off, (c->is_task ? CH(c->task_mark_off) : 0),
+-                                MD_BLOCK_CONTAINER_CLOSER));
++                                MD_BLOCK_CONTAINER_CLOSER, 0));
+                 MD_CHECK(md_push_container_bytes(ctx,
+                                 (is_ordered_list ? MD_BLOCK_OL : MD_BLOCK_UL), 0,
+-                                c->ch, MD_BLOCK_CONTAINER_CLOSER));
++                                c->ch, MD_BLOCK_CONTAINER_CLOSER, 0));
+                 break;
+ 
+             case _T('>'):
+                 MD_CHECK(md_push_container_bytes(ctx,
+                                 (c->is_admonition ? MD_BLOCK_ADMONITION : MD_BLOCK_QUOTE),
+-                                0, c->admonition_type, MD_BLOCK_CONTAINER_CLOSER));
++                                0, c->admonition_type, MD_BLOCK_CONTAINER_CLOSER, 0));
+                 break;
+ 
+             default:
+@@ -6959,11 +6973,11 @@ md_analyze_line(MD_CTX* ctx, OFF beg, OFF* p_end,
+         MD_CHECK(md_push_container_bytes(ctx, MD_BLOCK_LI,
+                     ctx->containers[n_parents].task_mark_off,
+                     (ctx->containers[n_parents].is_task ? CH(ctx->containers[n_parents].task_mark_off) : 0),
+-                    MD_BLOCK_CONTAINER_CLOSER));
++                    MD_BLOCK_CONTAINER_CLOSER, 0));
+         MD_CHECK(md_push_container_bytes(ctx, MD_BLOCK_LI,
+                     container.task_mark_off,
+                     (container.is_task ? CH(container.task_mark_off) : 0),
+-                    MD_BLOCK_CONTAINER_OPENER));
++                    MD_BLOCK_CONTAINER_OPENER, line->beg));
+         ctx->containers[n_parents].is_task = container.is_task;
+         ctx->containers[n_parents].task_mark_off = container.task_mark_off;
+     }
+@@ -7015,7 +7029,7 @@ md_analyze_line(MD_CTX* ctx, OFF beg, OFF* p_end,
+         }
+ 
+         /* Enter all the child container blocks. */
+-        MD_CHECK(md_enter_child_containers(ctx, n_children));
++        MD_CHECK(md_enter_child_containers(ctx, n_children, line->beg));
+     }
+ 
+ abort:
+diff --git a/vendor/md4c/src/md4c.h b/vendor/md4c/src/md4c.h
+index 7b8ad5b..c44ba0d 100644
+--- a/vendor/md4c/src/md4c.h
++++ b/vendor/md4c/src/md4c.h
+@@ -284,12 +284,14 @@ typedef struct MD_ATTRIBUTE {
+ 
+ /* Detailed info for MD_BLOCK_UL. */
+ typedef struct MD_BLOCK_UL_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the list in the input (local patch). */
+     int is_tight;           /* Non-zero if tight list, zero if loose. */
+     MD_CHAR mark;           /* Item bullet character in MarkDown source of the list, e.g. '-', '+', '*'. */
+ } MD_BLOCK_UL_DETAIL;
+ 
+ /* Detailed info for MD_BLOCK_OL. */
+ typedef struct MD_BLOCK_OL_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the list in the input (local patch). */
+     unsigned start;         /* Start index of the ordered list. */
+     int is_tight;           /* Non-zero if tight list, zero if loose. */
+     MD_CHAR mark_delimiter; /* Character delimiting the item marks in MarkDown source, e.g. '.' or ')' */
+@@ -297,6 +299,7 @@ typedef struct MD_BLOCK_OL_DETAIL {
+ 
+ /* Detailed info for MD_BLOCK_LI. */
+ typedef struct MD_BLOCK_LI_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the item in the input (local patch). */
+     int is_task;            /* Can be non-zero only with MD_FLAG_TASKLISTS */
+     MD_CHAR task_mark;      /* If is_task, then one of 'x', 'X' or ' '. Undefined otherwise. */
+     MD_OFFSET task_mark_offset;  /* If is_task, then offset in the input of the char between '[' and ']'. */
+@@ -304,11 +307,13 @@ typedef struct MD_BLOCK_LI_DETAIL {
+ 
+ /* Detailed info for MD_BLOCK_H. */
+ typedef struct MD_BLOCK_H_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the heading in the input (local patch). */
+     unsigned level;         /* Header level (1 - 6) */
+ } MD_BLOCK_H_DETAIL;
+ 
+ /* Detailed info for MD_BLOCK_CODE. */
+ typedef struct MD_BLOCK_CODE_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the code block in the input (local patch). */
+     MD_ATTRIBUTE info;
+     MD_ATTRIBUTE lang;
+     MD_CHAR fence_char;     /* The character used for fenced code block; or zero for indented code block. */
+@@ -316,6 +321,7 @@ typedef struct MD_BLOCK_CODE_DETAIL {
+ 
+ /* Detailed info for MD_BLOCK_TABLE. */
+ typedef struct MD_BLOCK_TABLE_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the table in the input (local patch). */
+     unsigned col_count;         /* Count of columns in the table. */
+     unsigned head_row_count;    /* Count of rows in the table header (currently always 1) */
+     unsigned body_row_count;    /* Count of rows in the table body */
+@@ -323,11 +329,13 @@ typedef struct MD_BLOCK_TABLE_DETAIL {
+ 
+ /* Detailed info for MD_BLOCK_TH and MD_BLOCK_TD. */
+ typedef struct MD_BLOCK_TD_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the cell in the input (local patch). */
+     MD_ALIGN align;
+ } MD_BLOCK_TD_DETAIL;
+ 
+ /* Detailed info for MD_BLOCK_ADMONITION. */
+ typedef struct MD_BLOCK_ADMONITION_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the admonition in the input (local patch). */
+     MD_ATTRIBUTE type;          /* One of "note", "tip", "important", "warning", "caution" */
+     MD_ATTRIBUTE title;         /* Optional custom title (text after "[!TYPE] ") */
+ } MD_BLOCK_ADMONITION_DETAIL;
+@@ -359,6 +367,7 @@ typedef struct MD_SPAN_FOOTNOTE_REF_DETAIL {
+ 
+ /* Detailed info for MD_BLOCK_FOOTNOTE_DEF. */
+ typedef struct MD_BLOCK_FOOTNOTE_DEF_DETAIL {
++    MD_OFFSET beg;          /* Start offset of the footnote def in the input (local patch). */
+     unsigned int id;        /* 1-based identifier of this footnote */
+     unsigned int ref_count; /* Number of references to this footnote */
+     MD_ATTRIBUTE label;     /* Raw label text */

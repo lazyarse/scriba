@@ -25,7 +25,10 @@ MdRenderer::MdRenderer()
 QString MdRenderer::render(const char *input, MD_SIZE size, unsigned parserFlags)
 {
     m_output.clear();
-    m_currentLine = 1;
+    m_docText = input;
+    m_docSize = size;
+    m_lastBeg = 0;
+    m_blockLine = 1;
     m_blockDepth = 0;
     m_pBuf.clear();
     m_capture = nullptr;
@@ -56,6 +59,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     const bool isTopLevel = (type != MD_BLOCK_DOC) && (self->m_blockDepth == 0);
     if (type != MD_BLOCK_DOC)
         self->m_blockDepth++;
+    self->advanceToBeg(detail);
 
     switch (type) {
     case MD_BLOCK_DOC:
@@ -66,7 +70,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->m_typoState.inDisplayMath = false;
         if (isTopLevel)
             self->startParagraphCapture();
-        self->writeHtml(QString("<p data-line=\"%1\">").arg(self->m_currentLine));
+        self->writeHtml(QString("<p data-line=\"%1\">").arg(self->m_blockLine));
         break;
     case MD_BLOCK_H: {
         auto *d = static_cast<MD_BLOCK_H_DETAIL*>(detail);
@@ -74,7 +78,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->m_typoState.inMath = false;
         self->m_typoState.inDisplayMath = false;
         self->writeHtml(self->withPendingClasses(
-            QString("<h%1 data-line=\"%2\">").arg(d->level).arg(self->m_currentLine)));
+            QString("<h%1 data-line=\"%2\">").arg(d->level).arg(self->m_blockLine)));
         break;
     }
     case MD_BLOCK_CODE:
@@ -94,7 +98,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         break;
     case MD_BLOCK_HR:
         self->writeHtml(self->withPendingClasses(
-            QString("<hr data-line=\"%1\">").arg(self->m_currentLine)));
+            QString("<hr data-line=\"%1\">").arg(self->m_blockLine)));
         break;
     case MD_BLOCK_HTML:
         break;
@@ -294,14 +298,14 @@ int MdRenderer::enterSpan(MD_SPANTYPE type, void *detail, void *userdata)
     case MD_SPAN_LATEXMATH:
         self->m_mathType = 1;
         self->m_mathBuf.clear();
-        self->m_mathLine = self->m_currentLine;
+        self->m_mathLine = self->m_blockLine;
         if (!self->m_img.inside)
             self->m_typoState.inMath = true;
         break;
     case MD_SPAN_LATEXMATH_DISPLAY:
         self->m_mathType = 2;
         self->m_mathBuf.clear();
-        self->m_mathLine = self->m_currentLine;
+        self->m_mathLine = self->m_blockLine;
         if (!self->m_img.inside)
             self->m_typoState.inDisplayMath = true;
         break;
@@ -415,10 +419,6 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
 
     switch (type) {
     case MD_TEXT_NORMAL: {
-        for (MD_SIZE i = 0; i < size; i++) {
-            if (text[i] == '\n')
-                self->m_currentLine++;
-        }
         if (self->m_img.inside) {
             self->m_img.alt += QString::fromUtf8(text, size);
         } else {
@@ -430,14 +430,12 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
         break;
     }
     case MD_TEXT_BR:
-        self->m_currentLine++;
         if (!self->m_img.inside) {
             self->m_typoState.lastChar = QChar(' ');
             self->writeHtml("<br>");
         }
         break;
     case MD_TEXT_SOFTBR:
-        self->m_currentLine++;
         if (!self->m_img.inside) {
             self->m_typoState.lastChar = QChar(' ');
             self->writeHtml("\n");
@@ -455,10 +453,6 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
             self->writeHtml(QString::fromUtf8(text, size));
         break;
     case MD_TEXT_LATEXMATH:
-        for (MD_SIZE i = 0; i < size; i++) {
-            if (text[i] == '\n')
-                self->m_currentLine++;
-        }
         if (self->m_img.inside) {
             self->m_img.alt += QString::fromUtf8(text, size);
         } else if (self->m_mathType != 0) {
@@ -478,6 +472,20 @@ int MdRenderer::text(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size, void *
     return 0;
 }
 
+void MdRenderer::advanceToBeg(void *detail)
+{
+    if (!detail || !m_docText)
+        return;
+    const MD_OFFSET beg = *static_cast<const MD_OFFSET*>(detail);
+    if (beg < m_lastBeg || beg > m_docSize)
+        return;
+    for (MD_OFFSET i = m_lastBeg; i < beg; ++i) {
+        if (m_docText[i] == '\n')
+            ++m_blockLine;
+    }
+    m_lastBeg = beg;
+}
+
 void MdRenderer::enterCodeBlock(void *detail)
 {
     auto *d = static_cast<MD_BLOCK_CODE_DETAIL*>(detail);
@@ -487,14 +495,14 @@ void MdRenderer::enterCodeBlock(void *detail)
     if (d->fence_char) {
         if (lang.isEmpty()) {
             writeHtml(withPendingClasses(QString(
-                "<pre data-line=\"%1\"><code class=\"language-\">").arg(m_currentLine)));
+                "<pre data-line=\"%1\"><code class=\"language-\">").arg(m_blockLine)));
         } else {
             writeHtml(withPendingClasses(QString(
                 "<pre data-line=\"%1\" data-lang=\"%2\"><code class=\"language-%2\">")
-                .arg(m_currentLine).arg(lang)));
+                .arg(m_blockLine).arg(lang)));
         }
     } else {
-        writeHtml(withPendingClasses(QString("<pre data-line=\"%1\"><code>").arg(m_currentLine)));
+        writeHtml(withPendingClasses(QString("<pre data-line=\"%1\"><code>").arg(m_blockLine)));
     }
 }
 
@@ -503,13 +511,13 @@ void MdRenderer::enterListItem(void *detail)
     auto *d = static_cast<MD_BLOCK_LI_DETAIL*>(detail);
     if (d->is_task) {
         writeHtml("<li class=\"task-list-item\" data-line=\"" +
-                  QString::number(m_currentLine) + "\">"
+                  QString::number(m_blockLine) + "\">"
                   "<input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled");
         if (d->task_mark == 'x' || d->task_mark == 'X')
             writeHtml(" checked");
         writeHtml(">");
     } else {
-        writeHtml(QString("<li data-line=\"%1\">").arg(m_currentLine));
+        writeHtml(QString("<li data-line=\"%1\">").arg(m_blockLine));
     }
 }
 
@@ -526,7 +534,7 @@ void MdRenderer::enterAdmonition(void *detail)
         title = type.left(1).toUpper() + type.mid(1);
     writeHtml(withPendingClasses(QString("<div class=\"admonition %1\" data-line=\"%2\">"
         "<p class=\"admonition-title\">%3</p>")
-        .arg(type, QString::number(m_currentLine), title)));
+        .arg(type, QString::number(m_blockLine), title)));
 }
 
 void MdRenderer::enterAlignedCell(void *detail, const char *tag)

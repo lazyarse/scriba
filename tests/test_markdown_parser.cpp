@@ -516,12 +516,13 @@ TEST(MarkdownParserTest, HardSoftBreaksPrefOn) {
 
 // ---- In-source directives: <!-- keep --> / <!-- page-break --> ----
 // Task 0 contract (DR-1): tokens are replaced by the scanner, stripped by the
-// renderer, and the class lands on the next top-level block. Do NOT assert
-// data-line > 1: the renderer emits data-line="1" on every block today.
+// renderer, and the class lands on the next top-level block. Directive lines
+// keep their line count, so the block after a directive carries its real
+// source line (the local md4c block-start-offset patch feeds data-line).
 
 TEST(MarkdownParserTest, DirectiveKeepAboveCodeBlock) {
     QString html = MarkdownParser::toHtml("<!-- keep -->\n```cpp\nint x = 1;\n```");
-    EXPECT_TRUE(html.contains("<pre data-line=\"1\" data-lang=\"cpp\" class=\"scriba-keep\">"));
+    EXPECT_TRUE(html.contains("<pre data-line=\"2\" data-lang=\"cpp\" class=\"scriba-keep\">"));
     EXPECT_FALSE(html.contains("<!--"));
     EXPECT_FALSE(html.contains("SCRIBADIR"));
 }
@@ -537,14 +538,14 @@ TEST(MarkdownParserTest, DirectiveKeepAboveCodeBlockNoHtmlMode) {
 
 TEST(MarkdownParserTest, DirectivePageBreakAboveHeading) {
     QString html = MarkdownParser::toHtml("<!-- page-break -->\n## Heading");
-    EXPECT_TRUE(html.contains("<h2 data-line=\"1\" class=\"scriba-page-break\">"));
+    EXPECT_TRUE(html.contains("<h2 data-line=\"2\" class=\"scriba-page-break\">"));
     EXPECT_FALSE(html.contains("<!--"));
     EXPECT_FALSE(html.contains("SCRIBADIR"));
 }
 
 TEST(MarkdownParserTest, DirectiveAboveParagraph) {
     QString html = MarkdownParser::toHtml("<!-- keep -->\n\nSome paragraph.");
-    EXPECT_TRUE(html.contains("<p data-line=\"1\" class=\"scriba-keep\">"));
+    EXPECT_TRUE(html.contains("<p data-line=\"3\" class=\"scriba-keep\">"));
     EXPECT_TRUE(html.contains("Some paragraph."));
     EXPECT_FALSE(html.contains("<!--"));
 }
@@ -568,7 +569,7 @@ TEST(MarkdownParserTest, DirectiveStackedBlankSeparatedCombine) {
     // Blank-line-separated directives form two token paragraphs that must
     // accumulate their classes (never apply one to the other).
     QString html = MarkdownParser::toHtml("<!-- keep -->\n\n<!-- page-break -->\n# Title");
-    EXPECT_TRUE(html.contains("<h1 data-line=\"1\" class=\"scriba-keep scriba-page-break\">"));
+    EXPECT_TRUE(html.contains("<h1 data-line=\"4\" class=\"scriba-keep scriba-page-break\">"));
     EXPECT_FALSE(html.contains("<!--"));
 }
 

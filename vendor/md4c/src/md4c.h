@@ -284,12 +284,14 @@ typedef struct MD_ATTRIBUTE {
 
 /* Detailed info for MD_BLOCK_UL. */
 typedef struct MD_BLOCK_UL_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the list in the input (local patch). */
     int is_tight;           /* Non-zero if tight list, zero if loose. */
     MD_CHAR mark;           /* Item bullet character in MarkDown source of the list, e.g. '-', '+', '*'. */
 } MD_BLOCK_UL_DETAIL;
 
 /* Detailed info for MD_BLOCK_OL. */
 typedef struct MD_BLOCK_OL_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the list in the input (local patch). */
     unsigned start;         /* Start index of the ordered list. */
     int is_tight;           /* Non-zero if tight list, zero if loose. */
     MD_CHAR mark_delimiter; /* Character delimiting the item marks in MarkDown source, e.g. '.' or ')' */
@@ -297,6 +299,7 @@ typedef struct MD_BLOCK_OL_DETAIL {
 
 /* Detailed info for MD_BLOCK_LI. */
 typedef struct MD_BLOCK_LI_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the item in the input (local patch). */
     int is_task;            /* Can be non-zero only with MD_FLAG_TASKLISTS */
     MD_CHAR task_mark;      /* If is_task, then one of 'x', 'X' or ' '. Undefined otherwise. */
     MD_OFFSET task_mark_offset;  /* If is_task, then offset in the input of the char between '[' and ']'. */
@@ -304,11 +307,13 @@ typedef struct MD_BLOCK_LI_DETAIL {
 
 /* Detailed info for MD_BLOCK_H. */
 typedef struct MD_BLOCK_H_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the heading in the input (local patch). */
     unsigned level;         /* Header level (1 - 6) */
 } MD_BLOCK_H_DETAIL;
 
 /* Detailed info for MD_BLOCK_CODE. */
 typedef struct MD_BLOCK_CODE_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the code block in the input (local patch). */
     MD_ATTRIBUTE info;
     MD_ATTRIBUTE lang;
     MD_CHAR fence_char;     /* The character used for fenced code block; or zero for indented code block. */
@@ -316,6 +321,7 @@ typedef struct MD_BLOCK_CODE_DETAIL {
 
 /* Detailed info for MD_BLOCK_TABLE. */
 typedef struct MD_BLOCK_TABLE_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the table in the input (local patch). */
     unsigned col_count;         /* Count of columns in the table. */
     unsigned head_row_count;    /* Count of rows in the table header (currently always 1) */
     unsigned body_row_count;    /* Count of rows in the table body */
@@ -323,11 +329,13 @@ typedef struct MD_BLOCK_TABLE_DETAIL {
 
 /* Detailed info for MD_BLOCK_TH and MD_BLOCK_TD. */
 typedef struct MD_BLOCK_TD_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the cell in the input (local patch). */
     MD_ALIGN align;
 } MD_BLOCK_TD_DETAIL;
 
 /* Detailed info for MD_BLOCK_ADMONITION. */
 typedef struct MD_BLOCK_ADMONITION_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the admonition in the input (local patch). */
     MD_ATTRIBUTE type;          /* One of "note", "tip", "important", "warning", "caution" */
     MD_ATTRIBUTE title;         /* Optional custom title (text after "[!TYPE] ") */
 } MD_BLOCK_ADMONITION_DETAIL;
@@ -359,6 +367,7 @@ typedef struct MD_SPAN_FOOTNOTE_REF_DETAIL {
 
 /* Detailed info for MD_BLOCK_FOOTNOTE_DEF. */
 typedef struct MD_BLOCK_FOOTNOTE_DEF_DETAIL {
+    MD_OFFSET beg;          /* Start offset of the footnote def in the input (local patch). */
     unsigned int id;        /* 1-based identifier of this footnote */
     unsigned int ref_count; /* Number of references to this footnote */
     MD_ATTRIBUTE label;     /* Raw label text */

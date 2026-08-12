@@ -74,7 +74,14 @@ private:
     int m_mathLine = 1;
 
     QString m_output;
-    int m_currentLine = 1;
+    // Block-start source lines: the local md4c patch exposes each block's
+    // byte offset in the input (`beg`); we convert it to a 1-based line by
+    // counting newlines since the previous block (blocks fire in source order).
+    const char *m_docText = nullptr;
+    MD_SIZE m_docSize = 0;
+    MD_OFFSET m_lastBeg = 0;
+    int m_blockLine = 1;
+    void advanceToBeg(void *detail);
     int m_blockDepth = 0;
     QString m_pBuf;
     QString *m_capture = nullptr;
