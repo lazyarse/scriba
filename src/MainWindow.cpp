@@ -2912,23 +2912,7 @@ void MainWindow::importHtmlFromFile()
         return;
     }
 
-    int idx = addTab();
-    QSignalBlocker blocker(m_tabs[idx].editor);
-    m_tabs[idx].editor->setPlainText(markdown);
-    m_tabs[idx].previewHtmlValid = false;
-    {
-        QSettings s;
-        QTextBlockFormat fmt;
-        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
-                          QTextBlockFormat::ProportionalHeight);
-        QTextCursor cursor(m_tabs[idx].editor->document());
-        cursor.select(QTextCursor::Document);
-        cursor.mergeBlockFormat(fmt);
-    }
-    m_tabs[idx].dirty = true;
-    updateTabLabel(idx);
-    m_previewInitialized = false;
-    updatePreview();
+    openImportedTab(markdown);
     statusBar()->showMessage("Imported " + QFileInfo(path).fileName(), 3000);
 }
 
@@ -2963,22 +2947,7 @@ void MainWindow::importDocxFromFile()
         return;
     }
 
-    int idx = addTab();
-    QSignalBlocker blocker(m_tabs[idx].editor);
-    m_tabs[idx].editor->setPlainText(result.markdown);
-    m_tabs[idx].previewHtmlValid = false;
-    {
-        QTextBlockFormat fmt;
-        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
-                          QTextBlockFormat::ProportionalHeight);
-        QTextCursor cursor(m_tabs[idx].editor->document());
-        cursor.select(QTextCursor::Document);
-        cursor.mergeBlockFormat(fmt);
-    }
-    m_tabs[idx].dirty = true;
-    updateTabLabel(idx);
-    m_previewInitialized = false;
-    updatePreview();
+    openImportedTab(result.markdown);
 
     if (!result.warnings.isEmpty()) {
         statusBar()->showMessage("Imported " + QFileInfo(path).fileName()
@@ -3006,26 +2975,29 @@ void MainWindow::importPdfFromFile()
         return;
     }
 
+    openImportedTab(result.markdown);
+
+    statusBar()->showMessage("Imported " + QFileInfo(path).fileName()
+                             + " (" + QString::number(result.pages) + " pages)", 5000);
+}
+
+void MainWindow::openImportedTab(const QString &markdown)
+{
     QSettings s;
     int idx = addTab();
     QSignalBlocker blocker(m_tabs[idx].editor);
-    m_tabs[idx].editor->setPlainText(result.markdown);
+    m_tabs[idx].editor->setPlainText(markdown);
     m_tabs[idx].previewHtmlValid = false;
-    {
-        QTextBlockFormat fmt;
-        fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
-                          QTextBlockFormat::ProportionalHeight);
-        QTextCursor cursor(m_tabs[idx].editor->document());
-        cursor.select(QTextCursor::Document);
-        cursor.mergeBlockFormat(fmt);
-    }
+    QTextBlockFormat fmt;
+    fmt.setLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt(),
+                      QTextBlockFormat::ProportionalHeight);
+    QTextCursor cursor(m_tabs[idx].editor->document());
+    cursor.select(QTextCursor::Document);
+    cursor.mergeBlockFormat(fmt);
     m_tabs[idx].dirty = true;
     updateTabLabel(idx);
     m_previewInitialized = false;
     updatePreview();
-
-    statusBar()->showMessage("Imported " + QFileInfo(path).fileName()
-                             + " (" + QString::number(result.pages) + " pages)", 5000);
 }
 
 void MainWindow::pasteAsMarkdown()

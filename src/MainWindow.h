@@ -170,6 +170,9 @@ private:
     void importHtmlFromFile();
     void importDocxFromFile();
     void importPdfFromFile();
+    // Creates a new tab holding imported markdown and refreshes the preview.
+    // Shared tail of the HTML/DOCX/PDF importers.
+    void openImportedTab(const QString &markdown);
     void pasteAsMarkdown();
     void exportPdf();
     void exportDocx();
