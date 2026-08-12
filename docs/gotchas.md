@@ -424,12 +424,17 @@ real printout — no separator is drawn, because the text simply continues on th
 next page. Don't "fix" this by giving flowing blocks separators; only kept
 content and explicit breaks get them (asserted by `tests/test_preview_pagination.cpp`).
 
-Re-pagination happens after every render pass by patching the preview template's
-two chains (`patchIncrementalPaginate`): the `DOMContentLoaded` pass ends in
-`scribaEndRender()` and every `scribaUpdate` heavy pass ends in `restoreScroll()`,
-both of which are followed by `if(window.scribaPaginate){window.scribaPaginate();}`.
-The hooks are guarded on `window.scribaPaginate` existing, so the normal preview
-is unaffected. While page-break mode is on, `refreshPreviewCss`,
+Re-pagination happens after every render pass from the preview script's own
+render tails: the `DOMContentLoaded` pass ends in `scribaHideOverlay()` and
+every `scribaUpdate` heavy pass ends in `restoreScroll()`, both of which call
+`if(window.scribaPaginate){window.scribaPaginate();}` (guarded, so the normal
+preview is unaffected). In `restoreScroll` the paginator runs *before* the
+anchored scroll restore (and the user-scroll check runs *before* pagination),
+so the restored position uses post-pagination geometry without separator
+insertion masquerading as a user scroll. Do not reintroduce C++-side string
+patching of the script to wire these hooks — a script reformat silently kills
+pagination (`PreviewPagination::patchIncrementalPaginate` was removed for
+exactly that failure). While page-break mode is on, `refreshPreviewCss`,
 `applyPreviewSplitWidth` and `setPreviewState`'s `center-css` writes are skipped
 and theme/geometry changes force a full page rebuild; the print CSS is sent as
 `#base-css` and the theme as empty, so the on-screen page matches the printout
@@ -492,8 +497,44 @@ split makes easy to break:
 - Keep the JS contract in `resources/preview-script.js` in sync with the
   preview features: the C++ side (`buildPreviewShellHtml`, `scribaUpdate`
   payload) patches the shared shell; a rename in one side silently breaks the
-  other. Same for the `scribaPaginate` hooks patched by
-  `ExportPdfDialog::onPageLoaded` and `src/PreviewPagination.cpp`.
+  other. The print-layout paginator runs from the script's own render tails
+  (`restoreScroll` / `scribaHideOverlay` call `window.scribaPaginate` when it
+  exists) — do not reintroduce string patching of the script from C++
+  (`PreviewPagination::patchIncrementalPaginate` was removed for exactly this
+  reason: a script reformat silently killed pagination).
+
+## Block-interpolated scroll sync (editor → preview)
+
+- Sync is **one-way**: the editor drives the preview. `MainWindow::syncPreviewScroll` maps the
+  editor's viewport-top *source line* (fractional: `cursorForPosition(center-x,1)` →
+  `blockNumber()+1 + positionInBlock()/blockLength()`) into the preview via a piecewise-linear
+  mapping over `data-line` blocks, NOT a global percentage. This is what keeps charts, images,
+  lists, tables and KaTeX aligned — a chart's rendered span maps to its fence's line span.
+- The preview page keeps `window._scribaAnchors` (sorted `{line, el}` over `#scriba-content
+  [data-line]`) rebuilt after every render settle. `scribaScrollToSourceLine(line)` interpolates
+  `scrollY = docTop(A) + (docTop(B)−docTop(A)) · (line−A.line)/(B.line−A.line)`. `data-line`
+  values are the block *start* lines from `MdRenderer`; mermaid/ECharts wrap divs carry the fence's
+  `data-line` (see `mermaidInitJs`/`echartsInitJs`).
+- In-page `scribaUpdate` restore is anchor-based: it captures the fractional source line at the
+  preview top and re-docks to that *line* after the heavy render, so async chart/image height
+  changes re-anchor to the same block instead of percent-drifting. Skip applies when the user
+  manually scrolled (`|scrollY − sy| ≥ 2`) and on tab switches (different doc; C++ re-syncs).
+  In print layout the paginator runs *before* the restore, so the re-dock uses post-pagination
+  geometry; the user-scroll check is captured before pagination so separator insertion cannot
+  masquerade as user scrolling.
+- Duplicate `data-line` values (e.g. a nested span inside an `li` carrying the same line) are
+  resolved by the binary search picking the **last** anchor with `line ≤ target` (the sort is
+  stable, so equal lines keep DOM order) — `ConsecutiveDataLineElementsPreferred` pins that
+  winner. Empty documents no-op (no anchors, `scrollY` stays put); docs shorter than the
+  viewport clamp to top/bottom without negative scroll.
+- Known limitations: (1) async chart/image loads ahead of the view can still shift it once — the
+  anchored restore bounds, but cannot fully prevent the shift; (2) long word-wrapped blocks
+  interpolate approximately, bounded by one block's extent; (3) scrolling the editor *inside* a
+  chart's fence maps linearly across the rendered chart (fence-span = chart-span); (4) whole
+  tables have no `data-line` (cells don't emit it) — the surrounding anchors interpolate across
+  the table, which is correct-per-extent but coarse internally.
+- `Preview::scrollToPercent` is retained for direct tests/back-compat but is no longer the sync
+  path (`MainWindow_Tabs` tab pre-scroll is anchor-based too).
 
 ## Corpus export: embedded (untitled) documents are exported but not TOC-linked
 
