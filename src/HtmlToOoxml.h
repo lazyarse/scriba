@@ -45,11 +45,14 @@ inline QString ooxmlRelTypeUri(OoxmlRelType t)
 }
 
 struct OoxmlImage {
-    QString relId;
-    QString fileName;
-    QByteArray pngData;
-    int cxEmu = 0;  // width in EMUs
-    int cyEmu = 0;  // height in EMUs
+    QString relId;          // PNG relationship id (a:blip r:embed)
+    QString svgRelId;       // vector relationship id (asvg:svgBlip r:embed); empty = raster only
+    QString fileName;       // word/media/image%1.png
+    QString svgFileName;    // word/media/image%1.svg
+    QByteArray pngData;     // high-DPI fallback raster
+    QByteArray svgData;     // raw SVG bytes; empty = no vector source
+    int cxEmu = 0;          // width in EMUs
+    int cyEmu = 0;          // height in EMUs
 };
 
 struct OoxmlHyperlink {

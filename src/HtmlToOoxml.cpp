@@ -394,23 +394,65 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
 
 // ── SVG / image helpers ────────────────────────────────────────────────────
 
-static std::tuple<QByteArray, int, int> rasterizeSvg(const QString &svgXml)
+// Raster density of the PNG fallback used for viewers that cannot render the
+// vector SVG part. Word 2016+ uses the SVG and ignores this PNG entirely.
+// On-page extents come from the viewBox in inches and are independent of this
+// DPI, so changing it must never change the displayed size.
+static constexpr double kSvgFallbackDpi = 300.0;
+
+// Drawing-extent cap: 5.5 inches, the widest printable figure we allow.
+static constexpr int kMaxEmu = 5029200;
+
+// Raster canvases are captured at 2× CSS pixels → 192 canvas-px/inch. Used for
+// the no-explicit-dims raster path; explicit HTML width/height and vector
+// SVGs are CSS px at 96 DPI instead (914400/96), so the 192-vs-96 distinction
+// stays documented here.
+static constexpr double kPxToEmu = 914400.0 / 192.0;
+
+static QByteArray ensureSvgXmlns(const QByteArray &svg)
 {
+    int lt = svg.indexOf("<svg");
+    int gt = svg.indexOf('>', lt);
+    if (lt < 0 || gt <= lt)
+        return svg;
+    // Only bail if an xmlns appears inside the opening <svg> tag itself;
+    // xmlns:xlink or an "xmlns" literal in an attribute value must not
+    // suppress the default namespace insertion.
+    int xmlnsPos = svg.indexOf("xmlns", lt);
+    if (xmlnsPos >= lt && xmlnsPos < gt)
+        return svg;
+    QByteArray out = svg;
+    out.insert(gt, " xmlns=\"http://www.w3.org/2000/svg\"");
+    return out;
+}
+
+// Result of rasterizing an SVG: the PNG fallback, the raw vector bytes, and
+// the on-page extent in EMUs. An empty pngData means rasterization failed.
+struct SvgRaster {
+    QByteArray pngData;
+    QByteArray svgData;
+    int cxEmu = 0;
+    int cyEmu = 0;
+};
+
+static SvgRaster rasterizeSvg(const QString &svgXml)
+{
+    SvgRaster out;
     if (svgXml.isEmpty())
-        return {QByteArray(), 0, 0};
+        return out;
 
     QSvgRenderer renderer(svgXml.toUtf8());
     if (!renderer.isValid())
-        return {QByteArray(), 0, 0};
+        return out;
 
     QRectF vb = renderer.viewBox();
     if (vb.isEmpty())
         vb = QRectF(QPointF(0, 0), renderer.defaultSize());
     if (vb.isEmpty() || vb.width() <= 0 || vb.height() <= 0)
-        return {QByteArray(), 0, 0};
+        return out;
 
-    // Rasterize at 150 DPI for good print quality (SVG default is ~72-96 DPI)
-    double scale = 150.0 / 72.0;
+    // 300-DPI fallback raster; SVGs are also embedded as-is for vector rendering.
+    double scale = kSvgFallbackDpi / 72.0;
     int w = qMax(1, static_cast<int>(vb.width() * scale));
     int h = qMax(1, static_cast<int>(vb.height() * scale));
 
@@ -422,38 +464,48 @@ static std::tuple<QByteArray, int, int> rasterizeSvg(const QString &svgXml)
     renderer.render(&painter);
     painter.end();
 
-    QByteArray pngData;
-    QBuffer buffer(&pngData);
+    QBuffer buffer(&out.pngData);
     buffer.open(QIODevice::WriteOnly);
     image.save(&buffer, "PNG");
 
     // EMUs: 1 inch = 914400 EMUs. Cap width to 5.5 inches for printable fit.
-    static constexpr int kMaxEmu = 5029200; // 5.5 inches
     double inchesW = vb.width() / 72.0;
     double inchesH = vb.height() / 72.0;
-    int cxEmu = qMax(1, static_cast<int>(inchesW * 914400.0));
-    int cyEmu = qMax(1, static_cast<int>(inchesH * 914400.0));
-    if (cxEmu > kMaxEmu) {
-        cyEmu = static_cast<int>(static_cast<qint64>(cyEmu) * kMaxEmu / cxEmu);
-        cxEmu = kMaxEmu;
+    out.cxEmu = qMax(1, static_cast<int>(inchesW * 914400.0));
+    out.cyEmu = qMax(1, static_cast<int>(inchesH * 914400.0));
+    if (out.cxEmu > kMaxEmu) {
+        out.cyEmu = static_cast<int>(static_cast<qint64>(out.cyEmu) * kMaxEmu / out.cxEmu);
+        out.cxEmu = kMaxEmu;
     }
 
-    return {pngData, cxEmu, cyEmu};
+    out.svgData = ensureSvgXmlns(svgXml.toUtf8());
+    return out;
 }
 
-static QString registerImage(const QByteArray &pngData, int cxEmu, int cyEmu)
+static int registerImage(const QByteArray &pngData, int cxEmu, int cyEmu,
+                         const QByteArray &svgData = {})
 {
     if (!g_images || pngData.isEmpty())
-        return {};
+        return -1;
     int id = ++g_imageCounter;
-    QString relId = QStringLiteral("rIdImg%1").arg(id);
-    QString fileName = QStringLiteral("media/image%1.png").arg(id);
-    g_images->push_back({relId, fileName, pngData, cxEmu, cyEmu});
-    return relId;
+    OoxmlImage img;
+    img.relId = QStringLiteral("rIdImg%1").arg(id);
+    img.fileName = QStringLiteral("media/image%1.png").arg(id);
+    img.pngData = pngData;
+    img.svgData = svgData;
+    img.cxEmu = cxEmu;
+    img.cyEmu = cyEmu;
+    if (!svgData.isEmpty()) {
+        img.svgRelId = QStringLiteral("rIdSvg%1").arg(id);
+        img.svgFileName = QStringLiteral("media/image%1.svg").arg(id);
+    }
+    g_images->push_back(img);
+    return id - 1;
 }
 
 static void writeDrawingRun(QXmlStreamWriter &w, const QString &relId,
-                            int cxEmu, int cyEmu, int docPrId = 1)
+                            const QString &svgRelId, int cxEmu, int cyEmu,
+                            int docPrId)
 {
     w.writeStartElement("w:r");
     w.writeStartElement("w:drawing");
@@ -498,7 +550,19 @@ static void writeDrawingRun(QXmlStreamWriter &w, const QString &relId,
     w.writeStartElement("pic:blipFill");
     w.writeStartElement("a:blip");
     w.writeAttribute("r:embed", relId);
-    w.writeEndElement();
+    if (!svgRelId.isEmpty()) {
+        w.writeAttribute("cstate", "print");
+        w.writeStartElement("a:extLst");
+        w.writeStartElement("a:ext");
+        w.writeAttribute("uri", "{96DAC541-7B7A-43D3-8B79-37D633B846F1}");
+        // QXmlStreamWriter cannot declare the nested `asvg` prefix because the
+        // writer's root element is stripped from bodyXml in convert(); emit a
+        // marker and replace it with a self-declaring fragment after serialization.
+        w.writeCharacters(QStringLiteral("@@SVGBLIP@") + svgRelId);
+        w.writeEndElement(); // a:ext
+        w.writeEndElement(); // a:extLst
+    }
+    w.writeEndElement(); // a:blip
     w.writeStartElement("a:stretch");
     w.writeEmptyElement("a:fillRect");
     w.writeEndElement();
@@ -527,6 +591,25 @@ static void writeDrawingRun(QXmlStreamWriter &w, const QString &relId,
     w.writeEndElement(); // wp:inline
     w.writeEndElement(); // w:drawing
     w.writeEndElement(); // w:r
+}
+
+static QString expandSvgBlipMarkers(const QString &body)
+{
+    static const QString svgNs = QStringLiteral(
+        "http://schemas.microsoft.com/office/drawing/2016/SVG/main");
+    static const QRegularExpression marker(QStringLiteral("@@SVGBLIP@(rId\\w+)"));
+    QString out = body;
+    int offset = 0;
+    auto it = marker.globalMatch(body);
+    while (it.hasNext()) {
+        auto m = it.next();
+        const QString relId = m.captured(1);
+        const QString frag = QStringLiteral("<asvg:svgBlip xmlns:asvg=\"%1\" r:embed=\"%2\"/>")
+                                 .arg(svgNs, relId);
+        out.replace(m.capturedStart(0) + offset, m.capturedLength(0), frag);
+        offset += frag.size() - m.capturedLength(0);
+    }
+    return out;
 }
 
 static void handleSvgBlock(SimpleHtmlParser &parser)
@@ -567,14 +650,15 @@ static void handleSvgBlock(SimpleHtmlParser &parser)
     QString svgXml = raw.mid(startPos, p - startPos);
     parser.seekTo(p);
 
-    auto [pngData, cxEmu, cyEmu] = rasterizeSvg(svgXml);
-    if (pngData.isEmpty()) return;
+    SvgRaster raster = rasterizeSvg(svgXml);
+    if (raster.pngData.isEmpty()) return;
 
-    QString relId = registerImage(pngData, cxEmu, cyEmu);
-    if (relId.isEmpty()) return;
+    int imgIdx = registerImage(raster.pngData, raster.cxEmu, raster.cyEmu, raster.svgData);
+    if (imgIdx < 0) return;
 
+    const OoxmlImage &img = g_images->at(imgIdx);
     bodyWriter->writeStartElement("w:p");
-    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu, g_imageCounter);
+    writeDrawingRun(*bodyWriter, img.relId, img.svgRelId, raster.cxEmu, raster.cyEmu, imgIdx + 1);
     bodyWriter->writeEndElement();
 }
 
@@ -614,13 +698,14 @@ static void handleSvgInline(SimpleHtmlParser &parser)
     QString svgXml = raw.mid(startPos, p - startPos);
     parser.seekTo(p);
 
-    auto [pngData, cxEmu, cyEmu] = rasterizeSvg(svgXml);
-    if (pngData.isEmpty()) return;
+    SvgRaster raster = rasterizeSvg(svgXml);
+    if (raster.pngData.isEmpty()) return;
 
-    QString relId = registerImage(pngData, cxEmu, cyEmu);
-    if (relId.isEmpty()) return;
+    int imgIdx = registerImage(raster.pngData, raster.cxEmu, raster.cyEmu, raster.svgData);
+    if (imgIdx < 0) return;
 
-    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu, g_imageCounter);
+    const OoxmlImage &img = g_images->at(imgIdx);
+    writeDrawingRun(*bodyWriter, img.relId, img.svgRelId, raster.cxEmu, raster.cyEmu, imgIdx + 1);
 }
 
 static void handleImgTag(const HtmlToken &tok)
@@ -659,6 +744,7 @@ static void handleImgTag(const HtmlToken &tok)
 
     int imgW = 0;
     int imgH = 0;
+    qreal dispW = 0, dispH = 0;   // CSS-px display size (SVG branch only)
     QImage image;
     QByteArray pngData;
 
@@ -680,8 +766,8 @@ static void handleImgTag(const HtmlToken &tok)
         // Compute display size in pixels. Aspect ratio preserved when only one
         // dimension given. Natural size uses the SVG's intrinsic dimensions.
         qreal ar = vb.height() > 0 ? vb.width() / vb.height() : 1.0;
-        qreal dispW = targetW >= 0 ? targetW : vb.width();
-        qreal dispH = targetH >= 0 ? targetH : vb.height();
+        dispW = targetW >= 0 ? targetW : vb.width();
+        dispH = targetH >= 0 ? targetH : vb.height();
         if (targetW >= 0 && targetH < 0)
             dispH = dispW / ar;
         else if (targetW < 0 && targetH >= 0)
@@ -691,10 +777,10 @@ static void handleImgTag(const HtmlToken &tok)
         if (dispW <= 0 || dispH <= 0)
             return;
 
-        // Rasterize at 2× CSS pixels for HiDPI print quality (matches the
-        // 192 px/inch convention used below for EMU conversion).
-        imgW = qMax(1, static_cast<int>(dispW * 2));
-        imgH = qMax(1, static_cast<int>(dispH * 2));
+        // Rasterize fallback at 300 DPI for non-SVG-aware viewers (Word 2016+
+        // renders the embedded vector and ignores this PNG).
+        imgW = qMax(1, static_cast<int>(dispW * kSvgFallbackDpi / 96.0));
+        imgH = qMax(1, static_cast<int>(dispH * kSvgFallbackDpi / 96.0));
         QImage svgImage(imgW, imgH, QImage::Format_ARGB32);
         svgImage.fill(Qt::white);
         QPainter painter(&svgImage);
@@ -750,22 +836,40 @@ static void handleImgTag(const HtmlToken &tok)
     buf.open(QIODevice::WriteOnly);
     image.save(&buf, "PNG");
 
-    // EMUs: 1 inch = 914400 EMUs. Cap width to 5.5 inches.
-    // Canvas captured at 2× CSS pixels (HiDPI in convertKatexToImages).
-    // CSS pixels are at 96 DPI → 192 canvas-pixels per inch.
-    static constexpr int kMaxEmu = 5029200;
-    static constexpr double kPxToEmu = 914400.0 / 192.0;
-    int cxEmu = qMax(1, static_cast<int>(imgW * kPxToEmu));
-    int cyEmu = qMax(1, static_cast<int>(imgH * kPxToEmu));
+    // ── extents ────────────────────────────────────────────────────────────
+    int cxEmu = 0, cyEmu = 0;
+    QByteArray svgData;   // raw vector bytes, if any
+    bool explicitHtmlDims = false;
+    int htmlW = -1, htmlH = -1;
+
+    if (isSvg) {
+        // Vector: keep the original SVG for embedding; extents are CSS px @96 DPI.
+        cxEmu = qMax(1, static_cast<int>(dispW * 914400.0 / 96.0));
+        cyEmu = qMax(1, static_cast<int>(dispH * 914400.0 / 96.0));
+        svgData = ensureSvgXmlns(imgData);
+    } else {
+        bool okW = false, okH = false;
+        htmlW = tok.attrs.value(QStringLiteral("width")).toInt(&okW);
+        htmlH = tok.attrs.value(QStringLiteral("height")).toInt(&okH);
+        explicitHtmlDims = (okW && okH);
+        if (explicitHtmlDims) {
+            cxEmu = qMax(1, static_cast<int>(htmlW * 914400.0 / 96.0));
+            cyEmu = qMax(1, static_cast<int>(htmlH * 914400.0 / 96.0));
+        } else {
+            cxEmu = qMax(1, static_cast<int>(imgW * kPxToEmu));
+            cyEmu = qMax(1, static_cast<int>(imgH * kPxToEmu));
+        }
+    }
     if (cxEmu > kMaxEmu) {
         cyEmu = static_cast<int>(static_cast<qint64>(cyEmu) * kMaxEmu / cxEmu);
         cxEmu = kMaxEmu;
     }
 
-    QString relId = registerImage(pngData, cxEmu, cyEmu);
-    if (relId.isEmpty()) return;
+    int imgIdx = registerImage(pngData, cxEmu, cyEmu, svgData);
+    if (imgIdx < 0) return;
 
-    writeDrawingRun(*bodyWriter, relId, cxEmu, cyEmu, g_imageCounter);
+    const OoxmlImage &img = g_images->at(imgIdx);
+    writeDrawingRun(*bodyWriter, img.relId, img.svgRelId, cxEmu, cyEmu, imgIdx + 1);
 }
 
 // ── style-attribute helper ────────────────────────────────────────────────────
@@ -974,6 +1078,36 @@ static void writeCellBorders(QXmlStreamWriter &w, const QString &styleAttr)
     w.writeEndElement();
 }
 
+// Count the cells in the table's first row so <w:tblGrid> can give each column
+// an equal share of the table width. The main parser is forward-only, so scan
+// with a fresh parser positioned right after the <table> tag.
+static int firstRowColumnCount(SimpleHtmlParser &parser)
+{
+    SimpleHtmlParser scan(parser.rawHtml());
+    scan.seekTo(parser.pos());
+    int cols = 0;
+    bool inFirstRow = false;
+    while (!scan.atEnd()) {
+        scan.readNext();
+        const auto &tok = scan.current();
+        if (tok.type == HtmlToken::TagClose) {
+            if (inFirstRow && tok.name == QStringLiteral("tr"))
+                break;
+            continue;
+        }
+        if (tok.type != HtmlToken::TagOpen && tok.type != HtmlToken::SelfClose)
+            continue;
+        const QString &n = tok.name;
+        if (n == QStringLiteral("tr")) {
+            inFirstRow = true;
+        } else if (inFirstRow
+                   && (n == QStringLiteral("th") || n == QStringLiteral("td"))) {
+            ++cols;
+        }
+    }
+    return qMax(1, cols);
+}
+
 static void handleTable(SimpleHtmlParser &parser,
                         const QMap<QString, QString> &attrs = {})
 {
@@ -985,32 +1119,53 @@ static void handleTable(SimpleHtmlParser &parser,
     bodyWriter->writeAttribute("w:type", "dxa");
     bodyWriter->writeEndElement();
 
-    // Table-level borders from style attribute
+    // Table borders: always emitted — markdown tables carry no inline border
+    // style (borders come from the preview CSS), so without this the grid is
+    // invisible in Word. An inline border style (HTML-authored tables)
+    // overrides the four outer sides; inside separators stay single 0.5 pt.
+    bodyWriter->writeStartElement("w:tblBorders");
+    auto writeBorderSide = [&](const QString &side, const QString &val,
+                               const QString &sz, const QString &color) {
+        bodyWriter->writeStartElement("w:" + side);
+        bodyWriter->writeAttribute("w:val", val);
+        bodyWriter->writeAttribute("w:sz", sz);
+        bodyWriter->writeAttribute("w:space", "0");
+        bodyWriter->writeAttribute("w:color", color);
+        bodyWriter->writeEndElement();
+    };
     QString tableStyle = attrs.value(QStringLiteral("style"));
-    if (!tableStyle.isEmpty()) {
-        QString borderVal = CssValueParser::extractCssProperty(tableStyle, QStringLiteral("border"));
-        if (!borderVal.isEmpty() && borderVal != QStringLiteral("none") && borderVal != QStringLiteral("0")) {
-            auto bs = CssValueParser::parseCssBorder(borderVal);
-            if (bs.stroke != QStringLiteral("nil")) {
-                bodyWriter->writeStartElement("w:tblBorders");
-                auto writeSide = [&](const QString &side) {
-                    bodyWriter->writeStartElement("w:" + side);
-                    bodyWriter->writeAttribute("w:val", bs.stroke);
-                    bodyWriter->writeAttribute("w:sz", QString::number(bs.size));
-                    bodyWriter->writeAttribute("w:space", "0");
-                    bodyWriter->writeAttribute("w:color", bs.color);
-                    bodyWriter->writeEndElement();
-                };
-                writeSide(QStringLiteral("top"));
-                writeSide(QStringLiteral("left"));
-                writeSide(QStringLiteral("bottom"));
-                writeSide(QStringLiteral("right"));
-                bodyWriter->writeEndElement();
-            }
-        }
-    }
+    QString borderVal = CssValueParser::extractCssProperty(tableStyle, QStringLiteral("border"));
+    auto bs = CssValueParser::parseCssBorder(borderVal);
+    bool useInline = bs.stroke != QStringLiteral("nil");
+    writeBorderSide(QStringLiteral("top"), useInline ? bs.stroke : QStringLiteral("single"),
+                    useInline ? QString::number(bs.size) : QStringLiteral("4"),
+                    useInline ? bs.color : QStringLiteral("auto"));
+    writeBorderSide(QStringLiteral("left"), useInline ? bs.stroke : QStringLiteral("single"),
+                    useInline ? QString::number(bs.size) : QStringLiteral("4"),
+                    useInline ? bs.color : QStringLiteral("auto"));
+    writeBorderSide(QStringLiteral("bottom"), useInline ? bs.stroke : QStringLiteral("single"),
+                    useInline ? QString::number(bs.size) : QStringLiteral("4"),
+                    useInline ? bs.color : QStringLiteral("auto"));
+    writeBorderSide(QStringLiteral("right"), useInline ? bs.stroke : QStringLiteral("single"),
+                    useInline ? QString::number(bs.size) : QStringLiteral("4"),
+                    useInline ? bs.color : QStringLiteral("auto"));
+    writeBorderSide(QStringLiteral("insideH"), QStringLiteral("single"),
+                    QStringLiteral("4"), QStringLiteral("auto"));
+    writeBorderSide(QStringLiteral("insideV"), QStringLiteral("single"),
+                    QStringLiteral("4"), QStringLiteral("auto"));
+    bodyWriter->writeEndElement(); // w:tblBorders
 
     bodyWriter->writeEndElement(); // w:tblPr
+
+    // Column widths: equal split of the 9072 dxa table width into one gridCol
+    // per first-row cell, emitted before the first row per the w:tbl schema.
+    int cols = firstRowColumnCount(parser);
+    bodyWriter->writeStartElement("w:tblGrid");
+    for (int c = 0; c < cols; ++c) {
+        bodyWriter->writeEmptyElement("w:gridCol");
+        bodyWriter->writeAttribute("w:w", QString::number(9072 / cols));
+    }
+    bodyWriter->writeEndElement(); // w:tblGrid
 
     while (!parser.atEnd()) {
         parser.readNext();
@@ -1146,6 +1301,21 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
             bodyWriter->writeStartElement("w:p");
             handleImgTag(tok);
             bodyWriter->writeEndElement();
+        } else if (tag == "hr") {
+            // Markdown --- separators must not vanish: render as a paragraph
+            // with a bottom border instead of falling into the void-element skip.
+            bodyWriter->writeStartElement("w:p");
+            bodyWriter->writeStartElement("w:pPr");
+            bodyWriter->writeStartElement("w:pBdr");
+            bodyWriter->writeStartElement("w:bottom");
+            bodyWriter->writeAttribute("w:val", "single");
+            bodyWriter->writeAttribute("w:sz", "6");
+            bodyWriter->writeAttribute("w:space", "1");
+            bodyWriter->writeAttribute("w:color", "808080");
+            bodyWriter->writeEndElement();
+            bodyWriter->writeEndElement();
+            bodyWriter->writeEndElement();
+            bodyWriter->writeEndElement();
         } else if (isVoidElement(tag)) {
             // Void elements have no closing tag — skip
         } else {
@@ -1195,7 +1365,7 @@ OoxmlResult HtmlToOoxml::convert(const QString &html, const QString &themeCss)
 
     w.writeEndElement(); // x
 
-    QString raw = QString::fromUtf8(buf);
+    QString raw = expandSvgBlipMarkers(QString::fromUtf8(buf));
     int start = raw.indexOf('>');
     int end = raw.lastIndexOf('<');
     if (start >= 0 && end > start)
@@ -1348,12 +1518,12 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
     w.writeEndElement();
     w.writeStartElement("w:pPr");
     w.writeStartElement("w:spacing");
-    w.writeAttribute("w:before", "120");
-    w.writeAttribute("w:after", "120");
+    w.writeAttribute("w:before", "240");
+    w.writeAttribute("w:after", "240");
     w.writeEndElement();
     w.writeStartElement("w:ind");
-    w.writeAttribute("w:left", "240");
-    w.writeAttribute("w:right", "240");
+    w.writeAttribute("w:left", "480");
+    w.writeAttribute("w:right", "480");
     w.writeEndElement();
     w.writeStartElement("w:shd");
     w.writeAttribute("w:val", "clear");
@@ -1452,7 +1622,10 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
         w.writeAttribute("w:color", aCol);
         w.writeEndElement();
         w.writeStartElement("w:between");
-        w.writeAttribute("w:val", "none");
+        w.writeAttribute("w:val", "single");
+        w.writeAttribute("w:sz", "24");
+        w.writeAttribute("w:space", "8");
+        w.writeAttribute("w:color", aCol);
         w.writeEndElement();
         w.writeEndElement();
         w.writeEndElement();
@@ -1492,7 +1665,10 @@ QString HtmlToOoxml::buildStylesXml(const QString &themeCss)
         w.writeAttribute("w:color", aCol);
         w.writeEndElement();
         w.writeStartElement("w:between");
-        w.writeAttribute("w:val", "none");
+        w.writeAttribute("w:val", "single");
+        w.writeAttribute("w:sz", "24");
+        w.writeAttribute("w:space", "8");
+        w.writeAttribute("w:color", aCol);
         w.writeEndElement();
         w.writeEndElement();
         w.writeEndElement();
@@ -1519,6 +1695,12 @@ static void writeLvl(QXmlStreamWriter &w, int ilvl, const QString &fmt,
     w.writeEndElement();
     w.writeStartElement("w:lvlText");
     w.writeAttribute("w:val", text);
+    w.writeEndElement();
+    w.writeStartElement("w:pPr");
+    w.writeStartElement("w:ind");
+    w.writeAttribute("w:left", QString::number(720 + ilvl * 720));
+    w.writeAttribute("w:hanging", "360");
+    w.writeEndElement();
     w.writeEndElement();
     w.writeEndElement();
 }

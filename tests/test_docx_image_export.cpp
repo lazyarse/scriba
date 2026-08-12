@@ -146,6 +146,19 @@ TEST_F(DocxImageExportTest, KaTeXImageConversionProducesImgTags)
     }
 }
 
+TEST_F(DocxImageExportTest, KaTeXImageModeMarksCssPxDims)
+{
+    QUrl baseUrl = QUrl::fromLocalFile(QDir::currentPath() + "/");
+    QString fullHtml = JsRenderEngine::buildFullHtmlForDocx(
+        m_htmlBody, m_css, QStringLiteral("bw"), QStringLiteral("default"));
+    QString renderedHtml = JsRenderEngine::renderSync(fullHtml, baseUrl.toString());
+
+    EXPECT_TRUE(renderedHtml.contains(QRegularExpression("<img[^>]*\\bwidth=\"\\d+\"")))
+        << "convertKatexToImages must set CSS-px width/height attributes on images";
+    EXPECT_TRUE(renderedHtml.contains(QRegularExpression("<img[^>]*\\bheight=\"\\d+\"")))
+        << "convertKatexToImages must set CSS-px width/height attributes on images";
+}
+
 TEST_F(DocxImageExportTest, SvgImageWithUpscaleDimension)
 {
     // A 200px-natural SVG asked to render at 400px via the #400x suffix.
@@ -195,6 +208,24 @@ TEST_F(DocxImageExportTest, SvgImageWithoutDimensionKeepsNaturalSize)
     EXPECT_NEAR(cy, naturalH, naturalH * 0.02)
         << "Natural-size SVG should keep its intrinsic height";
     EXPECT_FALSE(result.images.isEmpty());
+}
+
+TEST_F(DocxImageExportTest, SvgDataUriCarriesRawSvg)
+{
+    QString html = QStringLiteral("<p><img src=\"%1\" alt=\"svg\"></p>").arg(svgDataUri());
+    OoxmlResult result = HtmlToOoxml::convert(html);
+
+    ASSERT_FALSE(result.images.isEmpty());
+    EXPECT_FALSE(result.images[0].svgData.isEmpty());
+    EXPECT_TRUE(result.images[0].svgFileName.endsWith(".svg"));
+    EXPECT_FALSE(result.images[0].svgRelId.isEmpty());
+
+    // Vector extents are unchanged: natural 200px @96 DPI (equivalent to the
+    // previous 2x@192 px/inch trade-off: 914400/96 == 2*(914400/192)).
+    static constexpr double kPxToEmu = 914400.0 / 96.0;
+    auto [cx, cy] = firstExtent(result.bodyXml);
+    EXPECT_NEAR(cx, 200 * kPxToEmu, 200 * kPxToEmu * 0.01);
+    EXPECT_NEAR(cy, 100 * kPxToEmu, 100 * kPxToEmu * 0.01);
 }
 
 int main(int argc, char **argv)

@@ -554,3 +554,34 @@ document exists, the relative path collapses to just the file name — two
 out-of-root documents in unrelated trees never collide because the
 common-ancestor logic is computed once across all of them.
 
+## DOCX vector images (SVG) and raster fallbacks
+
+- Scriba embeds every genuinely-SVG source (mermaid, ECharts `svg` renderer, twemoji,
+  data-URI SVG images) as a real Word vector part: `a:blip r:embed` → PNG fallback plus an
+  `a:extLst`/`a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"`/`asvg:svgBlip r:embed` → SVG
+  extension (namespace `http://schemas.microsoft.com/office/drawing/2016/SVG/main`). Word 2016+
+  renders the vector at print resolution; everything else shows the 300-DPI PNG fallback.
+- The fallback PNG density is `kSvgFallbackDpi` (300) in `src/HtmlToOoxml.cpp`. SVG-derived
+  extents are computed from CSS px at 96 DPI, so changing the fallback DPI never changes on-page
+  size. KaTeX **image** mode rasterizes at `scale=3.125` (300/96) and sets HTML `width`/`height`
+  (CSS px) so `handleImgTag` can size the drawing from CSS px.
+- `QXmlStreamWriter` cannot declare the nested `asvg` prefix on the svgBlip (the writer's root
+  element is stripped from `bodyXml` in `HtmlToOoxml::convert`), so the extension is emitted as a
+  `@@SVGBLIP@rId` text marker and expanded to a self-declaring `<asvg:svgBlip/>` fragment after
+  serialization. Keep the marker token distinct from any user text.
+- Word's SVG renderer ignores scripts, external references, and some filters, and does not
+  reliably draw `<foreignObject>` HTML — therefore KaTeX image mode stays a 300-DPI raster canvas
+  rather than an SVG wrapper. KaTeX **OMML** mode is untouched and native. (Note: OMML is NOT the
+  default export math mode — the dialog defaults to Images (`ExportDocxDialog.cpp`, `DocxMathMode`
+  default); OMML is forced only for corpus export.)
+- The DOCX importer ignores SVG parts: a blip's `r:embed` still points at the PNG fallback, so
+  import behavior is unchanged (`OoxmlConverter.cpp` mimes `.svg` already).
+- Extent math has TWO distinct DPI bases, and mixing them up is the classic bug here:
+  `rasterizeSvg` derives extents from the SVG viewBox at 72 DPI (`vb.width() × 914400/72`),
+  while the `handleImgTag` SVG/HTML-dimension paths size the Word drawing from CSS px at 96 DPI
+  (`914400/96`) and the raster-no-dims path uses 192 px/inch (`kPxToEmu = 914400/192`). These
+  bases differ by 96/72 = 4/3 (e.g. the same 200-unit-wide SVG yields 12700 EMU per unit on the
+  viewBox path vs 9525 on the CSS-px path). Each SVG source routes to exactly ONE of these paths,
+  so the discrepancy never shows for the same image — but a DPI-basis change to one path must be
+  mirrored in the other.
+

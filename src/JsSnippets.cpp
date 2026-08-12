@@ -214,9 +214,9 @@ const QString katexToImageJs = QStringLiteral(
     "resolve();return;"
     "}"
     "var canvas=document.createElement('canvas');"
-    "var scale=2;"
-    "canvas.width=rect.width*scale;"
-    "canvas.height=rect.height*scale;"
+    "var scale=3.125;"   // 300 DPI fallback raster (300/96)
+    "canvas.width=Math.ceil(rect.width*scale);"
+    "canvas.height=Math.ceil(rect.height*scale);"
     "var ctx=canvas.getContext('2d');"
     "ctx.scale(scale,scale);"
     "var data='<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"'+rect.width+'\" height=\"'+rect.height+'\">'"
@@ -233,6 +233,8 @@ const QString katexToImageJs = QStringLiteral(
     "var dataUrl=canvas.toDataURL('image/png');"
     "var imgEl=document.createElement('img');"
     "imgEl.src=dataUrl;"
+    "imgEl.width=Math.round(rect.width);"    // CSS px → 96-DPI extent in HtmlToOoxml
+    "imgEl.height=Math.round(rect.height);"
     "imgEl.style.verticalAlign='middle';"
     "el.parentNode.replaceChild(imgEl,el);"
     "resolve();"

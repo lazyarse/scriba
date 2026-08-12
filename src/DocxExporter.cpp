@@ -58,7 +58,8 @@ static QByteArray deflateRaw(const QByteArray &data)
     return out;
 }
 
-static QByteArray buildContentTypes(int imageCount, bool hasFooter = false)
+static QByteArray buildContentTypes(int imageCount, bool hasFooter = false,
+                                    bool hasSvg = false)
 {
     QByteArray out;
     QXmlStreamWriter w(&out);
@@ -95,6 +96,12 @@ static QByteArray buildContentTypes(int imageCount, bool hasFooter = false)
         w.writeStartElement("Default");
         w.writeAttribute("Extension", "png");
         w.writeAttribute("ContentType", "image/png");
+        w.writeEndElement();
+    }
+    if (hasSvg) {
+        w.writeStartElement("Default");
+        w.writeAttribute("Extension", "svg");
+        w.writeAttribute("ContentType", "image/svg+xml");
         w.writeEndElement();
     }
     if (hasFooter) {
@@ -272,6 +279,13 @@ static QByteArray buildRels(const QVector<OoxmlImage> &images,
         w.writeAttribute("Type", ooxmlRelTypeUri(OoxmlRelType::Image));
         w.writeAttribute("Target", img.fileName);
         w.writeEndElement();
+        if (!img.svgRelId.isEmpty()) {
+            w.writeStartElement("Relationship");
+            w.writeAttribute("Id", img.svgRelId);
+            w.writeAttribute("Type", ooxmlRelTypeUri(OoxmlRelType::Image));
+            w.writeAttribute("Target", img.svgFileName);
+            w.writeEndElement();
+        }
     }
     for (const auto &hl : hyperlinks) {
         w.writeStartElement("Relationship");
@@ -406,6 +420,10 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
 {
     OoxmlResult ooxml = HtmlToOoxml::convert(html, css);
 
+    bool hasSvg = false;
+    for (const auto &img : ooxml.images)
+        if (!img.svgData.isEmpty()) { hasSvg = true; break; }
+
     bool hasFooter = options.pageNumbers;
     QString footerRelId;
     if (hasFooter)
@@ -424,7 +442,7 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
     {
         ZipEntry e;
         e.name = "[Content_Types].xml";
-        e.data = buildContentTypes(ooxml.images.size(), hasFooter);
+        e.data = buildContentTypes(ooxml.images.size(), hasFooter, hasSvg);
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
     }
@@ -497,6 +515,13 @@ bool DocxExporter::exportToDocx(const QString &html, const QString &outputPath,
         e.data = img.pngData;
         e.crc32 = zipCrc32(e.data);
         entries.append(e);
+        if (!img.svgData.isEmpty()) {
+            ZipEntry s;
+            s.name = "word/" + img.svgFileName;
+            s.data = img.svgData;
+            s.crc32 = zipCrc32(s.data);
+            entries.append(s);
+        }
     }
 
     // Compress each entry (raw DEFLATE); fall back to STORE if it doesn't shrink.
