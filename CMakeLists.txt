@@ -68,6 +68,8 @@ target_link_libraries(scriba_gitgraph PRIVATE libgit2package Qt6::Core)
 set(SCRIBA_GUTTER_SOURCES src/Gutter.cpp)
 
 set(SCRIBA_EDITOR_SOURCES src/Editor.cpp
+    src/EditorTyping.cpp src/EditorTable.cpp src/EditorFolding.cpp
+    src/EditorCompletions.cpp src/EditorMenu.cpp
     ${SCRIBA_GUTTER_SOURCES})
 
 set(SCRIBA_MAINWINDOW_SOURCES src/MainWindow.cpp)
