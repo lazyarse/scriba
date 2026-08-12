@@ -77,6 +77,10 @@ set(SCRIBA_MAINWINDOW_SOURCES src/MainWindow.cpp
     src/MainWindow_Corpus.cpp src/MainWindow_Menu.cpp
     src/MainWindow_Validation.cpp)
 
+set(SCRIBA_PREFS_SOURCES src/PreferencesDialog.cpp src/PreferencesPages.cpp
+    src/PreferencesPagesTheme.cpp src/PreferencesPagesContent.cpp
+    src/PreferencesPagesSystem.cpp)
+
 set(SCRIBA_APP_WEBENGINE_SOURCES
     src/PreviewPagination.cpp
     ${SCRIBA_MAINWINDOW_SOURCES}
@@ -87,7 +91,7 @@ set(SCRIBA_APP_WEBENGINE_SOURCES
     ${SCRIBA_EDITOR_SOURCES}
     src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp
     src/PdfRenderer.cpp src/CssConfig.cpp src/CssLoader.cpp
-    src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+    ${SCRIBA_PREFS_SOURCES} src/CssEditorDialog.cpp src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp
     src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp
     src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp
@@ -110,7 +114,7 @@ add_executable(scriba WIN32
     src/CssConfig.cpp
     src/CssLoader.cpp
     src/CssUtils.cpp
-    src/PreferencesDialog.cpp
+    ${SCRIBA_PREFS_SOURCES}
     src/CssEditorDialog.cpp
     src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp
@@ -581,7 +585,7 @@ if(BUILD_TESTS)
     add_test(NAME test_spell_check_dialog COMMAND ${_TEST_PREFIX} ./test_spell_check_dialog)
 
     add_executable(test_preferences_search tests/test_preferences_search.cpp
-        src/PreferencesDialog.cpp src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        ${SCRIBA_PREFS_SOURCES} src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/CssConfig.cpp src/CssLoader.cpp
         resources/scriba.qrc)
     target_include_directories(test_preferences_search PRIVATE ${CMAKE_SOURCE_DIR}/src)

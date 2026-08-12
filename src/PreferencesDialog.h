@@ -90,6 +90,9 @@ private:
     // editor wraps at a fixed column count, the column count takes over as the
     // editor's max width, so the px controls are greyed out.
     void updateContentWidthEnable();
+    // Builds the 16x16 color-swatch buttons used on the Editor (appearance
+    // overrides), Gutter and Spelling (underline color) pages.
+    QPushButton *makeSwatchBtn(const QString &hex);
 
     CssConfig *m_config;
     CssLoader *m_loader;
