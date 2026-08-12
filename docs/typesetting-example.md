@@ -163,8 +163,8 @@ lines above the cut stay on the first page, the rest flow onto the next.
 
 ## Headings keep with following text
 
-A heading is kept with the paragraph that follows it, so it is never the last
-thing on a page — no stranded title above a page of white space.
+A heading is kept with the paragraph which follows it, so it is never the last
+thing on a page — no stranded title above a page of white space unless there is an explicit `<!-- page-break -->` declaration.
 
 ### This heading travels with the text below it
 

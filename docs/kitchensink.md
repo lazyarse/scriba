@@ -1,3 +1,4 @@
+
 # Kitchen Sink
 
 A quick tour of what Scriba can do.
@@ -21,7 +22,7 @@ When rendering the preview and exports (PDF, DOCX, HTML), Scriba can convert pla
 - **Ellipsis:** To be continued...
 - **Multiplication:** 3x4 and 3 x 4.
 - **Degrees, fractions and primes:** 90oF, 1/2, 3/4, 5'10" tall.
-- **Non-breaking spaces:** a bird, 10 kg, 10 %.
+- **Non-breaking spaces to ensure they stay together:** a bird, 10 kg, 10 %.
 - **Symbols:** (c) 2026, (r), (tm), (p), (sm).
 
 ### Header Links
@@ -33,7 +34,7 @@ Jump to any heading in this document by linking to its slug:
 - [Mermaid Diagrams](#mermaid-diagrams)
 - [Find & Replace](#find-replace)
 
-Write `[text](#heading)` for same-document jumps and `[text](other.md#heading)` to jump to a heading in another markdown file. Links to headings that don't exist get an amber squiggle in the editor.
+Write `[text](#heading)` for same-document jumps and `[text](other.md#heading)` to jump to a heading in another markdown file. Links to headings that don't exist get a squiggle in the editor.
 
 ### Images
 
@@ -91,11 +92,11 @@ Task lists:
 
 ### Tables
 
-| Feature | Status |
-|---------|--------|
-| Tables | ✓ |
-| Strikethrough | ✓ |
-| Task lists | ✓ |
+| Feature       | Status |
+|---------------|--------|
+| Tables        | ✓      |
+| Strikethrough | ✓      |
+| Task lists    | ✓      |
 
 ### Code
 
@@ -201,7 +202,7 @@ $$
 > [!note]
 > Useful information you shouldn't overlook.
 
-> [!tip]
+> [!tip] Tip: Read me!
 > This admonition has a custom title instead of the default "Tip".
 
 > [!important]
@@ -213,12 +214,9 @@ $$
 > [!caution]
 > This could have negative consequences.
 
-> [!warning] HIGH VOLTAGE!
-> Custom titles work too. Set different icons via CSS.
-
 ## Mermaid Diagrams
 
-See the [Mermaid docs](https://mermaid.js.org/intro/) for the full syntax reference.
+See the [Mermaid docs](https://mermaid.js.org/intro/) for the full syntax reference, and [the specific Mermaid diagrams kitchen sink](mermaid.md) for lots more examples.
 
 ### Flowchart
 
@@ -261,7 +259,7 @@ pie title Time spent
 
 ## ECharts Charts
 
-Charts are written as ECharts option objects in ` ```ec ` code blocks (see the [ECharts docs](https://echarts.apache.org/) for the full option reference).
+Charts are written as ECharts option objects in ` ```ec ` code blocks (see the [ECharts docs](https://echarts.apache.org/) for the full option reference) and the [ECharts kitchensink](echarts.md).
 
 ### Bar chart
 
@@ -287,8 +285,8 @@ Charts are written as ECharts option objects in ` ```ec ` code blocks (see the [
 ```ec
 {
   "tooltip": {"trigger": "axis"},
-  "xAxis": {"type": "value", "name": "X Axis"},
-  "yAxis": {"type": "value", "name": "Y Axis"},
+  "xAxis": {"type": "value", "name": "X Axis", "min": 5},
+  "yAxis": {"type": "value", "name": "Y Axis", "min": 0},
   "series": [
     {
       "type": "scatter",
@@ -303,60 +301,6 @@ Charts are written as ECharts option objects in ` ```ec ` code blocks (see the [
         [20, 30],
         [26, 38]
       ]
-    }
-  ]
-}
-```
-
-### Candlestick stock chart
-
-```ec
-{
-  "title": {"text": "Sample OHLC"},
-  "tooltip": {"trigger": "axis", "axisPointer": {"type": "cross"}},
-  "legend": {"data": ["OHLC", "MA5", "MA20"]},
-  "grid": {
-    "left": "5%",
-    "right": "5%",
-    "top": "8%",
-    "bottom": "12%"
-  },
-  "xAxis": {
-    "type": "category",
-    "data": ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-08"],
-    "boundaryGap": false
-  },
-  "yAxis": {"type": "value", "scale": true},
-  "dataZoom": [
-    {"type": "inside"},
-    {"type": "slider", "bottom": 20, "height": 20}
-  ],
-  "series": [
-    {
-      "name": "OHLC",
-      "type": "candlestick",
-      "data": [
-        [152.4, 153.9, 151.2, 154.8],
-        [153.9, 154.6, 152.0, 155.1],
-        [154.6, 156.2, 153.8, 156.7],
-        [156.2, 154.7, 154.1, 156.9],
-        [154.7, 153.4, 152.9, 155.3],
-        [153.4, 152.1, 151.5, 154.2]
-      ]
-    },
-    {
-      "name": "MA5",
-      "type": "line",
-      "data": [null, null, null, null, 154.56, 154.2],
-      "smooth": true,
-      "showSymbol": false
-    },
-    {
-      "name": "MA20",
-      "type": "line",
-      "data": [null, null, null, null, null, null],
-      "smooth": true,
-      "showSymbol": false
     }
   ]
 }
@@ -437,7 +381,7 @@ Charts are written as ECharts option objects in ` ```ec ` code blocks (see the [
 }
 ```
 
-### Treemap
+### Interactive Treemap
 
 ```ec
 {
