@@ -78,126 +78,83 @@ static QJsonObject axisObject(const QJsonObject &spec, const char *key)
     return v.toArray().at(0).toObject();
 }
 
-bool parseChartSpec(const QByteArray &specJson, ChartSpecData &out)
+static bool parseNameValueItems(const QJsonArray &data, ChartSpecData &out)
 {
-    QJsonDocument doc = QJsonDocument::fromJson(specJson);
-    if (!doc.isObject())
-        return false;
-    const QJsonObject spec = doc.object();
-    const QJsonArray series = spec.value("series").toArray();
-    if (series.isEmpty())
-        return false;
-
-    if (!spec.value("animation").toBool(true))
-        out.animate = false;
-
-    const QJsonObject title = spec.value("title").toObject();
-    if (title.contains("text"))
-        out.title = title.value("text").toString();
-
-    if (spec.value("tooltip").isObject())
-        out.tooltip = true;
-
-    const QJsonObject s0 = series.at(0).toObject();
-    const QString type = s0.value("type").toString();
-    if (type == QLatin1String("candlestick"))
-        return false;
-    if (type == QLatin1String("bar")) out.type = "bar";
-    else if (type == QLatin1String("scatter")) out.type = "scatter";
-    else if (type == QLatin1String("effectScatter")) out.type = "effectScatter";
-    else if (type == QLatin1String("pictorialBar")) out.type = "pictorialBar";
-    else if (type == QLatin1String("pie")) out.type = "pie";
-    else if (type == QLatin1String("line"))
-        out.type = s0.contains("areaStyle") ? "area" : "line";
-    else if (type == QLatin1String("funnel") || type == QLatin1String("gauge"))
-        out.type = type;
-    else if (type == QLatin1String("radar"))
-        out.type = "radar";
-    else if (type == QLatin1String("heatmap"))
-        out.type = s0.value("coordinateSystem").toString() == QLatin1String("calendar")
-            ? "calendar" : "heatmap";
-    else
-        return false;
-
-    out.rippleEffect = s0.contains("rippleEffect");
-    out.repeatSymbol = s0.contains("symbolRepeat");
-
-    const QJsonValue s0data = s0.value("data");
-
-    // Name/value item charts: pie, funnel, gauge.
-    if (out.type == QLatin1String("pie")
-        || out.type == QLatin1String("funnel")
-        || out.type == QLatin1String("gauge")) {
-        out.headers = {QStringLiteral("Label"), QStringLiteral("Value")};
-        for (const QJsonValue &v : s0data.toArray()) {
-            const QJsonObject item = v.toObject();
-            const QString name = item.value("name").toString();
-            if (name.isEmpty())
-                continue;
-            out.rows.append({name, QString::number(item.value("value").toDouble())});
-        }
-        return !out.rows.isEmpty();
+    out.headers = {QStringLiteral("Label"), QStringLiteral("Value")};
+    for (const QJsonValue &v : data) {
+        const QJsonObject item = v.toObject();
+        const QString name = item.value("name").toString();
+        if (name.isEmpty())
+            continue;
+        out.rows.append({name, QString::number(item.value("value").toDouble())});
     }
+    return !out.rows.isEmpty();
+}
 
-    // Radar: one series of indicator values, maxes from radar.indicator.
-    if (out.type == QLatin1String("radar")) {
-        const QJsonArray indicators =
-            spec.value("radar").toObject().value("indicator").toArray();
-        const QJsonArray data = s0data.toArray();
-        const QJsonValue first = data.isEmpty() ? QJsonValue() : data.at(0);
-        const QJsonArray values = first.toObject().value("value").toArray();
-        if (indicators.isEmpty() || indicators.size() != values.size())
-            return false;
-        out.headers = {QStringLiteral("Indicator"), QStringLiteral("Value"), QStringLiteral("Max")};
-        for (int i = 0; i < indicators.size(); ++i) {
-            const QJsonObject ind = indicators.at(i).toObject();
-            const QString name = ind.value("name").toString();
-            if (name.isEmpty())
-                continue;
-            out.rows.append({name,
-                             QString::number(values.at(i).toDouble()),
-                             QString::number(ind.value("max").toDouble())});
-        }
-        return !out.rows.isEmpty();
+static bool parseRadarData(const QJsonObject &spec, const QJsonValue &s0data,
+                           ChartSpecData &out)
+{
+    const QJsonArray indicators =
+        spec.value("radar").toObject().value("indicator").toArray();
+    const QJsonArray data = s0data.toArray();
+    const QJsonValue first = data.isEmpty() ? QJsonValue() : data.at(0);
+    const QJsonArray values = first.toObject().value("value").toArray();
+    if (indicators.isEmpty() || indicators.size() != values.size())
+        return false;
+    out.headers = {QStringLiteral("Indicator"), QStringLiteral("Value"), QStringLiteral("Max")};
+    for (int i = 0; i < indicators.size(); ++i) {
+        const QJsonObject ind = indicators.at(i).toObject();
+        const QString name = ind.value("name").toString();
+        if (name.isEmpty())
+            continue;
+        out.rows.append({name,
+                         QString::number(values.at(i).toDouble()),
+                         QString::number(ind.value("max").toDouble())});
     }
+    return !out.rows.isEmpty();
+}
 
-    // Calendar heatmap: [date, value] pairs on a calendar coordinate system.
-    if (out.type == QLatin1String("calendar")) {
-        out.headers = {QStringLiteral("Date"), QStringLiteral("Value")};
-        for (const QJsonValue &v : s0data.toArray()) {
-            const QJsonArray pair = v.toArray();
-            if (pair.size() < 2)
-                continue;
-            const QString date = pair.at(0).toString();
-            if (date.isEmpty())
-                continue;
-            out.rows.append({date, QString::number(pair.at(1).toDouble())});
-        }
-        return !out.rows.isEmpty();
+static bool parseCalendarData(const QJsonValue &s0data, ChartSpecData &out)
+{
+    out.headers = {QStringLiteral("Date"), QStringLiteral("Value")};
+    for (const QJsonValue &v : s0data.toArray()) {
+        const QJsonArray pair = v.toArray();
+        if (pair.size() < 2)
+            continue;
+        const QString date = pair.at(0).toString();
+        if (date.isEmpty())
+            continue;
+        out.rows.append({date, QString::number(pair.at(1).toDouble())});
     }
+    return !out.rows.isEmpty();
+}
 
-    // Matrix heatmap: [xIdx, yIdx, value] triples over two category axes.
-    if (out.type == QLatin1String("heatmap")) {
-        const QJsonArray xCats = axisObject(spec, "xAxis").value("data").toArray();
-        const QJsonArray yCats = axisObject(spec, "yAxis").value("data").toArray();
-        out.headers = {QStringLiteral("X"), QStringLiteral("Y"), QStringLiteral("Value")};
-        for (const QJsonValue &v : s0data.toArray()) {
-            const QJsonArray triple = v.toArray();
-            if (triple.size() < 3)
-                continue;
-            const int xi = triple.at(0).toInt();
-            const int yi = triple.at(1).toInt();
-            const QJsonValue xQ = xi >= 0 && xi < xCats.size() ? xCats.at(xi) : QJsonValue();
-            const QJsonValue yQ = yi >= 0 && yi < yCats.size() ? yCats.at(yi) : QJsonValue();
-            const QString xCat = xQ.toString();
-            const QString yCat = yQ.toString();
-            if (xCat.isEmpty() || yCat.isEmpty())
-                continue;
-            out.rows.append({xCat, yCat, QString::number(triple.at(2).toDouble())});
-        }
-        return !out.rows.isEmpty();
+static bool parseMatrixHeatmapData(const QJsonObject &spec,
+                                   const QJsonValue &s0data, ChartSpecData &out)
+{
+    const QJsonArray xCats = axisObject(spec, "xAxis").value("data").toArray();
+    const QJsonArray yCats = axisObject(spec, "yAxis").value("data").toArray();
+    out.headers = {QStringLiteral("X"), QStringLiteral("Y"), QStringLiteral("Value")};
+    for (const QJsonValue &v : s0data.toArray()) {
+        const QJsonArray triple = v.toArray();
+        if (triple.size() < 3)
+            continue;
+        const int xi = triple.at(0).toInt();
+        const int yi = triple.at(1).toInt();
+        const QJsonValue xQ = xi >= 0 && xi < xCats.size() ? xCats.at(xi) : QJsonValue();
+        const QJsonValue yQ = yi >= 0 && yi < yCats.size() ? yCats.at(yi) : QJsonValue();
+        const QString xCat = xQ.toString();
+        const QString yCat = yQ.toString();
+        if (xCat.isEmpty() || yCat.isEmpty())
+            continue;
+        out.rows.append({xCat, yCat, QString::number(triple.at(2).toDouble())});
     }
+    return !out.rows.isEmpty();
+}
 
+static bool parseCartesianData(const QJsonObject &spec, const QJsonValue &s0data,
+                               ChartSpecData &out)
+{
     const QJsonObject xAxis = axisObject(spec, "xAxis");
     const QJsonArray xData = xAxis.value("data").toArray();
 
@@ -249,6 +206,74 @@ bool parseChartSpec(const QByteArray &specJson, ChartSpecData &out)
     }
 
     return !out.rows.isEmpty();
+}
+
+bool parseChartSpec(const QByteArray &specJson, ChartSpecData &out)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(specJson);
+    if (!doc.isObject())
+        return false;
+    const QJsonObject spec = doc.object();
+    const QJsonArray series = spec.value("series").toArray();
+    if (series.isEmpty())
+        return false;
+
+    if (!spec.value("animation").toBool(true))
+        out.animate = false;
+
+    const QJsonObject title = spec.value("title").toObject();
+    if (title.contains("text"))
+        out.title = title.value("text").toString();
+
+    if (spec.value("tooltip").isObject())
+        out.tooltip = true;
+
+    const QJsonObject s0 = series.at(0).toObject();
+    const QString type = s0.value("type").toString();
+    if (type == QLatin1String("candlestick"))
+        return false;
+    if (type == QLatin1String("bar")) out.type = "bar";
+    else if (type == QLatin1String("scatter")) out.type = "scatter";
+    else if (type == QLatin1String("effectScatter")) out.type = "effectScatter";
+    else if (type == QLatin1String("pictorialBar")) out.type = "pictorialBar";
+    else if (type == QLatin1String("pie")) out.type = "pie";
+    else if (type == QLatin1String("line"))
+        out.type = s0.contains("areaStyle") ? "area" : "line";
+    else if (type == QLatin1String("funnel") || type == QLatin1String("gauge"))
+        out.type = type;
+    else if (type == QLatin1String("radar"))
+        out.type = "radar";
+    else if (type == QLatin1String("heatmap"))
+        out.type = s0.value("coordinateSystem").toString() == QLatin1String("calendar")
+            ? "calendar" : "heatmap";
+    else
+        return false;
+
+    out.rippleEffect = s0.contains("rippleEffect");
+    out.repeatSymbol = s0.contains("symbolRepeat");
+
+    const QJsonValue s0data = s0.value("data");
+
+    // Name/value item charts: pie, funnel, gauge.
+    if (out.type == QLatin1String("pie")
+        || out.type == QLatin1String("funnel")
+        || out.type == QLatin1String("gauge"))
+        return parseNameValueItems(s0data.toArray(), out);
+
+    // Radar: one series of indicator values, maxes from radar.indicator.
+    if (out.type == QLatin1String("radar"))
+        return parseRadarData(spec, s0data, out);
+
+    // Calendar heatmap: [date, value] pairs on a calendar coordinate system.
+    if (out.type == QLatin1String("calendar"))
+        return parseCalendarData(s0data, out);
+
+    // Matrix heatmap: [xIdx, yIdx, value] triples over two category axes.
+    if (out.type == QLatin1String("heatmap"))
+        return parseMatrixHeatmapData(spec, s0data, out);
+
+    // Default: cartesian charts (line/area/bar/scatter/effectScatter/pictorialBar).
+    return parseCartesianData(spec, s0data, out);
 }
 
 bool parseStockSpec(const QByteArray &specJson, StockSpecData &out)
