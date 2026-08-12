@@ -472,6 +472,29 @@ Two corollaries:
   sentinel resolves to the CWD, so saving an untitled doc into the CWD would
   otherwise leave the base stuck on the corpus root.
 
+## Split-TU classes: one file per concern, watch the CMake source lists
+
+The big classes (`MainWindow`, `Editor`, `PreferencesDialog`, `MermaidDialog`,
+and the `ooxmlconv::Converter`) are split into per-concern translation units —
+see AGENTS.md → Key files for the exact file↔function mapping. A few things the
+split makes easy to break:
+
+- Every new `.cpp` must be added to the right CMake source list
+  (`SCRIBA_EDITOR_SOURCES`, `SCRIBA_MAINWINDOW_SOURCES`,
+  `SCRIBA_APP_WEBENGINE_SOURCES` or a per-dialog list) — the compile of the
+  parent class in each affected test target pulls it in, so a missed list shows
+  up as a link error in whichever suite compiles the split class, not in
+  `scriba` itself. Adding a file is a one-line edit per target.
+- `PreferencesDialog` page builders must preserve widget object names —
+  `test_preferences_search` keys on them. `MermaidDialog`'s per-family units
+  keep their `build*`/`refresh*` pairs together; file-scope statics travel with
+  their only user (duplicated if a second user remains in the shell unit).
+- Keep the JS contract in `resources/preview-script.js` in sync with the
+  preview features: the C++ side (`buildPreviewShellHtml`, `scribaUpdate`
+  payload) patches the shared shell; a rename in one side silently breaks the
+  other. Same for the `scribaPaginate` hooks patched by
+  `ExportPdfDialog::onPageLoaded` and `src/PreviewPagination.cpp`.
+
 ## Corpus export: embedded (untitled) documents are exported but not TOC-linked
 
 `CorpusIndex::renderToc` deliberately skips embedded/untitled documents (they

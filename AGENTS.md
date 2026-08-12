@@ -95,19 +95,34 @@ sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
 
 ## Structure
 
-- `src/` — all application code (headers + cpp), flat layout
+- `src/` — all application code (headers + cpp). The big classes are split into per-concern translation units (single class, one file per concern — see Key files for what lives where)
 - `vendor/md4c/` — vendored markdown parser (tracked in repo, with patches in `vendor/md4c/patches/`)
 - `vendor/mathml2omml/` — vendored MathML↔OMML library (v3.0.0, working copy for local changes; scriba's `HtmlToOoxml.cpp` still needs adapting to the 3.0.0 API)
-- `resources/` — Qt QRC resources: CSS themes, JS libraries (mermaid, KaTeX, highlight.js, vega), print styles
+- `resources/` — Qt QRC resources: CSS themes, JS libraries (mermaid, KaTeX, highlight.js, vega), print styles, the shared preview shell (`preview-shell.html` + `preview-script.js`)
 - `resources/themes/` — bundled CSS themes (15 themes: Catppuccin, Dracula, Nord, etc.)
 - `tests/` — Qt Test-based test suites
 
 ## Key files
 
-- `src/MainWindow.cpp` — app entry, file I/O, CSS management, scroll sync
+- `src/MainWindow.cpp` — app entry, ctor/`setupUi`, `updateStats`, showPreferences, apply-settings helpers. Split per concern:
+  - `src/MainWindow_Tabs.cpp` — tab/add/remove/close/dirty bookkeeping (`addTab`, `loadFile`'s tab helpers, `showSaveDiscardDialog`, `promptUnsavedChanges`)
+  - `src/MainWindow_File.cpp` — `loadFile`, `saveFile`, `renameCurrentFile`, `autoSave`, the three importers, `pasteAsMarkdown`, `exportPdf`/`exportDocx`/`exportHtml`, `closeEvent`
+  - `src/MainWindow_Preview.cpp` — `updatePreview`, scroll sync, CSS watching, `buildPreviewShellHtml`
+  - `src/MainWindow_Corpus.cpp` — corpus serialize/restore/save/open, corpus dictionary, watcher, link rewriting, recent-corpora menu
+  - `src/MainWindow_Menu.cpp` — `setupMenuBar` + all per-menu builders, chart/insert-from-dialog slots, find/replace
+  - `src/MainWindow_Validation.cpp` — validation report + Table of Contents tabs (`ValidationReportThread` worker)
+- `src/Editor.cpp` — core editor widget (ctor/dtor, wrapping/margins, spell painting, emoji cache, `keyPressEvent` dispatch shell, paste/mime, hover/tooltips, `applySpellSettings`, `applyCorpusDictionary`), split per concern:
+  - `src/EditorTyping.cpp` — per-key handlers, `insertParagraphWithLineHeight`, `applyAutoCorrect`, `toggleCheckbox`, `deleteLine`, `changeCodeLanguage`
+  - `src/EditorTable.cpp` — table formatting/branching (`formatMdTableBlock`, `onCursorPositionChanged`, insert/delete row/col)
+  - `src/EditorFolding.cpp` — fold scan/apply machinery, gutter (test_folding/gutter suites cover it)
+  - `src/EditorCompletions.cpp` — QCompleter machinery (file/emoji/language completions)
+  - `src/EditorMenu.cpp` — `contextMenuEvent` + misspelling/grammar submenus
+- `src/PreferencesDialog.cpp` — dialog shell (ctor, `setupUi` dispatch, search/filter) + four page units: `PreferencesDialog_General.cpp`, `_Editor.cpp`, `_Appearance.cpp`, `_Spelling.cpp` (page builders must preserve widget object names — `test_preferences_search` keys on them)
+- `src/MermaidDialog.cpp` — dialog shell + git-graph/panels, split into `MermaidDialog_Flowchart.cpp`, `_Gantt.cpp`, `_Class.cpp`, `_State.cpp`, `_Others.cpp` (one per chart family: `build*`/`refresh*`/`saveCurrent`/`load…Data`)
+- `src/OoxmlToHtml.cpp` — thin public entry; the `ooxmlconv::Converter` implementation lives in `src/OoxmlConverter.cpp`/`.h`
 - `src/MarkdownParser.cpp` — wraps md4c, emits HTML with `data-line` attributes
 - `src/CssLoader.cpp` — loads user/system CSS, writes base stylesheets to `~/.config/scriba/`. Base CSS copies (preview/print) carry a `/* scriba-base-css-version: <sha256> */` marker; a copy whose marker doesn't match the bundled qrc hash is superseded (renamed `.bak`) and the bundled CSS used, with a one-time dialog on the next app start (see `MainWindow::setNotifyStaleCss`/`notifyStaleBaseCss`)
-- `resources/scriba.qrc` — Qt resource bundle (must list any new resource files)
+- `resources/scriba.qrc` — Qt resource bundle (must list any new resource files). CMakeLists.txt defines the source-list variables `SCRIBA_EDITOR_SOURCES`, `SCRIBA_MAINWINDOW_SOURCES`, `SCRIBA_APP_WEBENGINE_SOURCES` (and per-dialog lists) so adding a file to a split class is a one-line edit per target
 
 ## Conventions
 
