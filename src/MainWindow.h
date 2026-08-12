@@ -30,6 +30,8 @@
 #include <QActionGroup>
 #include <QUrl>
 
+#include <functional>
+
 #include "ValidationReport.h"
 #include "Corpus.h"
 #include "PrintOptions.h"
@@ -127,6 +129,9 @@ public:
 
 private:
     void setupUi();
+    // Runs a dialog (returning the text to insert) and inserts it at the
+    // cursor if non-empty. Shared by the chart/KaTeX/mhchem builders.
+    void insertFromDialog(const std::function<QString()> &runDialog);
     void setupMenuBar();
     void buildFileMenu(QMenuBar *bar);
     void buildEditMenu(QMenuBar *bar);

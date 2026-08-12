@@ -1837,57 +1837,50 @@ void MainWindow::showPreferences()
 
 void MainWindow::showChartBuilder()
 {
-    ChartDialog dlg(this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString spec = dlg.generatedSpec();
-        Editor *ed = currentEditor();
-        if (!spec.isEmpty() && ed)
-            ed->insertPlainText(spec);
-    }
+    insertFromDialog([this] {
+        ChartDialog dlg(this);
+        return dlg.exec() == QDialog::Accepted ? dlg.generatedSpec() : QString();
+    });
 }
 
 void MainWindow::showStockChartBuilder()
 {
-    StockChartDialog dlg(this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString spec = dlg.generatedSpec();
-        Editor *ed = currentEditor();
-        if (!spec.isEmpty() && ed)
-            ed->insertPlainText(spec);
-    }
+    insertFromDialog([this] {
+        StockChartDialog dlg(this);
+        return dlg.exec() == QDialog::Accepted ? dlg.generatedSpec() : QString();
+    });
 }
 
 void MainWindow::showAdvancedChartBuilder()
 {
-    AdvancedChartDialog dlg(this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString spec = dlg.generatedSpec();
-        Editor *ed = currentEditor();
-        if (!spec.isEmpty() && ed)
-            ed->insertPlainText(spec);
-    }
+    insertFromDialog([this] {
+        AdvancedChartDialog dlg(this);
+        return dlg.exec() == QDialog::Accepted ? dlg.generatedSpec() : QString();
+    });
 }
 
 void MainWindow::showKatexHelper()
 {
-    KatexHelperDialog dlg(m_cssLoader->themeCss(), QString(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString latex = dlg.generatedLatex();
-        Editor *ed = currentEditor();
-        if (!latex.isEmpty() && ed)
-            ed->insertPlainText(latex);
-    }
+    insertFromDialog([this] {
+        KatexHelperDialog dlg(m_cssLoader->themeCss(), QString(), this);
+        return dlg.exec() == QDialog::Accepted ? dlg.generatedLatex() : QString();
+    });
 }
 
 void MainWindow::showMchemHelper()
 {
-    MchemHelperDialog dlg(m_cssLoader->themeCss(), QString(), this);
-    if (dlg.exec() == QDialog::Accepted) {
-        QString notation = dlg.generatedNotation();
-        Editor *ed = currentEditor();
-        if (!notation.isEmpty() && ed)
-            ed->insertPlainText(notation);
-    }
+    insertFromDialog([this] {
+        MchemHelperDialog dlg(m_cssLoader->themeCss(), QString(), this);
+        return dlg.exec() == QDialog::Accepted ? dlg.generatedNotation() : QString();
+    });
+}
+
+void MainWindow::insertFromDialog(const std::function<QString()> &runDialog)
+{
+    const QString text = runDialog();
+    Editor *ed = currentEditor();
+    if (!text.isEmpty() && ed)
+        ed->insertPlainText(text);
 }
 
 void MainWindow::editChartBlock(Editor *ed, int blockNumber)
