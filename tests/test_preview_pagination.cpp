@@ -73,32 +73,6 @@ TEST(PreviewPagination, PaginatorScriptNeverSplitFlag)
     EXPECT_TRUE(js.contains("split:false"));
 }
 
-TEST(PreviewPagination, PatchIncrementalPaginateAddsBothHooks)
-{
-    QString html = QStringLiteral(
-        "function scribaUpdate(html,themeCss,mermaidTheme,emojiMode,delay,baseUrl){"
-        "if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();}"
-        "var scribaHideOverlay=function(){scribaEndRender();};");
-    QString patched = PreviewPagination::patchIncrementalPaginate(html);
-
-    EXPECT_TRUE(patched.contains(
-        "if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();"
-        "if(window.scribaPaginate){window.scribaPaginate();}"));
-    EXPECT_TRUE(patched.contains(
-        "var scribaHideOverlay=function(){scribaEndRender();if(window.scribaPaginate){window.scribaPaginate();}};"));
-    // The original render chain must still run exactly once.
-    EXPECT_EQ(patched.count("restoreScroll();"), 1);
-    EXPECT_EQ(patched.count("scribaEndRender();"), 1);
-    // ...and each render pass now re-runs the paginator.
-    EXPECT_EQ(patched.count("if(window.scribaPaginate){window.scribaPaginate();}"), 2);
-}
-
-TEST(PreviewPagination, PatchIncrementalPaginateLeavesUnrelatedHtmlAlone)
-{
-    QString html = QStringLiteral("<p>no hooks here</p>");
-    EXPECT_EQ(PreviewPagination::patchIncrementalPaginate(html), html);
-}
-
 // ---------- WebEngine integration tests ----------
 
 namespace {

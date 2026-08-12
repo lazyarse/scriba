@@ -29,11 +29,9 @@ QString layoutCss(int contentWidthPx, int contentHeightPx,
 // blocks of #scriba-content and inserts .scriba-pb separators / .scriba-split-
 // marker breaks honouring the print options) and window.scribaFitZoom (fit the
 // page width to the pane), plus a resize listener. Returns the whole <script>.
+// preview-script.js calls window.scribaPaginate itself at the tail of every
+// render pass (see its restoreScroll / scribaHideOverlay), so this script only
+// needs to be present in print layout — no string patching of the preview page.
 QString paginatorScript(const PrintOptions::Options &opts, int contentHeightPx);
-
-// Wire the paginator into the preview's update chains: both the initial
-// DOMContentLoaded render pass and every scribaUpdate heavy-render pass re-run
-// the paginator when window.scribaPaginate exists.
-QString patchIncrementalPaginate(const QString &fullHtml);
 
 }

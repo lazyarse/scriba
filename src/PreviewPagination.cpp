@@ -162,24 +162,4 @@ QString paginatorScript(const PrintOptions::Options &opts, int contentHeightPx)
      .arg(opts.orphanControl ? QStringLiteral("true") : QStringLiteral("false"));
 }
 
-QString patchIncrementalPaginate(const QString &fullHtml)
-{
-    QString html = fullHtml;
-
-    // Every scribaUpdate heavy-render chain ends with restoreScroll(); re-run
-    // the paginator right after so typed edits re-paginate immediately.
-    const QString chainHook = QStringLiteral(
-        "if(p.length)Promise.all(p).then(restoreScroll);else restoreScroll();");
-    html.replace(chainHook, chainHook + QStringLiteral("if(window.scribaPaginate){window.scribaPaginate();}"));
-
-    // The initial DOMContentLoaded render ends with scribaHideOverlay(); same
-    // treatment so the very first page-break mode paint is paginated.
-    const QString overlayHook = QStringLiteral(
-        "var scribaHideOverlay=function(){scribaEndRender();};");
-    html.replace(overlayHook, QStringLiteral(
-        "var scribaHideOverlay=function(){scribaEndRender();if(window.scribaPaginate){window.scribaPaginate();}};"));
-
-    return html;
-}
-
 } // namespace PreviewPagination
