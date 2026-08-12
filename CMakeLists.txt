@@ -72,7 +72,10 @@ set(SCRIBA_EDITOR_SOURCES src/Editor.cpp
     src/EditorCompletions.cpp src/EditorMenu.cpp
     ${SCRIBA_GUTTER_SOURCES})
 
-set(SCRIBA_MAINWINDOW_SOURCES src/MainWindow.cpp)
+set(SCRIBA_MAINWINDOW_SOURCES src/MainWindow.cpp
+    src/MainWindow_Tabs.cpp src/MainWindow_File.cpp src/MainWindow_Preview.cpp
+    src/MainWindow_Corpus.cpp src/MainWindow_Menu.cpp
+    src/MainWindow_Validation.cpp)
 
 set(SCRIBA_APP_WEBENGINE_SOURCES
     src/PreviewPagination.cpp
