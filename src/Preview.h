@@ -49,6 +49,7 @@ public:
     QString documentPath() const;
     void scrollToLine(int line);
     void scrollToPercent(double pct);
+    void scrollToSourceLine(double line);
     void setHtmlWithOverlay(const QString &html, const QUrl &baseUrl);
     void hideRenderOverlay();
     void showRenderError(const QString &message);

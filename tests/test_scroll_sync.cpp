@@ -25,6 +25,7 @@
 #include <QDir>
 #include <QDialog>
 #include <QFileDialog>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
@@ -204,6 +205,178 @@ static int s_argc = 1;
 static char s_arg0[] = "test_scroll_sync";
 static char *s_argv[] = { s_arg0, nullptr };
 
+/* ========== Test H: Block-anchored scroll JS (real preview-script.js injected) ========== */
+
+class PreviewAnchorJsTest : public testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        if (!QCoreApplication::instance())
+            new QApplication(s_argc, s_argv);
+    }
+
+    void SetUp() override {
+        m_preview = new Preview();
+        m_preview->resize(800, 600);
+        m_preview->show();
+        QApplication::processEvents();
+    }
+
+    void TearDown() override {
+        delete m_preview;
+    }
+
+    // Loads a page whose #scriba-content holds `contentHtml`, with the REAL
+    // preview-script.js functions injected (reads them from the qrc resource,
+    // so tests exercise exactly what the app runs). Heavy-render globals are
+    // stubbed so the injected DOMContentLoaded handler cannot throw.
+    void loadPage(const QString &contentHtml) {
+        QString script = readResourceFile(":/preview-script.js");
+        QString html = QStringLiteral(
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+            "<script>"
+            "window.mermaid={initialize:function(){},run:function(q){return Promise.resolve();}};"
+            "window.hljs={registerAliases:function(){},highlightAll:function(){}};"
+            "window.twemoji={parse:function(){}};window.katex={};window.echarts={};"
+            "window.replaceEmoji=function(){};window.generateHeadingIds=function(){};"
+            "</script>"
+            "<script>%1</script>"
+            "</head><body><div id=\"scriba-content\">%2</div></body></html>")
+            .arg(script, contentHtml);
+        QSignalSpy loadSpy(m_preview->page(), &QWebEnginePage::loadFinished);
+        m_preview->setHtmlContent(html);
+        bool loaded = false;
+        while (!loaded) {
+            if (!loadSpy.wait(8000)) break;
+            if (loadSpy.last().at(0).toBool()) loaded = true;
+        }
+        ASSERT_TRUE(loaded);
+        QTest::qWait(300);
+        m_preview->page()->runJavaScript("scribaRebuildAnchorIndex()");
+        QTest::qWait(200);
+    }
+
+    double evalD(const QString &js) {
+        double v = -1;
+        m_preview->page()->runJavaScript(js, [&](const QVariant &r) { v = r.toDouble(); });
+        QTest::qWait(250);
+        return v;
+    }
+
+    QPointF evalPoint(const QString &js) {
+        QPointF p(-1, -1);
+        m_preview->page()->runJavaScript(
+            "JSON.stringify(" + js + ")",
+            [&](const QVariant &r) {
+                QJsonDocument d = QJsonDocument::fromJson(r.toString().toUtf8());
+                QJsonArray a = d.array();
+                p = QPointF(a.at(0).toDouble(), a.at(1).toDouble());
+            });
+        QTest::qWait(250);
+        return p;
+    }
+
+    static const QString kMixedDom; // defined below
+    Preview *m_preview = nullptr;
+};
+
+// heading(1), para(2), tall block(3, 2000px), list item(4)
+const QString PreviewAnchorJsTest::kMixedDom = QStringLiteral(
+    "<h1 data-line=\"1\">One</h1>"
+    "<p data-line=\"2\">Para two.</p>"
+    "<div data-line=\"3\" style=\"height:2000px;background:#e0e0e0\"></div>"
+    "<li data-line=\"4\">Item</li>");
+
+TEST_F(PreviewAnchorJsTest, ScrollToBlockLinePutsItsTopAtScrollY) {
+    loadPage(kMixedDom);
+    m_preview->scrollToSourceLine(3.0);
+    double scrollY = evalD("window.scrollY");
+    QPointF top = evalPoint(
+        "(function(){var e=document.querySelector('[data-line=\"3\"]');"
+        "return [e.getBoundingClientRect().top+window.scrollY, 0];})()");
+    EXPECT_NEAR(scrollY, top.x(), 2.0);
+}
+
+TEST_F(PreviewAnchorJsTest, ScrollInterpolatesWithinBlockSpan) {
+    loadPage(kMixedDom);
+    m_preview->scrollToSourceLine(3.5); // midpoint between line 3 and line 4
+    double scrollY = evalD("window.scrollY");
+    QPointF a = evalPoint(
+        "(function(){var e=document.querySelector('[data-line=\"3\"]');"
+        "return [e.getBoundingClientRect().top+window.scrollY,0];})()");
+    QPointF b = evalPoint(
+        "(function(){var e=document.querySelector('[data-line=\"4\"]');"
+        "return [e.getBoundingClientRect().top+window.scrollY,0];})()");
+    EXPECT_NEAR(scrollY, a.x() + (b.x() - a.x()) / 2.0, 4.0);
+}
+
+TEST_F(PreviewAnchorJsTest, ScrollClampsToTopAndBottom) {
+    loadPage(kMixedDom);
+    // Above the first anchor -> top
+    m_preview->scrollToSourceLine(0.5);
+    EXPECT_DOUBLE_EQ(evalD("window.scrollY"), 0.0);
+    // Past the last anchor -> bottom (scrollable; not 0)
+    m_preview->scrollToSourceLine(9999.0);
+    double bottom = evalD("window.scrollY");
+    EXPECT_GT(bottom, 500);
+}
+
+TEST_F(PreviewAnchorJsTest, CaptureThenRestoreRoundTrips) {
+    loadPage(kMixedDom);
+    m_preview->scrollToSourceLine(3.5);
+    QTest::qWait(300);
+    double captured = evalD("scribaCaptureAnchorLine()");
+    EXPECT_NEAR(captured, 3.5, 0.2);
+    evalD("window.scrollTo(0, 900)");
+    QTest::qWait(200);
+    m_preview->scrollToSourceLine(captured);
+    QTest::qWait(300);
+    double yAfterRestore = evalD("window.scrollY");
+    // Line 3.5 sits at the interpolated midpoint between the line-3 block's
+    // top and the line-4 item's top, NOT at the line-3 block's top.
+    QPointF a = evalPoint(
+        "(function(){var e=document.querySelector('[data-line=\"3\"]');"
+        "return [e.getBoundingClientRect().top+window.scrollY,0];})()");
+    QPointF b = evalPoint(
+        "(function(){var e=document.querySelector('[data-line=\"4\"]');"
+        "return [e.getBoundingClientRect().top+window.scrollY,0];})()");
+    EXPECT_NEAR(yAfterRestore, a.x() + (b.x() - a.x()) / 2.0, 2.0);
+}
+
+TEST_F(PreviewAnchorJsTest, EmptyDocumentScrollSyncNoOp) {
+    loadPage(QString());
+    m_preview->scrollToSourceLine(3.0);
+    QTest::qWait(200);
+    EXPECT_DOUBLE_EQ(evalD("window.scrollY"), 0.0);
+    EXPECT_DOUBLE_EQ(evalD("scribaCaptureAnchorLine()"), 0.0);
+}
+
+TEST_F(PreviewAnchorJsTest, SingleBlockDocumentClampsToTop) {
+    loadPage("<h1 data-line=\"1\">Only</h1>");
+    m_preview->scrollToSourceLine(1.0);
+    QTest::qWait(200);
+    EXPECT_DOUBLE_EQ(evalD("window.scrollY"), 0.0);
+    m_preview->scrollToSourceLine(9999.0);
+    QTest::qWait(200);
+    EXPECT_DOUBLE_EQ(evalD("window.scrollY"), 0.0);
+}
+
+TEST_F(PreviewAnchorJsTest, ConsecutiveDataLineElementsPreferred) {
+    // li(3) with a nested div carrying the same data-line(3): the binary
+    // search picks the LAST anchor with line <= target (stable sort keeps
+    // equal lines in DOM order), so the nested div wins as the interpolation
+    // base — a stable, documented winner.
+    loadPage("<h1 data-line=\"1\">One</h1>"
+             "<li data-line=\"3\">Item<div data-line=\"3\" style=\"height:1600px\"></div></li>"
+             "<p data-line=\"4\">Next</p>");
+    m_preview->scrollToSourceLine(3.0);
+    QTest::qWait(200);
+    double scrollY = evalD("window.scrollY");
+    QPointF nestedTop = evalPoint(
+        "(function(){var e=document.querySelectorAll('[data-line=\"3\"]')[1];"
+        "return [e.getBoundingClientRect().top+window.scrollY, 0];})()");
+    EXPECT_NEAR(scrollY, nestedTop.x(), 2.0);
+}
+
 class ScrollSyncIntegrationTest : public testing::Test {
 protected:
     static void SetUpTestSuite() {
@@ -238,6 +411,251 @@ protected:
     QTemporaryFile *tmpFile = nullptr;
     MainWindow *window = nullptr;
 };
+
+/* ========== Test I: end-to-end editor->preview anchor alignment ========== */
+
+// Evaluates JS in the window's preview page and returns a double (waits for the
+// async reply). Reused across the integration tests below.
+static double evalPreview(MainWindow *w, const QString &js, int waitMs = 250)
+{
+    double v = -1;
+    w->preview()->page()->runJavaScript(js, [&](const QVariant &r) { v = r.toDouble(); });
+    QTest::qWait(waitMs);
+    return v;
+}
+
+// Returns the block-start line nearest the preview's current viewport top:
+// the largest data-line of any element whose top is at/below scrollY.
+static int previewTopBlockLine(MainWindow *w)
+{
+    const QString js =
+        "(function(){"
+        "var sy=window.scrollY;"
+        "var e=document.querySelectorAll('#scriba-content [data-line]');"
+        "var out=0;"
+        "for(var i=0;i<e.length;i++){var L=parseInt(e[i].getAttribute('data-line'),10);"
+        "var t=e[i].getBoundingClientRect().top+window.scrollY;"
+        "if(t<=sy+2&&L>out)out=L;}"
+        "return out;})()";
+    return static_cast<int>(evalPreview(w, js));
+}
+
+static int editorTopBlockLine(MainWindow *w)
+{
+    QTextCursor c = w->editor()->cursorForPosition(
+        QPoint(w->editor()->viewport()->width() / 2, 1));
+    return c.blockNumber() + 1;
+}
+
+TEST_F(ScrollSyncIntegrationTest, MixedContentPreviewTracksEditorBlock) {
+    // doc = padding + mermaid fence + broken image + list, then more padding so
+    // the editor can scroll deep enough to cross the fence.
+    QStringList a;
+    for (int i = 0; i < 40; ++i) { a << QString("Filler %1").arg(i) << QString(); }
+    a << "```mermaid" << "flowchart LR" << "  A --> B" << "```" << QString();
+    a << "![broken](/nonexistent/image.png)" << QString();
+    a << "1. first" << "2. second" << "3. third" << QString();
+    for (int i = 0; i < 40; ++i) { a << QString("Tail %1").arg(i) << QString(); }
+    const int fenceLine = a.indexOf("```mermaid") + 1;
+    const QString doc = a.join('\n');
+
+    ASSERT_TRUE(tmpFile->open());
+    tmpFile->resize(0);
+    tmpFile->write(doc.toUtf8());
+    tmpFile->close();
+    window->loadFile(tmpFile->fileName());
+
+    // wait for load + heavy render (mermaid) + index build + post-settle sync
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i)
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    while (!loaded) {
+        if (!loadSpy.wait(5000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    QTest::qWait(2500);
+
+    // The fence block must exist in the preview (either as the mermaid chart
+    // wrap, or the <pre> before mermaid finishes).
+    double fenceTop = evalPreview(window, QString(
+        "(function(){var e=document.querySelector('[data-line=\"%1\"]');"
+        "return e?e.getBoundingClientRect().top+window.scrollY:-1;})()").arg(fenceLine));
+    EXPECT_GE(fenceTop, 0) << "preview must contain a block with data-line=" << fenceLine;
+
+    // Scroll the editor to several positions; the preview's top block line
+    // must track the editor's top source line (percentage sync violated this
+    // around the chart/image/list regions).
+    for (int pos = 0; pos < 4; ++pos) {
+        int v = pos == 0 ? 0 : window->editor()->verticalScrollBar()->maximum() * pos / 3;
+        window->editor()->verticalScrollBar()->setValue(v);
+        QApplication::processEvents();
+        QTest::qWait(700);
+        int edLine = editorTopBlockLine(window);
+        int pvLine = previewTopBlockLine(window);
+        EXPECT_LE(qAbs(pvLine - edLine), 2)
+            << "preview top block (line " << pvLine << ") diverged from editor top "
+            << "(line " << edLine << ") at editor scroll " << v;
+    }
+}
+
+TEST_F(ScrollSyncIntegrationTest, PrintLayoutStillSyncsAfterRebuild) {
+    // Tall document so the editor can scroll deep and the paginator must
+    // split the preview into several page boxes.
+    QStringList a;
+    for (int i = 0; i < 120; ++i) { a << QString("Fill %1").arg(i) << QString(); }
+    const QString doc = a.join('\n');
+
+    ASSERT_TRUE(tmpFile->open());
+    tmpFile->resize(0);
+    tmpFile->write(doc.toUtf8());
+    tmpFile->close();
+    window->loadFile(tmpFile->fileName());
+
+    // Enable print layout: forces the full setHtmlWithOverlay rebuild path
+    // with the paginator script embedded; the preview script's own render
+    // tails must run scribaPaginate and keep the anchor index usable.
+    window->showPageBreaksAction()->setChecked(true);
+    QTest::qWait(3000);
+
+    // The paginator must have run on the initial paint (page separators).
+    double separators = evalPreview(window,
+        "(function(){return document.querySelectorAll('#scriba-content .scriba-pb').length;})()");
+    EXPECT_GT(separators, 0) << "print layout must paginate the preview";
+
+    // The anchor index must survive the paginated rebuild: an explicit scroll
+    // to a mid-document source line lands on that block.
+    window->preview()->page()->runJavaScript("scribaScrollToSourceLine(53.0);", [](const QVariant&){});
+    QTest::qWait(250);
+    double scrollY = evalPreview(window, "window.scrollY");
+    double docTop53 = evalPreview(window,
+        "(function(){var e=document.querySelector('[data-line=\"53\"]');"
+        "return e?e.getBoundingClientRect().top+window.scrollY:-1;})()");
+    EXPECT_NEAR(scrollY, docTop53, 2.0)
+        << "print layout: anchored scroll must land on the target block";
+
+    for (int pos = 1; pos <= 3; ++pos) {
+        int v = window->editor()->verticalScrollBar()->maximum() * pos / 4;
+        window->editor()->verticalScrollBar()->setValue(v);
+        QApplication::processEvents();
+        QTest::qWait(700);
+        int edLine = editorTopBlockLine(window);
+        int pvLine = previewTopBlockLine(window);
+        EXPECT_LE(qAbs(pvLine - edLine), 2)
+            << "print layout: preview top block (line " << pvLine << ") diverged from "
+            << "editor top (line " << edLine << ") at editor scroll " << v;
+    }
+
+    // Page-break mode is a persisted setting; reset it so later windows in
+    // this process start in normal mode (print layout skips the editor chrome
+    // stylesheet in refreshPreviewCss, which breaks window-init theme tests).
+    window->showPageBreaksAction()->setChecked(false);
+    QSettings().remove(Preferences::PreviewShowPageBreaks);
+}
+
+TEST_F(ScrollSyncIntegrationTest, TabSwitchPreScrollAnchorsToNewEditorLine) {
+    auto makeDoc = [](const QString &tag, int n) {
+        QStringList a;
+        for (int i = 0; i < n; ++i) a << QString("%1 %2").arg(tag).arg(i) << QString();
+        return a.join('\n');
+    };
+    QString docA = makeDoc("ALPHA", 90);
+    QString docB = makeDoc("BRAVO", 90);
+
+    auto ta = new QTemporaryFile();
+    ASSERT_TRUE(ta->open()); ta->write(docA.toUtf8()); ta->close();
+    auto tb = new QTemporaryFile();
+    ASSERT_TRUE(tb->open()); tb->write(docB.toUtf8()); tb->close();
+
+    window->loadFile(ta->fileName()); // tab 0
+    window->loadFile(tb->fileName()); // tab 1 (now current)
+
+    auto *tabBar = window->findChild<QTabBar *>();
+    ASSERT_NE(tabBar, nullptr);
+    ASSERT_EQ(tabBar->count(), 2);
+
+    auto scrollEditorMiddle = [this]() {
+        auto *sb = window->editor()->verticalScrollBar();
+        sb->setValue(sb->maximum() / 2);
+        QApplication::processEvents();
+        QTest::qWait(700);
+    };
+
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i)
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    while (!loaded) {
+        if (!loadSpy.wait(5000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    QTest::qWait(1500);
+
+    scrollEditorMiddle();                    // B mid
+    tabBar->setCurrentIndex(0);              // -> A
+    QTest::qWait(1800);
+    scrollEditorMiddle();                    // A mid
+    tabBar->setCurrentIndex(1);              // -> B
+    QTest::qWait(2000);                      // render + scheduled re-assert (450ms) + marge
+
+    int edLine = editorTopBlockLine(window);
+    int pvLine = previewTopBlockLine(window);
+    EXPECT_GT(edLine, 20) << "sanity: editor should be scrolled past the top";
+    EXPECT_LE(qAbs(pvLine - edLine), 2)
+        << "after switching to tab B, preview must anchor to B's editor top line";
+
+    delete ta;
+    delete tb;
+}
+
+TEST_F(ScrollSyncIntegrationTest, LiveEditRestoresAnchoredToSameBlock) {
+    // doc with a long code block in the middle so the viewport sits well inside
+    // the document; editing at the END must not move the preview's top block.
+    QStringList a;
+    for (int i = 0; i < 60; ++i) a << QString("Filler %1").arg(i) << QString();
+    a << "```" << "const x = 1;" << "const y = 2;" << "```" << QString();
+    for (int i = 0; i < 60; ++i) a << QString("Tail %1").arg(i) << QString();
+    const QString doc = a.join('\n');
+
+    ASSERT_TRUE(tmpFile->open());
+    tmpFile->resize(0);
+    tmpFile->write(doc.toUtf8());
+    tmpFile->close();
+    window->loadFile(tmpFile->fileName());
+
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i)
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    while (!loaded) {
+        if (!loadSpy.wait(5000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    QTest::qWait(1500);
+
+    window->editor()->verticalScrollBar()->setValue(
+        window->editor()->verticalScrollBar()->maximum() / 2);
+    QApplication::processEvents();
+    QTest::qWait(800);
+
+    const double before = evalPreview(window, "scribaCaptureAnchorLine()");
+    EXPECT_GT(before, 1);
+
+    // append text at the very end -> debounced live re-render -> anchored restore
+    QTextCursor cur(window->editor()->document());
+    cur.movePosition(QTextCursor::End);
+    cur.insertText("\n\nEND-MARKER");
+    QApplication::processEvents();
+    QTest::qWait(2800); // 80ms debounce + heavy render + image/chart settle
+
+    const double after = evalPreview(window, "scribaCaptureAnchorLine()");
+    double gone = evalPreview(window,
+        "(function(){return document.getElementById('scriba-content')"
+        "?(document.getElementById('scriba-content').innerText.indexOf('END-MARKER')>=0?1:0):0;})()");
+    EXPECT_EQ(static_cast<int>(gone), 1) << "live edit must reach the preview";
+    EXPECT_LE(qAbs(after - before), 2)
+        << "after an append at the end, the preview must keep the same top block";
+}
 
 TEST_F(ScrollSyncIntegrationTest, EditorScrollbarCorrectAfterFileOpenAndCursorRestore) {
     window->loadFile(tmpFile->fileName());
@@ -1017,6 +1435,7 @@ protected:
         settings.remove(Preferences::LastOpenedFile);
         settings.remove(Preferences::CssFiles);
         settings.remove(Preferences::ActiveCssFile);
+        settings.remove(Preferences::PreviewShowPageBreaks);
         settings.setValue(Preferences::ReopenLastCorpus, false);
         settings.setValue(Preferences::PreviewState, 1);
     }

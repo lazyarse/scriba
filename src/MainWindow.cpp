@@ -109,7 +109,13 @@ MainWindow::MainWindow(QWidget *parent, bool skipCorpusRestore)
     connect(m_preview->page(), &QWebEnginePage::loadFinished, this, [this](bool ok) {
         if (ok) {
             m_previewInitialized = true;
+            m_lastSyncLine = -1.0;
             syncPreviewScroll();
+            // The anchor index is only ready after the DOMContentLoaded heavy
+            // pass settles; re-assert a couple of times so a freshly loaded
+            // page converges to the editor's position.
+            QTimer::singleShot(300, this, &MainWindow::syncPreviewScroll);
+            QTimer::singleShot(1500, this, &MainWindow::syncPreviewScroll);
         } else {
             m_preview->showRenderError(QStringLiteral("Preview failed to load."));
         }

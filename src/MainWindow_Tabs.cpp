@@ -366,18 +366,14 @@ void MainWindow::onTabChanged(int index)
         if (m_previewInitialized) {
             // The preview page stays alive across tab switches: push the new
             // tab's cached render through the incremental scribaUpdate() path
-            // instead of reloading the whole page. Pre-scroll to the new
-            // editor's position so scribaUpdate captures the right percentage
-            // (it restores that after the heavy render pass).
+            // instead of reloading the whole page. The old content is still
+            // on screen here, so a pre-scroll to the new editor's top line is
+            // cosmetic only; the real anchor lands via the post-settle re-assert
+            // scheduled in updatePreview() (the JS restore skips tab switches).
             QSettings settings;
             if (settings.value(Preferences::SyncScroll, true).toBool()) {
-                if (auto *ed = currentEditor()) {
-                    auto *sb = ed->verticalScrollBar();
-                    double range = sb->maximum() - sb->minimum();
-                    double pct = range > 0
-                        ? static_cast<double>(sb->value() - sb->minimum()) / range : 0.0;
-                    m_preview->scrollToPercent(pct);
-                }
+                m_lastSyncLine = -1.0;
+                m_preview->scrollToSourceLine(currentEditorTopSourceLine());
             }
             updatePreview(true);
         } else {

@@ -87,6 +87,8 @@ public:
     void openCorpusFile(const QString &path, bool skipPrompt = false);
     Editor *editor() const { return currentEditor(); }
     Preview *preview() const { return m_preview; }
+    // Exposed for tests (print-layout scroll sync); UI-internal otherwise.
+    QAction *showPageBreaksAction() const { return m_showPageBreaksAction; }
 
     // Enables the one-time "outdated custom stylesheets superseded" dialog.
     // Set from main(); off in unit tests so no modal dialog blocks them.
@@ -190,6 +192,7 @@ private:
     // HTML body. Shared preamble of exportPdf/exportDocx/exportHtml.
     ExportPreamble currentExportHtml();
     void syncPreviewScroll();
+    double currentEditorTopSourceLine();
     void scrollPreviewToAnchor(const QString &anchor);
     void tryScrollPreviewToAnchor();
     void syncCssWatcher();
@@ -264,6 +267,7 @@ private:
     Preview *m_preview;
     QWebChannel *m_webChannel = nullptr;
     PreviewBridge *m_previewBridge = nullptr;
+    double m_lastSyncLine = -1.0;
     MarkdownParser *m_parser;
     CssConfig *m_cssConfig;
     CssLoader *m_cssLoader;

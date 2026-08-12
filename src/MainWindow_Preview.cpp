@@ -34,6 +34,7 @@
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <QTimer>
 #include <QUrl>
@@ -177,9 +178,9 @@ void MainWindow::updatePreview(bool tabSwitch)
             emojiMode, env.baseCss, env.previewCss, html, stripeInit, centerCss,
             splitCss, codeLangInit, renderCss);
         if (m_printLayoutMode) {
-            // Re-paginate after each render pass (see PreviewPagination) and
-            // embed the print option overrides + paginator for this geometry.
-            fullHtml = PreviewPagination::patchIncrementalPaginate(fullHtml);
+            // The paginator runs from the preview script's own render tails
+            // (see PreviewPagination), so the page only needs the paginator
+            // script + the print option overrides for this geometry.
             const QString printOptionsCss = PrintOptions::buildCss(env.printOpts);
             int headEnd = fullHtml.indexOf("</head>");
             if (headEnd >= 0)
@@ -199,9 +200,21 @@ void MainWindow::updatePreview(bool tabSwitch)
     } else {
         QString js = buildUpdateCallJavascript(html, env.cssChanged, env.previewCss,
             env.mermaidTheme, emojiMode, baseUrl, tabSwitch);
-        m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
-            if (result.toBool())
-                syncPreviewScroll();
+        m_preview->page()->runJavaScript(js, [this, tabSwitch](const QVariant &result) {
+            if (!result.toBool())
+                return;
+            // No immediate re-sync here: the page's own anchored restoreScroll
+            // re-docks the preview when the user hasn't scrolled it manually,
+            // and a C++ re-assert would yank a user preview scroll back to the
+            // editor's line (pinned by AsyncContentUpdateDoesNotYankPreviewScroll).
+            m_lastSyncLine = -1.0;
+            if (tabSwitch) {
+                QTimer::singleShot(450, this, [this] {  // index builds only after the heavy pass; JS restore skips tabSwitch
+                    if (!m_previewInitialized) return;
+                    m_lastSyncLine = -1.0;
+                    syncPreviewScroll();
+                });
+            }
         });
     }
 }
@@ -334,9 +347,10 @@ QString MainWindow::buildUpdateCallJavascript(const QString &html, bool cssChang
     QString escapedBaseUrl;
     if (!baseUrl.isEmpty())
         escapedBaseUrl = escapeJsString(baseUrl.toString());
-    QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6')")
+    QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6',%7)")
         .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode,
-             QString::number(delay), escapedBaseUrl);
+             QString::number(delay), escapedBaseUrl,
+             tabSwitch ? QStringLiteral("true") : QStringLiteral("false"));
     return js;
 }
 
@@ -349,10 +363,21 @@ void MainWindow::syncPreviewScroll()
         return;
     Editor *ed = currentEditor();
     if (!ed) return;
-    auto *sb = ed->verticalScrollBar();
-    double range = sb->maximum() - sb->minimum();
-    double pct = range > 0 ? static_cast<double>(sb->value() - sb->minimum()) / range : 0.0;
-    m_preview->scrollToPercent(pct);
+    const double line = currentEditorTopSourceLine();
+    if (qAbs(line - m_lastSyncLine) < 1e-6)
+        return;
+    m_lastSyncLine = line;
+    m_preview->scrollToSourceLine(line);
+}
+
+double MainWindow::currentEditorTopSourceLine()
+{
+    Editor *ed = currentEditor();
+    if (!ed) return 1.0;
+    QTextCursor c = ed->cursorForPosition(QPoint(ed->viewport()->width() / 2, 1));
+    const int blockLen = c.block().length();
+    return c.blockNumber() + 1
+        + (blockLen > 0 ? static_cast<double>(c.positionInBlock()) / blockLen : 0.0);
 }
 
 void MainWindow::scrollPreviewToAnchor(const QString &anchor)

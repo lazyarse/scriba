@@ -189,6 +189,12 @@ void Preview::scrollToPercent(double pct)
     page()->runJavaScript(js);
 }
 
+void Preview::scrollToSourceLine(double line)
+{
+    QString js = QString("scribaScrollToSourceLine(%1);").arg(line, 0, 'f', 6);
+    page()->runJavaScript(js);
+}
+
 void Preview::contextMenuEvent(QContextMenuEvent *event)
 {
     QWebEngineContextMenuRequest *request = lastContextMenuRequest();
