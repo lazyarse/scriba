@@ -3024,30 +3024,39 @@ void MainWindow::pasteAsMarkdown()
     ed->formatTableAt(ed->textCursor().position());
 }
 
+ExportPreamble MainWindow::currentExportHtml()
+{
+    ExportPreamble pre;
+    pre.ed = currentEditor();
+    if (!pre.ed) return pre;
+    pre.info = activeTabInfo();
+    if (!pre.info) return pre;
+    QSettings s;
+    pre.html = m_parser->toHtml(pre.ed->toPlainText(),
+        s.value(Preferences::BlockRawHtmlExport, true).toBool());
+    pre.ok = true;
+    return pre;
+}
+
 void MainWindow::exportPdf()
 {
-    Editor *ed = currentEditor();
-    if (!ed) return;
-    TabInfo *info = activeTabInfo();
-    if (!info) return;
+    ExportPreamble pre = currentExportHtml();
+    if (!pre.ok) return;
 
     QSettings prefs;
-    QString markdown = ed->toPlainText();
-    QString html = m_parser->toHtml(markdown, prefs.value(Preferences::BlockRawHtmlExport, true).toBool());
-
+    QString html = pre.html;
     if (prefs.value(Preferences::StripExportScripts, true).toBool())
         html = JsRenderEngine::stripScriptTags(html);
 
-    ExportPdfDialog dlg(html, info->filePath, m_cssLoader, this);
+    ExportPdfDialog dlg(html, pre.info->filePath, m_cssLoader, this);
     dlg.exec();
 }
 
 void MainWindow::exportDocx()
 {
-    Editor *ed = currentEditor();
-    if (!ed) return;
-    TabInfo *info = activeTabInfo();
-    if (!info) return;
+    ExportPreamble pre = currentExportHtml();
+    if (!pre.ok) return;
+    TabInfo *info = pre.info;
 
     // Show export dialog to get math mode preference
     ExportDocxDialog dlg(this);
@@ -3065,8 +3074,7 @@ void MainWindow::exportDocx()
     opts.pageNumbers = dlg.hasPageNumbers();
 
     QSettings prefs;
-    QString markdown = ed->toPlainText();
-    QString html = m_parser->toHtml(markdown, prefs.value(Preferences::BlockRawHtmlExport, true).toBool());
+    QString html = pre.html;
     if (prefs.value(Preferences::StripExportScripts, true).toBool())
         html = JsRenderEngine::stripScriptTags(html);
     QString css = m_cssLoader->previewBaseCss() + "\n" + m_cssLoader->themeCss();
@@ -3132,10 +3140,9 @@ void MainWindow::exportDocx()
 
 void MainWindow::exportHtml()
 {
-    Editor *ed = currentEditor();
-    if (!ed) return;
-    TabInfo *info = activeTabInfo();
-    if (!info) return;
+    ExportPreamble pre = currentExportHtml();
+    if (!pre.ok) return;
+    TabInfo *info = pre.info;
 
     ExportHtmlDialog dlg(m_cssConfig, m_cssLoader, info->filePath, this);
     if (dlg.exec() != QDialog::Accepted)
@@ -3155,8 +3162,7 @@ void MainWindow::exportHtml()
     QString combinedCss = baseCss + "\n" + themeCss;
 
     QSettings prefs;
-    QString markdown = ed->toPlainText();
-    QString bodyHtml = m_parser->toHtml(markdown, prefs.value(Preferences::BlockRawHtmlExport, true).toBool());
+    QString bodyHtml = pre.html;
 
     QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();

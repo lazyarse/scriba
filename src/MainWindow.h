@@ -66,6 +66,15 @@ struct TabInfo {
     bool previewStripScripts = false;
 };
 
+// Shared preamble of the three exporters: resolved editor/tab plus the
+// markdown rendered to its export HTML body (BlockRawHtmlExport applied).
+struct ExportPreamble {
+    Editor *ed = nullptr;
+    TabInfo *info = nullptr;
+    QString html;
+    bool ok = false;
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -177,6 +186,9 @@ private:
     void exportPdf();
     void exportDocx();
     void exportHtml();
+    // Resolves the active editor/tab and renders its markdown to the export
+    // HTML body. Shared preamble of exportPdf/exportDocx/exportHtml.
+    ExportPreamble currentExportHtml();
     void syncPreviewScroll();
     void scrollPreviewToAnchor(const QString &anchor);
     void tryScrollPreviewToAnchor();
