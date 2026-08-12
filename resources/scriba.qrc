@@ -3,6 +3,7 @@
         <file>emoji.js</file>
         <file>preview-shell.html</file>
         <file>preview-script.js</file>
+        <file>export-shell.html</file>
         <file>fonts/Symbola.ttf</file>
         <file>preview-base.css</file>
         <file>checkbox-checked.svg</file>

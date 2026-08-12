@@ -18,8 +18,6 @@
 #include <QUrl>
 #include "StaticHelpers.h"
 
-#define DEFAULT_EMOJI_FONT "@font-face{font-family:'Symbola';src:url('qrc:///fonts/Symbola.ttf')format('truetype')}"
-
 enum class ScriptHandling { Strip, EmbedExternal };
 
 class JsRenderEngine

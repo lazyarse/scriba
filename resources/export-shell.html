@@ -1,0 +1,16 @@
+<!DOCTYPE html><html><head>
+<style>{{CSS}}</style>
+<style>@font-face{font-family:'Symbola';src:url('qrc:///fonts/Symbola.ttf')format('truetype')}#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>
+<style>#preview{width:100%;min-width:800px}</style>
+<script src="qrc:///highlight.min.js"></script>
+<script src="qrc:///mermaid.min.js"></script>
+<link rel="stylesheet" href="qrc:///katex.min.css">
+<script src="qrc:///katex.min.js"></script>
+<script src="qrc:///contrib/mhchem.min.js"></script>
+<script src="qrc:///echarts.min.js"></script>
+<script src="qrc:///twemoji.min.js"></script>
+<script src="qrc:///emoji.js"></script>
+<script>{{SNIPPETS}}
+function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}
+document.addEventListener('DOMContentLoaded',function(){{INIT}});</script>
+</head><body id="preview">{{BODY}}</body></html>

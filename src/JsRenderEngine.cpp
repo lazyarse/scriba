@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "JsRenderEngine.h"
 #include "JsSnippets.h"
+#include "StaticHelpers.h"
 #include <QEventLoop>
 #include <QFile>
 #include <QMimeDatabase>
@@ -25,79 +26,63 @@
 #include <QUrl>
 #include <QWebEnginePage>
 
+namespace {
+
+// Assembled the export page from the shared shell (resources/export-shell.html)
+// by parameterizing the per-variant differences: the inline snippet payload
+// (chart/mermaid/heading/katex/echarts helpers, plus katex-to-image for the
+// docx image variant) and the DOMContentLoaded init body. The shell owns the
+// doctype, styles, library script tags and the twemojiParse helper.
+QString buildExportShell(const QString &snippets, const QString &domContentInit,
+                         const QString &css, const QString &bodyHtml)
+{
+    QString shell = readResourceFile(":/export-shell.html");
+    shell.replace("{{CSS}}", css);
+    shell.replace("{{SNIPPETS}}", snippets);
+    shell.replace("{{INIT}}", domContentInit);
+    shell.replace("{{BODY}}", bodyHtml);
+    return shell;
+}
+
+QString commonExportSnippets()
+{
+    return chartEditJs + mermaidInitJs + headingIdJs + katexInitJs + echartsInitJs;
+}
+
+// The shared DOMContentLoaded init for the plain (html/pdf) and docx-image
+// variants. The OMML variant replaces this body wholesale. Each returned
+// string is a complete function body (own braces) spliced into the shell's
+// `document.addEventListener('DOMContentLoaded',function(){{INIT}});`.
+QString documentInitBody(const QString &mermaidTheme, const QString &emojiMode,
+                         const QString &mathTail)
+{
+    return "{mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
+        "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();scribaRenderMath();document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.echartsReady=initECharts();"
+        + mathTail
+        + "replaceEmoji(document.body);twemojiParse('" + emojiMode + "');}";
+}
+
+} // namespace
+
 QString JsRenderEngine::buildFullHtml(const QString &bodyHtml, const QString &css,
                                       const QString &emojiMode, const QString &mermaidTheme)
 {
-    return QString(
-        "<!DOCTYPE html><html><head>"
-        "<style>%1</style>"
-        "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
-        "<style>#preview{width:100%;min-width:800px}</style>"
-        "<script src=\"qrc:///highlight.min.js\"></script>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
-        "<script src=\"qrc:///katex.min.js\"></script>"
-        "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
-        "<script src=\"qrc:///echarts.min.js\"></script>"
-        "<script src=\"qrc:///twemoji.min.js\"></script>"
-        "<script src=\"qrc:///emoji.js\"></script>"
-        "<script>%2%3%4%5"
-        "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
-        "document.addEventListener('DOMContentLoaded',function(){"
-        "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();scribaRenderMath();document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.echartsReady=initECharts();"
-        "replaceEmoji(document.body);twemojiParse('%6');"
-        "});</script>"
-        "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, chartEditJs + mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml);
+    const QString init = documentInitBody(mermaidTheme, emojiMode, QString());
+    return buildExportShell(commonExportSnippets(), init, css, bodyHtml);
 }
 
 QString JsRenderEngine::buildFullHtmlForDocx(const QString &bodyHtml, const QString &css,
                                               const QString &emojiMode, const QString &mermaidTheme)
 {
-    return QString(
-        "<!DOCTYPE html><html><head>"
-        "<style>%1</style>"
-        "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
-        "<style>#preview{width:100%;min-width:800px}</style>"
-        "<script src=\"qrc:///highlight.min.js\"></script>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
-        "<script src=\"qrc:///katex.min.js\"></script>"
-        "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
-        "<script src=\"qrc:///echarts.min.js\"></script>"
-        "<script src=\"qrc:///twemoji.min.js\"></script>"
-        "<script src=\"qrc:///emoji.js\"></script>"
-        "<script>%2%3%4%5%8"
-        "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
-        "document.addEventListener('DOMContentLoaded',function(){"
-        "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();scribaRenderMath();document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.katexReady=convertKatexToImages();window.echartsReady=initECharts();"
-        "replaceEmoji(document.body);twemojiParse('%6');"
-        "});</script>"
-        "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, chartEditJs + mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml, katexToImageJs);
+    const QString init = documentInitBody(mermaidTheme, emojiMode,
+        "window.katexReady=convertKatexToImages();");
+    return buildExportShell(commonExportSnippets() + katexToImageJs, init, css, bodyHtml);
 }
 
 QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const QString &css,
                                                   const QString &emojiMode, const QString &mermaidTheme)
 {
-    return QString(
-        "<!DOCTYPE html><html><head>"
-        "<style>%1</style>"
-        "<style>" DEFAULT_EMOJI_FONT "#preview .emoji-char{font-family:'Symbola',monospace}.emoji{height:1em;width:1em;vertical-align:-0.1em;display:inline-block}</style>"
-        "<style>#preview{width:100%;min-width:800px}</style>"
-        "<script src=\"qrc:///highlight.min.js\"></script>"
-        "<script src=\"qrc:///mermaid.min.js\"></script>"
-        "<link rel=\"stylesheet\" href=\"qrc:///katex.min.css\">"
-        "<script src=\"qrc:///katex.min.js\"></script>"
-        "<script src=\"qrc:///contrib/mhchem.min.js\"></script>"
-        "<script src=\"qrc:///echarts.min.js\"></script>"
-        "<script src=\"qrc:///twemoji.min.js\"></script>"
-        "<script src=\"qrc:///emoji.js\"></script>"
-        "<script>%2%3%4%5"
-        "function twemojiParse(m){if(m==='color'&&typeof twemoji!=='undefined'){twemoji.parse(document.body,{base:'qrc:///twemoji/',folder:'svg',ext:'.svg',className:'emoji'});}}"
-        "document.addEventListener('DOMContentLoaded',function(){try{"
+    const QString init = "{try{"
         "mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
         "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();scribaRenderMath();"
         "var MN='http://www.w3.org/1998/Math/MathML';"
@@ -113,10 +98,9 @@ QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const 
         "document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});"
         "document.querySelectorAll('.katex-html').forEach(function(el){el.remove()});"
         "window.echartsReady=initECharts();window.katexReady=Promise.resolve();"
-"replaceEmoji(document.body);twemojiParse('%6');"
-"}catch(e){}});</script>"
-        "</head><body id=\"preview\">%7</body></html>"
-    ).arg(css, chartEditJs + mermaidInitJs, headingIdJs, katexInitJs, echartsInitJs, emojiMode, bodyHtml);
+        "replaceEmoji(document.body);twemojiParse('" + emojiMode + "');"
+        "}catch(e){}}";
+    return buildExportShell(commonExportSnippets(), init, css, bodyHtml);
 }
 
 QString JsRenderEngine::replaceQrcUrls(const QString &html)
