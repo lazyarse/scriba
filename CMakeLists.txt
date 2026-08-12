@@ -81,6 +81,11 @@ set(SCRIBA_PREFS_SOURCES src/PreferencesDialog.cpp src/PreferencesPages.cpp
     src/PreferencesPagesTheme.cpp src/PreferencesPagesContent.cpp
     src/PreferencesPagesSystem.cpp)
 
+set(SCRIBA_MERMAID_SOURCES src/MermaidDialog.cpp
+    src/MermaidDialog_Flowchart.cpp src/MermaidDialog_Gantt.cpp
+    src/MermaidDialog_Class.cpp src/MermaidDialog_State.cpp
+    src/MermaidDialog_Others.cpp)
+
 set(SCRIBA_APP_WEBENGINE_SOURCES
     src/PreviewPagination.cpp
     ${SCRIBA_MAINWINDOW_SOURCES}
@@ -97,7 +102,7 @@ set(SCRIBA_APP_WEBENGINE_SOURCES
     src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp
     src/StockChartDialog.cpp src/AdvancedChartDialog.cpp
     src/EmojiDialog.cpp src/AboutDialog.cpp src/FindDialog.cpp src/LogWindow.cpp
-    src/MermaidDialog.cpp src/KatexHelperDialog.cpp src/MchemHelperDialog.cpp
+    ${SCRIBA_MERMAID_SOURCES} src/KatexHelperDialog.cpp src/MchemHelperDialog.cpp
     src/CsvColumnMapDialog.cpp src/TableDialog.cpp
     resources/scriba.qrc)
 
@@ -150,7 +155,7 @@ add_executable(scriba WIN32
     src/EmojiDialog.cpp
     src/AboutDialog.cpp
     src/LogWindow.cpp
-    src/MermaidDialog.cpp
+    ${SCRIBA_MERMAID_SOURCES}
     src/KatexHelperDialog.cpp
     src/MchemHelperDialog.cpp
     src/StaticHelpers.cpp
@@ -470,7 +475,7 @@ if(BUILD_TESTS)
     add_executable(test_mermaid_dialog
         tests/test_mermaid_dialog.cpp
         tests/GitTestRepo.cpp
-        src/MermaidDialog.cpp
+        ${SCRIBA_MERMAID_SOURCES}
         src/CsvColumnMapDialog.cpp
         src/Preview.cpp)
     target_include_directories(test_mermaid_dialog PRIVATE ${CMAKE_SOURCE_DIR}/tests)

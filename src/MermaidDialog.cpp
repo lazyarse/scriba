@@ -12,6 +12,55 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+// ============================================================
+//  Flowchart
+// ============================================================
+// ============================================================
+//  Sequence Diagram
+// ============================================================
+// ============================================================
+//  Gantt Chart
+// ============================================================
+// ============================================================
+//  Class Diagram
+// ============================================================
+// ============================================================
+//  ER Diagram
+// ============================================================
+// ============================================================
+//  State Diagram
+// ============================================================
+// ============================================================
+//  Mindmap
+// ============================================================
+// ============================================================
+//  Timeline
+// ============================================================
+// ============================================================
+//  User Journey
+// ============================================================
+// ============================================================
+//  Quadrant Chart
+// ============================================================
+// ============================================================
+//  Sankey Diagram
+// ============================================================
+// Copyright (C) 2026 LazyArse
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "MermaidDialog.h"
 #include "Preview.h"
 #include "StaticHelpers.h"
@@ -315,65 +364,6 @@ void MermaidDialog::addDeleteButton(QTableWidget *table, int column, int row,
         schedulePreviewUpdate();
     });
 }
-
-void MermaidDialog::populateComboColumns(QTableWidget *table,
-                                          const QList<int> &columns,
-                                          const QStringList &items)
-{
-    for (int r = 0; r < table->rowCount(); ++r) {
-        for (int col : columns) {
-            auto *box = qobject_cast<QComboBox*>(table->cellWidget(r, col));
-            if (!box) {
-                box = new QComboBox(table);
-                table->setCellWidget(r, col, box);
-                connect(box, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                        this, &MermaidDialog::schedulePreviewUpdate);
-            }
-            QString cur = box->currentText();
-            box->blockSignals(true);
-            box->clear();
-            box->addItems(items);
-            int idx = box->findText(cur);
-            if (idx >= 0)
-                box->setCurrentIndex(idx);
-            box->blockSignals(false);
-        }
-    }
-}
-
-void MermaidDialog::csvImportForChart(QTableWidget *table, const QStringList &chartFields,
-                                       const QList<int> &columnIndices)
-{
-    CsvColumnMapDialog dlg(chartFields, this);
-    if (dlg.exec() != QDialog::Accepted)
-        return;
-
-    QHash<QString, int> mapping = dlg.mapping();
-    const CsvData &data = dlg.csvData();
-    if (data.rows.isEmpty())
-        return;
-
-    table->blockSignals(true);
-    int nCols = qMin(columnIndices.size(), chartFields.size());
-    int nRows = data.rows.size();
-    table->setRowCount(nRows);
-
-    for (int r = 0; r < nRows; ++r) {
-        for (int c = 0; c < nCols; ++c) {
-            int csvCol = mapping.value(chartFields[c], -1);
-            int tableCol = columnIndices[c];
-            if (tableCol < 0 || tableCol >= table->columnCount())
-                continue;
-            QString val;
-            if (csvCol >= 0 && csvCol < data.rows[r].size())
-                val = data.rows[r][csvCol];
-            table->setItem(r, tableCol, new QTableWidgetItem(val));
-        }
-    }
-    table->blockSignals(false);
-    schedulePreviewUpdate();
-}
-
 QString MermaidDialog::buildDiagram() const
 {
     if (sourceMode())
@@ -689,31 +679,6 @@ QWidget *MermaidDialog::createPiePanel()
 
     return panel;
 }
-
-QString MermaidDialog::buildPieDiagram() const
-{
-    QString out;
-    QString title = m_pieTitle->text().trimmed();
-    if (!title.isEmpty())
-        out += "pie title " + title + "\n";
-    else
-        out += "pie\n";
-
-    for (int r = 0; r < m_pieTable->rowCount(); ++r) {
-        auto *labelItem = m_pieTable->item(r, 0);
-        auto *valueItem = m_pieTable->item(r, 1);
-        QString label = labelItem ? labelItem->text().trimmed() : QString();
-        QString value = valueItem ? valueItem->text().trimmed() : QString();
-        if (!label.isEmpty() && !value.isEmpty())
-            out += "    \"" + label + "\" : " + value + "\n";
-    }
-    return out;
-}
-
-// ============================================================
-//  Flowchart
-// ============================================================
-
 QWidget *MermaidDialog::createFlowchartPanel()
 {
     auto *panel = new QWidget(this);
@@ -839,93 +804,6 @@ QWidget *MermaidDialog::createFlowchartPanel()
 
     return panel;
 }
-
-void MermaidDialog::refreshEdgeNodeCombos()
-{
-    QStringList nodeIds;
-    for (int r = 0; r < m_fcNodeTable->rowCount(); ++r) {
-        auto *item = m_fcNodeTable->item(r, 0);
-        if (item && !item->text().trimmed().isEmpty())
-            nodeIds.append(item->text().trimmed());
-    }
-    populateComboColumns(m_fcEdgeTable, {0, 1}, nodeIds);
-    for (int r = 0; r < m_fcEdgeTable->rowCount(); ++r) {
-        auto *arrowBox = qobject_cast<QComboBox*>(m_fcEdgeTable->cellWidget(r, 3));
-        if (!arrowBox) {
-            arrowBox = new QComboBox(m_fcEdgeTable);
-            for (int i = 0; i < kArrowCount; ++i)
-                arrowBox->addItem(kArrowTypes[i].display);
-            m_fcEdgeTable->setCellWidget(r, 3, arrowBox);
-            connect(arrowBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, &MermaidDialog::schedulePreviewUpdate);
-        }
-    }
-}
-
-static QString shapeToMermaid(const QString &shape, const QString &text)
-{
-    if (shape == "Round")
-        return "(" + text + ")";
-    if (shape == "Stadium")
-        return "([" + text + "])";
-    if (shape == "Diamond")
-        return "{" + text + "}";
-    if (shape == "Hexagon")
-        return "{{" + text + "}}";
-    return "[" + text + "]";
-}
-
-static QString renderEdge(const QString &from, const QString &to,
-                          const QString &label, const QString &arrowType)
-{
-    const ArrowInfo *info = nullptr;
-    for (int i = 0; i < kArrowCount; ++i) {
-        if (kArrowTypes[i].display == arrowType) {
-            info = &kArrowTypes[i];
-            break;
-        }
-    }
-    if (!info) return from + "-->" + to;
-    if (label.isEmpty()) return from + info->display + to;
-    return from + info->left + " " + label + " " + info->right + to;
-}
-
-QString MermaidDialog::buildFlowchartDiagram() const
-{
-    QString dir = m_fcDirection->currentData().toString();
-    QString out = "flowchart " + dir + "\n";
-
-    for (int r = 0; r < m_fcNodeTable->rowCount(); ++r) {
-        auto *idItem = m_fcNodeTable->item(r, 0);
-        auto *textItem = m_fcNodeTable->item(r, 1);
-        auto *shapeBox = qobject_cast<QComboBox*>(m_fcNodeTable->cellWidget(r, 2));
-        QString id = idItem ? idItem->text().trimmed() : QString();
-        QString text = textItem ? textItem->text().trimmed() : id;
-        QString shape = shapeBox ? shapeBox->currentText() : "box";
-        if (id.isEmpty()) continue;
-        if (text.isEmpty()) text = id;
-        out += "    " + id + shapeToMermaid(shape, text) + "\n";
-    }
-
-    for (int r = 0; r < m_fcEdgeTable->rowCount(); ++r) {
-        auto *fromBox = qobject_cast<QComboBox*>(m_fcEdgeTable->cellWidget(r, 0));
-        auto *toBox = qobject_cast<QComboBox*>(m_fcEdgeTable->cellWidget(r, 1));
-        auto *labelItem = m_fcEdgeTable->item(r, 2);
-        auto *arrowBox = qobject_cast<QComboBox*>(m_fcEdgeTable->cellWidget(r, 3));
-        QString from = fromBox ? fromBox->currentText() : QString();
-        QString to = toBox ? toBox->currentText() : QString();
-        QString label = labelItem ? labelItem->text().trimmed() : QString();
-        QString arrow = arrowBox ? arrowBox->currentText() : QString("-->");
-        if (from.isEmpty() || to.isEmpty() || from == to) continue;
-        out += "    " + renderEdge(from, to, label, arrow) + "\n";
-    }
-    return out;
-}
-
-// ============================================================
-//  Sequence Diagram
-// ============================================================
-
 QWidget *MermaidDialog::createSequencePanel()
 {
     auto *panel = new QWidget(this);
@@ -1005,63 +883,6 @@ QWidget *MermaidDialog::createSequencePanel()
 
     return panel;
 }
-
-void MermaidDialog::refreshMessageCombos()
-{
-    QStringList names;
-    for (int r = 0; r < m_seqParticipantTable->rowCount(); ++r) {
-        auto *item = m_seqParticipantTable->item(r, 0);
-        if (item && !item->text().trimmed().isEmpty())
-            names.append(item->text().trimmed());
-    }
-    populateComboColumns(m_seqMessageTable, {0, 1}, names);
-    for (int r = 0; r < m_seqMessageTable->rowCount(); ++r) {
-        auto *arrowBox = qobject_cast<QComboBox*>(m_seqMessageTable->cellWidget(r, 3));
-        if (!arrowBox) {
-            arrowBox = new QComboBox(m_seqMessageTable);
-            arrowBox->addItems({"->>", "-->>", "-x", "--)", "->", "-->"});
-            m_seqMessageTable->setCellWidget(r, 3, arrowBox);
-            connect(arrowBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, &MermaidDialog::schedulePreviewUpdate);
-        }
-    }
-}
-
-QString MermaidDialog::buildSequenceDiagram() const
-{
-    QString out = "sequenceDiagram\n";
-
-    for (int r = 0; r < m_seqParticipantTable->rowCount(); ++r) {
-        auto *nameItem = m_seqParticipantTable->item(r, 0);
-        auto *aliasItem = m_seqParticipantTable->item(r, 1);
-        QString name = nameItem ? nameItem->text().trimmed() : QString();
-        QString alias = aliasItem ? aliasItem->text().trimmed() : QString();
-        if (name.isEmpty()) continue;
-        out += "    participant " + name;
-        if (!alias.isEmpty())
-            out += " as " + alias;
-        out += "\n";
-    }
-
-    for (int r = 0; r < m_seqMessageTable->rowCount(); ++r) {
-        auto *fromBox = qobject_cast<QComboBox*>(m_seqMessageTable->cellWidget(r, 0));
-        auto *toBox = qobject_cast<QComboBox*>(m_seqMessageTable->cellWidget(r, 1));
-        auto *labelItem = m_seqMessageTable->item(r, 2);
-        auto *arrowBox = qobject_cast<QComboBox*>(m_seqMessageTable->cellWidget(r, 3));
-        QString from = fromBox ? fromBox->currentText() : QString();
-        QString to = toBox ? toBox->currentText() : QString();
-        QString label = labelItem ? labelItem->text().trimmed() : QString();
-        QString arrow = arrowBox ? arrowBox->currentText() : "->>";
-        if (from.isEmpty() || to.isEmpty()) continue;
-        out += "    " + from + arrow + to + ": " + label + "\n";
-    }
-    return out;
-}
-
-// ============================================================
-//  Gantt Chart
-// ============================================================
-
 QWidget *MermaidDialog::createGanttPanel()
 {
     auto *panel = new QWidget(this);
@@ -1168,55 +989,6 @@ QWidget *MermaidDialog::createGanttPanel()
 
     return panel;
 }
-
-QString MermaidDialog::buildGanttDiagram() const
-{
-    QString out = "gantt\n";
-    QString title = m_ganttTitle->text().trimmed();
-    if (!title.isEmpty())
-        out += "    title " + title + "\n";
-    out += "    dateFormat " + m_ganttDateFormat->currentText() + "\n";
-    if (m_ganttWeekend->isChecked())
-        out += "    excludes weekends\n";
-
-    QMap<QString, QList<int>> sections;
-    for (int r = 0; r < m_ganttTaskTable->rowCount(); ++r) {
-        auto *sectionItem = m_ganttTaskTable->item(r, 5);
-        QString section = sectionItem ? sectionItem->text().trimmed() : QString();
-        if (section.isEmpty()) section = "(none)";
-        sections[section].append(r);
-    }
-
-    for (auto it = sections.constBegin(); it != sections.constEnd(); ++it) {
-        out += "    section " + it.key() + "\n";
-        for (int r : it.value()) {
-            auto *idItem = m_ganttTaskTable->item(r, 0);
-            auto *descItem = m_ganttTaskTable->item(r, 1);
-            auto *startItem = m_ganttTaskTable->item(r, 2);
-            auto *durationItem = m_ganttTaskTable->item(r, 3);
-            auto *statusBox = qobject_cast<QComboBox*>(m_ganttTaskTable->cellWidget(r, 4));
-            QString id = idItem ? idItem->text().trimmed() : QString();
-            QString desc = descItem ? descItem->text().trimmed() : QString();
-            QString start = startItem ? startItem->text().trimmed() : QString();
-            QString duration = durationItem ? durationItem->text().trimmed() : QString();
-            QString status = statusBox ? statusBox->currentData().toString() : QString();
-            if (id.isEmpty()) continue;
-            QString taskLine = "        " + desc;
-            if (!status.isEmpty())
-                taskLine += " :" + status + ", ";
-            else
-                taskLine += " : ";
-            taskLine += id + ", " + start + ", " + duration;
-            out += taskLine + "\n";
-        }
-    }
-    return out;
-}
-
-// ============================================================
-//  Class Diagram
-// ============================================================
-
 QWidget *MermaidDialog::createClassPanel()
 {
     auto *panel = new QWidget(this);
@@ -1441,148 +1213,6 @@ QWidget *MermaidDialog::createClassPanel()
 
     return panel;
 }
-
-void MermaidDialog::saveCurrentClassData()
-{
-    if (m_lastClassRow < 0) return;
-    ClassData data;
-    for (int r = 0; r < m_classFieldTable->rowCount(); ++r) {
-        QMap<QString, QString> field;
-        auto *nameItem = m_classFieldTable->item(r, 0);
-        auto *typeItem = m_classFieldTable->item(r, 1);
-        auto *visCombo = qobject_cast<QComboBox*>(m_classFieldTable->cellWidget(r, 2));
-        auto *staticCheck = qobject_cast<QCheckBox*>(m_classFieldTable->cellWidget(r, 3));
-        field["name"] = nameItem ? nameItem->text() : QString();
-        field["type"] = typeItem ? typeItem->text() : QString();
-        field["visibility"] = visCombo ? visCombo->currentText() : "+";
-        field["static"] = (staticCheck && staticCheck->isChecked()) ? "true" : "false";
-        data.fields.append(field);
-    }
-    for (int r = 0; r < m_classMethodTable->rowCount(); ++r) {
-        QMap<QString, QString> method;
-        auto *nameItem = m_classMethodTable->item(r, 0);
-        auto *retItem = m_classMethodTable->item(r, 1);
-        auto *paramsItem = m_classMethodTable->item(r, 2);
-        auto *visCombo = qobject_cast<QComboBox*>(m_classMethodTable->cellWidget(r, 3));
-        method["name"] = nameItem ? nameItem->text() : QString();
-        method["returnType"] = retItem ? retItem->text() : QString();
-        method["parameters"] = paramsItem ? paramsItem->text() : QString();
-        method["visibility"] = visCombo ? visCombo->currentText() : "+";
-        data.methods.append(method);
-    }
-    m_classData[m_lastClassRow] = data;
-}
-
-void MermaidDialog::loadClassData(int classRow)
-{
-    m_classFieldTable->blockSignals(true);
-    m_classMethodTable->blockSignals(true);
-    m_classFieldTable->setRowCount(0);
-    m_classMethodTable->setRowCount(0);
-    if (classRow < 0) {
-        m_classFieldTable->blockSignals(false);
-        m_classMethodTable->blockSignals(false);
-        return;
-    }
-    ClassData data = m_classData.value(classRow);
-    for (const auto &field : data.fields) {
-        int r = m_classFieldTable->rowCount();
-        m_classFieldTable->insertRow(r);
-        m_classFieldTable->setItem(r, 0, new QTableWidgetItem(field.value("name")));
-        m_classFieldTable->setItem(r, 1, new QTableWidgetItem(field.value("type")));
-        auto *visCombo = new QComboBox; visCombo->addItems({"+", "-", "#", "~"});
-        int idx = visCombo->findText(field.value("visibility", "+"));
-        if (idx >= 0) visCombo->setCurrentIndex(idx);
-        m_classFieldTable->setCellWidget(r, 2, visCombo);
-        auto *staticCheck = new QCheckBox;
-        staticCheck->setCheckState(field.value("static") == "true" ? Qt::Checked : Qt::Unchecked);
-        m_classFieldTable->setCellWidget(r, 3, staticCheck);
-    }
-    for (const auto &method : data.methods) {
-        int r = m_classMethodTable->rowCount();
-        m_classMethodTable->insertRow(r);
-        m_classMethodTable->setItem(r, 0, new QTableWidgetItem(method.value("name")));
-        m_classMethodTable->setItem(r, 1, new QTableWidgetItem(method.value("returnType")));
-        m_classMethodTable->setItem(r, 2, new QTableWidgetItem(method.value("parameters")));
-        auto *visCombo = new QComboBox; visCombo->addItems({"+", "-", "#", "~"});
-        int idx = visCombo->findText(method.value("visibility", "+"));
-        if (idx >= 0) visCombo->setCurrentIndex(idx);
-        m_classMethodTable->setCellWidget(r, 3, visCombo);
-    }
-    m_classFieldTable->blockSignals(false);
-    m_classMethodTable->blockSignals(false);
-}
-
-void MermaidDialog::refreshClassRelCombos()
-{
-    QStringList names;
-    for (int r = 0; r < m_classTable->rowCount(); ++r) {
-        auto *item = m_classTable->item(r, 0);
-        if (item && !item->text().isEmpty()) names.append(item->text());
-    }
-    for (int r = 0; r < m_classRelationTable->rowCount(); ++r) {
-        for (int col : {0, 1}) {
-            auto *combo = qobject_cast<QComboBox*>(m_classRelationTable->cellWidget(r, col));
-            if (!combo) continue;
-            QString prev = combo->currentText();
-            combo->blockSignals(true);
-            combo->clear();
-            combo->addItems(names);
-            int idx = combo->findText(prev);
-            if (idx >= 0) combo->setCurrentIndex(idx);
-            combo->blockSignals(false);
-        }
-    }
-}
-
-QString MermaidDialog::buildClassDiagram() const
-{
-    QString out = "classDiagram\n";
-    for (int r = 0; r < m_classRelationTable->rowCount(); ++r) {
-        auto *fromCombo = qobject_cast<QComboBox*>(m_classRelationTable->cellWidget(r, 0));
-        auto *toCombo = qobject_cast<QComboBox*>(m_classRelationTable->cellWidget(r, 1));
-        auto *typeCombo = qobject_cast<QComboBox*>(m_classRelationTable->cellWidget(r, 2));
-        auto *labelItem = m_classRelationTable->item(r, 3);
-        if (!fromCombo || !toCombo || !typeCombo) continue;
-        QString from = fromCombo->currentText();
-        QString to = toCombo->currentText();
-        QString type = typeCombo->currentText();
-        QString label = labelItem ? labelItem->text() : QString();
-        if (from.isEmpty() || to.isEmpty()) continue;
-        out += "    " + from + " " + type + " " + to;
-        if (!label.isEmpty()) out += " : " + label;
-        out += "\n";
-    }
-    for (int c = 0; c < m_classTable->rowCount(); ++c) {
-        auto *nameItem = m_classTable->item(c, 0);
-        auto *typeCombo = qobject_cast<QComboBox*>(m_classTable->cellWidget(c, 1));
-        if (!nameItem || nameItem->text().isEmpty()) continue;
-        QString className = nameItem->text();
-        QString classType = typeCombo ? typeCombo->currentText() : "class";
-        ClassData data = m_classData.value(c);
-        if (classType == "Enumeration")
-            out += "    enum " + className + " {\n";
-        else
-            out += "    class " + className + " {\n";
-        for (const auto &field : data.fields) {
-            QString vis = field.value("visibility", "+");
-            out += "        " + vis + field.value("type") + " " + field.value("name");
-            if (field.value("static") == "true") out += " $";
-            out += "\n";
-        }
-        for (const auto &method : data.methods) {
-            QString vis = method.value("visibility", "+");
-            out += "        " + vis + method.value("name") + "(" + method.value("parameters") + ") " + method.value("returnType") + "\n";
-        }
-        out += "    }\n";
-    }
-    return out;
-}
-
-// ============================================================
-//  ER Diagram
-// ============================================================
-
 QWidget *MermaidDialog::createERPanel()
 {
     auto *panel = new QWidget(this);
@@ -1752,105 +1382,6 @@ QWidget *MermaidDialog::createERPanel()
 
     return panel;
 }
-
-void MermaidDialog::saveCurrentERAttrs()
-{
-    if (m_lastEntityRow < 0) return;
-    QList<QMap<QString, QString>> attrs;
-    for (int r = 0; r < m_erAttributeTable->rowCount(); ++r) {
-        QMap<QString, QString> attr;
-        auto *nameItem = m_erAttributeTable->item(r, 0);
-        auto *typeItem = m_erAttributeTable->item(r, 1);
-        auto *keyCombo = qobject_cast<QComboBox*>(m_erAttributeTable->cellWidget(r, 2));
-        attr["name"] = nameItem ? nameItem->text() : QString();
-        attr["type"] = typeItem ? typeItem->text() : QString();
-        attr["key"] = keyCombo ? keyCombo->currentText() : QString();
-        attrs.append(attr);
-    }
-    m_erEntityAttrs[m_lastEntityRow] = attrs;
-}
-
-void MermaidDialog::loadERAttrs(int entityRow)
-{
-    m_erAttributeTable->blockSignals(true);
-    m_erAttributeTable->setRowCount(0);
-    if (entityRow < 0) {
-        m_erAttributeTable->blockSignals(false);
-        return;
-    }
-    auto attrs = m_erEntityAttrs.value(entityRow);
-    for (const auto &attr : attrs) {
-        int r = m_erAttributeTable->rowCount();
-        m_erAttributeTable->insertRow(r);
-        m_erAttributeTable->setItem(r, 0, new QTableWidgetItem(attr.value("name")));
-        m_erAttributeTable->setItem(r, 1, new QTableWidgetItem(attr.value("type")));
-        auto *keyCombo = new QComboBox; keyCombo->addItems({"", "PK", "FK"});
-        int idx = keyCombo->findText(attr.value("key"));
-        if (idx >= 0) keyCombo->setCurrentIndex(idx);
-        m_erAttributeTable->setCellWidget(r, 2, keyCombo);
-    }
-    m_erAttributeTable->blockSignals(false);
-}
-
-void MermaidDialog::refreshERRelCombos()
-{
-    QStringList names;
-    for (int r = 0; r < m_erEntityTable->rowCount(); ++r) {
-        auto *item = m_erEntityTable->item(r, 0);
-        if (item && !item->text().isEmpty()) names.append(item->text());
-    }
-    for (int r = 0; r < m_erRelationTable->rowCount(); ++r) {
-        for (int col : {0, 1}) {
-            auto *combo = qobject_cast<QComboBox*>(m_erRelationTable->cellWidget(r, col));
-            if (!combo) continue;
-            QString prev = combo->currentText();
-            combo->blockSignals(true);
-            combo->clear();
-            combo->addItems(names);
-            int idx = combo->findText(prev);
-            if (idx >= 0) combo->setCurrentIndex(idx);
-            combo->blockSignals(false);
-        }
-    }
-}
-
-QString MermaidDialog::buildERDiagram() const
-{
-    QString out = "erDiagram\n";
-    for (int r = 0; r < m_erRelationTable->rowCount(); ++r) {
-        auto *fromCombo = qobject_cast<QComboBox*>(m_erRelationTable->cellWidget(r, 0));
-        auto *toCombo = qobject_cast<QComboBox*>(m_erRelationTable->cellWidget(r, 1));
-        auto *typeCombo = qobject_cast<QComboBox*>(m_erRelationTable->cellWidget(r, 2));
-        auto *labelItem = m_erRelationTable->item(r, 3);
-        if (!fromCombo || !toCombo || !typeCombo) continue;
-        QString from = fromCombo->currentText();
-        QString to = toCombo->currentText();
-        QString type = typeCombo->currentText();
-        QString label = labelItem ? labelItem->text() : QString();
-        if (from.isEmpty() || to.isEmpty()) continue;
-        out += "    " + from + " " + type + " " + to;
-        if (!label.isEmpty()) out += " : " + label;
-        out += "\n";
-    }
-    for (int e = 0; e < m_erEntityTable->rowCount(); ++e) {
-        auto *nameItem = m_erEntityTable->item(e, 0);
-        if (!nameItem || nameItem->text().isEmpty()) continue;
-        QString entityName = nameItem->text();
-        auto attrs = m_erEntityAttrs.value(e);
-        if (attrs.isEmpty()) continue;
-        out += "    " + entityName + " {\n";
-        for (const auto &attr : attrs)
-            out += "        " + attr.value("type") + " " + attr.value("name")
-                   + (attr.value("key").isEmpty() ? "" : " " + attr.value("key")) + "\n";
-        out += "    }\n";
-    }
-    return out;
-}
-
-// ============================================================
-//  State Diagram
-// ============================================================
-
 QWidget *MermaidDialog::createStatePanel()
 {
     auto *panel = new QWidget(this);
@@ -1922,70 +1453,6 @@ QWidget *MermaidDialog::createStatePanel()
 
     return panel;
 }
-
-void MermaidDialog::refreshStateCombos()
-{
-    QStringList stateNames;
-    for (int r = 0; r < m_stateTable->rowCount(); ++r) {
-        auto *item = m_stateTable->item(r, 0);
-        if (item && !item->text().trimmed().isEmpty())
-            stateNames.append(item->text().trimmed());
-    }
-    populateComboColumns(m_stateTransitionTable, {0, 1}, stateNames);
-}
-
-QString MermaidDialog::buildStateDiagram() const
-{
-    QString out = "stateDiagram-v2\n";
-    // Rows with a Section (composite state) are emitted inside `state X { ... }`
-    // blocks; the block opens when the section first appears and closes when the
-    // section changes (or at the end), mirroring the parsed source structure.
-    int openSection = -1; // index into sections, -1 when no block is open
-    QList<QString> sections;
-    auto closeSection = [&out, &openSection]() {
-        if (openSection >= 0) {
-            out += "    }\n";
-            openSection = -1;
-        }
-    };
-    for (int r = 0; r < m_stateTransitionTable->rowCount(); ++r) {
-        auto *fromBox = qobject_cast<QComboBox*>(m_stateTransitionTable->cellWidget(r, 0));
-        auto *toBox = qobject_cast<QComboBox*>(m_stateTransitionTable->cellWidget(r, 1));
-        QString from = fromBox ? fromBox->currentText() : QString();
-        QString to = toBox ? toBox->currentText() : QString();
-        auto *labelItem = m_stateTransitionTable->item(r, 2);
-        QString label = labelItem ? labelItem->text().trimmed() : QString();
-        auto *sectionItem = m_stateTransitionTable->item(r, 3);
-        QString section = sectionItem ? sectionItem->text().trimmed() : QString();
-        if (from.isEmpty() || to.isEmpty()) continue;
-
-        int sectionIdx = -1;
-        if (!section.isEmpty()) {
-            sectionIdx = sections.indexOf(section);
-            if (sectionIdx < 0) {
-                sections.append(section);
-                sectionIdx = sections.size() - 1;
-            }
-        }
-        if (sectionIdx != openSection) {
-            closeSection();
-            if (sectionIdx >= 0)
-                out += "    state " + section + " {\n";
-            openSection = sectionIdx;
-        }
-        out += sectionIdx >= 0 ? "        " : "    ";
-        out += from + " --> " + to;
-        if (!label.isEmpty()) out += " : " + label;
-        out += "\n";
-    }
-    closeSection();
-    return out;
-}
-
-// ============================================================
-//  Mindmap
-// ============================================================
-
 QWidget *MermaidDialog::createMindmapPanel()
 {
     auto *panel = new QWidget(this);
@@ -2049,34 +1516,6 @@ QWidget *MermaidDialog::createMindmapPanel()
 
     return panel;
 }
-
-QString MermaidDialog::buildMindmapDiagram() const
-{
-    QString out = "mindmap\n";
-    QTreeWidgetItem *root = m_mindmapTree->topLevelItem(0);
-    if (root) {
-        std::function<QString(QTreeWidgetItem*, int)> buildNode;
-        buildNode = [&buildNode](QTreeWidgetItem *item, int depth) -> QString {
-            QString indent(depth * 4, ' ');
-            QString text = item->text(0);
-            QString out;
-            if (depth == 1)
-                out = indent + "root((" + text + "))\n";
-            else
-                out = indent + text + "\n";
-            for (int i = 0; i < item->childCount(); ++i)
-                out += buildNode(item->child(i), depth + 1);
-            return out;
-        };
-        out += buildNode(root, 1);
-    }
-    return out;
-}
-
-// ============================================================
-//  Timeline
-// ============================================================
-
 QWidget *MermaidDialog::createTimelinePanel()
 {
     auto *panel = new QWidget(this);
@@ -2131,29 +1570,6 @@ QWidget *MermaidDialog::createTimelinePanel()
 
     return panel;
 }
-
-QString MermaidDialog::buildTimelineDiagram() const
-{
-    QString title = m_timelineTitle->text().trimmed();
-    QString out = "timeline\n";
-    if (!title.isEmpty()) out += "    title " + title + "\n";
-    QString currentSection;
-    for (int r = 0; r < m_timelineTable->rowCount(); ++r) {
-        QString section = m_timelineTable->item(r, 0) ? m_timelineTable->item(r, 0)->text().trimmed() : QString();
-        QString event = m_timelineTable->item(r, 1) ? m_timelineTable->item(r, 1)->text().trimmed() : QString();
-        if (section.isEmpty() && event.isEmpty()) continue;
-        if (section != currentSection) {
-            if (!section.isEmpty()) { out += "    " + section + "\n"; currentSection = section; }
-        }
-        if (!event.isEmpty()) out += "            : " + event + "\n";
-    }
-    return out;
-}
-
-// ============================================================
-//  User Journey
-// ============================================================
-
 QWidget *MermaidDialog::createJourneyPanel()
 {
     auto *panel = new QWidget(this);
@@ -2216,30 +1632,6 @@ QWidget *MermaidDialog::createJourneyPanel()
 
     return panel;
 }
-
-QString MermaidDialog::buildJourneyDiagram() const
-{
-    QString title = m_journeyTitle->text().trimmed();
-    QString out = "journey\n";
-    if (!title.isEmpty()) out += "    title " + title + "\n";
-    QString currentSection;
-    for (int r = 0; r < m_journeyTable->rowCount(); ++r) {
-        QString section = m_journeyTable->item(r, 0) ? m_journeyTable->item(r, 0)->text().trimmed() : QString();
-        QString task = m_journeyTable->item(r, 1) ? m_journeyTable->item(r, 1)->text().trimmed() : QString();
-        auto *spin = qobject_cast<QSpinBox*>(m_journeyTable->cellWidget(r, 2));
-        int score = spin ? spin->value() : 5;
-        QString actors = m_journeyTable->item(r, 3) ? m_journeyTable->item(r, 3)->text().trimmed() : QString();
-        if (section.isEmpty() && task.isEmpty()) continue;
-        if (section != currentSection && !section.isEmpty()) { out += "    section " + section + "\n"; currentSection = section; }
-        if (!task.isEmpty()) out += "        " + task + ": " + QString::number(score) + ": " + actors + "\n";
-    }
-    return out;
-}
-
-// ============================================================
-//  Quadrant Chart
-// ============================================================
-
 QWidget *MermaidDialog::createQuadrantPanel()
 {
     auto *panel = new QWidget(this);
@@ -2342,32 +1734,6 @@ QWidget *MermaidDialog::createQuadrantPanel()
 
     return panel;
 }
-
-QString MermaidDialog::buildQuadrantDiagram() const
-{
-    QString out = "quadrantChart\n";
-    QString title = m_quadTitle->text().trimmed();
-    if (!title.isEmpty()) out += "    title " + title + "\n";
-    out += "    x-axis " + m_quadXLeft->text().trimmed() + " --> " + m_quadXRight->text().trimmed() + "\n";
-    out += "    y-axis " + m_quadYBottom->text().trimmed() + " --> " + m_quadYTop->text().trimmed() + "\n";
-    if (!m_quadQ1->text().trimmed().isEmpty()) out += "    quadrant-1 " + m_quadQ1->text().trimmed() + "\n";
-    if (!m_quadQ2->text().trimmed().isEmpty()) out += "    quadrant-2 " + m_quadQ2->text().trimmed() + "\n";
-    if (!m_quadQ3->text().trimmed().isEmpty()) out += "    quadrant-3 " + m_quadQ3->text().trimmed() + "\n";
-    if (!m_quadQ4->text().trimmed().isEmpty()) out += "    quadrant-4 " + m_quadQ4->text().trimmed() + "\n";
-    for (int r = 0; r < m_quadTable->rowCount(); ++r) {
-        QString label = m_quadTable->item(r, 0) ? m_quadTable->item(r, 0)->text().trimmed() : QString();
-        QString x = m_quadTable->item(r, 1) ? m_quadTable->item(r, 1)->text().trimmed() : QString();
-        QString y = m_quadTable->item(r, 2) ? m_quadTable->item(r, 2)->text().trimmed() : QString();
-        if (!label.isEmpty() && !x.isEmpty() && !y.isEmpty())
-            out += "    " + label + ": [" + x + ", " + y + "]\n";
-    }
-    return out;
-}
-
-// ============================================================
-//  Sankey Diagram
-// ============================================================
-
 QWidget *MermaidDialog::createSankeyPanel()
 {
     auto *panel = new QWidget(this);
@@ -2419,20 +1785,6 @@ QWidget *MermaidDialog::createSankeyPanel()
 
     return panel;
 }
-
-QString MermaidDialog::buildSankeyDiagram() const
-{
-    QString out = "sankey-beta\n";
-    for (int r = 0; r < m_sankeyTable->rowCount(); ++r) {
-        QString src = m_sankeyTable->item(r, 0) ? m_sankeyTable->item(r, 0)->text().trimmed() : QString();
-        QString tgt = m_sankeyTable->item(r, 1) ? m_sankeyTable->item(r, 1)->text().trimmed() : QString();
-        QString val = m_sankeyTable->item(r, 2) ? m_sankeyTable->item(r, 2)->text().trimmed() : QString();
-        if (!src.isEmpty() && !tgt.isEmpty() && !val.isEmpty())
-            out += "    " + src + "," + tgt + "," + val + "\n";
-    }
-    return out;
-}
-
 QWidget *MermaidDialog::createGitGraphPanel()
 {
     auto *panel = new QWidget(this);
@@ -2523,7 +1875,6 @@ QWidget *MermaidDialog::createGitGraphPanel()
     updateGitLimitEnabled();
     return panel;
 }
-
 void MermaidDialog::loadGitRepo(const QString &path)
 {
     QStringList branches;
@@ -2570,7 +1921,6 @@ void MermaidDialog::loadGitRepo(const QString &path)
     updateGitLimitEnabled();
     schedulePreviewUpdate();
 }
-
 void MermaidDialog::updateGitLimitEnabled()
 {
     if (!m_gitLimitCombo || !m_gitBranchCombo || !m_gitFromDate || !m_gitToDate)
@@ -2586,19 +1936,4 @@ void MermaidDialog::updateGitLimitEnabled()
     m_gitBranchCombo->setEnabled(branchNeeded);
     m_gitFromDate->setEnabled(dateNeeded);
     m_gitToDate->setEnabled(dateNeeded);
-}
-
-QString MermaidDialog::buildGitGraphDiagram() const
-{
-    if (m_gitRepo.isEmpty())
-        return {};
-    GitGraphBuilder::Options opts;
-    opts.limit = static_cast<GitGraphBuilder::Options::Limit>(
-        m_gitLimitCombo->currentData().toInt());
-    opts.branch = m_gitBranchCombo->currentText();
-    opts.from = m_gitFromDate->date().startOfDay();
-    opts.to = m_gitToDate->date().endOfDay();
-    opts.maxCommits = m_gitNoLimit->isChecked() ? 0 : m_gitMaxCommits->value();
-    QString error;
-    return GitGraphBuilder::build(m_gitRepo, opts, &error);
 }
