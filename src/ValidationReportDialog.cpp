@@ -14,10 +14,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "ValidationReportDialog.h"
 
+#include "StaticHelpers.h"
+
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
-#include <QIcon>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
@@ -130,8 +131,8 @@ void ValidationReportDialog::buildUi()
     tabRow->addStretch();
     auto *selectAllBtn = new QPushButton(tr("Select &All"), this);
     auto *selectNoneBtn = new QPushButton(tr("&None"), this);
-    for (auto *btn : {selectAllBtn, selectNoneBtn})
-        btn->setIcon(QIcon());
+    stripButtonIcon(selectAllBtn);
+    stripButtonIcon(selectNoneBtn);
     tabRow->addWidget(selectAllBtn);
     tabRow->addWidget(selectNoneBtn);
     layout->addLayout(tabRow);
@@ -181,8 +182,7 @@ void ValidationReportDialog::buildUi()
     m_buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     m_buttonBox->button(QDialogButtonBox::Ok)->setText(tr("&Generate"));
     m_buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("&Cancel"));
-    for (auto *btn : m_buttonBox->buttons())
-        btn->setIcon(QIcon());
+    stripButtonIcons(m_buttonBox);
     layout->addWidget(m_buttonBox);
 
     connect(m_spelling, &QCheckBox::toggled, this, &ValidationReportDialog::updateButtons);

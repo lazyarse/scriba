@@ -345,7 +345,7 @@ void MainWindow::notifyStaleBaseCss()
           "stylesheets may not be fully compatible with the current rendering engine.");
     msgBox.setStandardButtons(QMessageBox::Ok);
     for (auto *btn : msgBox.buttons())
-        btn->setIcon(QIcon());
+        stripButtonIcon(btn);
     msgBox.exec();
 
     m_cssLoader->clearStaleBaseCssFlags();
@@ -4099,7 +4099,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
                     .arg(info.filePath, file.errorString()));
                 msgBox.setStandardButtons(QMessageBox::Ok);
                 for (auto *btn : msgBox.buttons())
-                    btn->setIcon(QIcon());
+                    stripButtonIcon(btn);
                 msgBox.exec();
                 event->ignore();
                 return false;

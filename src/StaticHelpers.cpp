@@ -199,6 +199,12 @@ void stripButtonIcons(QDialogButtonBox *box)
         stripButtonIcon(btn);
 }
 
+void stripButtonIcons(const QList<QAbstractButton *> &buttons)
+{
+    for (auto *btn : buttons)
+        stripButtonIcon(btn);
+}
+
 QString readResourceFile(const QString &path)
 {
     QFile f(path);

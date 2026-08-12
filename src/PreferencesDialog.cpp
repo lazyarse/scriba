@@ -538,7 +538,7 @@ void PreferencesDialog::setupGeneralPage()
         QHBoxLayout *imgDirRow = new QHBoxLayout();
         m_imgDirEdit = new QLineEdit(settings.value(Preferences::ImportImageDir).toString());
         m_imgDirBrowse = new QPushButton("Browse...");
-        m_imgDirBrowse->setIcon(QIcon());
+        stripButtonIcon(m_imgDirBrowse);
         connect(m_imgDirBrowse, &QPushButton::clicked, this, [this]() {
             const QString dir = QFileDialog::getExistingDirectory(
                 this, "Choose Image Folder", m_imgDirEdit->text());
@@ -1390,11 +1390,6 @@ void PreferencesDialog::setupReplacementsPage()
         m_replacementsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
         groupLayout->addWidget(m_replacementsTable);
 
-        auto stripButtonIcons = [](const QList<QPushButton *> &buttons) {
-            for (auto *btn : buttons)
-                btn->setIcon(QIcon());
-        };
-
         auto *addBtn = new QPushButton(tr("Ad&d"));
         auto *removeBtn = new QPushButton(tr("R&emove"));
         auto *restoreBtn = new QPushButton(tr("Res&tore Defaults"));
@@ -1621,11 +1616,6 @@ void PreferencesDialog::setupSpellingPage()
         grammarLayout->addRow("Dialect:", m_grammarDialectCombo);
 
         layout->addWidget(grammarGroup);
-
-        auto stripButtonIcons = [](const QList<QPushButton *> &buttons) {
-            for (auto *btn : buttons)
-                btn->setIcon(QIcon());
-        };
 
         QGroupBox *dictionaryGroup = new QGroupBox("Dictionary");
         QFormLayout *dictionaryLayout = new QFormLayout(dictionaryGroup);
@@ -1910,11 +1900,6 @@ void PreferencesDialog::setupCorpusPage()
         layout->setSpacing(8);
 
         const bool corpusOpen = m_corpus && !m_corpus->filePath.isEmpty();
-
-        auto stripButtonIcons = [](const QList<QPushButton *> &buttons) {
-            for (auto *btn : buttons)
-                btn->setIcon(QIcon());
-        };
 
         QGroupBox *startupGroup = new QGroupBox("Startup");
         QVBoxLayout *startupLayout = new QVBoxLayout(startupGroup);

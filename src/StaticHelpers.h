@@ -104,6 +104,7 @@ QIcon themedIcon(const QString &svgPath, const QColor &color, int size = 28);
 
 void stripButtonIcon(QAbstractButton *btn);
 void stripButtonIcons(QDialogButtonBox *box);
+void stripButtonIcons(const QList<QAbstractButton *> &buttons);
 
 QString readResourceFile(const QString &path);
 QString duplicateCssFile(const QString &sourcePath, const QString &destDir, const QString &baseName = QString());

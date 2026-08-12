@@ -129,7 +129,7 @@ void ExportCorpusDialog::setupUi()
     dirLabel->setBuddy(m_dirEdit);
     dirRow->addWidget(m_dirEdit, 1);
     auto *browseBtn = new QPushButton(tr("&Browse…"), this);
-    browseBtn->setIcon(QIcon());
+    stripButtonIcon(browseBtn);
     connect(browseBtn, &QPushButton::clicked, this, &ExportCorpusDialog::chooseDirectory);
     dirRow->addWidget(browseBtn);
     layout->addLayout(dirRow);
