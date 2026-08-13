@@ -585,6 +585,11 @@ void MainWindow::showPreferences()
         applyStyleSheetToAllEditors();
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
         applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());
+        // Render-affecting preferences (typography, hard breaks, ordered-list
+        // numbering) changed on this page: drop the cached HTML so the next
+        // updatePreview() re-renders instead of serving a stale render.
+        for (auto &tab : m_tabs)
+            tab.previewHtmlValid = false;
         updateAll();
         updateStats();
         for (const auto &tab : m_tabs) {

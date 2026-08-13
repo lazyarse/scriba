@@ -128,5 +128,8 @@ QString MarkdownParser::toHtml(const QString &markdown, bool noHtml)
 
     MdRenderer renderer;
     renderer.setTypography(Typography::optionsFromSettings());
+    renderer.setOrderedListStyle(MdRenderer::orderedListStyleFromString(
+        settings.value(Preferences::OrderedListMarker,
+            Preferences::defaultOrderedListMarker()).toString()));
     return renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), parserFlags);
 }

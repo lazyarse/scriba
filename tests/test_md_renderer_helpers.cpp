@@ -38,6 +38,68 @@ TEST(MdRendererAlignmentTest, DefaultTableAlignment) {
     EXPECT_TRUE(html.contains("<td>"));
 }
 
+TEST(MdRendererListTest, OrderedListStartPreserved) {
+    QString md = "3. three\n4. four";
+    QByteArray utf8 = md.toUtf8();
+    unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    MdRenderer renderer;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("<ol start=\"3\">"))
+        << "list starting at 3 must emit start=\"3\"; got: " << html.toStdString();
+    EXPECT_TRUE(html.contains("three"));
+    EXPECT_TRUE(html.contains("four"));
+}
+
+TEST(MdRendererListTest, OrderedListDefaultStartOmitsAttribute) {
+    QString md = "1. one\n2. two";
+    QByteArray utf8 = md.toUtf8();
+    unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    MdRenderer renderer;
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("<ol>")) << "start=1 must not emit start attr";
+    EXPECT_FALSE(html.contains("start="));
+}
+
+TEST(MdRendererListTest, OrderedListStyleClassEmitted) {
+    const struct { MdRenderer::OrderedListStyle style; const char *cls; } cases[] = {
+        { MdRenderer::OrderedListStyle::Decimal, "" },
+        { MdRenderer::OrderedListStyle::DecimalParen, "md-list-decimal-paren" },
+        { MdRenderer::OrderedListStyle::LowerAlpha, "md-list-alpha" },
+        { MdRenderer::OrderedListStyle::LowerAlphaParen, "md-list-alpha-paren" },
+        { MdRenderer::OrderedListStyle::LowerRoman, "md-list-roman" },
+        { MdRenderer::OrderedListStyle::LowerRomanParen, "md-list-roman-paren" },
+    };
+    for (const auto &c : cases) {
+        QString md = "1. one\n2. two";
+        QByteArray utf8 = md.toUtf8();
+        unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+        MdRenderer renderer;
+        renderer.setOrderedListStyle(c.style);
+        QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+        if (c.cls[0])
+            EXPECT_TRUE(html.contains(QString("<ol class=\"%1\">").arg(c.cls)))
+                << "expected class " << c.cls << "; got: " << html.toStdString();
+        else
+            EXPECT_TRUE(html.contains("<ol>"))
+                << "decimal style must emit a bare <ol>; got: " << html.toStdString();
+    }
+}
+
+TEST(MdRendererListTest, OrderedListStartAndStyleCombine) {
+    QString md = "3. three\n4. four";
+    QByteArray utf8 = md.toUtf8();
+    unsigned long flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    MdRenderer renderer;
+    renderer.setOrderedListStyle(MdRenderer::OrderedListStyle::LowerAlphaParen);
+    QString html = renderer.render(utf8.constData(), static_cast<MD_SIZE>(utf8.size()), flags);
+
+    EXPECT_TRUE(html.contains("<ol start=\"3\" class=\"md-list-alpha-paren\">"))
+        << "start and style class must coexist; got: " << html.toStdString();
+}
+
 TEST(MdRendererEscapeTest, AmpersandInCodeSpan) {
     MdRenderer renderer;
     QString input = "`a & b < c`";

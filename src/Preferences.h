@@ -79,6 +79,11 @@ namespace Preferences {
 
     constexpr const char *HardSoftBreaks = "hardSoftBreaks";
 
+    // Ordered-list numbering style in the preview and exports. The source
+    // keeps whatever delimiter the user typed; this only picks the rendered
+    // format. See MdRenderer::OrderedListStyle.
+    constexpr const char *OrderedListMarker = "orderedListMarker";
+
     // Where imported DOCX images are written: next to the document, into a
     // configured folder, to the system temp dir (until the doc is saved), or
     // ask each time.
@@ -219,6 +224,11 @@ namespace Preferences {
     inline QString emojiRenderingToString(EmojiRendering mode)
     {
         return mode == EmojiRendering::Color ? QStringLiteral("color") : QStringLiteral("bw");
+    }
+
+    inline const char *defaultOrderedListMarker()
+    {
+        return "decimal";
     }
 
     // "typo=replacement" pairs shipped by default. Users may edit, remove or add

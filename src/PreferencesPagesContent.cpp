@@ -309,6 +309,38 @@ void PreferencesDialog::setupTypographyPage()
         updateExample();
 
         layout->addWidget(group);
+
+        QGroupBox *listGroup = new QGroupBox("Ordered list numbering");
+        QVBoxLayout *listLayout = new QVBoxLayout(listGroup);
+        listLayout->addSpacing(8);
+
+        auto *listNote = new QLabel(tr(
+            "How ordered lists are numbered in the preview and exports. Your "
+            "Markdown source is never changed \u2014 it keeps whatever delimiter "
+            "(1. or 1)) you typed."));
+        listNote->setWordWrap(true);
+        listNote->setStyleSheet("color: gray; padding: 8px;");
+        listLayout->addWidget(listNote);
+
+        auto *listRow = new QHBoxLayout;
+        auto *listLabel = new QLabel(tr("Marker format:"));
+        m_orderedListMarkerCombo = new QComboBox;
+        m_orderedListMarkerCombo->setObjectName(QStringLiteral("ordered-list-marker"));
+        m_orderedListMarkerCombo->addItem(tr("1. 2. 3."),  QVariant(QStringLiteral("decimal")));
+        m_orderedListMarkerCombo->addItem(tr("1) 2) 3)"), QVariant(QStringLiteral("decimal-paren")));
+        m_orderedListMarkerCombo->addItem(tr("a. b. c."),  QVariant(QStringLiteral("alpha")));
+        m_orderedListMarkerCombo->addItem(tr("a) b) c)"), QVariant(QStringLiteral("alpha-paren")));
+        m_orderedListMarkerCombo->addItem(tr("i. ii. iii."), QVariant(QStringLiteral("roman")));
+        m_orderedListMarkerCombo->addItem(tr("i) ii) iii)"), QVariant(QStringLiteral("roman-paren")));
+        const QString marker = settings.value(Preferences::OrderedListMarker,
+            Preferences::defaultOrderedListMarker()).toString();
+        const int markerIdx = m_orderedListMarkerCombo->findData(marker);
+        m_orderedListMarkerCombo->setCurrentIndex(markerIdx >= 0 ? markerIdx : 0);
+        listRow->addWidget(listLabel);
+        listRow->addWidget(m_orderedListMarkerCombo, 1);
+        listLayout->addLayout(listRow);
+
+        layout->addWidget(listGroup);
         layout->addStretch();
 
     }

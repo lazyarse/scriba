@@ -1,7 +1,7 @@
-# Roadmap — ECharts helper roadmap
+# Roadmap
 
-How the chart-related Scriba features are expected to evolve, and which pieces
-of the current implementation are known to be partial.
+General roadmap for planned Scriba changes, plus per-feature status notes.
+Each entry keeps the status legend below.
 
 ## Status legend
 
@@ -9,7 +9,31 @@ of the current implementation are known to be partial.
 - **Partial** — works, but only covers a documented subset.
 - **Not started** — planned, not yet built.
 
-## ECharts helper coverage
+## Future changes
+
+### Ordered-list numbering — DOCX `start` support
+
+Preview, print/PDF, exported HTML and DOCX export now honour the
+`OrderedListMarker` preference (decimal / lowercase letters / lowercase roman,
+`.` or `)` suffix; see the plan in
+`docs/superpowers/plans/2026-08-13-ordered-list-numbering.md`).
+
+The renderer preserves the source start number (`2024.` → `<ol start="2024">`)
+in the preview and HTML/PDF exports. **DOCX export does not yet map `start`**:
+Word needs a separate `w:num`/`w:abstractNum` instance per distinct start value,
+with each list paragraph's `w:numPr` pointing at the right one (`handleList` in
+`src/HtmlToOoxml.cpp` would allocate `w:numId`s). Status: **Partial** — next
+phase.
+
+### Ordered-list numbering — uppercase numerals
+
+Uppercase variants (`A.` / `I.`) are not offered in the preference yet. Trivial
+to add: two `@counter-style`/`list-style-type` rules in the base CSS, two combo
+items, and a few renderer enum values. Status: **Not started**.
+
+---
+
+## ECharts helper roadmap
 
 The Chart Builder, Stock Chart Builder and Advanced Charts dialogs reverse-parse
 an existing ` ```ec ` block back into their table rows (see

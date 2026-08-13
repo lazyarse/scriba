@@ -163,6 +163,7 @@ private:
     QCheckBox *m_typographyArrowsCheck = nullptr;
     QLabel *m_typographyPlainLabel = nullptr;
     QLabel *m_typographyExampleLabel = nullptr;
+    QComboBox *m_orderedListMarkerCombo = nullptr;
     QComboBox *m_printCodeSplitCombo = nullptr;
     QCheckBox *m_printKeepTablesCheck = nullptr;
     QCheckBox *m_printKeepHeadingsCheck = nullptr;

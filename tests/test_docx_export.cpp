@@ -15,9 +15,11 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 #include <QRegularExpression>
+#include <QSettings>
 #include <QTemporaryDir>
 #include "HtmlToOoxml.h"
 #include "DocxExporter.h"
+#include "Preferences.h"
 #include "ZipReader.h"
 #include "TestConfig.h"
 
@@ -855,6 +857,33 @@ TEST_F(DocxExportTest, ListItemsHavePerLevelIndent)
         << "each level must declare a hanging indent";
     EXPECT_TRUE(numberingXml.contains("w:pPr"))
         << "levels must carry w:pPr so the indent applies";
+}
+
+TEST_F(DocxExportTest, NumberingHonoursOrderedListMarkerPreference)
+{
+    QSettings s;
+
+    s.setValue(Preferences::OrderedListMarker, "alpha-paren");
+    const QString parenAlpha = HtmlToOoxml::buildNumberingXml();
+    EXPECT_TRUE(parenAlpha.contains("w:numFmt w:val=\"lowerLetter\""));
+    EXPECT_TRUE(parenAlpha.contains("w:lvlText w:val=\"%1)\""));
+    EXPECT_TRUE(parenAlpha.contains("w:lvlText w:val=\"%2)\""));
+    EXPECT_TRUE(parenAlpha.contains("w:lvlText w:val=\"%3)\""));
+
+    s.setValue(Preferences::OrderedListMarker, "roman");
+    const QString roman = HtmlToOoxml::buildNumberingXml();
+    EXPECT_TRUE(roman.contains("w:numFmt w:val=\"lowerRoman\""));
+    EXPECT_TRUE(roman.contains("w:lvlText w:val=\"%1.\""));
+
+    s.setValue(Preferences::OrderedListMarker, "decimal-paren");
+    const QString parenDecimal = HtmlToOoxml::buildNumberingXml();
+    EXPECT_TRUE(parenDecimal.contains("w:numFmt w:val=\"decimal\""));
+    EXPECT_TRUE(parenDecimal.contains("w:lvlText w:val=\"%1)\""));
+
+    s.setValue(Preferences::OrderedListMarker, Preferences::defaultOrderedListMarker());
+    const QString defaultXml = HtmlToOoxml::buildNumberingXml();
+    EXPECT_TRUE(defaultXml.contains("w:numFmt w:val=\"decimal\""));
+    EXPECT_TRUE(defaultXml.contains("w:lvlText w:val=\"%1.\""));
 }
 
 TEST_F(DocxExportTest, AdmonitionLeftBorderContinuous)

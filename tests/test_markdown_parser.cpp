@@ -325,6 +325,45 @@ TEST(MarkdownParserTest, OrderedListParen) {
     EXPECT_TRUE(html.contains("Third"));
 }
 
+TEST(MarkdownParserTest, OrderedListStart) {
+    QString md = "3. Third\n4. Fourth";
+    QString html = MarkdownParser::toHtml(md);
+    EXPECT_TRUE(html.contains("<ol start=\"3\">"));
+    EXPECT_TRUE(html.contains("Third"));
+    EXPECT_TRUE(html.contains("Fourth"));
+}
+
+TEST(MarkdownParserTest, OrderedListMarkerStyles) {
+    QSettings settings;
+    const struct { const char *key; const char *cls; } cases[] = {
+        { "decimal", "" },
+        { "decimal-paren", "md-list-decimal-paren" },
+        { "alpha", "md-list-alpha" },
+        { "alpha-paren", "md-list-alpha-paren" },
+        { "roman", "md-list-roman" },
+        { "roman-paren", "md-list-roman-paren" },
+    };
+    for (const auto &c : cases) {
+        settings.setValue(Preferences::OrderedListMarker, c.key);
+        QString html = MarkdownParser::toHtml("1. one\n2. two");
+        if (c.cls[0])
+            EXPECT_TRUE(html.contains(QString("<ol class=\"%1\">").arg(c.cls)))
+                << "key " << c.key << " must emit class " << c.cls;
+        else
+            EXPECT_TRUE(html.contains("<ol>"))
+                << "key " << c.key << " must emit a bare <ol>";
+    }
+    settings.setValue(Preferences::OrderedListMarker, Preferences::defaultOrderedListMarker());
+}
+
+TEST(MarkdownParserTest, OrderedListStartAndMarkerStyleCombine) {
+    QSettings settings;
+    settings.setValue(Preferences::OrderedListMarker, "alpha-paren");
+    QString html = MarkdownParser::toHtml("3. three\n4. four");
+    EXPECT_TRUE(html.contains("<ol start=\"3\" class=\"md-list-alpha-paren\">"));
+    settings.setValue(Preferences::OrderedListMarker, Preferences::defaultOrderedListMarker());
+}
+
 TEST(MarkdownParserTest, UnorderedList) {
     QString md = "- one\n- two\n- three";
     QString html = MarkdownParser::toHtml(md);

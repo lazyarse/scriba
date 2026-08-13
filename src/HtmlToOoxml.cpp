@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "HtmlToOoxml.h"
 #include "CssValueParser.h"
+#include "Preferences.h"
 #include "UnitConverter.h"
 #include <mathml2omml.h>
 #include <string>
@@ -1731,9 +1732,22 @@ QString HtmlToOoxml::buildNumberingXml()
     w.writeStartElement("w:multiLevelType");
     w.writeAttribute("w:val", "hybridMultilevel");
     w.writeEndElement();
-    writeLvl(w, 0, "decimal", "%1.");
-    writeLvl(w, 1, "decimal", "%2.");
-    writeLvl(w, 2, "decimal", "%3.");
+    // Ordered lists honour the Preferences::OrderedListMarker format
+    // (decimal / lowerLetter / lowerRoman, with `.` or `)` suffix). `start`
+    // is not yet supported here — see docs/roadmap.md.
+    const QString marker = QSettings().value(Preferences::OrderedListMarker,
+        Preferences::defaultOrderedListMarker()).toString();
+    const bool paren = marker.endsWith(QLatin1String("-paren"));
+    const QString numFmt = marker.startsWith(QLatin1String("alpha"))
+        ? QStringLiteral("lowerLetter")
+        : marker.startsWith(QLatin1String("roman"))
+            ? QStringLiteral("lowerRoman")
+            : QStringLiteral("decimal");
+    const QChar suffix = paren ? QLatin1Char(')') : QLatin1Char('.');
+    for (int lvl = 0; lvl < 3; ++lvl) {
+        const QString text = QString(QLatin1Char('%')) + QString::number(lvl + 1) + suffix;
+        writeLvl(w, lvl, numFmt, text);
+    }
     w.writeEndElement();
 
     w.writeStartElement("w:num");

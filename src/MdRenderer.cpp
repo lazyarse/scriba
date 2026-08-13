@@ -88,7 +88,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->writeHtml(self->withPendingClasses("<ul>"));
         break;
     case MD_BLOCK_OL:
-        self->writeHtml(self->withPendingClasses("<ol>"));
+        self->enterOrderedList(detail);
         break;
     case MD_BLOCK_LI:
         self->m_typoState.lastChar = QChar(' ');
@@ -504,6 +504,44 @@ void MdRenderer::enterCodeBlock(void *detail)
     } else {
         writeHtml(withPendingClasses(QString("<pre data-line=\"%1\"><code>").arg(m_blockLine)));
     }
+}
+
+void MdRenderer::enterOrderedList(void *detail)
+{
+    auto *d = static_cast<MD_BLOCK_OL_DETAIL*>(detail);
+    // Preserve the source start number (CommonMark: `2024.` renders as
+    // <ol start="2024">) and the user's chosen numbering style as a class.
+    QString tag = QStringLiteral("<ol");
+    if (d->start != 1)
+        tag += QStringLiteral(" start=\"%1\"").arg(d->start);
+    const QString cls = orderedListClass(m_listStyle);
+    if (!cls.isEmpty())
+        tag += QStringLiteral(" class=\"%1\"").arg(cls);
+    tag += QLatin1Char('>');
+    writeHtml(withPendingClasses(tag));
+}
+
+MdRenderer::OrderedListStyle MdRenderer::orderedListStyleFromString(const QString &s)
+{
+    if (s == QLatin1String("decimal-paren")) return OrderedListStyle::DecimalParen;
+    if (s == QLatin1String("alpha"))         return OrderedListStyle::LowerAlpha;
+    if (s == QLatin1String("alpha-paren"))   return OrderedListStyle::LowerAlphaParen;
+    if (s == QLatin1String("roman"))         return OrderedListStyle::LowerRoman;
+    if (s == QLatin1String("roman-paren"))   return OrderedListStyle::LowerRomanParen;
+    return OrderedListStyle::Decimal;
+}
+
+QString MdRenderer::orderedListClass(OrderedListStyle style)
+{
+    switch (style) {
+    case OrderedListStyle::Decimal:        return {};
+    case OrderedListStyle::DecimalParen:   return QStringLiteral("md-list-decimal-paren");
+    case OrderedListStyle::LowerAlpha:     return QStringLiteral("md-list-alpha");
+    case OrderedListStyle::LowerAlphaParen: return QStringLiteral("md-list-alpha-paren");
+    case OrderedListStyle::LowerRoman:     return QStringLiteral("md-list-roman");
+    case OrderedListStyle::LowerRomanParen: return QStringLiteral("md-list-roman-paren");
+    }
+    return {};
 }
 
 void MdRenderer::enterListItem(void *detail)

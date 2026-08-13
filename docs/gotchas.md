@@ -93,6 +93,30 @@ detaching a whole sublist re-cascades the following items
 the outdented line, its own number is kept (so `2024.`-style lists survive).
 Outdenting an already-top-level line never touches numbers.
 
+## Ordered-list numbering is render-only
+
+The `OrderedListMarker` preference (Typography page) changes how ordered lists
+are **rendered** — decimal / lowercase letters / lowercase roman, `.` or `)`
+suffix — but never rewrites the Markdown source, which keeps whatever delimiter
+the user typed (`1.` or `1)`). The renderer emits a `md-list-*` class on `<ol>`
+and the base CSS drives the marker via `list-style-type` /
+`@counter-style { suffix: ") " }` (preview-base.css + print-base.css).
+
+Behaviour to rely on when debugging:
+
+- The `start` value (`2024.` → `<ol start="2024">`) is preserved in the
+  preview and HTML/PDF exports. **DOCX export ignores `start`** (Word numbering
+  instances always start at 1) — see `docs/roadmap.md`. This is separate from
+  the Editor's renumber-on-Tab machinery above, which rewrites the *source*
+  numbers.
+- `a.`/`i.` markers in the *source* are **not** valid CommonMark ordered-list
+  markers (only digits + `.`/`)` are), so a source line `a. foo` is a paragraph,
+  not a list item, regardless of the preference. The preference only affects
+  how real ordered lists are numbered.
+- The preview caches rendered HTML per tab; render-affecting preference changes
+  invalidate that cache when Preferences are accepted (`MainWindow.cpp`),
+  so a changed marker format takes effect immediately without re-editing.
+
 ## Typography arrows are render-time only
 
 The Smart Typography "Arrows" option converts `-> <- <-> => <= >= != +-` to

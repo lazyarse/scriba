@@ -134,6 +134,18 @@ ul, ol {
     padding-left: 2em;
 }
 
+/* Ordered-list numbering (Preferences::OrderedListMarker). The md-list-*
+   classes are emitted by the renderer; decimal + `.` needs no rule (browser
+   default). `start="N"` still applies. */
+ol.md-list-alpha { list-style-type: lower-alpha; }
+ol.md-list-roman { list-style-type: lower-roman; }
+@counter-style scriba-paren-decimal { system: extends decimal;  suffix: ") "; }
+@counter-style scriba-paren-alpha   { system: extends lower-alpha; suffix: ") "; }
+@counter-style scriba-paren-roman   { system: extends lower-roman; suffix: ") "; }
+ol.md-list-decimal-paren { list-style-type: scriba-paren-decimal; }
+ol.md-list-alpha-paren   { list-style-type: scriba-paren-alpha; }
+ol.md-list-roman-paren   { list-style-type: scriba-paren-roman; }
+
 li {
     margin: 0.5em 0;
 }

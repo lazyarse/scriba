@@ -23,6 +23,18 @@
 class MdRenderer
 {
 public:
+    // How ordered lists are numbered in the rendered output. The source keeps
+    // whatever delimiter the user typed (`1.` or `1)`); this only picks the
+    // presentation, driven by Preferences::OrderedListMarker.
+    enum class OrderedListStyle {
+        Decimal,          // 1. 2. 3.
+        DecimalParen,     // 1) 2) 3)
+        LowerAlpha,       // a. b. c.
+        LowerAlphaParen,  // a) b) c)
+        LowerRoman,       // i. ii. iii.
+        LowerRomanParen   // i) ii) iii)
+    };
+
     MdRenderer();
 
     QString render(const char *input, MD_SIZE size, unsigned parserFlags);
@@ -30,6 +42,15 @@ public:
     // Enables smart-typography conversion of normal text runs. Options default
     // to none, so rendering is byte-for-byte unchanged until set.
     void setTypography(Typography::Options opts) { m_typography = opts; }
+
+    // Sets the ordered-list numbering style (default Decimal: plain `<ol>`).
+    void setOrderedListStyle(OrderedListStyle style) { m_listStyle = style; }
+
+    // Maps a Preferences::OrderedListMarker string ("decimal", "alpha-paren",
+    // ...) to an OrderedListStyle; unknown values fall back to Decimal.
+    static OrderedListStyle orderedListStyleFromString(const QString &s);
+    // The CSS class emitted on `<ol>` for the style ("" for plain decimal).
+    static QString orderedListClass(OrderedListStyle style);
 
 private:
     struct ImageState {
@@ -53,6 +74,7 @@ private:
     static void parseDimensions(const QString &src, QString &cleanSrc, int &width, int &height);
 
     void enterCodeBlock(void *detail);
+    void enterOrderedList(void *detail);
     void enterListItem(void *detail);
     void enterAdmonition(void *detail);
     void enterAlignedCell(void *detail, const char *tag);
@@ -89,5 +111,6 @@ private:
     ImageState m_img;
     Typography::Options m_typography;
     Typography::State m_typoState;
+    OrderedListStyle m_listStyle = OrderedListStyle::Decimal;
 };
 

@@ -202,6 +202,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::TypographyNbsp, m_typographyNbspCheck->isChecked());
         settings.setValue(Preferences::TypographySymbols, m_typographySymbolsCheck->isChecked());
         settings.setValue(Preferences::TypographyArrows, m_typographyArrowsCheck->isChecked());
+        settings.setValue(Preferences::OrderedListMarker,
+            m_orderedListMarkerCombo->currentData().toString());
         settings.setValue(Preferences::PrintCodeSplit, m_printCodeSplitCombo->currentData().toString());
         settings.setValue(Preferences::PrintKeepTables, m_printKeepTablesCheck->isChecked());
         settings.setValue(Preferences::PrintKeepHeadings, m_printKeepHeadingsCheck->isChecked());
