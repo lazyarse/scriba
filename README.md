@@ -76,7 +76,7 @@ Full build instructions for Linux, Windows, and the installers — plus how to b
 Quick start on Linux:
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
+cmake --preset release && cmake --build build -j$(nproc)
 ```
 
 On Windows, add Qt's bin directory to PATH first:

@@ -560,6 +560,11 @@ if(BUILD_TESTS)
     target_link_libraries(test_editor_typing PRIVATE GTest::gtest test_editor_helpers scriba_editor scriba_spell scriba_resources)
     add_test(NAME test_editor_typing COMMAND ${_TEST_PREFIX} ./test_editor_typing)
 
+    add_executable(test_editor_typing_2 tests/test_editor_typing_2.cpp)
+    target_include_directories(test_editor_typing_2 PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_editor_typing_2 PRIVATE GTest::gtest test_editor_helpers scriba_editor scriba_spell scriba_resources)
+    add_test(NAME test_editor_typing_2 COMMAND ${_TEST_PREFIX} ./test_editor_typing_2)
+
     add_executable(test_editor_autocorrect tests/test_editor_autocorrect.cpp)
     target_include_directories(test_editor_autocorrect PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_editor_autocorrect PRIVATE GTest::gtest test_editor_helpers scriba_editor scriba_spell scriba_resources)
@@ -599,6 +604,11 @@ if(BUILD_TESTS)
     target_link_libraries(test_scroll_sync PRIVATE
         scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
+
+    add_executable(test_scroll_sync_integration tests/test_scroll_sync_integration.cpp)
+    target_link_libraries(test_scroll_sync_integration PRIVATE
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
+    add_test(NAME test_scroll_sync_integration COMMAND ${_TEST_PREFIX} ./test_scroll_sync_integration)
 
     add_executable(test_html_to_markdown
         tests/test_html_to_markdown.cpp

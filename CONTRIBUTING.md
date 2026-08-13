@@ -273,7 +273,7 @@ Full builds are heavy (WebEngine resources, JS bundles, many test targets), so g
 ### Dev loop (tests) — `build-dbg`
 
 ```bash
-cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build build-dbg -j$(nproc)
+cmake --preset debug && cmake --build build-dbg -j$(nproc)
 cd build-dbg && ctest --output-on-failure -j4
 ```
 
@@ -284,14 +284,14 @@ Use true `Debug`, not `RelWithDebInfo` — RelWithDebInfo still compiles at `-O2
 The app and every full-app test target link two shared **object libraries** defined in `CMakeLists.txt`, so nothing gets compiled twice:
 
 - `scriba_resources` (OBJECT) — compiles `resources/scriba.qrc` once; every consumer links the same `qrc_scriba.cpp` object. `scriba_twemoji` (OBJECT) does the same for `resources/twemoji-svg.qrc`. Without these, the qrc was compiled into 24 targets (the twemoji qrc into 4).
-- `scriba_app` (OBJECT) — compiles `SCRIBA_APP_WEBENGINE_SOURCES` (MainWindow, Editor, Preview, the dialogs, ~66 files) once; the `scriba` executable and the 11 full-app test targets (`test_scroll_sync`, `test_anchor_navigation`, `test_emoji_preview`, `test_auto_save`, `test_multi_tab_typing`, `test_corpus_recent`, `test_dirty_on_load`, `test_corpus_watcher_integration`, `test_corpus_export`, `test_editor_initial_css`, `test_find_dialog`) link it instead of recompiling the sources.
+- `scriba_app` (OBJECT) — compiles `SCRIBA_APP_WEBENGINE_SOURCES` (MainWindow, Editor, Preview, the dialogs, ~45 files) once; the `scriba` executable and the 12 full-app test targets (`test_scroll_sync`, `test_scroll_sync_integration`, `test_anchor_navigation`, `test_emoji_preview`, `test_auto_save`, `test_multi_tab_typing`, `test_corpus_recent`, `test_dirty_on_load`, `test_corpus_watcher_integration`, `test_corpus_export`, `test_editor_initial_css`, `test_find_dialog`) link it instead of recompiling the sources.
 
 These must be OBJECT libraries, never STATIC: both the qrc and some app sources carry static-initializer side effects (resource registration, emoji cache), and an archive would silently drop those objects when a consumer doesn't reference their symbols. Consumers must link `scriba_resources` (and `scriba_twemoji` where emoji is used) explicitly — object-library files do not propagate through another object lib. When adding a source file to a class split across TUs, add it to the matching `SCRIBA_*_SOURCES` variable (the plan: full-app tests pick it up via `scriba_app`, `scriba` for the rest).
 
 ### Release binary — `build`
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF && cmake --build build -j$(nproc)
+cmake --preset release && cmake --build build -j$(nproc)
 ```
 
 Build only after the test suite passes; tests are OFF here (they live in `build-dbg`).
@@ -304,7 +304,7 @@ timeout 3 build/scriba || true
 
 This must run AFTER `cmake --build build` — running it right after the build-dbg dev loop smoke-tests a stale `build/scriba` from the previous Release build.
 
-The `-D` flags above are only needed the first time a build dir is configured (or to change a cached value). CMake stores them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j$(nproc)` / `cmake --build build -j$(nproc)`.
+Both dirs are configured via `CMakePresets.json` (`cmake --preset debug` / `cmake --preset release`), so a deleted build dir can be recreated from scratch with the correct flags — the preset is the canonical path. A bare `cmake --build build-dbg` on a missing dir fails, and a bare `cmake -B build-dbg` (no preset/flags) would default to `BUILD_TESTS=OFF` and an empty build type. Once configured, later rebuilds are just `cmake --build build-dbg -j$(nproc)` / `cmake --build build -j$(nproc)` (the flags live in each dir's `CMakeCache.txt`).
 
 ## Testing
 
@@ -356,7 +356,7 @@ When removing or renaming a setting, extend `migrateSettings` instead of just de
 
 ### Editor typing integration tests
 
-`test_editor_typing` drives the real `Editor` widget with `QTest` key events (`keyClicks`/`keyClick`). There is no WebEngine involved and the input is fully deterministic, so a failure is a genuine behaviour regression — **do not rerun to "confirm" it was flaky, investigate it**. This applies especially to tests asserting exact sentinel semantics from `StaticHelpers`:
+`test_editor_typing` and `test_editor_typing_2` (the suite is split across two binaries to run in parallel) drive the real `Editor` widget with `QTest` key events (`keyClicks`/`keyClick`). There is no WebEngine involved and the input is fully deterministic, so a failure is a genuine behaviour regression — **do not rerun to "confirm" it was flaky, investigate it**. This applies especially to tests asserting exact sentinel semantics from `StaticHelpers`:
 
 - the empty list marker (`- ` / `1. ` / `- [ ] ` + Enter) clears to a bare newline
 - a blank table row (`|  |  |` + Enter) exits the table
