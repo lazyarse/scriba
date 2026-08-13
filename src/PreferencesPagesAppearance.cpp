@@ -108,6 +108,16 @@ void PreferencesDialog::setupAppearancePage()
 
         layout->addWidget(uiFontGroup);
 
+        QGroupBox *tabBarGroup = new QGroupBox("Tab Bar");
+        QVBoxLayout *tabBarLayout = new QVBoxLayout(tabBarGroup);
+        tabBarLayout->addSpacing(8);
+
+        m_tabBarAlwaysShowCheck = new QCheckBox("&Always show the tab bar (even with a single document)");
+        m_tabBarAlwaysShowCheck->setChecked(settings.value(Preferences::TabBarAlwaysShow, false).toBool());
+        tabBarLayout->addWidget(m_tabBarAlwaysShowCheck);
+
+        layout->addWidget(tabBarGroup);
+
         QGroupBox *editorGroup = new QGroupBox("Editor");
         QFormLayout *editorLayout = new QFormLayout(editorGroup);
 

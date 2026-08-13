@@ -224,6 +224,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::AutoCorrectPairs, autoCorrectPairs);
         settings.setValue(Preferences::CentreSingleViewContent, m_centreSingleViewCheck->isChecked());
         settings.setValue(Preferences::CentreSingleViewWidth, m_centreSingleViewWidthSpin->value());
+        settings.setValue(Preferences::TabBarAlwaysShow, m_tabBarAlwaysShowCheck->isChecked());
         if (m_showPageBreaksCheck)
             settings.setValue(Preferences::PreviewShowPageBreaks, m_showPageBreaksCheck->isChecked());
         settings.setValue(Preferences::SplitViewEditorMaxWidth,

@@ -45,6 +45,7 @@ namespace Preferences {
     constexpr const char *EmojiAutoComplete = "emojiAutoComplete";
     constexpr const char *EmojiCompletionLimit = "emojiCompletionLimit";
     constexpr const char *CentreSingleViewContent = "centreSingleViewContent";
+    constexpr const char *TabBarAlwaysShow = "tabBarAlwaysShow";
     constexpr const char *CentreSingleViewWidth = "centreSingleViewWidth";
     constexpr const char *SplitViewEditorMaxWidth = "splitViewEditorMaxWidth";
     constexpr const char *SplitViewPreviewMaxWidth = "splitViewPreviewMaxWidth";

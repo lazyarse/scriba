@@ -173,6 +173,7 @@ private:
     QLineEdit *m_printSizeEdit = nullptr;
     QCheckBox *m_centreSingleViewCheck;
     QSpinBox *m_centreSingleViewWidthSpin;
+    QCheckBox *m_tabBarAlwaysShowCheck = nullptr;
     QCheckBox *m_showPageBreaksCheck = nullptr;
     QCheckBox *m_splitEditorAutoCheck;
     QCheckBox *m_splitPreviewAutoCheck;

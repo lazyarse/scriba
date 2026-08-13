@@ -331,6 +331,48 @@ TEST_F(DirtyOnLoadTest, LineHeightPreferenceChangePreservesDirtyAndUndoClears) {
         << "undoing the edit returns to the saved content even after a format op";
 }
 
+// The tab bar is hidden with a single tab unless the "Always show the tab bar"
+// preference (tabBarAlwaysShow) is on; it becomes visible once a second file is
+// opened. updateTabBarVisibility() is re-invoked on tab add/remove and on
+// preferences accept, so both paths are exercised here.
+TEST_F(DirtyOnLoadTest, TabBarHiddenWithSingleTabByDefault) {
+    QSettings s;
+    s.remove(Preferences::TabBarAlwaysShow);
+
+    window = new MainWindow();
+    QApplication::processEvents();
+    window->show();
+    QApplication::processEvents();
+
+    auto *tabs = window->findChild<QTabBar *>();
+    ASSERT_NE(tabs, nullptr);
+    EXPECT_FALSE(tabs->isVisible());
+
+    QTemporaryFile secondFile;
+    ASSERT_TRUE(secondFile.open());
+    secondFile.write("second file content\n");
+    secondFile.close();
+
+    window->loadFile(tmpFile->fileName());
+    window->loadFile(secondFile.fileName());
+    QApplication::processEvents();
+    EXPECT_TRUE(tabs->isVisible()) << "tab bar must appear with two tabs";
+}
+
+TEST_F(DirtyOnLoadTest, TabBarAlwaysShowKeepsTabBarVisibleWithSingleTab) {
+    QSettings s;
+    s.setValue(Preferences::TabBarAlwaysShow, true);
+
+    window = new MainWindow();
+    QApplication::processEvents();
+    window->show();
+    QApplication::processEvents();
+
+    auto *tabs = window->findChild<QTabBar *>();
+    ASSERT_NE(tabs, nullptr);
+    EXPECT_TRUE(tabs->isVisible()) << "tab bar must stay visible with one tab when preferred";
+}
+
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     setupTestConfig();

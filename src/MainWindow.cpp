@@ -605,6 +605,7 @@ void MainWindow::showPreferences()
         applyPreviewSplitWidth();
         if (m_showPageBreaksAction)
             m_showPageBreaksAction->setChecked(s.value(Preferences::PreviewShowPageBreaks, false).toBool());
+        updateTabBarVisibility();
         updatePreview();
 
         int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
@@ -742,5 +743,6 @@ void MainWindow::updateStats()
 
 void MainWindow::updateTabBarVisibility()
 {
-    m_tabBar->setVisible(m_tabs.size() > 1);
+    const bool alwaysShow = QSettings().value(Preferences::TabBarAlwaysShow, false).toBool();
+    m_tabBar->setVisible(alwaysShow || m_tabs.size() > 1);
 }
