@@ -116,6 +116,7 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
 
     bool dark = bg.lightness() < 128;
     QColor track, thumb, hover, sideBg, selBg, txt, selTxt, dim;
+    QColor matchBg;
     QColor btnBorder;
     QColor chkBg, chkCheckedBg;
     QString chkImg, upArrowImg, downArrowImg, radioImg;
@@ -128,6 +129,7 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         selBg = hover;
         selTxt = QColor(QStringLiteral("#ffffff"));
         dim = QColor(QStringLiteral("#999999"));
+        matchBg = mix(bg, hover, 35);
         chkBg = track;
         chkImg = QStringLiteral("url(:/checkbox-checked.svg)");
         upArrowImg = QStringLiteral("url(:/arrow-up.svg)");
@@ -142,6 +144,7 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         selBg = hover;
         selTxt = QColor(QStringLiteral("#000000"));
         dim = QColor(QStringLiteral("#777777"));
+        matchBg = mix(bg, hover, 35);
         chkBg = bg;
         chkImg = QStringLiteral("url(:/checkbox-checked-dark.svg)");
         upArrowImg = QStringLiteral("url(:/arrow-up-dark.svg)");
@@ -212,6 +215,8 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         "#preferences-stylesheet-list::item:selected { background-color: %5; color: %6; }\n"
         "#preferences-stylesheet-list::item:hover:!selected { background-color: %1; }\n"
         "*[scribaPrefDim=\"true\"] { color: %9; }\n"
+        "*[scribaPrefMatch=\"true\"] { background-color: %21; }\n"
+        "QLabel[scribaPrefMatch=\"true\"], QCheckBox[scribaPrefMatch=\"true\"], QRadioButton[scribaPrefMatch=\"true\"], QPushButton[scribaPrefMatch=\"true\"], QComboBox[scribaPrefMatch=\"true\"], QGroupBox[scribaPrefMatch=\"true\"] { font-weight: bold; }\n"
         "QSplitter::handle { background-color: %4; width: 1px; }\n"
         "QSplitter::handle:hover { background-color: %5; }\n"
         "#preferences-stylesheet-list QScrollBar:vertical, #preferences-stylesheet-list QScrollBar:horizontal { background: %2; }\n"
@@ -288,6 +293,8 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         btnBorder.name()  // %19 — push button border
     ).arg(
         radioImg         // %20 — radio checked dot
+    ).arg(
+        matchBg.name()   // %21 — preferences-search match highlight background
     ).replace(QStringLiteral("@FONT_SIZE@"), QString::number(uiFontSizePt));
 }
 

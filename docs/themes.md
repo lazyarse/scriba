@@ -95,7 +95,7 @@ Every bundled theme (`resources/themes/*.css`) sets its own `--mark-bg` / `--mar
 The Scriba colour system has two layers:
 
 1. **Semantic slots** — the colour roles written directly in each theme's CSS file (`resources/themes/*.css`). Theme authors set these.
-2. **Chrome slots** — the `%1`–`%20` placeholders in `CssUtils::deriveChromeCss()`. Almost all are auto-derived at runtime from the theme's editor background; theme authors never write them.
+2. **Chrome slots** — the `%1`–`%21` placeholders in `CssUtils::deriveChromeCss()`. Almost all are auto-derived at runtime from the theme's editor background; theme authors never write them.
 
 ### Semantic slots (theme CSS)
 
@@ -133,7 +133,7 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 
 ### Chrome slots
 
-`CssUtils::deriveChromeCss()` resolves the theme's editor background (`%7`) into the chrome for every widget. `%1`–`%15` cover dialogs, menus, buttons, scrollbars and controls; `%17`/`%18` cover the editor's line-number gutter; `%19` is the push-button border; `%20` is the radio checked-dot image. Percentage factors are `QColor::lighter()`/`darker()` applied to the editor background (the gutter text `%18` is the editor text blended 30% toward the gutter background, giving low-contrast line numbers in both light and dark themes).
+`CssUtils::deriveChromeCss()` resolves the theme's editor background (`%7`) into the chrome for every widget. `%1`–`%15` cover dialogs, menus, buttons, scrollbars and controls; `%17`/`%18` cover the editor's line-number gutter; `%19` is the push-button border; `%20` is the radio checked-dot image; `%21` is the preferences-search match highlight background. Percentage factors are `QColor::lighter()`/`darker()` applied to the editor background (the gutter text `%18` is the editor text blended 30% toward the gutter background, giving low-contrast line numbers in both light and dark themes).
 
 | Slot | Variable | Used for | Dark theme | Light theme |
 |---|---|---|---|---|
@@ -156,6 +156,7 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 | `%18` | `gutterText` | gutter line numbers | `editorText` blended 30% toward `gutterBg` | `editorText` blended 30% toward `gutterBg` |
 | `%19` | `btnBorder` | push-button border | `thumb` × 150% | `thumb` × 67% |
 | `%20` | `radioImg` | radio checked dot | light image (`radio-dot.svg`) | dark image (`radio-dot-dark.svg`) |
+| `%21` | `matchBg` | preferences-search match highlight | `bg` blended 35% toward `hover` | `bg` blended 35% toward `hover` |
 
 ### What each element uses
 

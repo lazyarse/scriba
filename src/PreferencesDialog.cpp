@@ -428,6 +428,15 @@ void setWidgetDimmed(QWidget *w, bool dimmed)
     w->style()->polish(w);
 }
 
+void setWidgetHighlighted(QWidget *w, bool highlighted)
+{
+    if (w->property("scribaPrefMatch").toBool() == highlighted)
+        return;
+    w->setProperty("scribaPrefMatch", highlighted);
+    w->style()->unpolish(w);
+    w->style()->polish(w);
+}
+
 } // namespace
 
 void PreferencesDialog::buildSearchIndex()
@@ -514,22 +523,30 @@ void PreferencesDialog::onSearchTextChanged(const QString &text)
 void PreferencesDialog::applySearchDim(int pageIndex)
 {
     for (const auto &entries : m_searchIndex)
-        for (const auto &entry : entries)
+        for (const auto &entry : entries) {
             setWidgetDimmed(entry.widget, false);
+            setWidgetHighlighted(entry.widget, false);
+        }
 
     const QStringList tokens = m_searchEdit->text().toLower().split(QLatin1Char(' '), Qt::SkipEmptyParts);
     if (tokens.isEmpty() || pageIndex < 0 || pageIndex >= static_cast<int>(m_searchIndex.size()))
         return;
 
     const QList<SearchEntry> &entries = m_searchIndex[static_cast<size_t>(pageIndex)];
+    const QWidget *pageTop = m_pages->widget(pageIndex);
+    if (const auto *scroll = qobject_cast<const QScrollArea *>(pageTop))
+        pageTop = scroll->widget();
 
     // Widgets that match stay visible; containers that hold a matching widget
     // stay visible too (e.g. a group box whose title doesn't match but whose
     // child spin box does). Everything else on the page is dimmed.
     QSet<QWidget *> keep;
+    QSet<QWidget *> matches;
     for (const auto &entry : entries)
-        if (widgetMatches(entry.texts, tokens))
+        if (widgetMatches(entry.texts, tokens)) {
             keep.insert(entry.widget);
+            matches.insert(entry.widget);
+        }
     bool changed = true;
     while (changed) {
         changed = false;
@@ -549,6 +566,22 @@ void PreferencesDialog::applySearchDim(int pageIndex)
     for (const auto &entry : entries)
         if (!keep.contains(entry.widget))
             setWidgetDimmed(entry.widget, true);
+
+    // Matches get a highlight (bold text + a subtle background tint) so they
+    // stand out from the dimmed rest. The highlight also covers the group box
+    // that holds a match so label and control read as one block, but never the
+    // whole page widget itself.
+    QSet<QWidget *> highlighted;
+    for (QWidget *m : matches) {
+        if (m == pageTop)
+            continue;
+        highlighted.insert(m);
+        for (QWidget *p = m->parentWidget(); p && p != pageTop; p = p->parentWidget())
+            if (qobject_cast<const QGroupBox *>(p))
+                highlighted.insert(p);
+    }
+    for (QWidget *w : highlighted)
+        setWidgetHighlighted(w, true);
 }
 
 void PreferencesDialog::populateStylesheetList()

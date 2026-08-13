@@ -33,6 +33,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMetaObject>
+#include <QScrollArea>
 #include <QSettings>
 #include <QShortcut>
 #include <QStackedWidget>
@@ -119,10 +120,14 @@ TEST_F(PreferencesSearchTest, EmptySearchShowsAllPagesAndNoDim)
     EXPECT_EQ(visiblePageCount(), 12);
     EXPECT_FALSE(infoLabel()->isVisible());
     const auto all = m_dialog->findChildren<QWidget *>();
-    for (QWidget *w : all)
+    for (QWidget *w : all) {
         EXPECT_FALSE(w->property("scribaPrefDim").toBool())
             << "unexpected dim on " << w->objectName().toUtf8().constData()
             << " / " << w->metaObject()->className();
+        EXPECT_FALSE(w->property("scribaPrefMatch").toBool())
+            << "unexpected match highlight on " << w->objectName().toUtf8().constData()
+            << " / " << w->metaObject()->className();
+    }
 }
 
 TEST_F(PreferencesSearchTest, TypingNarrowsSidebarToMatchingPage)
@@ -173,6 +178,8 @@ TEST_F(PreferencesSearchTest, DimsNonMatchingWidgetsOnShownPage)
     ASSERT_TRUE(syncCheck);
     EXPECT_FALSE(wrapLabel->property("scribaPrefDim").toBool());
     EXPECT_TRUE(syncCheck->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(wrapLabel->property("scribaPrefMatch").toBool());
+    EXPECT_FALSE(syncCheck->property("scribaPrefMatch").toBool());
 }
 
 TEST_F(PreferencesSearchTest, GroupBoxContainingMatchStaysVisible)
@@ -190,6 +197,27 @@ TEST_F(PreferencesSearchTest, GroupBoxContainingMatchStaysVisible)
     ASSERT_TRUE(autoSaveGroup);
     EXPECT_FALSE(wrapGroup->property("scribaPrefDim").toBool());
     EXPECT_TRUE(autoSaveGroup->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(wrapGroup->property("scribaPrefMatch").toBool());
+    EXPECT_FALSE(autoSaveGroup->property("scribaPrefMatch").toBool());
+}
+
+TEST_F(PreferencesSearchTest, PageNameMatchDoesNotHighlightWholePage)
+{
+    searchEdit()->setText(QStringLiteral("security"));
+    ASSERT_EQ(currentPage(), QStringLiteral("Security"));
+    int idx = -1;
+    for (int i = 0; i < pageList()->count(); ++i) {
+        if (pageList()->item(i)->text() == QStringLiteral("Security")) {
+            idx = i;
+            break;
+        }
+    }
+    ASSERT_GE(idx, 0);
+    QWidget *page = pages()->widget(idx);
+    if (auto *scroll = qobject_cast<QScrollArea *>(page))
+        page = scroll->widget();
+    ASSERT_TRUE(page);
+    EXPECT_FALSE(page->property("scribaPrefMatch").toBool());
 }
 
 TEST_F(PreferencesSearchTest, ClearRestoresAllPagesAndDims)
@@ -199,8 +227,10 @@ TEST_F(PreferencesSearchTest, ClearRestoresAllPagesAndDims)
     EXPECT_EQ(visiblePageCount(), 12);
     EXPECT_FALSE(infoLabel()->isVisible());
     const auto all = m_dialog->findChildren<QWidget *>();
-    for (QWidget *w : all)
+    for (QWidget *w : all) {
         EXPECT_FALSE(w->property("scribaPrefDim").toBool());
+        EXPECT_FALSE(w->property("scribaPrefMatch").toBool());
+    }
 }
 
 TEST_F(PreferencesSearchTest, CorpusPageHasExpectedSettingsAndStartupMoved)
