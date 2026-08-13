@@ -737,11 +737,14 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
     QJsonObject corpus = serializeCorpus();
 
-    if (corpus["files"].toArray().isEmpty()) {
+    if (corpus["documents"].toArray().isEmpty()) {
         s.remove(Preferences::OnExitCorpusData);
     } else {
         s.setValue(Preferences::OnExitCorpusData, QString::fromUtf8(QJsonDocument(corpus).toJson(QJsonDocument::Compact)));
     }
+
+    if (!m_corpus.filePath.isEmpty())
+        m_corpus.save();   // refreshCorpusFromTabs() already ran in serializeCorpus()
 
     QMainWindow::closeEvent(event);
 }

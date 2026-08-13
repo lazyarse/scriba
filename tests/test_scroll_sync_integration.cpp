@@ -976,11 +976,11 @@ TEST_F(ScrollSyncIntegrationTest, UntitledTabInCorpusUsesCorpusRootAsBase) {
     window->openCorpusFile(corpusPath, /*skipPrompt=*/true);
     QApplication::processEvents();
 
-    // openCorpusFile keeps the empty placeholder tab (index 0) and adds the
-    // embedded document after it; m_corpus.active would select the placeholder.
+    // openCorpusFile drops the empty placeholder tab, so the embedded
+    // document sits at index 0 and m_corpus.active (0) selects it.
     auto *tabBar = window->findChild<QTabBar *>();
     ASSERT_NE(tabBar, nullptr);
-    ASSERT_GE(tabBar->count(), 2);
+    ASSERT_EQ(tabBar->count(), 1);
     tabBar->setCurrentIndex(tabBar->count() - 1);
     QApplication::processEvents();
 

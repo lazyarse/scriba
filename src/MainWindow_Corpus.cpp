@@ -387,18 +387,7 @@ void MainWindow::restoreCorpus(const QJsonObject &corpus)
         parsed.append(d);
     }
 
-    bool firstTabIsEmpty = (m_tabs.size() == 1 && m_tabs[0].filePath.isEmpty()
-                            && !m_tabs[0].dirty && m_tabs[0].editor->toPlainText().isEmpty());
-
-    if (firstTabIsEmpty) {
-        int idx = m_tabBar->currentIndex();
-        disconnectTabEditor(idx);
-        Editor *ed = m_tabs[idx].editor;
-        m_tabs.removeAt(idx);
-        m_editorStack->removeWidget(ed);
-        m_tabBar->removeTab(idx);
-        delete ed;
-    }
+    removeEmptyUntitledTab();
 
     for (const CorpusDocument &d : parsed) {
         const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
@@ -507,6 +496,7 @@ void MainWindow::openCorpusFile(const QString &path, bool skipPrompt)
         return;
 
     closeAllTabs();
+    removeEmptyUntitledTab();
 
     m_corpus = loaded;
 
@@ -535,6 +525,8 @@ void MainWindow::openCorpusFile(const QString &path, bool skipPrompt)
             restoreTabState(idx, d);
         }
     }
+    if (m_tabs.isEmpty())
+        addTab();
     if (m_corpus.active >= 0 && m_corpus.active < m_tabBar->count())
         m_tabBar->setCurrentIndex(m_corpus.active);
 

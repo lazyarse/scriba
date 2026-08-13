@@ -373,6 +373,29 @@ TEST_F(DirtyOnLoadTest, TabBarAlwaysShowKeepsTabBarVisibleWithSingleTab) {
     EXPECT_TRUE(tabs->isVisible()) << "tab bar must stay visible with one tab when preferred";
 }
 
+TEST_F(DirtyOnLoadTest, CloseStoresSessionData) {
+    QSettings s;
+    s.remove(Preferences::OnExitCorpusData);
+    s.setValue(Preferences::ReopenLastCorpus, false);
+
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    QApplication::processEvents();
+
+    window->close();
+    QApplication::processEvents();
+
+    const QString raw = s.value(Preferences::OnExitCorpusData).toString();
+    ASSERT_FALSE(raw.isEmpty()) << "closeEvent must persist the session snapshot";
+    const QJsonObject corpus = QJsonDocument::fromJson(raw.toUtf8()).object();
+    ASSERT_FALSE(corpus.isEmpty());
+    const QJsonArray docs = corpus["documents"].toArray();
+    ASSERT_EQ(docs.size(), 1);
+    EXPECT_EQ(docs.at(0).toObject()["path"].toString(), tmpFile->fileName());
+}
+
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     setupTestConfig();

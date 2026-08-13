@@ -248,6 +248,7 @@ private:
 
     int addTab(const QString &filePath = QString());
     void removeTab(int index);
+    bool removeEmptyUntitledTab();
     int findTabByPath(const QString &filePath) const;
     void connectTabEditor(int index);
     void disconnectTabEditor(int index);

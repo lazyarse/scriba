@@ -122,14 +122,13 @@ protected:
         QTest::qWait(200);      // let the watcher settle on the initial paths
     }
 
-    // closeAllTabs() leaves a single empty "Untitled" tab, so corpus document
-    // tabs always sit one index above their position in m_corpus.documents.
-    static const int kUntitledTabOffset = 1;
-
+    // Corpus document tabs sit at the same index as their position in
+    // m_corpus.documents: openCorpusFile() drops the empty placeholder tab that
+    // closeAllTabs() would otherwise leave behind.
     Editor *tabEditor(int index) const
     {
         auto *stack = m_window->findChild<QStackedWidget *>();
-        const int i = index + kUntitledTabOffset;
+        const int i = index;
         if (!stack || i < 0 || i >= stack->count())
             return nullptr;
         return qobject_cast<Editor *>(stack->widget(i));
@@ -138,7 +137,7 @@ protected:
     QString tabTooltip(int index) const
     {
         auto *tabs = m_window->findChild<QTabBar *>();
-        const int i = index + kUntitledTabOffset;
+        const int i = index;
         if (!tabs || i < 0 || i >= tabs->count())
             return QString();
         return tabs->tabToolTip(i);
@@ -147,7 +146,7 @@ protected:
     bool tabDirty(int index) const
     {
         auto *tabs = m_window->findChild<QTabBar *>();
-        const int i = index + kUntitledTabOffset;
+        const int i = index;
         if (!tabs || i < 0 || i >= tabs->count())
             return false;
         return tabs->tabText(i).contains(QLatin1Char('*'));
@@ -334,7 +333,27 @@ TEST_F(CorpusWatcherIntegrationTest, TocTabClosedWhenCorpusReopened)
     EXPECT_EQ(tocTabIndex(), -1);
     auto *tabs = m_window->findChild<QTabBar *>();
     ASSERT_NE(tabs, nullptr);
-    EXPECT_EQ(tabs->count(), 2); // Untitled placeholder + doc2.md
+    EXPECT_EQ(tabs->count(), 1); // placeholder gone; only doc2.md
+}
+
+TEST_F(CorpusWatcherIntegrationTest, ClosingWindowResavesCorpus)
+{
+    writeFile(m_root + "/doc.md", "one");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    writeFile(m_root + "/doc2.md", "two");
+    m_window->loadFile(m_root + "/doc2.md");
+    QApplication::processEvents();
+
+    m_window->close();
+    QApplication::processEvents();
+
+    EXPECT_TRUE(readFile(m_corpusPath).contains(QStringLiteral("doc2.md")))
+        << "the .scriba must be re-saved on close so last-open restores the full session";
+    EXPECT_FALSE(readFile(m_corpusPath).contains(QStringLiteral("\"name\":\"Untitled\"")));
+    EXPECT_FALSE(readFile(m_corpusPath).contains(QStringLiteral("\"Untitled\"")))
+        << "the empty placeholder tab must never be serialized into the corpus";
 }
 
 } // namespace

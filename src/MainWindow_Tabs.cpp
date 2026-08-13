@@ -508,6 +508,24 @@ void MainWindow::closeAllTabs()
     }
 }
 
+bool MainWindow::removeEmptyUntitledTab()
+{
+    if (m_tabs.size() != 1)
+        return false;
+    const TabInfo &first = m_tabs[0];
+    if (!first.filePath.isEmpty() || first.dirty
+        || !first.editor->toPlainText().isEmpty())
+        return false;
+    disconnectTabEditor(0);
+    m_connectedTabIndex = -1;
+    Editor *ed = m_tabs[0].editor;
+    m_tabs.removeAt(0);
+    m_editorStack->removeWidget(ed);
+    m_tabBar->removeTab(0);
+    delete ed;
+    return true;
+}
+
 QString MainWindow::saveAsDialogPath()
 {
     return ensureDefaultSuffix(

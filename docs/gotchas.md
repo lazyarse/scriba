@@ -610,6 +610,25 @@ split makes easy to break:
 - `Preview::scrollToPercent` is retained for direct tests/back-compat but is no longer the sync
   path (`MainWindow_Tabs` tab pre-scroll is anchor-based too).
 
+## Corpus re-save on exit + the empty placeholder tab
+
+`MainWindow::closeEvent` re-saves the open `.scriba` corpus file unconditionally
+on every real close (after the prompt/save-dirty gates), and persists the
+`OnExitCorpusData` session snapshot keyed as `"documents"` (NOT `"files"` — the
+old key matched nothing and the snapshot was silently never stored). This is
+what makes "Open last corpus on startup" restore the full session: auto-reopen
+reads `LastCorpusPath` (the `.scriba`), which is only current because of that
+exit re-save. Trade-off accepted: a scratch tab left open in a corpus session is
+permanently added to the `.scriba` — the app's model is "corpus = whatever's
+open".
+
+The empty `Untitled` placeholder tab that `closeAllTabs()` blanks into existence
+is removed by `MainWindow::removeEmptyUntitledTab()` before corpus documents are
+added (`openCorpusFile`) or restored (`restoreCorpus`), so it is never part of a
+saved corpus and corpus document tabs map 1:1 to `m_corpus.documents` (tab index
+== corpus index). Embedded untitled documents with real content still restore
+normally — only the empty placeholder is dropped.
+
 ## Corpus export: embedded (untitled) documents are exported but not TOC-linked
 
 `CorpusIndex::renderToc` deliberately skips embedded/untitled documents (they
