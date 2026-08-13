@@ -132,26 +132,25 @@ TEST_F(PreferencesSearchTest, EmptySearchShowsAllPagesAndNoDim)
 
 TEST_F(PreferencesSearchTest, TypingNarrowsSidebarToMatchingPage)
 {
-    searchEdit()->setText(QStringLiteral("spelling"));
-    EXPECT_TRUE(pageVisible(QStringLiteral("Spelling")));
+    searchEdit()->setText(QStringLiteral("proofing"));
+    EXPECT_TRUE(pageVisible(QStringLiteral("Proofing")));
     EXPECT_EQ(visiblePageCount(), 1);
-    EXPECT_EQ(currentPage(), QStringLiteral("Spelling"));
+    EXPECT_EQ(currentPage(), QStringLiteral("Proofing"));
 }
 
 TEST_F(PreferencesSearchTest, AutoSwitchesToFirstMatchingPage)
 {
-    searchEdit()->setText(QStringLiteral("spelling"));
-    EXPECT_EQ(currentPage(), QStringLiteral("Spelling"));
-    // "wrap" matches the General page's "Editor Line Wrap" group (not the
-    // Editor page), so the sidebar jumps back to it.
+    searchEdit()->setText(QStringLiteral("proofing"));
+    EXPECT_EQ(currentPage(), QStringLiteral("Proofing"));
+    // "wrap" matches the Editor page's "Editor Line Wrap" group.
     searchEdit()->setText(QStringLiteral("wrap"));
-    EXPECT_EQ(currentPage(), QStringLiteral("General"));
+    EXPECT_EQ(currentPage(), QStringLiteral("Editor"));
 }
 
 TEST_F(PreferencesSearchTest, MultiTokenQueryMatchesSettingLabel)
 {
     searchEdit()->setText(QStringLiteral("line height"));
-    EXPECT_EQ(currentPage(), QStringLiteral("Editor"));
+    EXPECT_EQ(currentPage(), QStringLiteral("Appearance"));
 }
 
 TEST_F(PreferencesSearchTest, PageNameIsSearchable)
@@ -161,10 +160,31 @@ TEST_F(PreferencesSearchTest, PageNameIsSearchable)
     EXPECT_EQ(visiblePageCount(), 1);
 }
 
+TEST_F(PreferencesSearchTest, ReorganizedPageNamesAreSearchable)
+{
+    const QStringList queries = {
+        QStringLiteral("Appearance"),
+        QStringLiteral("Typesetting"),
+        QStringLiteral("Metrics"),
+        QStringLiteral("Auto-correct"),
+        QStringLiteral("Proofing"),
+    };
+    for (const QString &query : queries) {
+        searchEdit()->setText(query);
+        EXPECT_TRUE(pageVisible(query))
+            << "page not visible for query: " << query.toUtf8().constData();
+        // The first sidebar match wins; the renamed page comes before any
+        // other page whose widgets happen to mention the name (e.g. the
+        // Themes page's "visual appearance of the editor" label).
+        EXPECT_EQ(currentPage(), query)
+            << "wrong current page for query: " << query.toUtf8().constData();
+    }
+}
+
 TEST_F(PreferencesSearchTest, DimsNonMatchingWidgetsOnShownPage)
 {
     searchEdit()->setText(QStringLiteral("wrap"));
-    ASSERT_EQ(currentPage(), QStringLiteral("General"));
+    ASSERT_EQ(currentPage(), QStringLiteral("Editor"));
 
     QLabel *wrapLabel = nullptr;
     QCheckBox *syncCheck = nullptr;
@@ -186,19 +206,19 @@ TEST_F(PreferencesSearchTest, GroupBoxContainingMatchStaysVisible)
 {
     searchEdit()->setText(QStringLiteral("wrap"));
     QGroupBox *wrapGroup = nullptr;
-    QGroupBox *autoSaveGroup = nullptr;
+    QGroupBox *tablesGroup = nullptr;
     for (QGroupBox *g : m_dialog->findChildren<QGroupBox *>()) {
         if (g->title().contains(QStringLiteral("Line Wrap")))
             wrapGroup = g;
-        if (g->title() == QStringLiteral("Auto-Save"))
-            autoSaveGroup = g;
+        if (g->title() == QStringLiteral("Tables"))
+            tablesGroup = g;
     }
     ASSERT_TRUE(wrapGroup);
-    ASSERT_TRUE(autoSaveGroup);
+    ASSERT_TRUE(tablesGroup);
     EXPECT_FALSE(wrapGroup->property("scribaPrefDim").toBool());
-    EXPECT_TRUE(autoSaveGroup->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(tablesGroup->property("scribaPrefDim").toBool());
     EXPECT_TRUE(wrapGroup->property("scribaPrefMatch").toBool());
-    EXPECT_FALSE(autoSaveGroup->property("scribaPrefMatch").toBool());
+    EXPECT_FALSE(tablesGroup->property("scribaPrefMatch").toBool());
 }
 
 TEST_F(PreferencesSearchTest, PageNameMatchDoesNotHighlightWholePage)
@@ -273,7 +293,7 @@ TEST_F(PreferencesSearchTest, CorpusPageHasExpectedSettingsAndStartupMoved)
     }
     EXPECT_TRUE(onCorpusPage);
 
-    // General page widgets still include the sync check but no corpus startup.
+    // The General page no longer hosts the corpus startup checkbox.
     int generalIdx = -1;
     for (int i = 0; i < pageList()->count(); ++i) {
         if (pageList()->item(i)->text() == QStringLiteral("General")) {

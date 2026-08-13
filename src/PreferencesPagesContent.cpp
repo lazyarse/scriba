@@ -33,7 +33,6 @@
 #include <QTableWidgetItem>
 #include <QHeaderView>
 #include <QListWidget>
-#include <QColorDialog>
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -43,9 +42,9 @@ void PreferencesDialog::setupWritingPage()
 {
     QSettings settings;
 
-    /* --- Page 5: Writing --- */
+    /* --- Page 5: Metrics --- */
     {
-        QWidget *page = addPage(tr("Writing"));
+        QWidget *page = addPage(tr("Metrics"));
         QVBoxLayout *layout = new QVBoxLayout(page);
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
@@ -74,6 +73,10 @@ void PreferencesDialog::setupWritingPage()
             metricsLayout->addWidget(cb);
             return cb;
         };
+
+        metricsLayout->addSpacing(4);
+        auto *countsLabel = new QLabel("<b>Counts</b>");
+        metricsLayout->addWidget(countsLabel);
 
         m_wordCountCheck = addMetricCheck("words", "Word count");
         m_sentenceCountCheck = addMetricCheck("sentences", "Sentence count");
@@ -160,29 +163,23 @@ void PreferencesDialog::setupWritingPage()
         m_avgWordsPerSentenceCheck = addMetricCheck("avg-wps", "Average words per sentence");
         m_avgSyllablesPerWordCheck = addMetricCheck("avg-spw", "Average syllables per word");
 
-        m_selectionCountLabel = new QLabel;
-        metricsLayout->addWidget(m_selectionCountLabel);
-
         // connect all checkboxes to limit enforcement
-        auto enforceLimit = [this, kMaxMetrics]() {
-            QStringList selectedKeys;
+        auto enforceLimit = [this, kMaxMetrics, maxLabel]() {
             int count = 0;
             for (auto *cb : this->m_metricChecks) {
-                if (cb->isChecked()) {
+                if (cb->isChecked())
                     ++count;
-                    selectedKeys << cb->property("metricKey").toString();
-                }
             }
             bool atLimit = count >= kMaxMetrics;
             for (auto *cb : this->m_metricChecks) {
                 if (!cb->isChecked())
                     cb->setEnabled(!atLimit);
             }
-            m_selectionCountLabel->setText(
-                QStringLiteral("%1 / %2 selected %3")
-                    .arg(count)
+            maxLabel->setText(
+                QStringLiteral("Select up to %1 metrics (%2/%1)%3")
                     .arg(kMaxMetrics)
-                    .arg(atLimit ? QString("(max %1 reached)").arg(kMaxMetrics) : ""));
+                    .arg(count)
+                    .arg(atLimit ? QString(" (max %1 reached)").arg(kMaxMetrics) : ""));
         };
 
         // collect all metric checkboxes
@@ -321,9 +318,9 @@ void PreferencesDialog::setupReplacementsPage()
 {
     QSettings settings;
 
-    /* --- Page 6: Replacements --- */
+    /* --- Page 6: Auto-correct --- */
     {
-        QWidget *page = addPage(tr("Replacements"));
+        QWidget *page = addPage(tr("Auto-correct"));
         QVBoxLayout *layout = new QVBoxLayout(page);
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
@@ -337,17 +334,17 @@ void PreferencesDialog::setupReplacementsPage()
         groupLayout->addWidget(m_autoCorrectCheck);
 
         auto *note = new QLabel(tr(
-            "When a word is completed (space, punctuation or Enter) it is replaced with the "
-            "word in the Replaces column whenever the word before the caret matches the Typo "
-            "column. Matching ignores case and the case of your typing is preserved, so \"Teh\" "
-            "becomes \"The\". Corrections are skipped inside code blocks, inline code and link "
-            "URLs, and Ctrl+Z undoes one. Unlike Smart Typography, these replacements edit the Markdown source itself."));
+            "When you finish a word (space, punctuation or Enter), it is replaced if it "
+            "matches a Typo entry — e.g. \"teh\" becomes \"The\". Matching ignores case and "
+            "keeps your typing's case. Ctrl+Z undoes one; corrections are skipped in code "
+            "blocks, inline code and link URLs. Unlike Smart Typography, these replacements "
+            "edit the Markdown source itself."));
         note->setWordWrap(true);
         note->setStyleSheet("color: gray; padding: 8px;");
         groupLayout->addWidget(note);
 
         m_replacementsTable = new QTableWidget(0, 2);
-        m_replacementsTable->setHorizontalHeaderLabels({tr("Typo"), tr("Replaces")});
+        m_replacementsTable->setHorizontalHeaderLabels({tr("Typo"), tr("Replacement")});
         m_replacementsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
         m_replacementsTable->verticalHeader()->setVisible(false);
         m_replacementsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -424,14 +421,14 @@ void PreferencesDialog::setupSpellingPage()
 {
     QSettings settings;
 
-    /* --- Page 5: Spelling --- */
+    /* --- Page 5: Proofing --- */
     {
-        QWidget *page = addPage(tr("Spelling"));
+        QWidget *page = addPage(tr("Proofing"));
         QVBoxLayout *layout = new QVBoxLayout(page);
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
 
-        QGroupBox *checkGroup = new QGroupBox("Checking");
+        QGroupBox *checkGroup = new QGroupBox("Check:");
         QVBoxLayout *checkLayout = new QVBoxLayout(checkGroup);
         checkLayout->addSpacing(8);
 
@@ -480,75 +477,6 @@ void PreferencesDialog::setupSpellingPage()
         });
 
         layout->addWidget(checkGroup);
-
-        QGroupBox *underlineGroup = new QGroupBox("Override underline colors");
-        underlineGroup->setCheckable(true);
-        underlineGroup->setChecked(settings.value(Preferences::UnderlineColorOverride, false).toBool());
-        auto *underlineLayout = new QVBoxLayout(underlineGroup);
-        underlineLayout->setContentsMargins(6, 18, 6, 6);
-        underlineLayout->setSpacing(6);
-
-        m_spellColorBtn = makeSwatchBtn(
-            settings.value(Preferences::SpellUnderlineColor, "#d64050").toString());
-        m_grammarColorBtn = makeSwatchBtn(
-            settings.value(Preferences::GrammarUnderlineColor, "#00cc66").toString());
-        m_linkColorBtn = makeSwatchBtn(
-            settings.value(Preferences::LinkUnderlineColor, "#f09000").toString());
-        m_markdownColorBtn = makeSwatchBtn(
-            settings.value(Preferences::MarkdownUnderlineColor, "#3b82f6").toString());
-
-        auto *underlineRow1 = new QHBoxLayout;
-        underlineRow1->setSpacing(6);
-        underlineRow1->addWidget(new QLabel("Spelling:"));
-        underlineRow1->addWidget(m_spellColorBtn);
-        underlineRow1->addSpacing(12);
-        underlineRow1->addWidget(new QLabel("Grammar:"));
-        underlineRow1->addWidget(m_grammarColorBtn);
-        underlineRow1->addStretch();
-
-        auto *underlineRow2 = new QHBoxLayout;
-        underlineRow2->setSpacing(6);
-        underlineRow2->addWidget(new QLabel("Links:"));
-        underlineRow2->addWidget(m_linkColorBtn);
-        underlineRow2->addSpacing(12);
-        underlineRow2->addWidget(new QLabel("Markdown:"));
-        underlineRow2->addWidget(m_markdownColorBtn);
-        underlineRow2->addStretch();
-
-        underlineLayout->addLayout(underlineRow1);
-        underlineLayout->addLayout(underlineRow2);
-        layout->addWidget(underlineGroup);
-
-        auto emitUnderlineColorsChanged = [this]() { emit underlineColorsChanged(); };
-
-        auto connectUnderlineSwatch = [this, emitUnderlineColorsChanged](
-            QPushButton *btn, const char *key, const char *title) {
-            connect(btn, &QPushButton::clicked, this, [this, btn, key, title, emitUnderlineColorsChanged]() {
-                QColor current(btn->text());
-                QColor c = QColorDialog::getColor(current, this, QString::fromLatin1(title));
-                if (!c.isValid())
-                    return;
-                QSettings s;
-                s.setValue(QString::fromLatin1(key), c.name());
-                QPixmap px(16, 16);
-                px.fill(c);
-                btn->setIcon(QIcon(px));
-                btn->setText(c.name());
-                m_underlineColorGroup->setChecked(true);
-                emitUnderlineColorsChanged();
-            });
-        };
-        connectUnderlineSwatch(m_spellColorBtn, Preferences::SpellUnderlineColor, "Spelling Underline Color");
-        connectUnderlineSwatch(m_grammarColorBtn, Preferences::GrammarUnderlineColor, "Grammar Underline Color");
-        connectUnderlineSwatch(m_linkColorBtn, Preferences::LinkUnderlineColor, "Link Underline Color");
-        connectUnderlineSwatch(m_markdownColorBtn, Preferences::MarkdownUnderlineColor, "Markdown Underline Color");
-
-        m_underlineColorGroup = underlineGroup;
-        connect(underlineGroup, &QGroupBox::toggled, this, [this, emitUnderlineColorsChanged]() {
-            QSettings s;
-            s.setValue(Preferences::UnderlineColorOverride, m_underlineColorGroup->isChecked());
-            emitUnderlineColorsChanged();
-        });
 
         QGroupBox *grammarGroup = new QGroupBox("Grammar");
         QFormLayout *grammarLayout = new QFormLayout(grammarGroup);

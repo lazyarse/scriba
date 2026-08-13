@@ -18,12 +18,10 @@
 #include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QFormLayout>
 #include <QGroupBox>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QSpinBox>
-#include <QRadioButton>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
@@ -42,52 +40,6 @@ void PreferencesDialog::setupThemesPage()
         QVBoxLayout *layout = new QVBoxLayout(page);
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
-
-        /* --- Appearance panel --- */
-        QGroupBox *appearanceGroup = new QGroupBox("Appearance");
-        QVBoxLayout *appearanceLayout = new QVBoxLayout(appearanceGroup);
-        appearanceLayout->addSpacing(8);
-
-        m_stripeCheck = new QCheckBox("Alternating table row colors");
-        m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
-        appearanceLayout->addWidget(m_stripeCheck);
-
-        m_showCodeLangPreviewCheck = new QCheckBox("Show language label on fenced code blocks (preview)");
-        m_showCodeLangPreviewCheck->setChecked(settings.value(Preferences::ShowCodeLangPreview, true).toBool());
-        appearanceLayout->addWidget(m_showCodeLangPreviewCheck);
-
-        m_showCodeLangExportCheck = new QCheckBox("Show language label on fenced code blocks (exports)");
-        m_showCodeLangExportCheck->setChecked(settings.value(Preferences::ShowCodeLangExport, true).toBool());
-        appearanceLayout->addWidget(m_showCodeLangExportCheck);
-
-        appearanceLayout->addSpacing(4);
-        auto *uiFontLabel = new QLabel("<b>UI font size</b>");
-        appearanceLayout->addWidget(uiFontLabel);
-
-        m_uiFontSizeSpin = new QSpinBox();
-        m_uiFontSizeSpin->setRange(8, 24);
-        m_uiFontSizeSpin->setSuffix(" pt");
-        m_uiFontSizeSpin->setValue(settings.value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt());
-        auto *uiFontForm = new QFormLayout;
-        uiFontForm->addRow("Dialogs, menus & chrome:", m_uiFontSizeSpin);
-        appearanceLayout->addLayout(uiFontForm);
-        connect(m_uiFontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
-            [this](int v) { emit uiFontSizeChanged(v); });
-
-        appearanceLayout->addSpacing(4);
-        auto *emojiLabel = new QLabel("<b>Emoji rendering</b>");
-        appearanceLayout->addWidget(emojiLabel);
-
-        auto mode = Preferences::emojiRenderingFromString(
-            settings.value(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString());
-        m_emojiBw = new QRadioButton("Black && White");
-        m_emojiColor = new QRadioButton("Color (twemoji)");
-        m_emojiBw->setChecked(mode == Preferences::EmojiRendering::Bw);
-        m_emojiColor->setChecked(mode == Preferences::EmojiRendering::Color);
-        appearanceLayout->addWidget(m_emojiBw);
-        appearanceLayout->addWidget(m_emojiColor);
-
-        layout->addWidget(appearanceGroup);
 
         /* --- Base CSS panel --- */
         QGroupBox *baseCssGroup = new QGroupBox("Base CSS");
@@ -142,8 +94,6 @@ void PreferencesDialog::setupThemesPage()
 
 void PreferencesDialog::setupEditorPage()
 {
-    const QString &themeBgColor = m_themeBgColor;
-    const QString &themeFgColor = m_themeFgColor;
     QSettings settings;
 
     /* --- Page 2: Editor --- */
@@ -153,117 +103,55 @@ void PreferencesDialog::setupEditorPage()
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
 
-        QGroupBox *editorGroup = new QGroupBox("Editor Appearance");
-        QFormLayout *editorLayout = new QFormLayout(editorGroup);
+        m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
+        m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
+        layout->addWidget(m_syncCheck);
 
-        m_editorFontCombo = new QComboBox();
-        m_editorFontCombo->setEditable(true);
-        m_editorFontCombo->addItems({
-            "'Consolas', 'Monaco', 'Courier New', monospace",
-            "'Menlo', 'Monaco', 'Courier New', monospace",
-            "Georgia, 'Times New Roman', serif",
-            "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-            "'Linux Libertine', Georgia, Times, serif",
-            "'Source Code Pro', 'Fira Code', monospace",
-        });
-        QString fontFamily = settings.value(Preferences::EditorFontFamily,
-            "'Consolas', 'Monaco', 'Courier New', monospace").toString();
-        int idx = m_editorFontCombo->findText(fontFamily);
-        if (idx >= 0)
-            m_editorFontCombo->setCurrentIndex(idx);
-        else
-            m_editorFontCombo->setCurrentText(fontFamily);
-        editorLayout->addRow("Font family:", m_editorFontCombo);
+        QGroupBox *wrapGroup = new QGroupBox("Editor Line Wrap");
+        QVBoxLayout *wrapLayout = new QVBoxLayout(wrapGroup);
+        wrapLayout->addSpacing(8);
 
-        m_editorFontSizeSpin = new QSpinBox();
-        m_editorFontSizeSpin->setRange(8, 48);
-        m_editorFontSizeSpin->setSuffix(" pt");
-        m_editorFontSizeSpin->setValue(settings.value(Preferences::EditorFontSize, Preferences::DefaultEditorFontSize).toInt());
-        editorLayout->addRow("Font size:", m_editorFontSizeSpin);
+        QHBoxLayout *wrapModeRow = new QHBoxLayout();
+        wrapModeRow->addWidget(new QLabel("Wrap text:"));
+        m_wrapModeCombo = new QComboBox();
+        m_wrapModeCombo->addItem("Off", "no-wrap");
+        m_wrapModeCombo->addItem("At window width", "window");
+        m_wrapModeCombo->addItem("At column", "column");
+        {
+            const bool wrapEnabled = settings.value(Preferences::EditorWrapEnabled, true).toBool();
+            const QString wrapMode = settings.value(Preferences::EditorWrapMode,
+                                                     QStringLiteral("window")).toString();
+            int idx = wrapMode == QLatin1String("column") ? 2 : 1;
+            if (!wrapEnabled)
+                idx = 0;
+            m_wrapModeCombo->setCurrentIndex(idx);
+        }
+        wrapModeRow->addWidget(m_wrapModeCombo);
+        wrapModeRow->addStretch();
+        wrapLayout->addLayout(wrapModeRow);
 
-        m_editorLineHeightSpin = new QSpinBox();
-        m_editorLineHeightSpin->setRange(100, 400);
-        m_editorLineHeightSpin->setSuffix(" %");
-        m_editorLineHeightSpin->setValue(settings.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
-        editorLayout->addRow("Line height:", m_editorLineHeightSpin);
+        QHBoxLayout *wrapColRow = new QHBoxLayout();
+        wrapColRow->addWidget(new QLabel("Wrap column:"));
+        m_wrapColumnSpin = new QSpinBox();
+        m_wrapColumnSpin->setRange(40, 400);
+        m_wrapColumnSpin->setSuffix(" chars");
+        m_wrapColumnSpin->setValue(settings.value(Preferences::EditorWrapColumn,
+                                                   Preferences::DefaultEditorWrapColumn).toInt());
+        wrapColRow->addWidget(m_wrapColumnSpin);
+        wrapColRow->addStretch();
+        wrapLayout->addLayout(wrapColRow);
 
-        m_editorPaddingSpin = new QSpinBox();
-        m_editorPaddingSpin->setRange(0, 60);
-        m_editorPaddingSpin->setSuffix(" px");
-        m_editorPaddingSpin->setValue(settings.value(Preferences::EditorPadding, 12).toInt());
-        editorLayout->addRow("Padding:", m_editorPaddingSpin);
+        QLabel *wrapHint = new QLabel(
+            "When wrapping at a column, that column becomes the editor's max width.");
+        wrapHint->setWordWrap(true);
+        wrapHint->setStyleSheet("color:#888;");
+        wrapLayout->addWidget(wrapHint);
 
-        m_editorCaretWidthSpin = new QSpinBox();
-        m_editorCaretWidthSpin->setRange(1, 10);
-        m_editorCaretWidthSpin->setSuffix(" px");
-        m_editorCaretWidthSpin->setValue(settings.value(Preferences::EditorCaretWidth,
-            Preferences::DefaultEditorCaretWidth).toInt());
-        editorLayout->addRow("Caret width:", m_editorCaretWidthSpin);
+        connect(m_wrapModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &PreferencesDialog::updateContentWidthEnable);
+        layout->addWidget(wrapGroup);
 
-        auto emitEditorSettings = [this]() {
-            emit editorSettingsChanged(m_editorFontCombo->currentText(),
-                m_editorFontSizeSpin->value(), m_editorLineHeightSpin->value(),
-                m_editorPaddingSpin->value(), m_editorCaretWidthSpin->value());
-        };
-
-        m_editorBgBtn = makeSwatchBtn(
-            settings.value(Preferences::EditorBgColor, themeBgColor).toString());
-        m_editorFontBtn = makeSwatchBtn(
-            settings.value(Preferences::EditorFontColor, themeFgColor).toString());
-
-        m_overrideGroup = new QGroupBox("Override theme colors");
-        m_overrideGroup->setCheckable(true);
-        m_overrideGroup->setChecked(settings.value(Preferences::EditorColorOverride, false).toBool());
-        auto *overrideLayout = new QHBoxLayout(m_overrideGroup);
-        overrideLayout->setContentsMargins(6, 18, 6, 6);
-        overrideLayout->addWidget(new QLabel("Background:"));
-        overrideLayout->addWidget(m_editorBgBtn);
-        overrideLayout->addSpacing(12);
-        overrideLayout->addWidget(new QLabel("Font:"));
-        overrideLayout->addWidget(m_editorFontBtn);
-        overrideLayout->addStretch();
-        editorLayout->addRow(m_overrideGroup);
-
-        connect(m_editorBgBtn, &QPushButton::clicked, this, [this, emitEditorSettings]() {
-            QColor current(m_editorBgBtn->text());
-            QColor c = QColorDialog::getColor(current, this, "Editor Background Color");
-            if (!c.isValid()) return;
-            QSettings s;
-            s.setValue(Preferences::EditorBgColor, c.name());
-            QPixmap px(16, 16);
-            px.fill(c);
-            m_editorBgBtn->setIcon(QIcon(px));
-            m_editorBgBtn->setText(c.name());
-            m_overrideGroup->setChecked(true);
-            emitEditorSettings();
-        });
-
-        connect(m_editorFontBtn, &QPushButton::clicked, this, [this, emitEditorSettings]() {
-            QColor current(m_editorFontBtn->text());
-            QColor c = QColorDialog::getColor(current, this, "Editor Font Color");
-            if (!c.isValid()) return;
-            QSettings s;
-            s.setValue(Preferences::EditorFontColor, c.name());
-            QPixmap px(16, 16);
-            px.fill(c);
-            m_editorFontBtn->setIcon(QIcon(px));
-            m_editorFontBtn->setText(c.name());
-            m_overrideGroup->setChecked(true);
-            emitEditorSettings();
-        });
-
-        connect(m_overrideGroup, &QGroupBox::toggled, this, [this, emitEditorSettings]() {
-            QSettings s;
-            s.setValue(Preferences::EditorColorOverride, m_overrideGroup->isChecked());
-            emitEditorSettings();
-        });
-        connect(m_editorFontCombo, &QComboBox::currentTextChanged, this, emitEditorSettings);
-        connect(m_editorFontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
-        connect(m_editorLineHeightSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
-        connect(m_editorPaddingSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
-        connect(m_editorCaretWidthSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, emitEditorSettings);
-
-        layout->addWidget(editorGroup);
+        updateContentWidthEnable();
 
         /* --- Gutter --- */
         QGroupBox *gutterGroup = new QGroupBox("Gutter");

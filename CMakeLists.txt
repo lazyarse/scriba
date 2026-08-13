@@ -79,7 +79,7 @@ set(SCRIBA_MAINWINDOW_SOURCES src/MainWindow.cpp
 
 set(SCRIBA_PREFS_SOURCES src/PreferencesDialog.cpp src/PreferencesPages.cpp
     src/PreferencesPagesTheme.cpp src/PreferencesPagesContent.cpp
-    src/PreferencesPagesSystem.cpp)
+    src/PreferencesPagesSystem.cpp src/PreferencesPagesAppearance.cpp)
 
 set(SCRIBA_MERMAID_SOURCES src/MermaidDialog.cpp
     src/MermaidDialog_Flowchart.cpp src/MermaidDialog_Gantt.cpp

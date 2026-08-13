@@ -69,11 +69,11 @@ private:
     // it winds like the rest of the dialog) and registers it in the sidebar.
     QWidget *addPage(const QString &name);
     void setupGeneralPage();
+    void setupAppearancePage();
     void setupThemesPage();
     void setupEditorPage();
     void setupPreviewPage();
     void setupPrintingPage();
-    void setupAdvancedPage();
     void setupWritingPage();
     void setupTypographyPage();
     void setupReplacementsPage();
@@ -113,7 +113,6 @@ private:
     QCheckBox *m_avgSyllablesPerWordCheck = nullptr;
     QDoubleSpinBox *m_wpsSpin = nullptr;
     QSpinBox *m_spWpmSpin = nullptr;
-    QLabel *m_selectionCountLabel = nullptr;
     std::vector<QCheckBox *> m_metricChecks;
     QListWidget *m_pageList;
     QStackedWidget *m_pages;

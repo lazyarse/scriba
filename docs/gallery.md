@@ -26,17 +26,17 @@ The pencil in the gutter edits the mermaid/ECharts code block it sits beside usi
 
 ## Preferences
 
-| General | Themes | Editor | Writing |
+| General | Appearance | Themes | Editor |
 | --- | --- | --- | --- |
-| [![General](images/preferences-general.png)](images/preferences-general.png) | [![Themes](images/preferences-themes.png)](images/preferences-themes.png) | [![Editor](images/preferences-editor.png)](images/preferences-editor.png) | [![Writing](images/preferences-writing.png)](images/preferences-writing.png) |
+| [![General](images/preferences-general.png)](images/preferences-general.png) | [![Appearance](images/preferences-appearance.png)](images/preferences-appearance.png) | [![Themes](images/preferences-themes.png)](images/preferences-themes.png) | [![Editor](images/preferences-editor.png)](images/preferences-editor.png) |
 
-| Typography | Replacements | Spelling | Corpus |
+| Preview | Typesetting | Metrics | Typography |
 | --- | --- | --- | --- |
-| [![Typography](images/preferences-typography.png)](images/preferences-typography.png) | [![Replacements](images/preferences-replacements.png)](images/preferences-replacements.png) | [![Spelling](images/preferences-spelling.png)](images/preferences-spelling.png) | [![Corpus](images/preferences-corpus.png)](images/preferences-corpus.png) |
+| [![Preview](images/preferences-preview.png)](images/preferences-preview.png) | [![Typesetting](images/preferences-typesetting.png)](images/preferences-typesetting.png) | [![Metrics](images/preferences-metrics.png)](images/preferences-metrics.png) | [![Typography](images/preferences-typography.png)](images/preferences-typography.png) |
 
-|   Security                                                                          |   Preview                                                                        |   Printing                                                                          |   Advanced                                                                          |
-|-------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
-|   [![Security](images/preferences-security.png)](images/preferences-security.png)   |   [![Preview](images/preferences-preview.png)](images/preferences-preview.png)   |   [![Printing](images/preferences-printing.png)](images/preferences-printing.png)   |   [![Advanced](images/preferences-advanced.png)](images/preferences-advanced.png)   |
+|   Auto-correct                                                                        |   Proofing                                                                         |   Corpus                                                                         |   Security                                                                          |
+|---------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
+|   [![Auto-correct](images/preferences-auto-correct.png)](images/preferences-auto-correct.png)   |   [![Proofing](images/preferences-proofing.png)](images/preferences-proofing.png)   |   [![Corpus](images/preferences-corpus.png)](images/preferences-corpus.png)   |   [![Security](images/preferences-security.png)](images/preferences-security.png)   |
 
 
 

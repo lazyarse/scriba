@@ -41,11 +41,7 @@ void PreferencesDialog::setupGeneralPage()
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
 
-        m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
-        m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
-        layout->addWidget(m_syncCheck);
-
-        QGroupBox *autoCompleteGroup = new QGroupBox("Autocomplete");
+        QGroupBox *autoCompleteGroup = new QGroupBox("Auto-complete");
         QVBoxLayout *autoCompleteLayout = new QVBoxLayout(autoCompleteGroup);
         autoCompleteLayout->addSpacing(8);
 
@@ -62,7 +58,7 @@ void PreferencesDialog::setupGeneralPage()
         compRow->addStretch();
         autoCompleteLayout->addLayout(compRow);
 
-        m_emojiAutoCompleteCheck = new QCheckBox("Use emoji auto-complete");
+        m_emojiAutoCompleteCheck = new QCheckBox("Enable emoji auto-complete");
         m_emojiAutoCompleteCheck->setChecked(settings.value(Preferences::EmojiAutoComplete, true).toBool());
         autoCompleteLayout->addWidget(m_emojiAutoCompleteCheck);
 
@@ -75,110 +71,11 @@ void PreferencesDialog::setupGeneralPage()
         emojiCompRow->addStretch();
         autoCompleteLayout->addLayout(emojiCompRow);
 
-        m_languageAutoCompleteCheck = new QCheckBox("Enable code language autocomplete");
+        m_languageAutoCompleteCheck = new QCheckBox("Enable fenced code language auto-complete");
         m_languageAutoCompleteCheck->setChecked(settings.value(Preferences::LanguageAutoComplete, true).toBool());
         autoCompleteLayout->addWidget(m_languageAutoCompleteCheck);
 
         layout->addWidget(autoCompleteGroup);
-
-        QGroupBox *singleViewGroup = new QGroupBox("Single Pane View (Editor/Preview-Only View)");
-        QVBoxLayout *singleViewLayout = new QVBoxLayout(singleViewGroup);
-        singleViewLayout->addSpacing(8);
-
-        m_centreSingleViewCheck = new QCheckBox("Centre editor/preview content on single view");
-        m_centreSingleViewCheck->setChecked(settings.value(Preferences::CentreSingleViewContent, true).toBool());
-        singleViewLayout->addWidget(m_centreSingleViewCheck);
-
-        QHBoxLayout *widthRow = new QHBoxLayout();
-        widthRow->addWidget(new QLabel("Content width:"));
-        m_centreSingleViewWidthSpin = new QSpinBox();
-        m_centreSingleViewWidthSpin->setRange(400, 2000);
-        m_centreSingleViewWidthSpin->setSuffix(" px");
-        m_centreSingleViewWidthSpin->setValue(settings.value(Preferences::CentreSingleViewWidth, 800).toInt());
-        connect(m_centreSingleViewCheck, &QCheckBox::toggled,
-                this, &PreferencesDialog::updateContentWidthEnable);
-        widthRow->addWidget(m_centreSingleViewWidthSpin);
-        widthRow->addStretch();
-        singleViewLayout->addLayout(widthRow);
-
-        layout->addWidget(singleViewGroup);
-
-        QGroupBox *splitViewGroup = new QGroupBox("Split View Content Width");
-        QVBoxLayout *splitViewLayout = new QVBoxLayout(splitViewGroup);
-        splitViewLayout->addSpacing(8);
-
-        auto makeWidthRow = [this, splitViewLayout](const QString &label, QSpinBox *&spin, QCheckBox *&autoCheck) {
-            QHBoxLayout *row = new QHBoxLayout();
-            auto *lbl = new QLabel(label);
-            spin = new QSpinBox();
-            spin->setRange(300, 2000);
-            spin->setSuffix(" px");
-            lbl->setBuddy(spin);
-            autoCheck = new QCheckBox("Auto (fill pane)");
-            connect(autoCheck, &QCheckBox::toggled,
-                    this, &PreferencesDialog::updateContentWidthEnable);
-            row->addWidget(lbl);
-            row->addWidget(spin);
-            row->addWidget(autoCheck);
-            row->addStretch();
-            splitViewLayout->addLayout(row);
-        };
-        int editorWidth = settings.value(Preferences::SplitViewEditorMaxWidth, 0).toInt();
-        int previewWidth = settings.value(Preferences::SplitViewPreviewMaxWidth, 0).toInt();
-        makeWidthRow("Editor max width:", m_splitEditorWidthSpin, m_splitEditorAutoCheck);
-        makeWidthRow("Preview max width:", m_splitPreviewWidthSpin, m_splitPreviewAutoCheck);
-        m_splitEditorAutoCheck->setChecked(editorWidth <= 0);
-        m_splitEditorWidthSpin->setValue(editorWidth > 0 ? editorWidth : 800);
-        m_splitPreviewAutoCheck->setChecked(previewWidth <= 0);
-        m_splitPreviewWidthSpin->setValue(previewWidth > 0 ? previewWidth : 800);
-
-        layout->addWidget(splitViewGroup);
-
-        QGroupBox *wrapGroup = new QGroupBox("Editor Line Wrap");
-        QVBoxLayout *wrapLayout = new QVBoxLayout(wrapGroup);
-        wrapLayout->addSpacing(8);
-
-        QHBoxLayout *wrapModeRow = new QHBoxLayout();
-        wrapModeRow->addWidget(new QLabel("Wrap text:"));
-        m_wrapModeCombo = new QComboBox();
-        m_wrapModeCombo->addItem("Off", "no-wrap");
-        m_wrapModeCombo->addItem("At window width", "window");
-        m_wrapModeCombo->addItem("At column", "column");
-        {
-            const bool wrapEnabled = settings.value(Preferences::EditorWrapEnabled, true).toBool();
-            const QString wrapMode = settings.value(Preferences::EditorWrapMode,
-                                                     QStringLiteral("window")).toString();
-            int idx = wrapMode == QLatin1String("column") ? 2 : 1;
-            if (!wrapEnabled)
-                idx = 0;
-            m_wrapModeCombo->setCurrentIndex(idx);
-        }
-        wrapModeRow->addWidget(m_wrapModeCombo);
-        wrapModeRow->addStretch();
-        wrapLayout->addLayout(wrapModeRow);
-
-        QHBoxLayout *wrapColRow = new QHBoxLayout();
-        wrapColRow->addWidget(new QLabel("Wrap column:"));
-        m_wrapColumnSpin = new QSpinBox();
-        m_wrapColumnSpin->setRange(40, 400);
-        m_wrapColumnSpin->setSuffix(" chars");
-        m_wrapColumnSpin->setValue(settings.value(Preferences::EditorWrapColumn,
-                                                   Preferences::DefaultEditorWrapColumn).toInt());
-        wrapColRow->addWidget(m_wrapColumnSpin);
-        wrapColRow->addStretch();
-        wrapLayout->addLayout(wrapColRow);
-
-        QLabel *wrapHint = new QLabel(
-            "When wrapping at a column, that column becomes the editor's max width.");
-        wrapHint->setWordWrap(true);
-        wrapHint->setStyleSheet("color:#888;");
-        wrapLayout->addWidget(wrapHint);
-
-        connect(m_wrapModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &PreferencesDialog::updateContentWidthEnable);
-        layout->addWidget(wrapGroup);
-
-        updateContentWidthEnable();
 
         QGroupBox *autoSaveGroup = new QGroupBox("Auto-Save");
         QVBoxLayout *autoSaveLayout = new QVBoxLayout(autoSaveGroup);
@@ -208,8 +105,17 @@ void PreferencesDialog::setupGeneralPage()
         QVBoxLayout *importLayout = new QVBoxLayout(importGroup);
         importLayout->addSpacing(8);
 
+        QLabel *importHint = new QLabel(
+            "When importing a Word document, embedded images are written "
+            "according to the chosen location. If \"next to the document\" is "
+            "selected while the document has not been saved yet, you will be "
+            "asked where to put them.");
+        importHint->setWordWrap(true);
+        importHint->setStyleSheet("color: gray;");
+        importLayout->addWidget(importHint);
+
         const QString imgLocation = settings.value(Preferences::ImportImageLocation,
-            QStringLiteral("currentDir")).toString();
+            QStringLiteral("tempDir")).toString();
 
         m_imgCurrentDir = new QRadioButton("Save imported images next to the document");
         m_imgCustomDir = new QRadioButton("Save in a specific folder");
@@ -249,15 +155,6 @@ void PreferencesDialog::setupGeneralPage()
         connect(m_imgCustomDir, &QRadioButton::toggled, this, enableImgDir);
         importLayout->addLayout(imgDirRow);
 
-        QLabel *importHint = new QLabel(
-            "When importing a Word document, embedded images are written "
-            "according to the chosen location. If \"next to the document\" is "
-            "selected while the document has not been saved yet, you will be "
-            "asked where to put them.");
-        importHint->setWordWrap(true);
-        importHint->setStyleSheet("color: gray;");
-        importLayout->addWidget(importHint);
-
         layout->addWidget(importGroup);
 
         layout->addStretch();
@@ -281,7 +178,7 @@ void PreferencesDialog::setupPreviewPage()
         renderLayout->addSpacing(8);
 
         m_hardSoftBreaksCheck = new QCheckBox(
-            "Treat single line breaks as hard breaks (<br>) in the preview and exports");
+            "Treat single line breaks as hard breaks (<br>)\nin the preview and exports");
         m_hardSoftBreaksCheck->setToolTip(tr("By default a single newline in a paragraph is a "
             "soft break (rendered as a space). Enable to force every line break to render as a "
             "new line."));
@@ -289,6 +186,70 @@ void PreferencesDialog::setupPreviewPage()
         renderLayout->addWidget(m_hardSoftBreaksCheck);
 
         layout->addWidget(renderGroup);
+
+        QGroupBox *miscGroup = new QGroupBox("Misc.");
+        QVBoxLayout *miscLayout = new QVBoxLayout(miscGroup);
+        miscLayout->addSpacing(8);
+
+        m_stripeCheck = new QCheckBox("Alternating table row colors");
+        m_stripeCheck->setChecked(settings.value(Preferences::TableStriping, true).toBool());
+        miscLayout->addWidget(m_stripeCheck);
+
+        m_showCodeLangPreviewCheck = new QCheckBox("Show language label on fenced code blocks (preview)");
+        m_showCodeLangPreviewCheck->setChecked(settings.value(Preferences::ShowCodeLangPreview, true).toBool());
+        miscLayout->addWidget(m_showCodeLangPreviewCheck);
+
+        m_showCodeLangExportCheck = new QCheckBox("Show language label on fenced code blocks (exports)");
+        m_showCodeLangExportCheck->setChecked(settings.value(Preferences::ShowCodeLangExport, true).toBool());
+        miscLayout->addWidget(m_showCodeLangExportCheck);
+
+        miscLayout->addSpacing(4);
+        auto *emojiLabel = new QLabel("<b>Emoji rendering</b>");
+        miscLayout->addWidget(emojiLabel);
+
+        auto mode = Preferences::emojiRenderingFromString(
+            settings.value(Preferences::EmojiMode, Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString());
+        m_emojiBw = new QRadioButton("Black && White");
+        m_emojiColor = new QRadioButton("Color (twemoji)");
+        m_emojiBw->setChecked(mode == Preferences::EmojiRendering::Bw);
+        m_emojiColor->setChecked(mode == Preferences::EmojiRendering::Color);
+        miscLayout->addWidget(m_emojiBw);
+        miscLayout->addWidget(m_emojiColor);
+
+        layout->addWidget(miscGroup);
+
+        QGroupBox *advancedGroup = new QGroupBox("Advanced");
+        QVBoxLayout *advancedLayout = new QVBoxLayout(advancedGroup);
+        advancedLayout->addSpacing(8);
+
+        auto *renderLabel = new QLabel("The initial render delay is how long the live preview "
+            "waits after an edit before re-rendering the document. The heavy render delay is "
+            "how long you must pause typing before diagrams, equations and charts are "
+            "re-rendered. Lower values feel more responsive on small documents; higher values "
+            "save CPU on large ones.");
+        renderLabel->setWordWrap(true);
+        advancedLayout->addWidget(renderLabel);
+
+        m_previewUpdateDelaySpin = new QSpinBox();
+        m_previewUpdateDelaySpin->setRange(10, 1000);
+        m_previewUpdateDelaySpin->setSingleStep(10);
+        m_previewUpdateDelaySpin->setSuffix(" ms");
+        m_previewUpdateDelaySpin->setValue(settings.value(Preferences::PreviewUpdateDelay,
+            Preferences::DefaultPreviewUpdateDelay).toInt());
+
+        m_heavyRenderDelaySpin = new QSpinBox();
+        m_heavyRenderDelaySpin->setRange(200, 5000);
+        m_heavyRenderDelaySpin->setSingleStep(150);
+        m_heavyRenderDelaySpin->setSuffix(" ms");
+        m_heavyRenderDelaySpin->setValue(settings.value(Preferences::HeavyRenderDelay,
+            Preferences::DefaultHeavyRenderDelay).toInt());
+
+        auto *renderForm = new QFormLayout;
+        renderForm->addRow("Initial preview render delay:", m_previewUpdateDelaySpin);
+        renderForm->addRow("Heavy render delay:", m_heavyRenderDelaySpin);
+        advancedLayout->addLayout(renderForm);
+
+        layout->addWidget(advancedGroup);
 
         layout->addStretch();
 
@@ -301,7 +262,7 @@ void PreferencesDialog::setupPrintingPage()
 
     /* --- Page: Printing --- */
     {
-        QWidget *page = addPage(tr("Printing"));
+        QWidget *page = addPage(tr("Typesetting"));
         QVBoxLayout *layout = new QVBoxLayout(page);
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
@@ -369,50 +330,3 @@ void PreferencesDialog::setupPrintingPage()
     }
 }
 
-void PreferencesDialog::setupAdvancedPage()
-{
-    QSettings settings;
-
-    /* --- Page: Advanced --- */
-    {
-        QWidget *page = addPage(tr("Advanced"));
-        QVBoxLayout *layout = new QVBoxLayout(page);
-        layout->setContentsMargins(0, 16, 0, 0);
-        layout->setSpacing(8);
-
-        QGroupBox *renderGroup = new QGroupBox("Preview Render Timing");
-        QVBoxLayout *renderLayout = new QVBoxLayout(renderGroup);
-        renderLayout->addSpacing(8);
-
-        auto *renderLabel = new QLabel("The initial render delay is how long the live preview "
-            "waits after an edit before re-rendering the document. The heavy render delay is "
-            "how long you must pause typing before diagrams, equations and charts are "
-            "re-rendered. Lower values feel more responsive on small documents; higher values "
-            "save CPU on large ones.");
-        renderLabel->setWordWrap(true);
-        renderLayout->addWidget(renderLabel);
-
-        m_previewUpdateDelaySpin = new QSpinBox();
-        m_previewUpdateDelaySpin->setRange(10, 1000);
-        m_previewUpdateDelaySpin->setSingleStep(10);
-        m_previewUpdateDelaySpin->setSuffix(" ms");
-        m_previewUpdateDelaySpin->setValue(settings.value(Preferences::PreviewUpdateDelay,
-            Preferences::DefaultPreviewUpdateDelay).toInt());
-
-        m_heavyRenderDelaySpin = new QSpinBox();
-        m_heavyRenderDelaySpin->setRange(200, 5000);
-        m_heavyRenderDelaySpin->setSingleStep(150);
-        m_heavyRenderDelaySpin->setSuffix(" ms");
-        m_heavyRenderDelaySpin->setValue(settings.value(Preferences::HeavyRenderDelay,
-            Preferences::DefaultHeavyRenderDelay).toInt());
-
-        auto *renderForm = new QFormLayout;
-        renderForm->addRow("Initial preview render delay:", m_previewUpdateDelaySpin);
-        renderForm->addRow("Heavy render delay:", m_heavyRenderDelaySpin);
-        renderLayout->addLayout(renderForm);
-
-        layout->addWidget(renderGroup);
-        layout->addStretch();
-
-    }
-}

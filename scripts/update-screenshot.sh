@@ -10,7 +10,7 @@ OUT_DIR="$PROJECT_DIR/docs/images"
 # is selected by clicking the list; each Down moves to the next page (see
 # shot_preference_page). When adding a new page, extend this list AND the
 # idx mapping in shot_preference_page.
-PREF_PAGES=(general themes editor preview printing advanced writing typography replacements spelling corpus security)
+PREF_PAGES=(general appearance themes editor preview typesetting metrics typography auto-correct proofing corpus security)
 
 # Table of available targets: <argument> -> "<shot function>|<one-line help>".
 # This is the single source of truth for --help, argument validation, the full
@@ -267,15 +267,15 @@ shot_preference_page() {
     local page="$1" idx
     case "$page" in
         general) idx=0 ;;
-        themes) idx=1 ;;
-        editor) idx=2 ;;
-        preview) idx=3 ;;
-        printing) idx=4 ;;
-        advanced) idx=5 ;;
-        writing) idx=6 ;;
+        appearance) idx=1 ;;
+        themes) idx=2 ;;
+        editor) idx=3 ;;
+        preview) idx=4 ;;
+        typesetting) idx=5 ;;
+        metrics) idx=6 ;;
         typography) idx=7 ;;
-        replacements) idx=8 ;;
-        spelling) idx=9 ;;
+        auto-correct) idx=8 ;;
+        proofing) idx=9 ;;
         corpus) idx=10 ;;
         security) idx=11 ;;
         *) echo "WARN: unknown preferences page \"$page\""; return 1 ;;

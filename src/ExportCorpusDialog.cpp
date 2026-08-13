@@ -148,6 +148,15 @@ void ExportCorpusDialog::setupUi()
     m_externalNameEdit = new QLineEdit(this);
     extLabel->setBuddy(m_externalNameEdit);
     extRow->addWidget(m_externalNameEdit, 1);
+    auto *extBrowseBtn = new QPushButton(tr("&Browse…"), this);
+    stripButtonIcon(extBrowseBtn);
+    connect(extBrowseBtn, &QPushButton::clicked, this, [this]() {
+        const QString dir = QFileDialog::getExistingDirectory(
+            this, tr("Choose Export Subfolder"), m_externalNameEdit->text());
+        if (!dir.isEmpty())
+            m_externalNameEdit->setText(dir);
+    });
+    extRow->addWidget(extBrowseBtn);
     layout->addLayout(extRow);
 
     layout->addStretch();
@@ -167,8 +176,12 @@ void ExportCorpusDialog::setupUi()
     m_externalNameEdit->setText(extName);
     m_externalCheck->setChecked(!extName.isEmpty());
     m_externalNameEdit->setEnabled(m_externalCheck->isChecked());
-    connect(m_externalCheck, &QCheckBox::toggled,
-            m_externalNameEdit, &QLineEdit::setEnabled);
+    extBrowseBtn->setEnabled(m_externalCheck->isChecked());
+    connect(m_externalCheck, &QCheckBox::toggled, this,
+            [this, extBrowseBtn](bool checked) {
+                m_externalNameEdit->setEnabled(checked);
+                extBrowseBtn->setEnabled(checked);
+            });
 }
 
 void ExportCorpusDialog::chooseDirectory()

@@ -124,7 +124,8 @@ void MainWindow::exportCorpus()
         if (it.inRoot) {
             it.outRel = QDir(root).relativeFilePath(it.absPath) + "." + ext;
         } else if (!extName.isEmpty() && !commonExt.isEmpty()) {
-            it.outRel = extName + "/" + QDir(commonExt).relativeFilePath(it.absPath) + "." + ext;
+            it.outRel = QDir(extName).filePath(
+                QDir(commonExt).relativeFilePath(it.absPath) + "." + ext);
         } else {
             it.outRel.clear();
             ++skippedExternal;

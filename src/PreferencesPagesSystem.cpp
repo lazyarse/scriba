@@ -24,6 +24,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QFileDialog>
 
 void PreferencesDialog::setupCorpusPage()
 {
@@ -166,7 +167,16 @@ void PreferencesDialog::setupCorpusPage()
         m_externalExportDirEdit = new QLineEdit;
         m_externalExportDirEdit->setObjectName("corpus-external-export-dir");
         m_externalExportDirEdit->setPlaceholderText("external");
+        auto *exportDirBrowse = new QPushButton(tr("&Browse..."));
+        stripButtonIcon(exportDirBrowse);
+        connect(exportDirBrowse, &QPushButton::clicked, this, [this]() {
+            const QString dir = QFileDialog::getExistingDirectory(
+                this, tr("Choose Export Subfolder"), m_externalExportDirEdit->text());
+            if (!dir.isEmpty())
+                m_externalExportDirEdit->setText(dir);
+        });
         folderRow->addWidget(m_externalExportDirEdit, 1);
+        folderRow->addWidget(exportDirBrowse);
         externalLayout->addLayout(folderRow);
 
         const QString exportDir = settings.value(Preferences::CorpusExternalExportDirName).toString();
@@ -174,8 +184,10 @@ void PreferencesDialog::setupCorpusPage()
         m_externalExportCombo->setCurrentIndex(exportOn ? 1 : 0);
         m_externalExportDirEdit->setText(exportOn ? exportDir : QString());
         m_externalExportDirEdit->setEnabled(exportOn);
-        connect(m_externalExportCombo, &QComboBox::currentIndexChanged, this, [this](int index) {
+        exportDirBrowse->setEnabled(exportOn);
+        connect(m_externalExportCombo, &QComboBox::currentIndexChanged, this, [this, exportDirBrowse](int index) {
             m_externalExportDirEdit->setEnabled(index == 1);
+            exportDirBrowse->setEnabled(index == 1);
         });
 
         layout->addWidget(externalGroup);
@@ -208,7 +220,7 @@ void PreferencesDialog::setupSecurityPage()
         m_blockRawHtmlPreviewCheck->setChecked(settings.value(Preferences::BlockRawHtmlPreview, true).toBool());
         previewLayout->addWidget(m_blockRawHtmlPreviewCheck);
 
-        m_enableCspPreviewCheck = new QCheckBox("Enable Content Security Policy (blocks inline event handlers, javascript: URLs, external resources)");
+        m_enableCspPreviewCheck = new QCheckBox("Enable Content Security Policy\n(blocks inline event handlers, javascript: URLs, external resources)");
         m_enableCspPreviewCheck->setChecked(settings.value(Preferences::EnableCspPreview, true).toBool());
         previewLayout->addWidget(m_enableCspPreviewCheck);
 
@@ -230,7 +242,7 @@ void PreferencesDialog::setupSecurityPage()
         m_blockRawHtmlExportCheck->setChecked(settings.value(Preferences::BlockRawHtmlExport, true).toBool());
         exportLayout->addWidget(m_blockRawHtmlExportCheck);
 
-        m_enableCspExportCheck = new QCheckBox("Enable Content Security Policy (blocks inline event handlers, javascript: URLs, external resources)");
+        m_enableCspExportCheck = new QCheckBox("Enable Content Security Policy\n(blocks inline event handlers, javascript: URLs, external resources)");
         m_enableCspExportCheck->setChecked(settings.value(Preferences::EnableCspExport, true).toBool());
         exportLayout->addWidget(m_enableCspExportCheck);
 
