@@ -452,6 +452,9 @@ enter_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
         case MD_BLOCK_FOOTNOTE_DEF_SECTION: RENDER_VERBATIM(r, "<section class=\"footnotes\">\n<ol>\n"); break;
         case MD_BLOCK_FOOTNOTE_DEF: render_open_footnote_def_block(r, (MD_BLOCK_FOOTNOTE_DEF_DETAIL*)detail); break;
         case MD_BLOCK_ADMONITION:   render_open_admonition_block(r, (const MD_BLOCK_ADMONITION_DETAIL*) detail); break;
+        case MD_BLOCK_DL:        RENDER_VERBATIM(r, "<dl>\n"); break;
+        case MD_BLOCK_DT:        RENDER_VERBATIM(r, "<dt>"); break;
+        case MD_BLOCK_DD:        RENDER_VERBATIM(r, "<dd>"); break;
     }
 
     return 0;
@@ -483,6 +486,9 @@ leave_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
         case MD_BLOCK_FOOTNOTE_DEF_SECTION: RENDER_VERBATIM(r, "</ol>\n</section>\n"); break;
         case MD_BLOCK_FOOTNOTE_DEF: render_close_footnote_def_block(r, (MD_BLOCK_FOOTNOTE_DEF_DETAIL*)detail); break;
         case MD_BLOCK_ADMONITION:   RENDER_VERBATIM(r, "</div>\n"); break;
+        case MD_BLOCK_DL:        RENDER_VERBATIM(r, "</dl>\n"); break;
+        case MD_BLOCK_DT:        RENDER_VERBATIM(r, "</dt>\n"); break;
+        case MD_BLOCK_DD:        RENDER_VERBATIM(r, "</dd>\n"); break;
     }
 
     return 0;
