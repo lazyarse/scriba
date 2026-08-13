@@ -301,7 +301,8 @@ enum MD_LINETYPE_tag {
     MD_LINE_HTML,
     MD_LINE_TEXT,
     MD_LINE_TABLE,
-    MD_LINE_TABLEUNDERLINE
+    MD_LINE_TABLEUNDERLINE,
+    MD_LINE_DEFINITION
 };
 typedef enum MD_LINETYPE_tag MD_LINETYPE;
 
@@ -5278,6 +5279,7 @@ abort:
 #define MD_BLOCK_CONTAINER          (MD_BLOCK_CONTAINER_OPENER | MD_BLOCK_CONTAINER_CLOSER)
 #define MD_BLOCK_LOOSE_LIST         0x04
 #define MD_BLOCK_SETEXT_HEADER      0x08
+#define MD_BLOCK_DEFINITION         0x10
 
 struct MD_BLOCK_tag {
     MD_BLOCKTYPE type  :  8;
@@ -5728,6 +5730,7 @@ md_start_new_block(MD_CTX* ctx, const MD_LINE_ANALYSIS* line)
             break;
 
         case MD_LINE_TEXT:
+        case MD_LINE_DEFINITION:
             block->type = MD_BLOCK_P;
             break;
 
@@ -5744,6 +5747,8 @@ md_start_new_block(MD_CTX* ctx, const MD_LINE_ANALYSIS* line)
     }
 
     block->flags = 0;
+    if(line->type == MD_LINE_DEFINITION)
+        block->flags |= MD_BLOCK_DEFINITION;
     block->data = line->data;
     block->n_lines = 0;
     block->beg = line->beg;
@@ -5821,9 +5826,11 @@ md_end_current_block(MD_CTX* ctx)
 
     /* Check whether there is a reference definition. (We do this here instead
      * of in md_analyze_line() because reference definition can take multiple
-     * lines.) */
-    if(ctx->current_block->type == MD_BLOCK_P  ||
-       (ctx->current_block->type == MD_BLOCK_H  &&  (ctx->current_block->flags & MD_BLOCK_SETEXT_HEADER)))
+     * lines.) Skip it for definition blocks: a definition whose content starts
+     * with '[' must not be eaten as a reference definition. */
+    if((ctx->current_block->flags & MD_BLOCK_DEFINITION) == 0  &&
+       (ctx->current_block->type == MD_BLOCK_P  ||
+       (ctx->current_block->type == MD_BLOCK_H  &&  (ctx->current_block->flags & MD_BLOCK_SETEXT_HEADER))))
     {
         MD_LINE* lines = (MD_LINE*) (ctx->current_block + 1);
         if(lines[0].beg < ctx->size  &&  CH(lines[0].beg) == _T('[')) {
@@ -6884,6 +6891,25 @@ md_analyze_line(MD_CTX* ctx, OFF beg, OFF* p_end,
                 line->type = MD_LINE_TABLEUNDERLINE;
                 break;
             }
+        }
+
+        /* Check for definition-list marker: a ':' or '~' at the current nesting
+         * depth, immediately following a plain text paragraph at the same depth,
+         * opens a definition item. The marker + up to 4 spaces are stripped. */
+        if((ctx->parser.flags & MD_FLAG_DEFINITIONLISTS)  &&
+           pivot_line->type == MD_LINE_TEXT  &&
+           n_parents == ctx->n_containers  &&
+           ISANYOF2(off, _T(':'), _T('~'))  &&
+           (off + 1 == ctx->size  ||  ISBLANK(off + 1)))
+        {
+            OFF begin = off + 1;
+            line->type = MD_LINE_DEFINITION;
+            line->data = CH(off);
+            while(begin < ctx->size  &&  begin < off + 5  &&  ISBLANK(begin))
+                begin++;
+            line->beg = begin;
+            line->enforce_new_block = TRUE;
+            break;
         }
 
         /* By default, we are normal text line. */
