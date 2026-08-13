@@ -5,24 +5,19 @@ scriba/
 ├── CMakeLists.txt
 ├── src/
 │   ├── main.cpp
-│   ├── MainWindow.cpp          — Main window, file I/O, CSS management, scroll sync
-│   ├── Editor.cpp              — Text editor widget (tab/enter key handling)
-│   ├── Preview.cpp             — HTML preview widget (QWebEngineView)
-│   ├── MarkdownParser.cpp      — md4c-based markdown parser
-│   ├── MdRenderer.cpp          — Custom renderer with data-line attributes
-│   ├── CssConfig.cpp           — CSS config persistence
-│   ├── CssLoader.cpp           — Loads user/system CSS
-│   ├── CssUtils.cpp            — CSS derivation (chrome, themes)
-│   ├── CssEditorDialog.cpp     — Dialog for editing custom CSS
-│   ├── PreferencesDialog.cpp   — Preferences UI
-│   ├── FindDialog.cpp          — Find text dialog
-│   ├── ExportPdfDialog.cpp     — PDF export dialog
-│   ├── StaticHelpers.cpp       — List continuation, indent/outdent helpers
-│   ├── SpellChecker.cpp        — Spell-checking wrapper (stoppard-backed)
-│   ├── SpellHighlighter.cpp    — Markdown-aware squiggle highlighter
-│   ├── GrammarChecker.h        — Grammar-check interface
-│   ├── StoppardEngine.cpp      — Grammar checker backed by the vendored stoppard engine
-│   └── Preferences.h           — Preferences struct (header-only)
+│   ├── StaticHelpers.cpp        — List continuation, indent/outdent helpers
+│   ├── editor/                  — Text editor widget (Editor.cpp/h + EditorTyping/Table/Folding/Completions/Menu, Gutter, MdTable)
+│   ├── mainwindow/              — Main window (MainWindow.cpp/h + MainWindow_Tabs/File/Preview/Corpus/Menu/Validation)
+│   ├── preview/                 — HTML preview, markdown pipeline (Preview, PreviewBridge, PreviewPagination, MarkdownParser, MdRenderer, Typography, JsRenderEngine, JsSnippets, Readability, PrintOptions)
+│   ├── io/                      — Import/export and format conversion (Docx/Ooxml/Html/Pdf, ZipReader, CsvReader, export dialogs)
+│   ├── css/                     — CSS config/derivation/editing (CssConfig, CssLoader, CssUtils, CssValueParser, CssHighlighter, CssEditorDialog, UnitConverter)
+│   ├── dialogs/                 — Standalone UI dialogs (About, Emoji, Find, Log, Table, KaTeX, Mchem)
+│   ├── charts/                  — Chart dialogs + spec parsers (ChartDialog, StockChartDialog, AdvancedChartDialog, ChartSource, EChartsParser, MermaidParser)
+│   ├── mermaid/                 — Mermaid diagram dialog (MermaidDialog.cpp/h + per-family TUs, GitGraphBuilder)
+│   ├── corpus/                  — Corpus/project system (Corpus, CorpusIndex, CorpusWatcher, LinkFixer, ExportCorpusDialog)
+│   ├── spell/                   — Spelling + grammar (SpellChecker, SpellHighlighter, SpellCheckDialog, GrammarChecker, StoppardEngine)
+│   ├── validation/              — Markdown validator/linter (MarkdownChecker, LinkValidator, ValidationReport, ValidationReportDialog)
+│   └── prefs/                   — Preferences UI (PreferencesDialog, PreferencesPages*, Preferences.h)
 ├── docs/
 │   ├── kitchensink.md          — Sample document (canonical copy)
 ├── resources/
@@ -58,6 +53,28 @@ scriba/
     ├── md4c/                   — Markdown parser library (MIT, tracked in repo, src/ has local patches in patches/)
     └── stoppard/               — Grammar engine (GPL-3.0, vendored working copy)
 ```
+
+## Source namespacing
+
+Application source lives in `src/`, grouped into per-concern subdirectories
+(`editor/`, `mainwindow/`, `preview/`, `io/`, `css/`, `dialogs/`, `charts/`,
+`mermaid/`, `corpus/`, `spell/`, `validation/`, `prefs/`) plus the
+`src/main.cpp` entry point and `src/StaticHelpers.cpp` at the root.
+
+- **New source files go in the matching subdirectory** — pick the closest
+  existing group; only genuinely cross-cutting utilities belong at `src/` root.
+- **Includes carry the subdirectory**: project headers are included as
+  `#include "prefs/Preferences.h"`, not `#include "Preferences.h"`. Every
+  header basename is unique, but the explicit path is what keeps a future
+  same-named header (say a second `Parser.h`) unambiguous and greppable. The
+  only bare project includes are the file's own header and same-directory
+  neighbors, which resolve by relative search.
+- **CMake source lists** (the `SCRIBA_*_SOURCES` variables, `add_executable`,
+  and the static libraries in `CMakeLists.txt`) must reference the full
+  `src/<dir>/...` path for any new file.
+- Split classes keep the `Name` + `Name_Concern.cpp` convention inside their
+  directory (`MainWindow_File.cpp` lives in `mainwindow/`, `EditorTyping.cpp`
+  in `editor/`, `MermaidDialog_Gantt.cpp` in `mermaid/`).
 
 ## Documentation Assets
 
@@ -260,7 +277,16 @@ cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build bu
 cd build-dbg && ctest --output-on-failure -j4
 ```
 
-Use true `Debug`, not `RelWithDebInfo` — RelWithDebInfo still compiles at `-O2`/`-O3`, so it builds at Release speed with none of the dev-loop benefit. Debug compiles far faster (the ~10 test targets each recompile `MainWindow.cpp` plus ~35 other sources), at the cost of slower test runtimes — which barely matters since most tests are bound by WebEngine startup, not CPU.
+Use true `Debug`, not `RelWithDebInfo` — RelWithDebInfo still compiles at `-O2`/`-O3`, so it builds at Release speed with none of the dev-loop benefit. Debug compiles far faster, at the cost of slower test runtimes — which barely matters since most tests are bound by WebEngine startup, not CPU.
+
+### Why the dev loop is fast
+
+The app and every full-app test target link two shared **object libraries** defined in `CMakeLists.txt`, so nothing gets compiled twice:
+
+- `scriba_resources` (OBJECT) — compiles `resources/scriba.qrc` once; every consumer links the same `qrc_scriba.cpp` object. `scriba_twemoji` (OBJECT) does the same for `resources/twemoji-svg.qrc`. Without these, the qrc was compiled into 24 targets (the twemoji qrc into 4).
+- `scriba_app` (OBJECT) — compiles `SCRIBA_APP_WEBENGINE_SOURCES` (MainWindow, Editor, Preview, the dialogs, ~66 files) once; the `scriba` executable and the 11 full-app test targets (`test_scroll_sync`, `test_anchor_navigation`, `test_emoji_preview`, `test_auto_save`, `test_multi_tab_typing`, `test_corpus_recent`, `test_dirty_on_load`, `test_corpus_watcher_integration`, `test_corpus_export`, `test_editor_initial_css`, `test_find_dialog`) link it instead of recompiling the sources.
+
+These must be OBJECT libraries, never STATIC: both the qrc and some app sources carry static-initializer side effects (resource registration, emoji cache), and an archive would silently drop those objects when a consumer doesn't reference their symbols. Consumers must link `scriba_resources` (and `scriba_twemoji` where emoji is used) explicitly — object-library files do not propagate through another object lib. When adding a source file to a class split across TUs, add it to the matching `SCRIBA_*_SOURCES` variable (the plan: full-app tests pick it up via `scriba_app`, `scriba` for the rest).
 
 ### Release binary — `build`
 
