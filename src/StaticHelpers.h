@@ -26,6 +26,14 @@
 
 inline const QChar clearSentinel(0x2412);
 
+// Documents at or above this many blocks are "large": eager per-block spell
+// checking inside the paint pass, the whole-document grammar lint, and the
+// synchronous markdown→HTML preview render are all too expensive to run on
+// the UI thread for them. They are deferred to chunked/background paths
+// instead (see SpellHighlighter's kSpellScanChunkBlocks and the shared
+// PreviewRenderWorker) so opening and closing such files never blocks the UI.
+inline constexpr int kLargeDocBlocks = 4000;
+
 QString escapeJsString(const QString &s);
 bool isThematicBreak(const QString &line);
 QString handleListReturn(const QString &line);

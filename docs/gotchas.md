@@ -406,6 +406,47 @@ The override's `margin:` is typically the final declaration with no trailing
 semicolon (`@page{size:A4;margin:18mm}`), so the margin regex must stop at `}`
 as well as `;`.
 
+## Footnotes render at the end of the document, not at the bottom of the page
+
+Markdown footnotes (`[^label]` / `[^label]: …`) always render in a single
+`<section class="footnotes"><ol>` block appended **at the end of the document**
+(`MdRenderer.cpp` `MD_BLOCK_FOOTNOTE_DEF_SECTION`, and md4c's
+`md_process_footnote_defs`). This matches md4c and Pandoc/GFM behaviour, but it
+is **not** a Scriba choice — there is no way to get *page-bottom* footnotes (each
+note printed in a `@footnote` area at the foot of the page containing its
+reference) out of the Chromium-based PDF export.
+
+Page-bottom footnotes are defined in **CSS Generated Content for Paged Media
+Level 3** (`float: footnote`, `@footnote`, `::footnote-call`,
+`::footnote-marker`, `counter(footnote)`). **No browser implements them**:
+Chromium 131+ added native `@page` margin boxes, named pages and page counters
+(see `css-paged-media-plan.md`), but footnotes — along with `string-set` /
+`string()`, `target-counter()`, `leader()` and bookmarks — remain unimplemented.
+Tracking issue (open, unstaffed, no ETA):
+
+- https://issues.chromium.org/issues/376428674 — "Support footnotes from CSS
+  Generated Content for Paged Media"
+- https://issues.chromium.org/issues/376420244 — `string-set` (running headers)
+- https://issues.chromium.org/issues/40529223 — `target-counter()` (page
+  cross-references)
+
+The W3C spec itself is still a Working Draft (latest editor's draft active; it
+adds `footnote-policy`, `footnote-display`, and GCPM Level 4 proposes a
+region/`@slot`-based rework). Chromium has not announced implementation work on
+any of the three features above.
+
+**Consequences for Scriba:** both PDF paths (Qt WebEngine
+`printToPdf` fallback and the system-Chromium headless route in
+`ExportPdfDialog::generatePdfViaChromium`) are subject to this. Do not try to
+"fix" it with CSS (`float: footnote` is silently ignored) or by re-locating
+footnote blocks after rendering — the reference page is unknowable until the
+layout engine fragments the document, which is exactly what Chromium won't
+expose. The realistic escape hatch if page-bottom footnotes are ever required
+is to run a paged-media polyfill (Paged.js, Vivliostyle.js) in the export
+pipeline, or switch PDF generation to an engine that implements GCPM footnotes
+(WeasyPrint, Prince). Until then the end-of-document section is the only
+correct output.
+
 ## Code splitting is measured in pixels, not lines
 
 The "split code blocks" option's thresholds (50/100 lines) are a *label*; the
@@ -610,4 +651,42 @@ only exist after the deferred heavy render pass (`generateHeadingIds()` runs in 
 `setTimeout(…, HeavyRender)` tail of `scribaUpdate`), so a fresh page must get its own
 retry budget once `loadFinished` fires — see the `scrollPreviewToAnchor` re-arm in
 `MainWindow::onPreviewLoadFinished`.
+
+## Large documents (`kLargeDocBlocks = 4000` blocks) are background-processed
+
+Opening a big markdown file (≥ 4000 blocks, e.g. ~0.5–2 MB) used to hard-freeze the UI:
+the spell scan, the grammar lint and the markdown→HTML preview render all ran inline on
+the GUI thread. That work is now pushed off the UI thread, but the boundary is **exactly
+4000 blocks**, defined once in `StaticHelpers.h` (`kLargeDocBlocks`) and shared by
+`SpellHighlighter`, `Editor`, `MainWindow` and `MainWindow_Preview`. Keep the threshold in
+sync if it ever changes:
+
+- **Spell scan** (`SpellHighlighter`): a large document skips the eager per-block check
+  inside `highlightBlock`/`checkWord` (blocks are pushed to `m_staleBlocks` instead) and
+  `runSpellCheck` processes the document in chunks of `kSpellScanChunkBlocks = 500`
+  blocks, advancing on a 0 ms single-shot member `m_chunkTimer`. Underlines therefore
+  appear progressively — tests must not assume the tail of a large doc is flagged right
+  after `setPlainText` returns. Documents *under* the threshold keep the fully
+  synchronous behavior, which existing tests depend on.
+- **Grammar lint** (`SpellHighlighter::runGrammarLint`): skipped entirely for large
+  documents — the whole-document grammar check is the Validation Report's job, so a big
+  doc never triggers the lint worker.
+- **Preview render** (`MainWindow`/`PreviewRenderWorker`): `updatePreview` snapshots the
+  editor text on the GUI thread and hands it to a background `PreviewRenderWorker`
+  (thread lazily created on first large-doc request). `MarkdownParser::toHtml` and
+  `JsRenderEngine::stripScriptTags` are pure static functions, so they are safe to run
+  off-thread; a generation counter (`m_renderGeneration`) plus a `currentEditor()`
+  identity check drop any stale result. `MainWindow::~MainWindow` and `closeEvent` both
+  call `stopPreviewRenderWorker()` so every destruction path reaps the worker thread.
+  `JsRenderEngine.cpp` includes `QWebEnginePage`, so any test that compiles it must link
+  `Qt6::WebEngineWidgets` — an integration test drives `MainWindow` (see
+  `test_scroll_sync.cpp::LargeDocumentPreviewRendersAsynchronously`) rather than the
+  worker in isolation.
+
+The historical **root-cause gotcha** worth remembering: `GrammarLintWorker::doLint` is
+now dispatched through `QMetaObject::invokeMethod(worker, lambda, Qt::QueuedConnection)`
+on a shared process-wide worker. If code ever calls `doLint` directly on a
+`moveToThread`-ed worker, the method body runs **on the calling thread**, defeating the
+offloading entirely (this was the original tab-close freeze).
+
 

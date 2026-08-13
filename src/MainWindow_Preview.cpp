@@ -25,12 +25,14 @@
 #include "MarkdownParser.h"
 #include "Preferences.h"
 #include "PreviewPagination.h"
+#include "PreviewRenderWorker.h"
 #include "PrintOptions.h"
 #include "StaticHelpers.h"
 #include "ValidationReport.h"
 #include <QApplication>
 #include <QFileSystemWatcher>
 #include <QGuiApplication>
+#include <QMetaObject>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
@@ -131,22 +133,101 @@ void MainWindow::updatePreview(bool tabSwitch)
         && info->previewBlockRaw == blockRawHtml
         && info->previewStripScripts == stripScripts) {
         html = info->previewHtml;
-    } else {
-        html = m_parser->toHtml(ed->toPlainText(), blockRawHtml);
-        if (stripScripts)
-            html = JsRenderEngine::stripScriptTags(html);
-        if (info) {
-            info->previewHtml = html;
-            info->previewBlockRaw = blockRawHtml;
-            info->previewStripScripts = stripScripts;
-            info->previewHtmlValid = true;
+        commitPreviewHtml(html, tabSwitch, info);
+        return;
+    }
+
+    // Large documents render md→HTML on a background worker (the md4c pass
+    // alone takes hundreds of ms for a multi-thousand-block file). Small
+    // documents keep the inline path so the preview stays exactly as
+    // synchronous as before.
+    if (ed->document()->blockCount() > kLargeDocBlocks) {
+        requestPreviewRender(ed, tabSwitch);
+        return;
+    }
+
+    html = m_parser->toHtml(ed->toPlainText(), blockRawHtml);
+    if (stripScripts)
+        html = JsRenderEngine::stripScriptTags(html);
+    if (info) {
+        info->previewHtml = html;
+        info->previewBlockRaw = blockRawHtml;
+        info->previewStripScripts = stripScripts;
+        info->previewHtmlValid = true;
+    }
+    commitPreviewHtml(html, tabSwitch, info);
+}
+
+void MainWindow::requestPreviewRender(Editor *ed, bool tabSwitch)
+{
+    QSettings prefs;
+    const bool blockRawHtml = prefs.value(Preferences::BlockRawHtmlPreview, true).toBool();
+    const bool stripScripts = prefs.value(Preferences::StripPreviewScripts, true).toBool();
+
+    // Bump the generation FIRST: results of any in-flight render (including
+    // one dispatched a moment ago for this same document) are now stale.
+    const quint64 generation = ++m_renderGeneration;
+    m_pendingRender.gen = generation;
+    m_pendingRender.editor = ed;
+    m_pendingRender.blockRawHtml = blockRawHtml;
+    m_pendingRender.stripScripts = stripScripts;
+    m_pendingRender.tabSwitch = tabSwitch;
+
+    if (!m_renderThread) {
+        // Create the worker lazily on first use; stopped in closeEvent().
+        m_renderThread = new QThread(this);
+        m_renderThread->setObjectName(QStringLiteral("preview-render"));
+        m_renderWorker = new PreviewRenderWorker;
+        m_renderWorker->moveToThread(m_renderThread);
+        connect(m_renderWorker, &PreviewRenderWorker::finished,
+                this, &MainWindow::onPreviewRenderReady, Qt::QueuedConnection);
+        m_renderThread->start();
+    }
+
+    const QString text = ed->toPlainText();
+    PreviewRenderWorker *worker = m_renderWorker;
+    // Queued functor invocation: renders on the worker thread; the snapshot is
+    // taken here on the GUI thread so a later edit cannot tear it mid-render.
+    QMetaObject::invokeMethod(worker, [generation, text, blockRawHtml, stripScripts, worker]() {
+        worker->render(generation, text, blockRawHtml, stripScripts);
+    }, Qt::QueuedConnection);
+}
+
+void MainWindow::onPreviewRenderReady(quint64 generation, const QString &html)
+{
+    if (generation != m_renderGeneration)
+        return; // superseded by a newer edit/render or a tab switch
+    Editor *ed = currentEditor();
+    if (!ed || ed != m_pendingRender.editor)
+        return; // the requesting tab is no longer current; a newer render is pending
+    const bool tabSwitch = m_pendingRender.tabSwitch;
+
+    // Cache the render on the requesting tab so a later re-visit is served
+    // without re-parsing.
+    for (TabInfo &tab : m_tabs) {
+        if (tab.editor == m_pendingRender.editor) {
+            tab.previewHtml = html;
+            tab.previewBlockRaw = m_pendingRender.blockRawHtml;
+            tab.previewStripScripts = m_pendingRender.stripScripts;
+            tab.previewHtmlValid = true;
+            break;
         }
     }
 
+    commitPreviewHtml(html, tabSwitch, activeTabInfo());
+}
+
+// The tail shared by the synchronous and background preview paths: computes
+// the CSS environment and base URL for the current tab and pushes `html` to
+// the page — a full shell load when the preview isn't initialized yet, a
+// scribaUpdate call otherwise.
+void MainWindow::commitPreviewHtml(const QString &html, bool tabSwitch, const TabInfo *info)
+{
     const PreviewEnviron env = computePreviewCssAndEnviron();
 
     const QUrl baseUrl = computePreviewBaseUrl(info);
 
+    QSettings prefs;
     QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
     bool cspEnabled = prefs.value(Preferences::EnableCspPreview, true).toBool();
@@ -217,6 +298,24 @@ void MainWindow::updatePreview(bool tabSwitch)
             }
         });
     }
+}
+
+void MainWindow::stopPreviewRenderWorker()
+{
+    if (!m_renderThread)
+        return;
+    QThread *thread = m_renderThread;
+    PreviewRenderWorker *worker = m_renderWorker;
+    m_renderThread = nullptr;
+    m_renderWorker = nullptr;
+    ++m_renderGeneration; // invalidate any queued result delivery
+    // Quit and join: any render already in flight (a bounded md→HTML pass)
+    // completes, then the worker and thread are reaped. Queued functor events
+    // that never ran are discarded when their worker is deleted.
+    thread->quit();
+    thread->wait();
+    delete worker;
+    delete thread;
 }
 
 MainWindow::PreviewEnviron MainWindow::computePreviewCssAndEnviron()

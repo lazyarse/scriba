@@ -291,19 +291,23 @@ protected:
         m_edit = new QTextEdit;
         m_edit->setPlainText("hello world");
         m_highlighter = new SpellHighlighter(m_edit->document());
-        m_highlighter->setGrammarChecker(&m_grammar);
+        m_highlighter->setGrammarChecker(m_grammar);
     }
 
     void TearDown() override
     {
-        // Destroying the highlighter stops and joins the lint worker thread,
-        // so the checker is never used afterwards.
+        // The lint worker is shared process-wide, so destroying the
+        // highlighter does not join a thread; its connection to the worker's
+        // lintFinished signal disconnects and any queued result is dropped.
+        // m_grammar outlives the fixture anyway (and any in-flight request
+        // holds its own shared_ptr), so the checker is never used after this.
         delete m_highlighter;
         delete m_edit;
         QSettings().clear();
     }
 
-    CountingGrammarChecker m_grammar;
+    std::shared_ptr<CountingGrammarChecker> m_grammar =
+        std::make_shared<CountingGrammarChecker>();
     QTextEdit *m_edit = nullptr;
     SpellHighlighter *m_highlighter = nullptr;
 };
@@ -312,24 +316,24 @@ TEST_F(SpellHighlighterLintTest, FormatOnlyChangeDoesNotReTriggerLint)
 {
     m_highlighter->setGrammarCheckingEnabled(true);
     QTest::qWait(700); // initial lint completes
-    ASSERT_EQ(m_grammar.checkCount.load(), 1);
+    ASSERT_EQ(m_grammar->checkCount.load(), 1);
 
     // Format-only change (e.g. spell-checking toggled, block states updated,
     // or the lint result itself being applied).
     m_highlighter->rehighlight();
     QTest::qWait(700);
-    EXPECT_EQ(m_grammar.checkCount.load(), 1);
+    EXPECT_EQ(m_grammar->checkCount.load(), 1);
 }
 
 TEST_F(SpellHighlighterLintTest, RealEditStillTriggersLint)
 {
     m_highlighter->setGrammarCheckingEnabled(true);
     QTest::qWait(700); // initial lint completes
-    ASSERT_EQ(m_grammar.checkCount.load(), 1);
+    ASSERT_EQ(m_grammar->checkCount.load(), 1);
 
     QTest::keyClicks(m_edit, " more");
     QTest::qWait(700);
-    EXPECT_EQ(m_grammar.checkCount.load(), 2);
+    EXPECT_EQ(m_grammar->checkCount.load(), 2);
 }
 
 // Spell checking is deferred so that words currently being typed are not
@@ -437,6 +441,81 @@ TEST_F(SpellHighlighterSpellDebounceTest, CheckCompletionEmitsSignal)
     QTest::keyClicks(m_edit, "zzz");
     QTest::qWait(700);
     EXPECT_GT(spy.count(), 1);
+}
+
+// Large documents (≥ kLargeDocBlocks = 4000 blocks) must never block the UI
+// thread while opening: the eager per-block spell check inside the paint pass
+// is skipped (blocks are marked stale instead) and the scan runs in chunks on
+// 0 ms timers, with underlines appearing progressively. The whole-document
+// grammar lint is skipped entirely — it is a Validation Report job.
+class SpellHighlighterLargeDocTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        QSettings().clear();
+        QDir().mkpath(SpellChecker::configDictDir());
+        QFile::remove(SpellChecker::configDictDir() + "/user.dic");
+        ASSERT_TRUE(m_checker.loadLanguage("en_US"));
+        m_edit = new QTextEdit;
+        m_highlighter = new SpellHighlighter(m_edit->document());
+        m_highlighter->setChecker(&m_checker);
+    }
+
+    void TearDown() override
+    {
+        delete m_highlighter;
+        delete m_edit;
+        QFile::remove(SpellChecker::configDictDir() + "/user.dic");
+        QSettings().clear();
+    }
+
+    // `blocks` lines of a misspelled word: every block must end up flagged once
+    // the scan reaches it, so an empty cache is unambiguous proof of deferral.
+    static QString largeDoc(int blocks)
+    {
+        QString text;
+        text.reserve(blocks * 8);
+        for (int i = 0; i < blocks; ++i)
+            text += "helo\n";
+        return text;
+    }
+
+    SpellChecker m_checker;
+    QTextEdit *m_edit = nullptr;
+    SpellHighlighter *m_highlighter = nullptr;
+};
+
+TEST_F(SpellHighlighterLargeDocTest, SpellScanDeferredThenFillsAsynchronously)
+{
+    m_edit->setPlainText(largeDoc(4300));
+    // The first scan chunk (500 blocks) runs synchronously inside the load,
+    // but blocks beyond it are untouched: no eager per-block check happened
+    // during the paint pass, so the cache is still empty out there.
+    EXPECT_FALSE(m_highlighter->spellHitsInBlock(0).isEmpty());
+    EXPECT_TRUE(m_highlighter->spellHitsInBlock(4000).isEmpty());
+
+    // The chunked scan (0 ms timers) fills the cache progressively.
+    bool filled = false;
+    for (int i = 0; i < 100 && !filled; ++i) {
+        QTest::qWait(100);
+        if (!m_highlighter->spellHitsInBlock(4000).isEmpty())
+            filled = true;
+    }
+    EXPECT_TRUE(filled);
+}
+
+TEST_F(SpellHighlighterLargeDocTest, GrammarLintSkippedOnLargeDocument)
+{
+    auto grammar = std::make_shared<CountingGrammarChecker>();
+    m_highlighter->setGrammarChecker(grammar);
+    m_highlighter->setGrammarCheckingEnabled(true);
+    m_edit->setPlainText(largeDoc(4300));
+
+    // The debounced lint timer (400 ms) would have fired well within this wait
+    // for a small document; a large one must not lint at all.
+    QTest::qWait(1200);
+    EXPECT_EQ(grammar->checkCount.load(), 0);
 }
 
 class SpellHighlighterUnderlineColorTest : public ::testing::Test

@@ -19,11 +19,12 @@
 #include <QDateTime>
 #include <QHash>
 #include <QList>
+#include <QMetaObject>
 #include <QSet>
 #include <QString>
 #include <QSyntaxHighlighter>
-#include <QThread>
 #include <QVector>
+#include <memory>
 
 class SpellChecker;
 class GrammarChecker;
@@ -33,22 +34,28 @@ class QColor;
 // Runs the (expensive, whole-document) grammar check on a background thread.
 // The result is delivered back as a queued signal with a generation tag so
 // stale results (superseded by newer edits) can be dropped.
+//
+// The worker is a process-wide singleton shared by every editor: requests are
+// dispatched with QMetaObject::invokeMethod(worker, lambda, QueuedConnection)
+// and carry their own std::shared_ptr<GrammarChecker>, so destroying an editor
+// (or its SpellHighlighter) never has to join a thread or wait for a check in
+// flight — the worker thread keeps running and the checker stays alive via the
+// request's shared ownership. This is what keeps closing a tab (even one with
+// a large document and grammar checking on) instantaneous.
 class GrammarLintWorker : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit GrammarLintWorker(GrammarChecker *checker);
+    explicit GrammarLintWorker() = default;
 
 public slots:
-    void doLint(quint64 generation, const QString &text);
+    void doLint(quint64 generation, std::shared_ptr<GrammarChecker> checker,
+                const QString &text);
 
 signals:
     void lintFinished(quint64 generation, const QString &text,
                       const QList<GrammarChecker::Issue> &issues);
-
-private:
-    GrammarChecker *m_checker = nullptr;
 };
 
 // Applies red spell-check underlines, green grammar wave underlines and amber
@@ -125,7 +132,7 @@ public:
     ~SpellHighlighter() override;
 
     void setChecker(SpellChecker *checker);
-    void setGrammarChecker(GrammarChecker *checker);
+    void setGrammarChecker(std::shared_ptr<GrammarChecker> checker);
     void setSpellCheckingEnabled(bool enabled);
     bool spellCheckingEnabled() const { return m_spellEnabled; }
     void setGrammarCheckingEnabled(bool enabled);
@@ -142,6 +149,11 @@ public:
     // directory (an empty path resolves against the current working
     // directory). Triggers a re-check so underlines follow the new base.
     void setCurrentFile(const QString &path);
+    // Runs checks synchronously to completion even on large documents (the
+    // normal large-document behaviour defers spell scanning into chunks and
+    // skips the grammar lint). Used by scanLinkIssues()/validation, which must
+    // read the finished caches immediately after setting the file.
+    void setForceSyncChecks(bool force);
 
     // Re-runs the pending grammar lint and re-applies underlines. Call after
     // dictionary changes (add/ignore word, language switch).
@@ -192,12 +204,20 @@ protected:
 private:
     void scheduleSpellCheck(int position, int charsRemoved, int charsAdded);
     void runSpellCheck();
+    void continueSpellScan();
     void scheduleGrammarLint(int charsRemoved, int charsAdded);
     void runGrammarLint();
     void onLintFinished(quint64 generation, const QString &text,
                         const QList<GrammarChecker::Issue> &issues);
-    void ensureLintWorker();
     static QVector<QPair<int, int>> protectedRanges(const QString &line);
+
+    // Documents at or above kLargeDocBlocks (StaticHelpers.h) skip the eager
+    // per-block spell check inside highlightBlock() and the whole-document
+    // grammar lint, and run their spell scan in ~kSpellScanChunkBlocks chunks
+    // on a 0 ms timer so the UI thread stays responsive while a large file is
+    // being opened.
+    static constexpr int kSpellScanChunkBlocks = 500;
+    bool largeDocument() const;
 
     // Everything one whole-document pass collects for the link scan: the
     // `[name]:` reference definitions and the heading slugs the preview would
@@ -218,16 +238,24 @@ private:
                                      const QSet<QString> &currentSlugs);
 
     SpellChecker *m_checker = nullptr;
-    GrammarChecker *m_grammar = nullptr;
+    std::shared_ptr<GrammarChecker> m_grammar;
     QTimer *m_lintTimer = nullptr;
     QTimer *m_spellTimer = nullptr;
-    QThread *m_lintThread = nullptr;
-    GrammarLintWorker *m_lintWorker = nullptr;
+    // Drives the chunked large-document spell scan: single-shot 0 ms timer,
+    // re-armed by continueSpellScan() until the document is exhausted. Using a
+    // member timer (not singleShot()) guarantees at most one continuation is
+    // pending, so a scan restarted mid-flight can never double-walk the
+    // document.
+    QTimer *m_chunkTimer = nullptr;
+    // The shared process-wide lint worker (see GrammarLintWorker). Each
+    // highlighter keeps its own connection to its onLintFinished() slot.
+    QMetaObject::Connection m_grammarLintConnection;
     quint64 m_lintGeneration = 0;
     bool m_spellEnabled = true;
     bool m_grammarEnabled = false;
     bool m_linkEnabled = true;
     bool m_markdownEnabled = false;
+    bool m_forceSyncChecks = false;
     // The markdown-consistency checks to underline; empty disables them all.
     QSet<MarkdownChecker::Check> m_markdownChecks = MarkdownChecker::defaultChecks();
     // The document's file path, for resolving relative link targets.
@@ -247,6 +275,16 @@ private:
     // insertions/removals (they renumber every following block, so all of
     // them must be re-checked, not just the edited range).
     int m_lastBlockCount = 0;
+    // Chunked-scan continuation state (see kLargeDocBlocks). m_scanContext is
+    // collected once at the start of a pass for the link half; the block walk
+    // itself resumes from m_scanBlockNumber with the fence/front-matter state
+    // carried in m_scanState, accumulating m_scanAny until the document is
+    // exhausted (when spellHitsChanged() is emitted once).
+    DocumentContext m_scanContext;
+    int m_scanBlockNumber = 0;
+    int m_scanState = 0;
+    bool m_scanAny = false;
+    bool m_scanChunked = false;
     // blockNumber → grammar issues within the block
     QHash<int, QVector<GrammarHit>> m_grammarIssues;
     // blockNumber → misspelled word ranges within the block

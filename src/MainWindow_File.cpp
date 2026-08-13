@@ -660,6 +660,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
     // A still-running validation grammar worker would keep a QThread alive
     // past the MainWindow it signals back to: stop and reap it first.
     stopValidationReport();
+    // Likewise the background preview-render worker (large documents).
+    stopPreviewRenderWorker();
 
     QSettings s;
 

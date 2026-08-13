@@ -29,6 +29,7 @@
 #include <QJsonObject>
 #include <QActionGroup>
 #include <QUrl>
+#include <QThread>
 
 #include <functional>
 
@@ -52,6 +53,7 @@ class KatexHelperDialog;
 class MchemHelperDialog;
 class SpellCheckDialog;
 class CorpusWatcher;
+class PreviewRenderWorker;
 class QWebChannel;
 class QMenu;
 class QMenuBar;
@@ -81,7 +83,10 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr, bool skipCorpusRestore = false);
-    ~MainWindow() = default;
+    // Stops the background preview-render worker if it was started. Done here
+    // as well as in closeEvent() so any destruction path (including tests)
+    // reaps the worker thread and its orphaned worker object.
+    ~MainWindow() override;
     void loadFile(const QString &filePath, bool forceReload = false);
     // Exposed for tests; the UI path is openCorpusAction().
     void openCorpusFile(const QString &path, bool skipPrompt = false);
@@ -107,6 +112,7 @@ public:
 
 private slots:
     void updatePreview();
+    void onPreviewRenderReady(quint64 generation, const QString &html);
     void showPreferences();
     void onCssFileChanged();
     void onEditorScroll();
@@ -172,6 +178,23 @@ private:
                                   const QString &stripeInit, const QString &centerCss,
                                   const QString &splitCss, const QString &codeLangInit,
                                   const QString &renderCss) const;
+    // Large-document preview rendering: the md→HTML pass runs on a shared
+    // background worker (PreviewRenderWorker) so opening a big file never
+    // blocks the UI. requestPreviewRender() snapshots the text, bumps
+    // m_renderGeneration and dispatches the worker; onPreviewRenderReady()
+    // validates the generation (dropping results superseded by a newer edit or
+    // a tab switch), caches the HTML on the requesting tab and commits it to
+    // the page. Small documents keep the synchronous inline path.
+    struct PendingPreviewRender {
+        quint64 gen = 0;
+        Editor *editor = nullptr;
+        bool blockRawHtml = true;
+        bool stripScripts = true;
+        bool tabSwitch = false;
+    };
+    void requestPreviewRender(Editor *ed, bool tabSwitch);
+    void commitPreviewHtml(const QString &html, bool tabSwitch, const TabInfo *info);
+    void stopPreviewRenderWorker();
     QString buildUpdateCallJavascript(const QString &html, bool cssChanged,
                                       const QString &previewCss, const QString &mermaidTheme,
                                       const QString &emojiMode, const QUrl &baseUrl,
@@ -280,6 +303,12 @@ private:
     bool m_previewInitialized = false;
     bool m_printLayoutMode = false;
     QString m_printLayoutFp;    // merged print CSS+options fingerprint (page geometry)
+    // Background preview-render worker (large documents only). See
+    // requestPreviewRender()/onPreviewRenderReady().
+    QThread *m_renderThread = nullptr;
+    PreviewRenderWorker *m_renderWorker = nullptr;
+    quint64 m_renderGeneration = 0;
+    PendingPreviewRender m_pendingRender;
     QString m_cachedPreviewCss;
     QString m_cachedFullCss;
     QString m_cachedPreviewBaseCss;

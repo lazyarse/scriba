@@ -499,6 +499,38 @@ TEST_F(ScrollSyncIntegrationTest, MixedContentPreviewTracksEditorBlock) {
     }
 }
 
+TEST_F(ScrollSyncIntegrationTest, LargeDocumentPreviewRendersAsynchronously) {
+    // > kLargeDocBlocks (4000): the md→HTML render is dispatched to the
+    // background PreviewRenderWorker instead of running inline on the GUI
+    // thread. The preview must still end up fully loaded — including the very
+    // last heading of the document — proving the async result was committed.
+    QStringList a;
+    for (int i = 0; i < 4500; ++i) { a << QString("Heading %1").arg(i) << QString("Body %1").arg(i) << QString(); }
+    const QString doc = a.join('\n');
+
+    ASSERT_TRUE(tmpFile->open());
+    tmpFile->resize(0);
+    tmpFile->write(doc.toUtf8());
+    tmpFile->close();
+
+    QSignalSpy loadSpy(window->preview()->page(), &QWebEnginePage::loadFinished);
+    window->loadFile(tmpFile->fileName());
+
+    bool loaded = false;
+    for (int i = 0; i < loadSpy.count(); ++i)
+        if (loadSpy.at(i).at(0).toBool()) { loaded = true; break; }
+    while (!loaded) {
+        if (!loadSpy.wait(5000)) break;
+        if (loadSpy.last().at(0).toBool()) loaded = true;
+    }
+    ASSERT_TRUE(loaded) << "large-document async preview render never loaded";
+
+    // The tail of the large document must have been rendered and committed.
+    double hasTail = evalPreview(window,
+        "(function(){return document.body.textContent.indexOf('Heading 4499')>=0?1:0;})()", 1500);
+    EXPECT_EQ(hasTail, 1) << "async render did not commit the full large document";
+}
+
 TEST_F(ScrollSyncIntegrationTest, PrintLayoutStillSyncsAfterRebuild) {
     // Tall document so the editor can scroll deep and the paginator must
     // split the preview into several page boxes.

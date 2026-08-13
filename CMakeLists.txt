@@ -87,7 +87,7 @@ set(SCRIBA_MERMAID_SOURCES src/MermaidDialog.cpp
     src/MermaidDialog_Others.cpp)
 
 set(SCRIBA_APP_WEBENGINE_SOURCES
-    src/PreviewPagination.cpp
+    src/PreviewPagination.cpp src/PreviewRenderWorker.cpp
     ${SCRIBA_MAINWINDOW_SOURCES}
     src/Corpus.cpp src/CorpusWatcher.cpp src/LinkFixer.cpp src/CorpusIndex.cpp
     src/ZipReader.cpp src/OoxmlToHtml.cpp src/OoxmlConverter.cpp
@@ -169,6 +169,8 @@ add_executable(scriba WIN32
     src/CsvReader.cpp
     src/PrintOptions.cpp
     src/PreviewPagination.cpp
+    src/PreviewRenderWorker.cpp
+    src/PreviewRenderWorker.h
     src/CsvColumnMapDialog.cpp
     src/SpellChecker.cpp
     src/SpellCheckDialog.cpp

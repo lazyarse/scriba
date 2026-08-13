@@ -251,6 +251,14 @@ MainWindow::MainWindow(QWidget *parent, bool skipCorpusRestore)
     connectActiveEditor();
 }
 
+MainWindow::~MainWindow()
+{
+    // Reap the background preview-render worker if a large document was ever
+    // rendered (closeEvent() already does this on the normal exit path, but
+    // tests and other destruction paths skip it).
+    stopPreviewRenderWorker();
+}
+
 void MainWindow::showCenteredWarning(const QString &title, const QString &text, const QString &informative)
 {
     QMessageBox msgBox(this);

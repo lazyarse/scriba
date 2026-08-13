@@ -216,7 +216,10 @@ private:
     bool m_formattingTable = false;
 
     std::unique_ptr<SpellChecker> m_spellChecker;
-    std::unique_ptr<GrammarChecker> m_grammarChecker;
+    // Shared ownership with the grammar-lint worker: the worker keeps its own
+    // shared_ptr for the duration of an in-flight check, so this editor can be
+    // destroyed (tab closed) without the checker dangling.
+    std::shared_ptr<GrammarChecker> m_grammarChecker;
     SpellHighlighter *m_spellHighlighter = nullptr;
     QWidget *m_underlineOverlay = nullptr;
     // True once a corpus dictionary has been applied; routes the "Add to

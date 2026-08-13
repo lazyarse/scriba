@@ -110,7 +110,7 @@ Editor::Editor(QWidget *parent)
     m_grammarChecker.reset(sharedGrammarChecker());
     m_spellHighlighter = new SpellHighlighter(document(), this);
     m_spellHighlighter->setChecker(m_spellChecker.get());
-    m_spellHighlighter->setGrammarChecker(m_grammarChecker.get());
+    m_spellHighlighter->setGrammarChecker(m_grammarChecker);
     applySpellSettings();
     applyLineWrap();
 

@@ -29,10 +29,47 @@
 #include <QTextBlock>
 #include <QTextCharFormat>
 #include <QTextDocument>
+#include <QThread>
 #include <QTimer>
 #include <QUrl>
 
 namespace {
+
+// The process-wide grammar-lint worker (see GrammarLintWorker's class comment):
+// one thread, lazily started on first use, serving every SpellHighlighter.
+// Requests are queued lambdas that carry their own checker shared_ptr, so no
+// per-editor thread join is ever needed when a tab closes.
+struct SharedLintWorker {
+    QThread thread;
+    GrammarLintWorker *worker = nullptr;
+
+    SharedLintWorker()
+    {
+        static const bool typesRegistered = []() {
+            qRegisterMetaType<GrammarChecker::Issue>("GrammarChecker::Issue");
+            qRegisterMetaType<QList<GrammarChecker::Issue>>("QList<GrammarChecker::Issue>");
+            return true;
+        }();
+        Q_UNUSED(typesRegistered);
+        thread.setObjectName(QStringLiteral("grammar-lint"));
+        worker = new GrammarLintWorker;
+        worker->moveToThread(&thread);
+        thread.start();
+    }
+
+    ~SharedLintWorker()
+    {
+        thread.quit();
+        thread.wait();
+        delete worker;
+    }
+};
+
+SharedLintWorker &sharedLintWorker()
+{
+    static SharedLintWorker w;
+    return w;
+}
 
 struct UnderlineColors {
     QColor spell;
@@ -176,6 +213,10 @@ SpellHighlighter::SpellHighlighter(QTextDocument *document, QObject *parent)
     m_spellTimer->setSingleShot(true);
     m_spellTimer->setInterval(Debounce::SpellCheck);
     connect(m_spellTimer, &QTimer::timeout, this, &SpellHighlighter::runSpellCheck);
+    m_chunkTimer = new QTimer(this);
+    m_chunkTimer->setSingleShot(true);
+    m_chunkTimer->setInterval(0);
+    connect(m_chunkTimer, &QTimer::timeout, this, &SpellHighlighter::continueSpellScan);
     // Schedule on contentsChange (not contentsChanged): rehighlight() and
     // other format-only work emit contentsChanged but no contentsChange, so
     // this prevents the checks from re-arming themselves into an infinite
@@ -186,16 +227,13 @@ SpellHighlighter::SpellHighlighter(QTextDocument *document, QObject *parent)
             this, &SpellHighlighter::scheduleGrammarLint);
 }
 
-GrammarLintWorker::GrammarLintWorker(GrammarChecker *checker)
-    : m_checker(checker)
-{
-}
-
-void GrammarLintWorker::doLint(quint64 generation, const QString &text)
+void GrammarLintWorker::doLint(quint64 generation,
+                               std::shared_ptr<GrammarChecker> checker,
+                               const QString &text)
 {
     QList<GrammarChecker::Issue> issues;
-    if (m_checker)
-        issues = m_checker->check(text);
+    if (checker)
+        issues = checker->check(text);
     emit lintFinished(generation, text, issues);
 }
 
@@ -211,34 +249,10 @@ SpellHighlighter::~SpellHighlighter()
         disconnect(doc, &QTextDocument::contentsChange,
                    this, &SpellHighlighter::scheduleGrammarLint);
     }
-    if (m_lintThread) {
-        m_lintThread->quit();
-        m_lintThread->wait();
-        // The thread has stopped; no code runs on it anymore.
-        delete m_lintWorker;
-        delete m_lintThread;
-    }
-}
-
-void SpellHighlighter::ensureLintWorker()
-{
-    if (m_lintThread || !m_grammar)
-        return;
-
-    static const bool typesRegistered = []() {
-        qRegisterMetaType<GrammarChecker::Issue>("GrammarChecker::Issue");
-        qRegisterMetaType<QList<GrammarChecker::Issue>>("QList<GrammarChecker::Issue>");
-        return true;
-    }();
-    Q_UNUSED(typesRegistered);
-
-    m_lintThread = new QThread(this);
-    m_lintThread->setObjectName(QStringLiteral("grammar-lint"));
-    m_lintWorker = new GrammarLintWorker(m_grammar);
-    m_lintWorker->moveToThread(m_lintThread);
-    connect(m_lintWorker, &GrammarLintWorker::lintFinished,
-            this, &SpellHighlighter::onLintFinished, Qt::QueuedConnection);
-    m_lintThread->start();
+    // The lint worker is shared process-wide, so there is no thread to join
+    // here: any in-flight grammar check keeps the checker alive via its own
+    // shared_ptr and its result is dropped when this object's connection to
+    // onLintFinished() disconnects. Closing a tab never blocks on a lint.
 }
 
 void SpellHighlighter::setChecker(SpellChecker *checker)
@@ -246,10 +260,20 @@ void SpellHighlighter::setChecker(SpellChecker *checker)
     m_checker = checker;
 }
 
-void SpellHighlighter::setGrammarChecker(GrammarChecker *checker)
+void SpellHighlighter::setGrammarChecker(std::shared_ptr<GrammarChecker> checker)
 {
-    m_grammar = checker;
-    ensureLintWorker();
+    m_grammar = std::move(checker);
+    if (m_grammarLintConnection)
+        disconnect(m_grammarLintConnection);
+    m_grammarLintConnection = {};
+    if (!m_grammar)
+        return;
+    // The worker is shared, so the connection is to the singleton's signal; it
+    // delivers lintFinished() back to this highlighter on the main thread and
+    // auto-disconnects (dropping any queued result) when this object dies.
+    m_grammarLintConnection = connect(
+        sharedLintWorker().worker, &GrammarLintWorker::lintFinished,
+        this, &SpellHighlighter::onLintFinished, Qt::QueuedConnection);
 }
 
 void SpellHighlighter::setSpellCheckingEnabled(bool enabled)
@@ -308,6 +332,16 @@ void SpellHighlighter::setCurrentFile(const QString &path)
     m_currentFile = path;
     if (m_linkEnabled)
         runSpellCheck(); // relative targets resolve against a new base dir now
+}
+
+void SpellHighlighter::setForceSyncChecks(bool force)
+{
+    m_forceSyncChecks = force;
+}
+
+bool SpellHighlighter::largeDocument() const
+{
+    return document() && document()->blockCount() > kLargeDocBlocks;
 }
 
 void SpellHighlighter::refresh()
@@ -402,10 +436,11 @@ void SpellHighlighter::runSpellCheck()
 
     // Reference definitions and heading slugs are collected over the whole
     // document first so usages on earlier lines can be validated against
-    // definitions and headings that live on later lines.
-    DocumentContext context;
+    // definitions and headings that live on later lines. The document context
+    // is cached in m_scanContext for the chunked continuation.
+    m_scanContext = DocumentContext();
     if (m_linkEnabled)
-        context = collectDocumentContext();
+        m_scanContext = collectDocumentContext();
 
     // Markdown-consistency findings are document-global (a duplicate heading
     // or a level skip depends on headings on other lines), so scan the whole
@@ -426,44 +461,75 @@ void SpellHighlighter::runSpellCheck()
         }
     }
 
-    // Walk the whole document so fence/front-matter state stays consistent
-    // even when only some blocks are stale (the state machine must advance
-    // across the blocks in between).
-    int state = 0;
-    bool any = m_linkEnabled || m_markdownEnabled; // these recompute wholesale each pass
-    for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next()) {
+    // Start (or restart) the per-block pass. On large documents the walk is
+    // deferred into chunks on a 0 ms timer so the UI thread never blocks on
+    // one monolithic pass; validation scans (setForceSyncChecks) keep it
+    // synchronous.
+    m_scanState = 0;
+    m_scanAny = m_linkEnabled || m_markdownEnabled; // these recompute wholesale each pass
+    m_scanBlockNumber = 0;
+    m_scanChunked = !m_forceSyncChecks && largeDocument();
+    continueSpellScan();
+}
+
+void SpellHighlighter::continueSpellScan()
+{
+    const bool spellActive = m_spellEnabled && m_checker && m_checker->isLoaded();
+    QTextBlock block = document()->firstBlock();
+    for (int skip = m_scanBlockNumber; skip > 0 && block.isValid(); --skip)
+        block = block.next();
+
+    // Walk a chunk of blocks so fence/front-matter state stays consistent
+    // across the whole document (the state machine must advance across every
+    // block in between, stale or not).
+    int processed = 0;
+    for (; block.isValid(); block = block.next()) {
         const int blockNumber = block.blockNumber();
-        const BlockContext ctx = blockContext(blockNumber, block.text(), state);
-        state = ctx.state;
+        const BlockContext ctx = blockContext(blockNumber, block.text(), m_scanState);
+        m_scanState = ctx.state;
 
         if (m_linkEnabled) {
             if (ctx.checkable)
-                m_linkHits[blockNumber] = scanLinkHits(block.text(), context.refDefs,
-                                                       context.headingSlugs);
+                m_linkHits[blockNumber] = scanLinkHits(block.text(), m_scanContext.refDefs,
+                                                       m_scanContext.headingSlugs);
             else
                 m_linkHits.remove(blockNumber);
         }
 
-        if (!m_staleBlocks.contains(blockNumber))
-            continue;
-        any = true;
-        m_staleBlocks.remove(blockNumber);
-        if (!ctx.checkable) {
-            m_spellHits.remove(blockNumber);
-            continue;
-        }
-        if (spellActive) {
-            QVector<GrammarHit> hits;
-            for (const WordHit &word : scanWords(block.text())) {
-                if (!m_checker->checkWord(word.text))
-                    hits.append({word.start, word.length});
+        if (m_staleBlocks.contains(blockNumber)) {
+            m_scanAny = true;
+            m_staleBlocks.remove(blockNumber);
+            if (!ctx.checkable) {
+                m_spellHits.remove(blockNumber);
+                continue;
             }
-            m_spellHits[blockNumber] = hits;
+            if (spellActive) {
+                QVector<GrammarHit> hits;
+                for (const WordHit &word : scanWords(block.text())) {
+                    if (!m_checker->checkWord(word.text))
+                        hits.append({word.start, word.length});
+                }
+                m_spellHits[blockNumber] = hits;
+            }
+        }
+
+        if (m_scanChunked && ++processed >= kSpellScanChunkBlocks) {
+            const QTextBlock next = block.next();
+            m_scanBlockNumber = next.isValid() ? next.blockNumber()
+                                               : block.blockNumber() + 1;
+            if (next.isValid()) {
+                m_chunkTimer->start();
+                return;
+            }
+            break; // chunk boundary landed exactly on the last block
         }
     }
-    // Entries left over refer to blocks deleted since they were marked stale.
+
+    // Document exhausted: the pass is complete. Entries left over in
+    // m_staleBlocks refer to blocks deleted since they were marked stale.
+    m_scanBlockNumber = 0;
     m_staleBlocks.clear();
-    if (any)
+    if (m_scanAny)
         emit spellHitsChanged();
 }
 
@@ -544,6 +610,7 @@ SpellHighlighter::scanLinkIssues(const QString &text, const QString &baseDir)
     // whose link half needs no spell checker). Relative targets resolve
     // against baseDir via the synthetic file path.
     SpellHighlighter hl(&doc);
+    hl.setForceSyncChecks(true); // validation must read finished caches immediately
     hl.setCurrentFile(baseDir.isEmpty() ? QString()
                                         : QDir(baseDir).filePath(QStringLiteral("__validation__.md")));
     QVector<LinkHit> hits;
@@ -584,15 +651,24 @@ void SpellHighlighter::highlightBlock(const QString &text)
     if (m_spellEnabled && m_checker && m_checker->isLoaded()) {
         if (!m_staleBlocks.contains(blockNumber)) {
             if (!m_spellHits.contains(blockNumber)) {
-                // Block never checked (freshly loaded/replaced document whose
-                // edit was not a user keystroke): check now so the first
-                // paint shows the underlines.
-                QVector<GrammarHit> hits;
-                for (const WordHit &word : scanWords(text)) {
-                    if (!m_checker->checkWord(word.text))
-                        hits.append({word.start, word.length});
+                if (largeDocument()) {
+                    // Block never checked (freshly loaded/replaced document
+                    // whose edit was not a user keystroke). On a large document
+                    // the eager per-word check would block the paint pass for
+                    // every block, so defer: mark the block stale and let the
+                    // chunked scan in runSpellCheck() fill the hits
+                    // asynchronously — underlines appear progressively.
+                    m_staleBlocks.insert(blockNumber);
+                } else {
+                    // Block never checked: check now so the first paint shows
+                    // the underlines.
+                    QVector<GrammarHit> hits;
+                    for (const WordHit &word : scanWords(text)) {
+                        if (!m_checker->checkWord(word.text))
+                            hits.append({word.start, word.length});
+                    }
+                    m_spellHits[blockNumber] = hits;
                 }
-                m_spellHits[blockNumber] = hits;
             }
             if (!m_spellHits.value(blockNumber).isEmpty())
                 applied = true;
@@ -621,16 +697,30 @@ void SpellHighlighter::scheduleGrammarLint(int charsRemoved, int charsAdded)
 
 void SpellHighlighter::runGrammarLint()
 {
-    if (!m_grammar || !m_grammarEnabled || !m_lintWorker) {
+    if (!m_grammar || !m_grammarEnabled) {
         rehighlight();
         return;
     }
+    // Large documents skip the whole-document lint entirely: the check is
+    // O(n) per line and even on a background thread a 2 MB file would take
+    // seconds, with underlines stale long before they ever paint. Grammar
+    // checking on multi-thousand-block files is a Validation Report job.
+    if (largeDocument())
+        return;
 
     // Existing underlines stay visible while the fresh lint runs in the
     // background; they are replaced when the result arrives.
     const quint64 generation = ++m_lintGeneration;
     const QString text = document()->toPlainText();
-    m_lintWorker->doLint(generation, text);
+    auto &shared = sharedLintWorker();
+    GrammarLintWorker *worker = shared.worker;
+    std::shared_ptr<GrammarChecker> checker = m_grammar;
+    // Queued functor invocation: runs doLint() on the worker thread, keeping
+    // the checker alive for the duration of the request even if this
+    // highlighter (and editor) is destroyed in the meantime.
+    QMetaObject::invokeMethod(worker, [generation, checker, text, worker]() {
+        worker->doLint(generation, checker, text);
+    }, Qt::QueuedConnection);
 }
 
 void SpellHighlighter::onLintFinished(quint64 generation, const QString &text,
