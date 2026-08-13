@@ -136,6 +136,26 @@ markup:
 
 Use `<>` angle brackets for explicit autolinks as usual: <https://example.com>.
 
+### Reference-style Links
+
+Define a link once and reuse it anywhere:
+
+[CommonMark spec][spec], [this section][self], and the [Mermaid kitchen sink][mermaid].
+
+[spec]: https://spec.commonmark.org/0.31.2/
+[self]: #reference-style-links
+[mermaid]: mermaid.md "More Mermaid examples"
+
+Collapsed `[text][]` reuses the text as the label:
+
+- [ECharts docs][] and [KaTeX docs][]
+- The [mermaid][] definition above is reused.
+
+[ECharts docs]: https://echarts.apache.org/
+[KaTeX docs]: https://katex.org/
+
+Shortcut `[text]` links any bracketed word with a matching definition — `[spec]` here is a live link. Labels can contain spaces and match case-insensitively.
+
 ### Superscripts & Subscripts
 
 `^text^` renders as a superscript and `~text~` as a subscript:
