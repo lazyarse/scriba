@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QApplication>
+#include <QFileInfo>
 #include <QIcon>
 #include <QMessageBox>
 #include <QStyleFactory>
@@ -67,20 +68,26 @@ int main(int argc, char *argv[])
     Preferences::migrateSettings(settings);
 
     QStringList args = app.arguments();
-    bool hasFiles = false;
+    QString corpusArg;
+    QStringList fileArgs;
     for (int i = 1; i < args.size(); ++i) {
-        hasFiles = true;
-        break;
+        if (QFileInfo(args[i]).suffix().compare(QStringLiteral("scriba"),
+                                                Qt::CaseInsensitive) == 0) {
+            if (corpusArg.isEmpty())
+                corpusArg = args[i];          // ignore any further .scriba args
+        } else {
+            fileArgs.append(args[i]);
+        }
     }
 
     MainWindow::setNotifyStaleCss(true);
-    MainWindow window(nullptr, hasFiles);
+    MainWindow window(nullptr, !args.isEmpty());
     window.showMaximized();
 
-    if (hasFiles) {
-        for (int i = 1; i < args.size(); ++i)
-            window.loadFile(args[i]);
-    }
+    if (!corpusArg.isEmpty())
+        window.openCorpusFile(corpusArg, /*skipPrompt=*/true);
+    for (const QString &f : fileArgs)
+        window.loadFile(f);
 
     return app.exec();
 }

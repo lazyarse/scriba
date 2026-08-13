@@ -77,6 +77,7 @@ The installer adds Scriba to the Start Menu and registers `.md` files to open wi
 ```bash
 build/scriba              # empty editor
 build/scriba file.md      # open file
+build/scriba corpus.scriba   # open a corpus (all its documents, watcher, active tab)
 ```
 
 On Windows (x64 Native Tools Command Prompt for VS 2022):
