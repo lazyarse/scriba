@@ -37,6 +37,14 @@ inline constexpr int kLargeDocBlocks = 4000;
 QString escapeJsString(const QString &s);
 bool isThematicBreak(const QString &line);
 QString handleListReturn(const QString &line);
+// Returns the continuation prefix to place on the new line when Enter is
+// pressed at the end of an indented or '>' blockquote line, so the caret
+// stays inside the blockquote/indented block: leading whitespace plus any
+// blockquote markers (e.g. "    ", "> ", "    > ", "> > "). Empty for
+// non-indented plain lines (lists/tables/thematic breaks are handled
+// elsewhere), clearSentinel when the line is only that prefix — Enter then
+// clears it, exiting the block.
+QString handleIndentReturn(const QString &line);
 // Returns the list-marker prefix to place on the new line when Enter is pressed
 // mid-way through a list item (caret inside the item's content with more text
 // after it), or an empty QString when the caret isn't in a list item's content

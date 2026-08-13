@@ -114,6 +114,44 @@ QString handleListSplitReturn(const QString &line, int caretPos)
     return prefix;
 }
 
+// Continuation prefix for an indented or '>' blockquote line: the leading
+// whitespace run plus any '>' blockquote markers (e.g. "    ", "> ", "    > ",
+// "> > "), normalized to a single trailing space after the last marker.
+// Empty when the line starts with neither whitespace nor a blockquote marker
+// (plain text, list items, table rows, thematic breaks — those are handled
+// elsewhere).
+static QString indentationPrefix(const QString &line)
+{
+    int i = 0;
+    const int n = line.size();
+    while (i < n && (line[i] == ' ' || line[i] == '\t'))
+        ++i;
+    static const QRegularExpression quotePrefixRe(R"(^(?:[ ]{0,3}>[ \t]?)+)");
+    const QRegularExpressionMatch m = quotePrefixRe.match(line.mid(i));
+    if (!m.hasMatch())
+        return i > 0 ? line.left(i) : QString();
+    QString prefix = line.left(i) + m.captured(0);
+    if (!prefix.isEmpty() && !prefix.back().isSpace())
+        prefix += ' ';
+    return prefix;
+}
+
+// Returns the continuation prefix to place on the new line when Enter is
+// pressed at the end of an indented or blockquote line, keeping the caret
+// inside the blockquote/indented block. Empty for non-indented plain lines
+// (lists/tables/thematic breaks are handled elsewhere), and clearSentinel
+// when the line is only that prefix — Enter then clears it, the "second
+// Enter exits" behavior shared with lists and tables.
+QString handleIndentReturn(const QString &line)
+{
+    const QString prefix = indentationPrefix(line);
+    if (prefix.isEmpty())
+        return {};
+    if (line.mid(prefix.length()).trimmed().isEmpty())
+        return QString(clearSentinel);
+    return prefix;
+}
+
 static int listIndentWidth(const QString &line)
 {
     int spaces = 0;

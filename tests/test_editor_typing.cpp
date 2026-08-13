@@ -293,6 +293,73 @@ TEST_F(EditorTestHarness, TabOnThematicBreakIsNoOp)
     assertCursor(0, 3);
 }
 
+TEST_F(EditorTestHarness, IndentedLineAutoIndentsOnEnter)
+{
+    typeLine("    quote text");
+    EXPECT_EQ(text(), "    quote text\n    ");
+    assertCursor(1, 4);
+}
+
+TEST_F(EditorTestHarness, TabIndentThenEnterKeepsIndent)
+{
+    setContent("abc");
+    placeCursor(0, 0);
+    press(Qt::Key_Tab);
+    EXPECT_EQ(text(), "    abc");
+    placeCursorAtEnd();
+    enter();
+    EXPECT_EQ(text(), "    abc\n    ");
+    assertCursor(1, 4);
+}
+
+TEST_F(EditorTestHarness, BlockquoteMarkerContinuesOnEnter)
+{
+    typeLine("> quote");
+    EXPECT_EQ(text(), "> quote\n> ");
+    assertCursor(1, 2);
+}
+
+TEST_F(EditorTestHarness, IndentedBlockquoteContinuesOnEnter)
+{
+    typeLine("    > quote");
+    EXPECT_EQ(text(), "    > quote\n    > ");
+    assertCursor(1, 6);
+}
+
+TEST_F(EditorTestHarness, NestedBlockquoteContinuesOnEnter)
+{
+    typeLine("> > quote");
+    EXPECT_EQ(text(), "> > quote\n> > ");
+    assertCursor(1, 4);
+}
+
+TEST_F(EditorTestHarness, SecondEnterRemovesAutoIndent)
+{
+    typeLine("    quote text");
+    EXPECT_EQ(text(), "    quote text\n    ");
+    enter();
+    EXPECT_EQ(text(), "    quote text\n\n");
+    assertCursor(2, 0);
+}
+
+TEST_F(EditorTestHarness, SecondEnterExitsBlockquote)
+{
+    typeLine("> quote");
+    EXPECT_EQ(text(), "> quote\n> ");
+    enter();
+    EXPECT_EQ(text(), "> quote\n\n");
+    assertCursor(2, 0);
+}
+
+TEST_F(EditorTestHarness, EnterAtStartOfIndentedLineSplitsPlainly)
+{
+    setContent("    text");
+    placeCursor(0, 0);
+    enter();
+    EXPECT_EQ(text(), "\n    text");
+    assertCursor(1, 0);
+}
+
 TEST_F(EditorTestHarness, FirstTableRowCreatesSeparatorAndDataRow)
 {
     typeLine("| a | b |");

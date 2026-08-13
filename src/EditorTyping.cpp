@@ -225,6 +225,28 @@ bool Editor::handleEnterKey(QKeyEvent *event)
         return true;
     }
 
+    // Auto-indent indented lines and auto-continue '>' blockquote markers:
+    // Enter at the end of a line whose leading prefix is whitespace and/or
+    // blockquote markers carries that prefix onto the new line so the caret
+    // stays inside the block. Enter on a line that is only that prefix clears
+    // it — the second-Enter exit, mirroring lists and tables. Inside a folded
+    // region the fold handling below redirects instead.
+    if (cursor.positionInBlock() == line.length() && foldedRegion < 0) {
+        const QString indent = handleIndentReturn(line);
+        if (indent == QString(clearSentinel)) {
+            cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+            cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            cursor.removeSelectedText();
+            insertParagraphWithLineHeight(event);
+            return true;
+        }
+        if (!indent.isEmpty()) {
+            QTextEdit::keyPressEvent(event);
+            insertPlainText(indent);
+            return true;
+        }
+    }
+
     // Folded region: Enter at the end of a folded foldable line (or while the
     // cursor sits in the hidden body) inserts the new paragraph just below the
     // fold so typed text stays visible instead of vanishing into hidden blocks.
