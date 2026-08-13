@@ -118,7 +118,13 @@ typedef enum MD_BLOCKTYPE {
     /* Adminition extension.
      * Detail MD_BLOCK_ADMONITION_DETAIL.
      * Note: Recognized only when MD_FLAG_ADMONITIONS is enabled. */
-    MD_BLOCK_ADMONITION
+    MD_BLOCK_ADMONITION,
+    
+    /* <dl>...</dl> with <dt>...</dt> terms and <dd>...</dd> definitions.
+     * Recognized only when MD_FLAG_DEFINITIONLISTS is enabled. */
+    MD_BLOCK_DL,
+    MD_BLOCK_DT,
+    MD_BLOCK_DD
 } MD_BLOCKTYPE;
 
 /* Span represents an in-line piece of a document which should be rendered with
@@ -399,6 +405,7 @@ typedef struct MD_BLOCK_FOOTNOTE_DEF_DETAIL {
 #define MD_FLAG_ADMONITIONS                 0x80000 /* Enable admonitions extension. */
 #define MD_FLAG_FOOTNOTES                   0x100000 /* Enable [^label] footnote references. */
 #define MD_FLAG_HIGHLIGHT                   0x200000 /* Enable ==highlight== spans. */
+#define MD_FLAG_DEFINITIONLISTS             0x400000 /* Enable definition lists (Term + ': '/ '~ ' lines). */
 
 #define MD_FLAG_PERMISSIVEAUTOLINKS         (MD_FLAG_PERMISSIVEEMAILAUTOLINKS | MD_FLAG_PERMISSIVEURLAUTOLINKS | MD_FLAG_PERMISSIVEWWWAUTOLINKS)
 #define MD_FLAG_NOHTML                      (MD_FLAG_NOHTMLBLOCKS | MD_FLAG_NOHTMLSPANS)
