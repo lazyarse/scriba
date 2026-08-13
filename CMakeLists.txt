@@ -80,6 +80,25 @@ target_link_libraries(scriba_resources PUBLIC Qt6::Core)
 add_library(scriba_twemoji OBJECT resources/twemoji-svg.qrc)
 target_link_libraries(scriba_twemoji PUBLIC Qt6::Core)
 
+# App version — computed before scriba_app so the object lib can bake
+# SCRIBA_VERSION into the app sources it compiles (only src/AboutDialog.cpp
+# consumes it). CPACK_PACKAGE_VERSION falls back to the project version when
+# git is unavailable (e.g. a source tarball).
+set(CPACK_PACKAGE_NAME "scriba")
+execute_process(
+    COMMAND git describe --tags --always --dirty
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(GIT_VERSION)
+    string(REGEX REPLACE "^v" "" GIT_VERSION "${GIT_VERSION}")
+    set(CPACK_PACKAGE_VERSION "${GIT_VERSION}")
+else()
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+endif()
+
 set(SCRIBA_GUTTER_SOURCES src/Gutter.cpp)
 
 set(SCRIBA_EDITOR_SOURCES src/Editor.cpp
@@ -120,74 +139,46 @@ set(SCRIBA_APP_WEBENGINE_SOURCES
     ${SCRIBA_MERMAID_SOURCES} src/KatexHelperDialog.cpp src/MchemHelperDialog.cpp
     src/CsvColumnMapDialog.cpp src/TableDialog.cpp)
 
+# The app's WebEngine sources as one object library. Every full-app test target
+# used to expand SCRIBA_APP_WEBENGINE_SOURCES and recompile all ~66 files from
+# scratch; the scriba executable compiled them as a superset. With OBJECT
+# libraries each file compiles once (in this lib) and every consumer links the
+# same objects — identical runtime behaviour, a fraction of the dev-loop work.
+# NOT a static library: objects with static-initializer side effects (emoji
+# cache, qRegisterMetaType, ...) would be dropped from an archive.
+# Resources come in via scriba_resources (qrc is out of the source list); note
+# that object-library FILES do not propagate transitively, so each consumer of
+# scriba_app must link scriba_resources (and scriba_twemoji) explicitly.
+add_library(scriba_app OBJECT ${SCRIBA_APP_WEBENGINE_SOURCES})
+target_include_directories(scriba_app PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(scriba_app PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
+target_link_libraries(scriba_app PUBLIC
+    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network
+    Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::PrintSupport
+    mathml2omml stoppard
+    scriba_gitgraph miniz)
+
+# scriba links scriba_app for the shared app sources and compiles the rest
+# (markdown core, spell/validation, typography, parsers) directly — these are
+# exactly the files NOT in SCRIBA_APP_WEBENGINE_SOURCES, so nothing is compiled
+# twice. It also links scriba_twemoji directly (the app renders emoji).
 add_executable(scriba WIN32
     src/main.cpp
-    ${SCRIBA_MAINWINDOW_SOURCES}
-    ${SCRIBA_EDITOR_SOURCES}
-    src/Preview.cpp
-    src/PreviewBridge.cpp
     src/MarkdownParser.cpp
     src/MarkdownChecker.cpp
     src/MdRenderer.cpp
     src/Typography.cpp
-    src/CssConfig.cpp
-    src/CssLoader.cpp
     src/CssUtils.cpp
-    ${SCRIBA_PREFS_SOURCES}
-    src/CssEditorDialog.cpp
-    src/CssHighlighter.cpp
-    src/ExportPdfDialog.cpp
-    src/ExportHtmlDialog.cpp
-    src/ExportDocxDialog.cpp
-    src/DocxExporter.cpp
-    src/OoxmlToHtml.cpp
-    src/OoxmlConverter.cpp
-    src/DocxImporter.cpp
-    src/ZipReader.cpp
-    src/HtmlToOoxml.cpp
-    src/HtmlToMarkdown.cpp
-    src/PdfImporter.cpp
-    src/FindDialog.cpp
-    src/Corpus.cpp
-    src/Corpus.h
-    src/CorpusWatcher.cpp
-    src/CorpusWatcher.h
-    src/LinkFixer.cpp
-    src/LinkFixer.h
-    src/CorpusIndex.cpp
-    src/CorpusIndex.h
-    src/ExportCorpusDialog.cpp
-    src/ExportCorpusDialog.h
-    src/PdfRenderer.cpp
-    src/PdfRenderer.h
-    src/TableDialog.cpp
-    src/ChartDialog.cpp
-    src/StockChartDialog.cpp
-    src/AdvancedChartDialog.cpp
     src/EChartsParser.cpp
     src/MermaidParser.cpp
-    src/EmojiDialog.cpp
-    src/AboutDialog.cpp
-    src/LogWindow.cpp
-    ${SCRIBA_MERMAID_SOURCES}
-    src/KatexHelperDialog.cpp
-    src/MchemHelperDialog.cpp
     src/StaticHelpers.cpp
     src/MdTable.cpp
     src/Readability.h
     src/Readability.cpp
     src/JsSnippets.cpp
-    src/JsRenderEngine.cpp
-    src/UnitConverter.cpp
-    src/CssValueParser.cpp
     src/CsvReader.cpp
     src/PrintOptions.cpp
-    src/PreviewPagination.cpp
-    src/PreviewRenderWorker.cpp
-    src/PreviewRenderWorker.h
-    src/CsvColumnMapDialog.cpp
     src/SpellChecker.cpp
-    src/SpellCheckDialog.cpp
     src/SpellHighlighter.cpp
     src/LinkValidator.cpp
     src/GrammarChecker.cpp
@@ -205,20 +196,9 @@ target_include_directories(scriba PRIVATE
 )
 
 target_link_libraries(scriba PRIVATE
+    scriba_app
     scriba_resources
     scriba_twemoji
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Widgets
-    Qt6::Network
-    Qt6::WebEngineWidgets
-    Qt6::WebChannel
-    Qt6::Svg
-    Qt6::PrintSupport
-    mathml2omml
-    stoppard
-    scriba_gitgraph
-    miniz
 )
 
 add_custom_command(TARGET scriba POST_BUILD
@@ -236,20 +216,6 @@ install(FILES ${CMAKE_SOURCE_DIR}/resources/icons/scriba.svg
 install(FILES ${CMAKE_SOURCE_DIR}/resources/scriba.desktop
     DESTINATION share/applications)
 
-set(CPACK_PACKAGE_NAME "scriba")
-execute_process(
-    COMMAND git describe --tags --always --dirty
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE GIT_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-if(GIT_VERSION)
-    string(REGEX REPLACE "^v" "" GIT_VERSION "${GIT_VERSION}")
-    set(CPACK_PACKAGE_VERSION "${GIT_VERSION}")
-else()
-    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-endif()
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor with charts, latex support, code highlighting, pdf export, and configurable")
 set(CPACK_PACKAGE_CONTACT "LazyArse <lazyarse000@protonmail.com>")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
@@ -284,8 +250,6 @@ if(WIN32)
 endif()
 
 include(CPack)
-
-target_compile_definitions(scriba PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
 
 option(BUILD_TESTS "Build unit tests" OFF)
 
@@ -613,12 +577,9 @@ if(BUILD_TESTS)
         scriba_core scriba_spell scriba_test_main Qt6::Test scriba_resources)
     add_test(NAME test_preferences_search COMMAND ${_TEST_PREFIX} ./test_preferences_search)
 
-    add_executable(test_scroll_sync tests/test_scroll_sync.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_scroll_sync PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_compile_definitions(test_scroll_sync PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
+    add_executable(test_scroll_sync tests/test_scroll_sync.cpp)
     target_link_libraries(test_scroll_sync PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
     add_executable(test_html_to_markdown
@@ -629,77 +590,54 @@ if(BUILD_TESTS)
         PRIVATE GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets scriba_resources)
     add_test(NAME test_html_to_markdown COMMAND ${_TEST_PREFIX} ./test_html_to_markdown)
 
-    add_executable(test_anchor_navigation tests/test_anchor_navigation.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_anchor_navigation PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_compile_definitions(test_anchor_navigation PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
+    add_executable(test_anchor_navigation tests/test_anchor_navigation.cpp)
     target_link_libraries(test_anchor_navigation PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_anchor_navigation COMMAND ${_TEST_PREFIX} ./test_anchor_navigation)
 
-    add_executable(test_emoji_preview tests/test_emoji_preview.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_emoji_preview PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_compile_definitions(test_emoji_preview PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
+    add_executable(test_emoji_preview tests/test_emoji_preview.cpp)
     target_link_libraries(test_emoji_preview PRIVATE
-        scriba_core GTest::gtest test_editor_helpers Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources scriba_twemoji)
+        scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_resources scriba_twemoji)
     add_test(NAME test_emoji_preview COMMAND ${_TEST_PREFIX} ./test_emoji_preview)
 
-    add_executable(test_auto_save tests/test_auto_save.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_auto_save PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_executable(test_auto_save tests/test_auto_save.cpp)
     target_link_libraries(test_auto_save PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
-    add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_multi_tab_typing PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp)
     target_link_libraries(test_multi_tab_typing PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_multi_tab_typing COMMAND ${_TEST_PREFIX} ./test_multi_tab_typing)
 
-    add_executable(test_corpus_recent tests/test_corpus_recent.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_corpus_recent PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_executable(test_corpus_recent tests/test_corpus_recent.cpp)
     target_link_libraries(test_corpus_recent PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_corpus_recent COMMAND ${_TEST_PREFIX} ./test_corpus_recent)
 
-    add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_dirty_on_load PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp)
     target_link_libraries(test_dirty_on_load PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_dirty_on_load COMMAND ${_TEST_PREFIX} ./test_dirty_on_load)
 
-    add_executable(test_corpus_watcher_integration tests/test_corpus_watcher_integration.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_corpus_watcher_integration PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_executable(test_corpus_watcher_integration tests/test_corpus_watcher_integration.cpp)
     target_link_libraries(test_corpus_watcher_integration PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_corpus_watcher_integration COMMAND ${_TEST_PREFIX} ./test_corpus_watcher_integration)
 
-    add_executable(test_corpus_export tests/test_corpus_export.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_corpus_export PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_executable(test_corpus_export tests/test_corpus_export.cpp)
     target_link_libraries(test_corpus_export PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_corpus_export COMMAND ${_TEST_PREFIX} ./test_corpus_export)
 
-    add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-target_include_directories(test_editor_initial_css PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_compile_definitions(test_editor_initial_css PRIVATE SCRIBA_VERSION="${CPACK_PACKAGE_VERSION}")
+    add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp)
 target_link_libraries(test_editor_initial_css PRIVATE
-    scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+    scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
 add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
 
-add_executable(test_find_dialog tests/test_find_dialog.cpp
-        ${SCRIBA_APP_WEBENGINE_SOURCES})
-    target_include_directories(test_find_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_executable(test_find_dialog tests/test_find_dialog.cpp)
     target_link_libraries(test_find_dialog PRIVATE
-        scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::Test mathml2omml scriba_gitgraph scriba_spell miniz scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
     add_test(NAME test_find_dialog COMMAND ${_TEST_PREFIX} ./test_find_dialog)
 
     add_executable(test_print_css_file tests/test_print_css_file.cpp)
