@@ -122,7 +122,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
 - `src/OoxmlToHtml.cpp` — thin public entry; the `ooxmlconv::Converter` implementation lives in `src/OoxmlConverter.cpp`/`.h`
 - `src/MarkdownParser.cpp` — wraps md4c, emits HTML with `data-line` attributes
 - `src/CssLoader.cpp` — loads user/system CSS, writes base stylesheets to `~/.config/scriba/`. Base CSS copies (preview/print) carry a `/* scriba-base-css-version: <sha256> */` marker; a copy whose marker doesn't match the bundled qrc hash is superseded (renamed `.bak`) and the bundled CSS used, with a one-time dialog on the next app start (see `MainWindow::setNotifyStaleCss`/`notifyStaleBaseCss`)
-- `resources/scriba.qrc` — Qt resource bundle (must list any new resource files). CMakeLists.txt defines the source-list variables `SCRIBA_EDITOR_SOURCES`, `SCRIBA_MAINWINDOW_SOURCES`, `SCRIBA_APP_WEBENGINE_SOURCES` (and per-dialog lists) so adding a file to a split class is a one-line edit per target
+- `resources/scriba.qrc` — Qt resource bundle (must list any new resource files). CMakeLists.txt defines the source-list variables `SCRIBA_EDITOR_SOURCES`, `SCRIBA_MAINWINDOW_SOURCES`, `SCRIBA_APP_WEBENGINE_SOURCES` (and per-dialog lists) so adding a file to a split class is a one-line edit per target. The qrc compiles once into the `scriba_resources` object library (twemoji: `scriba_twemoji`); the ~66 app sources in `SCRIBA_APP_WEBENGINE_SOURCES` compile once into the `scriba_app` object library, linked by `scriba` and all 11 full-app test targets
 
 ## Conventions
 
@@ -132,7 +132,7 @@ sudo apt install qt6-base-dev qt6-webengine-dev qt6-webchannel-dev
 - C++23, Qt coding style, `CMAKE_AUTOMOC`/`CMAKE_AUTORCC` enabled
 - No header-only files — every `.h` has a `.cpp`
 - CSS theming: editor uses `#editor` selector, preview uses standard HTML selectors
-- New source files must be added to both `src/` and the `add_executable(scriba ...)` list in `CMakeLists.txt`. If `MainWindow.cpp` uses the new class, also add it to the `test_scroll_sync` target (which compiles `MainWindow.cpp` directly)
+- New source files must be added to both `src/` and a `SCRIBA_*_SOURCES` variable in `CMakeLists.txt`: app-class files (used by full-app test targets) go in `SCRIBA_APP_WEBENGINE_SOURCES` (picked up via `scriba_app`), everything else in `add_executable(scriba ...)`. Consumers of `scriba_app` must also link `scriba_resources` explicitly — object-library files do not propagate transitively
 - All new `.cpp`/`.h` files (src, tests, vendored libs) must start with the GPL-3.0 license header: `// Copyright (C) 2026 LazyArse` followed by the standard "This program is free software..." notice (see LICENSE)
 - New resource files must be added to both `resources/` and `resources/scriba.qrc`
 - Post-build step deletes `~/.config/scriba/{editor,preview,print}-base.css` — don't rely on those persisting across builds. If a stale saved copy slips through anyway, the version-marker logic supersedes it to `.bak` and shows a one-time dialog

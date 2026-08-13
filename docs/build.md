@@ -98,6 +98,15 @@ cmake -B build-dbg -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build bu
 
 The `-D` flags are only needed the first time a build dir is configured; CMake caches them in `<dir>/CMakeCache.txt`, so later rebuilds are just `cmake --build build-dbg -j$(nproc)`.
 
+### Shared object libraries
+
+To avoid recompiling the same sources dozens of times, `CMakeLists.txt` builds three **object libraries** (not static archives — see below) and links every target against them:
+
+- `scriba_resources` — compiles `resources/scriba.qrc` once instead of once per consumer (24 targets); `scriba_twemoji` does the same for `resources/twemoji-svg.qrc`.
+- `scriba_app` — compiles the ~66 app sources in `SCRIBA_APP_WEBENGINE_SOURCES` (MainWindow, Editor, Preview, dialogs) once; the `scriba` binary and the 11 full-app test targets link the objects instead of recompiling them.
+
+These must be OBJECT libraries, never STATIC. The generated `qrc_scriba.cpp` registers resources through an anonymous-namespace static initializer, and several app sources carry similar static-initializer side effects; an archive would silently drop those objects from any consumer that doesn't reference their symbols. Note also that object-library *files* do not propagate transitively — each consumer of `scriba_app` must link `scriba_resources` (and `scriba_twemoji` where emoji rendering is needed) explicitly.
+
 ### Run tests
 
 ```bash

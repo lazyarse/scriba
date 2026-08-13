@@ -713,4 +713,32 @@ on a shared process-wide worker. If code ever calls `doLint` directly on a
 `moveToThread`-ed worker, the method body runs **on the calling thread**, defeating the
 offloading entirely (this was the original tab-close freeze).
 
+## CMake object libraries: static-initializer side effects and no transitive files
+
+To stop recompiling the qrc (and the ~66 app sources) in every full-app test target,
+`CMakeLists.txt` builds three **OBJECT** libraries that every consumer links:
+`scriba_resources`/`scriba_twemoji` (compile the qrc files once) and `scriba_app`
+(compiles `SCRIBA_APP_WEBENGINE_SOURCES` once). Two CMake behaviours make this
+structure easy to break:
+
+- **They must stay OBJECT, never STATIC.** The generated `qrc_scriba.cpp` registers
+  resources via an anonymous-namespace static initializer (`qInitResources_scriba`),
+  and several app sources carry similar static-initializer side effects (the emoji
+  cache, `qRegisterMetaType`, ...). A static archive drops any object whose symbols a
+  consumer doesn't reference, silently killing the initializer — resources vanish and
+  icons/scripts go missing at runtime while everything still *links*. That failure
+  looks like the one below but is worse because it's target-dependent (only consumers
+  that don't reference the object's symbols break). OBJECT libraries pass the object
+  files through verbatim.
+- **Object-library files do not propagate transitively.** If `scriba_app` links
+  `scriba_resources` PUBLIC, a consumer of `scriba_app` gets the *libraries and
+  usage requirements* but **not** the `scriba_resources` object files — its `link.txt`
+  contains every `scriba_app` object plus the transitive static/shared libs, but zero
+  `qrc_scriba.cpp.o`. The static initializer never runs in that binary, so the runtime
+  symptom is the same as a dropped archive object: `qt.svg: Cannot open file
+  ':/icons/…'` and `Uncaught ReferenceError: scribaScrollToSourceLine is not defined`
+  in WebEngine tests. Every consumer of `scriba_app` must link `scriba_resources` (and
+  `scriba_twemoji` where emoji is needed) **explicitly** — there is no way to make an
+  object lib's files reach grandchildren.
+
 
