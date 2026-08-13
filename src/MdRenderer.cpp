@@ -111,6 +111,27 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
     case MD_BLOCK_ADMONITION:
         self->enterAdmonition(detail);
         break;
+    case MD_BLOCK_DL:
+        self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
+        self->writeHtml(self->withPendingClasses(
+            QString("<dl data-line=\"%1\">").arg(self->m_blockLine)));
+        break;
+    case MD_BLOCK_DT:
+        self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
+        self->writeHtml(self->withPendingClasses(
+            QString("<dt data-line=\"%1\">").arg(self->m_blockLine)));
+        break;
+    case MD_BLOCK_DD:
+        self->m_typoState.lastChar = QChar(' ');
+        self->m_typoState.inMath = false;
+        self->m_typoState.inDisplayMath = false;
+        self->writeHtml(self->withPendingClasses(
+            QString("<dd data-line=\"%1\">").arg(self->m_blockLine)));
+        break;
     case MD_BLOCK_FOOTNOTE_DEF_SECTION:
         self->m_typoState.lastChar = QChar(' ');
         self->m_typoState.inMath = false;
@@ -197,6 +218,15 @@ int MdRenderer::leaveBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         break;
     case MD_BLOCK_ADMONITION:
         self->writeHtml("</div>");
+        break;
+    case MD_BLOCK_DL:
+        self->writeHtml("</dl>");
+        break;
+    case MD_BLOCK_DT:
+        self->writeHtml("</dt>");
+        break;
+    case MD_BLOCK_DD:
+        self->writeHtml("</dd>");
         break;
     case MD_BLOCK_FOOTNOTE_DEF_SECTION:
         self->writeHtml("</ol></section>");

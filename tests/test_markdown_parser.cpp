@@ -653,3 +653,59 @@ TEST(MarkdownParserTest, DirectiveAfterParagraphNoBlankIgnored) {
     EXPECT_FALSE(html.contains("scriba-keep"));
     EXPECT_FALSE(html.contains("SCRIBADIR"));
 }
+
+TEST(MarkdownParserTest, DefinitionListBasic)
+{
+    QString html = MarkdownParser::toHtml(
+        QStringLiteral("Apple\n:   A fruit of the tree *Malus domestica*."));
+    EXPECT_TRUE(html.contains("<dl data-line=\"1\">"));
+    EXPECT_TRUE(html.contains("<dt data-line=\"1\">Apple</dt>"));
+    EXPECT_TRUE(html.contains("<dd data-line=\"2\">A fruit of the tree <em>Malus domestica</em>.</dd>"));
+    EXPECT_TRUE(html.contains("</dl>"));
+}
+
+TEST(MarkdownParserTest, DefinitionListTildeMarker)
+{
+    QString html = MarkdownParser::toHtml(QStringLiteral("Term\n~   Alternate marker."));
+    EXPECT_TRUE(html.contains("<dt data-line=\"1\">Term</dt>"));
+    EXPECT_TRUE(html.contains("<dd data-line=\"2\">Alternate marker.</dd>"));
+}
+
+TEST(MarkdownParserTest, DefinitionListMultiTermMultiDef)
+{
+    QString html = MarkdownParser::toHtml(
+        QStringLiteral("Term A\nTerm B\n:   Def one\n:   Def two"));
+    EXPECT_TRUE(html.contains("<dt data-line=\"1\">Term A</dt>"));
+    EXPECT_TRUE(html.contains("<dt data-line=\"2\">Term B</dt>"));
+    EXPECT_TRUE(html.contains("<dd data-line=\"3\">Def one</dd>"));
+    EXPECT_TRUE(html.contains("<dd data-line=\"4\">Def two</dd>"));
+}
+
+TEST(MarkdownParserTest, DefinitionListLazyContinuation)
+{
+    QString html = MarkdownParser::toHtml(
+        QStringLiteral("Apple\n:   A fruit\nlazy continuation"));
+    EXPECT_TRUE(html.contains("<dd data-line=\"2\">A fruit\nlazy continuation</dd>"));
+}
+
+TEST(MarkdownParserTest, DefinitionListBlankBetweenIsLiteral)
+{
+    QString html = MarkdownParser::toHtml(QStringLiteral("Apple\n\n:   Not a definition"));
+    EXPECT_TRUE(html.contains("<p data-line=\"3\">:   Not a definition</p>"));
+    EXPECT_FALSE(html.contains("<dl"));
+}
+
+TEST(MarkdownParserTest, DefinitionListNoTermIsLiteral)
+{
+    QString html = MarkdownParser::toHtml(QStringLiteral(":   leading marker only"));
+    EXPECT_TRUE(html.contains("<p data-line=\"1\">:   leading marker only</p>"));
+    EXPECT_FALSE(html.contains("<dl"));
+}
+
+TEST(MarkdownParserTest, DefinitionListInsideBlockquote)
+{
+    QString html = MarkdownParser::toHtml(QStringLiteral("> Apple\n> :   A fruit"));
+    EXPECT_TRUE(html.contains("<dl"));
+    EXPECT_TRUE(html.contains("<dt"));
+    EXPECT_TRUE(html.contains("<dd"));
+}
