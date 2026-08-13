@@ -108,6 +108,73 @@ TEST_F(DirtyOnLoadTest, ForceReloadDoesNotMarkTabDirty) {
     EXPECT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
 }
 
+TEST_F(DirtyOnLoadTest, UndoRightAfterLoadDoesNotMarkTabDirty) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    QApplication::processEvents();
+    ASSERT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
+
+    window->editor()->undo();
+    QApplication::processEvents();
+
+    EXPECT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
+}
+
+// Dirty tracking compares the live text against the saved content hash
+// (see MainWindow::setTabSaved / addTab's contentsChange handler): typing
+// marks the tab dirty and undoing back to the saved state clears the
+// asterisk again. QTextDocument::isModified() is asserted alongside only
+// because it happens to agree in this clean-undo-stack scenario.
+TEST_F(DirtyOnLoadTest, UndoBackToSavedStateClearsDirtyMarker) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    QApplication::processEvents();
+    ASSERT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
+    ASSERT_FALSE(window->editor()->document()->isModified());
+
+    window->editor()->textCursor().insertText("hello");
+    QApplication::processEvents();
+    EXPECT_TRUE(activeTabText(window).contains(QStringLiteral("*")));
+    EXPECT_TRUE(window->editor()->document()->isModified());
+
+    window->editor()->undo();
+    QApplication::processEvents();
+    EXPECT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
+    EXPECT_FALSE(window->editor()->document()->isModified());
+
+    window->editor()->redo();
+    QApplication::processEvents();
+    EXPECT_TRUE(activeTabText(window).contains(QStringLiteral("*")));
+}
+
+TEST_F(DirtyOnLoadTest, UndoPastSavedStateStillDirtyAfterRetrying) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    QApplication::processEvents();
+
+    window->editor()->textCursor().insertText("AAA");
+    window->autoSave();
+    QApplication::processEvents();
+    ASSERT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
+
+    // Undo below the saved point, then type something different: the undo count
+    // returns to the saved value, but the content differs, so it must stay dirty.
+    window->editor()->undo();
+    QApplication::processEvents();
+    EXPECT_TRUE(activeTabText(window).contains(QStringLiteral("*")));
+
+    window->editor()->textCursor().insertText("BBB");
+    QApplication::processEvents();
+    EXPECT_TRUE(activeTabText(window).contains(QStringLiteral("*")));
+    EXPECT_TRUE(window->editor()->document()->isModified());
+}
+
 TEST_F(DirtyOnLoadTest, TypingAfterLoadMarksTabDirty) {
     window = new MainWindow();
     QApplication::processEvents();
@@ -116,7 +183,7 @@ TEST_F(DirtyOnLoadTest, TypingAfterLoadMarksTabDirty) {
     QApplication::processEvents();
     ASSERT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
 
-    window->editor()->setPlainText("modified content");
+    window->editor()->textCursor().insertText("modified content");
     QApplication::processEvents();
 
     EXPECT_TRUE(activeTabText(window).contains(QStringLiteral("*")));
@@ -210,6 +277,58 @@ TEST_F(DirtyOnLoadTest, SessionRestoreDoesNotMarkTabDirty) {
     QApplication::processEvents();
 
     EXPECT_FALSE(activeTabText(window).contains(QStringLiteral("*")));
+}
+
+// The line-height preference apply runs a document signal-blocked
+// mergeBlockFormat (applyEditorLineHeight): that appends an undo command
+// QTextDocument's modified flag would silently absorb, but the content hash
+// is unchanged, so clean tabs must stay clean and dirty ones must stay dirty.
+TEST_F(DirtyOnLoadTest, LineHeightPreferenceChangeDoesNotDirtyCleanTabs) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    QApplication::processEvents();
+    ASSERT_FALSE(anyTabDirty(window));
+
+    QTimer::singleShot(0, []() {
+        if (auto *dlg = qobject_cast<QDialog *>(qApp->activeModalWidget()))
+            dlg->accept();
+    });
+    QMetaObject::invokeMethod(window, "showPreferences");
+    QApplication::processEvents();
+
+    EXPECT_FALSE(anyTabDirty(window));
+}
+
+TEST_F(DirtyOnLoadTest, LineHeightPreferenceChangePreservesDirtyAndUndoClears) {
+    window = new MainWindow();
+    QApplication::processEvents();
+
+    window->loadFile(tmpFile->fileName());
+    QApplication::processEvents();
+    window->editor()->textCursor().insertText("hello");
+    QApplication::processEvents();
+    ASSERT_TRUE(activeTabText(window).contains(QStringLiteral("*")));
+
+    QTimer::singleShot(0, []() {
+        if (auto *dlg = qobject_cast<QDialog *>(qApp->activeModalWidget()))
+            dlg->accept();
+    });
+    QMetaObject::invokeMethod(window, "showPreferences");
+    QApplication::processEvents();
+
+    EXPECT_TRUE(activeTabText(window).contains(QStringLiteral("*")))
+        << "a format-only preference apply must not clear the dirty marker";
+
+    // The pref apply's format merge sits on top of the edit in the undo stack
+    // (a no-op undo step if the merge was a no-op), so undo twice to reach the
+    // saved content; undoing once would only pop the format op.
+    window->editor()->undo();
+    window->editor()->undo();
+    QApplication::processEvents();
+    EXPECT_FALSE(activeTabText(window).contains(QStringLiteral("*")))
+        << "undoing the edit returns to the saved content even after a format op";
 }
 
 int main(int argc, char **argv) {

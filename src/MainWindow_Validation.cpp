@@ -190,8 +190,7 @@ void MainWindow::openValidationReport()
         return;
     Editor *ed = m_tabs[idx].editor;
     ed->setPlainText(md);
-    ed->document()->setModified(false);
-    m_tabs[idx].dirty = false;
+    setTabSaved(idx);
     m_reportTitles.insert(idx,
         tr("Validation Report - ") + now.toString(QStringLiteral("yyyy-MM-dd HH:mm")));
     updateTabLabel(idx);
@@ -224,8 +223,7 @@ void MainWindow::viewTableOfContents()
     Editor *ed = m_tabs[idx].editor;
     ed->setReadOnly(true);
     ed->setPlainText(md);
-    ed->document()->setModified(false);
-    m_tabs[idx].dirty = false;
+    setTabSaved(idx);
     m_tocTabs.insert(idx, QStringLiteral("📑 Table of Contents"));
     updateTabLabel(idx);
     m_tabBar->setCurrentIndex(idx);
@@ -254,8 +252,7 @@ void MainWindow::refreshOpenToc()
         if (it.key() >= m_tabs.size() || m_tabs[it.key()].editor == nullptr)
             continue;
         m_tabs[it.key()].editor->setPlainText(md);
-        m_tabs[it.key()].editor->document()->setModified(false);
-        m_tabs[it.key()].dirty = false;
+        setTabSaved(it.key());
         if (m_tabBar->currentIndex() == it.key())
             refreshPreviewForTocTab(it.key(), m_corpus.rootDir());
     }

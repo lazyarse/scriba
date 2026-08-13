@@ -426,8 +426,8 @@ void MainWindow::restoreCorpus(const QJsonObject &corpus)
             cursor.select(QTextCursor::Document);
             cursor.mergeBlockFormat(fmt);
         }
-        m_tabs[idx].dirty = false;
-        updateTabLabel(idx);
+        m_tabs[idx].editor->document()->clearUndoRedoStacks();
+        setTabSaved(idx);
         restoreTabState(idx, d);
     }
 
@@ -522,16 +522,16 @@ void MainWindow::openCorpusFile(const QString &path, bool skipPrompt)
             const int idx = addTab(abs);
             QSignalBlocker blocker(m_tabs[idx].editor);
             m_tabs[idx].editor->setPlainText(content);
-            m_tabs[idx].dirty = false;
+            m_tabs[idx].editor->document()->clearUndoRedoStacks();
+            setTabSaved(idx);
             m_tabs[idx].previewHtmlValid = false;
-            updateTabLabel(idx);
             restoreTabState(idx, d);
         } else {
             const int idx = addTab(QString());
             QSignalBlocker blocker(m_tabs[idx].editor);
             m_tabs[idx].editor->setPlainText(d.content);
-            m_tabs[idx].dirty = false;
-            updateTabLabel(idx);
+            m_tabs[idx].editor->document()->clearUndoRedoStacks();
+            setTabSaved(idx);
             restoreTabState(idx, d);
         }
     }
@@ -593,8 +593,7 @@ bool MainWindow::saveAllDirtyTabs()
             return false;
         }
         file.write(info.editor->toPlainText().toUtf8());
-        info.dirty = false;
-        updateTabLabel(i);
+        setTabSaved(i);
     }
     return true;
 }

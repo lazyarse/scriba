@@ -112,7 +112,11 @@ TEST_F(AutoSaveTest, SaveOnExitWritesFile) {
     QApplication::processEvents();
 
     window->loadFile(tmpFile->fileName());
-    window->editor()->setPlainText("exit content");
+    // A real typed edit (select-all + insert) rather than setPlainText, which
+    // resets QTextDocument's modified flag by design.
+    QTextCursor c = window->editor()->textCursor();
+    c.select(QTextCursor::Document);
+    c.insertText("exit content");
     window->close();
     QApplication::processEvents();
 
@@ -133,7 +137,7 @@ TEST_F(AutoSaveTest, SaveOnExitDoesNotWriteWhenDisabled) {
     QApplication::processEvents();
 
     window->loadFile(tmpFile->fileName());
-    window->editor()->setPlainText("should not be saved");
+    window->editor()->textCursor().insertText("should not be saved");
     window->close();
     QApplication::processEvents();
 
@@ -154,7 +158,7 @@ TEST_F(AutoSaveTest, CancelSaveAsAbortsClose) {
     window = testWindow;
     QApplication::processEvents();
 
-    window->editor()->setPlainText("precious content");
+    window->editor()->textCursor().insertText("precious content");
     testWindow->promptResult = MainWindow::ClosePromptResult::Save;
     testWindow->saveAsResult = QString();
 
@@ -172,7 +176,7 @@ TEST_F(AutoSaveTest, SaveAsWritesFileThenCloses) {
     window = testWindow;
     QApplication::processEvents();
 
-    window->editor()->setPlainText("precious content");
+    window->editor()->textCursor().insertText("precious content");
     testWindow->promptResult = MainWindow::ClosePromptResult::Save;
     testWindow->saveAsResult = tmpFile->fileName();
 
@@ -184,6 +188,10 @@ TEST_F(AutoSaveTest, SaveAsWritesFileThenCloses) {
     QString saved = QString::fromUtf8(f.readAll());
     EXPECT_EQ(saved, "precious content");
 }
+
+// Dirty-tracking behavior (fresh tab typing dirties, undo-to-saved clears,
+// format-only preference applies never dirty) is covered in
+// test_dirty_on_load.cpp.
 
 TEST(MainWindowExtension, AppendsDefaultSuffixToBareName) {
     EXPECT_EQ(MainWindow::ensureDefaultSuffix(QStringLiteral("notes"), "md"),

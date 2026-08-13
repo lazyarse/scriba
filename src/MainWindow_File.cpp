@@ -98,8 +98,13 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
             cursor.select(QTextCursor::Document);
             cursor.mergeBlockFormat(fmt);
         }
-        m_tabs[idx].dirty = false;
-        updateTabLabel(idx);
+                // The line-height merge above left a format command on the undo stack;
+        // drop it so Ctrl+Z right after loading is a no-op (and can't dirty the
+        // freshly loaded tab by undoing a formatting tweak). Must run BEFORE
+        // setTabSaved: clearing the stack re-baselines undoState to 0, and the
+        // modified flag is anchored to that position.
+        m_tabs[idx].editor->document()->clearUndoRedoStacks();
+        setTabSaved(idx);
         info = &m_tabs[idx];
     } else {
         idx = m_tabBar->currentIndex();
@@ -118,9 +123,9 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
                 cursor.mergeBlockFormat(fmt);
             }
             m_tabs[idx].editor->setCurrentFile(filePath);
-            m_tabs[idx].dirty = false;
+            m_tabs[idx].editor->document()->clearUndoRedoStacks();
+            setTabSaved(idx);
             info = &m_tabs[idx];
-            updateTabLabel(idx);
             m_tabBar->setTabToolTip(idx, filePath);
             replacedUntitled = true;
         } else {
@@ -137,8 +142,8 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
                 cursor.select(QTextCursor::Document);
                 cursor.mergeBlockFormat(fmt);
             }
-            m_tabs[idx].dirty = false;
-            updateTabLabel(idx);
+            m_tabs[idx].editor->document()->clearUndoRedoStacks();
+            setTabSaved(idx);
             info = &m_tabs[idx];
         }
     }
@@ -173,10 +178,9 @@ void MainWindow::saveFile(const QString &filePath)
     QString oldDir = QFileInfo(info->filePath).absolutePath();
     info->filePath = filePath;
     ed->setCurrentFile(filePath);
-    info->dirty = false;
 
     int idx = m_tabBar->currentIndex();
-    updateTabLabel(idx);
+    setTabSaved(idx);
     m_tabBar->setTabToolTip(idx, filePath);
 
     updateWindowTitle();
@@ -263,8 +267,7 @@ void MainWindow::autoSave()
         QFile file(info.filePath);
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             file.write(info.editor->toPlainText().toUtf8());
-            info.dirty = false;
-            updateTabLabel(i);
+            setTabSaved(i);
         }
     }
 }
@@ -679,7 +682,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
 
     auto saveAllDirtyTabs = [this](QCloseEvent *event) {
-        for (TabInfo &info : m_tabs) {
+        for (int i = 0; i < m_tabs.size(); ++i) {
+            TabInfo &info = m_tabs[i];
             if (!info.dirty) continue;
             if (info.filePath.isEmpty()) {
                 QString file = saveAsDialogPath();
@@ -704,7 +708,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
                 return false;
             }
             file.write(info.editor->toPlainText().toUtf8());
-            info.dirty = false;
+            setTabSaved(i);
         }
         return true;
     };
@@ -719,12 +723,13 @@ void MainWindow::closeEvent(QCloseEvent *event)
             return;
         }
     } else if (autoSave) {
-        for (TabInfo &info : m_tabs) {
+        for (int i = 0; i < m_tabs.size(); ++i) {
+            TabInfo &info = m_tabs[i];
             if (info.dirty && !info.filePath.isEmpty()) {
                 QFile file(info.filePath);
                 if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
                     file.write(info.editor->toPlainText().toUtf8());
-                    info.dirty = false;
+                    setTabSaved(i);
                 }
             }
         }

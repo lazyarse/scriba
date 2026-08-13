@@ -62,6 +62,14 @@ struct TabInfo {
     Editor *editor = nullptr;
     QString filePath;
     bool dirty = false;
+    // Content hash of the last saved/loaded state: dirty is decided by
+    // comparing the live document text against this, not by
+    // QTextDocument::isModified() (whose undo-stack anchor desyncs when
+    // a document signal-blocked format op, e.g. applyEditorLineHeight,
+    // appends an undo command). See addTab()'s contentsChange handler.
+    QByteArray savedHash;
+    int lastUndoSteps = 0;          // undo/redo-stack baselines for detecting
+    int lastRedoSteps = 0;          //   undo/redo in the contentsChange handler
     QString previewHtml;            // cached md->html render (see previewBlockRaw/StripScripts)
     bool previewHtmlValid = false;
     bool previewBlockRaw = false;
@@ -246,6 +254,10 @@ private:
     void updateTabLabel(int index);
     void updateWindowTitle();
     void setTabDirty(int index, bool dirty);
+    // Re-baselines a tab against the on-disk content: clears the dirty marker
+    // AND re-anchors the document's modified state (undo-stack position) so a
+    // later undo back to this point clears the asterisk again.
+    void setTabSaved(int index);
     void connectActiveEditor();
     void disconnectActiveEditor();
     Editor *currentEditor() const;

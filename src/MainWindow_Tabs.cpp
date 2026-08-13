@@ -21,6 +21,7 @@
 #include "SpellCheckDialog.h"
 #include "ValidationReport.h"
 #include <QCloseEvent>
+#include <QCryptographicHash>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QJsonObject>
@@ -33,6 +34,13 @@
 #include <QTimer>
 
 static constexpr const char *kMdFilter = "Markdown Files (*.md);;All Files (*)";
+
+// Authoritative fingerprint of a tab's content for dirty tracking (see
+// setTabSaved). Md5 over the UTF-8 text; collision risk is irrelevant here.
+static QByteArray contentHash(const QTextDocument *doc)
+{
+    return QCryptographicHash::hash(doc->toPlainText().toUtf8(), QCryptographicHash::Md5);
+}
 
 
 
@@ -66,15 +74,34 @@ int MainWindow::addTab(const QString &filePath)
     // tab (removeTab), so we never look this pointer up after removal.
     m_tabBar->setTabData(idx, QVariant::fromValue(reinterpret_cast<qulonglong>(editor)));
 
+    // Dirty tracking compares the live text against the last saved/loaded
+    // content hash (see setTabSaved) instead of QTextDocument::isModified():
+    // the modified flag is anchored to the undo-stack position and silently
+    // desyncs when a document signal-blocked format op (applyEditorLineHeight)
+    // appends an undo command without the handler seeing the transition.
+    // contentsChange fires for every real edit regardless of signal blockers;
+    // undo/redo are detected via the undo/redo-stack deltas and re-checked
+    // against the saved hash.
     connect(editor->document(), &QTextDocument::contentsChange, this,
-        [this, editor](int, int charsRemoved, int charsAdded) {
+        [this, editor](int position, int charsRemoved, int charsAdded) {
+            Q_UNUSED(position);
             if (charsRemoved == 0 && charsAdded == 0)
-                return; // format-only change (e.g. spell/syntax highlighting)
+                return;  // format-only (spell/syntax rehighlight) — never dirties
             for (int i = 0; i < m_tabs.size(); ++i) {
-                if (m_tabs[i].editor == editor && !m_tabs[i].dirty) {
+                if (m_tabs[i].editor != editor)
+                    continue;
+                TabInfo &info = m_tabs[i];
+                auto *doc = editor->document();
+                const int u = doc->availableUndoSteps();
+                const int r = doc->availableRedoSteps();
+                const bool undoOrRedo = (u < info.lastUndoSteps) || (r != info.lastRedoSteps);
+                info.lastUndoSteps = u;
+                info.lastRedoSteps = r;
+                if (undoOrRedo)
+                    setTabDirty(i, contentHash(doc) != info.savedHash);
+                else
                     setTabDirty(i, true);
-                    break;
-                }
+                break;
             }
         });
 
@@ -98,8 +125,7 @@ int MainWindow::addTab(const QString &filePath)
         cursor.select(QTextCursor::Document);
         cursor.mergeBlockFormat(fmt);
     }
-    m_tabs[idx].dirty = false;
-    updateTabLabel(idx);
+    setTabSaved(idx);
 
     editor->updateGutterSettings();
 
@@ -352,6 +378,19 @@ void MainWindow::setTabDirty(int index, bool dirty)
     updateTabLabel(index);
 }
 
+void MainWindow::setTabSaved(int index)
+{
+    if (index < 0 || index >= m_tabs.size())
+        return;
+    if (Editor *ed = m_tabs[index].editor) {
+        ed->document()->setModified(false);
+        m_tabs[index].savedHash = contentHash(ed->document());
+        m_tabs[index].lastUndoSteps = ed->document()->availableUndoSteps();
+        m_tabs[index].lastRedoSteps = ed->document()->availableRedoSteps();
+    }
+    setTabDirty(index, false);
+}
+
 void MainWindow::onTabChanged(int index)
 {
     Q_UNUSED(index);
@@ -392,8 +431,7 @@ void MainWindow::onTabCloseRequested(int index)
             m_tabs[0].filePath.clear();
             m_tabs[0].editor->clear();
             m_tabs[0].previewHtmlValid = false;
-            m_tabs[0].dirty = false;
-            updateTabLabel(0);
+            setTabSaved(0);
             updateWindowTitle();
             m_preview->setDocumentPath(QString());
             m_previewInitialized = false;
@@ -462,7 +500,7 @@ void MainWindow::closeAllTabs()
         m_tabs[0].editor->clear();
         m_tabs[0].previewHtmlValid = false;
         m_tabs[0].filePath.clear();
-        m_tabs[0].dirty = false;
+        setTabSaved(0);
         // A virtual TOC/report tab left as the sole tab is blanked into an
         // Untitled placeholder; drop its mapping so it can't haunt the next corpus.
         m_tocTabs.remove(idx);
