@@ -332,6 +332,25 @@ TEST_F(EditorTestHarness, PasteTableThenDoubleEnterAlignsRows)
     assertCursor(5, 0);
 }
 
+TEST_F(EditorTestHarness, DoubleEnterOnRightAlignedBorderlessTableAlignsPipes)
+{
+    // A borderless table whose first column is right-aligned cannot keep its
+    // pipes aligned: the narrow last row would need four leading spaces and
+    // md4c would drop it (indented code). The formatter upgrades the table to
+    // bordered so every row's middle pipe lands on the same column.
+    setContent("asdf | asdf \n----: | -----\ncell1 | cell2\ncell3 | cell4\n   a | aa ");
+    placeCursorAtEnd();
+    enter();   // auto-continues a blank data row (borderless, padding 1)
+    enter();   // blank-row exit leaves the table, realigning it
+    EXPECT_EQ(text(), "|  asdf | asdf  |\n"
+                      "|------:|-------|\n"
+                      "| cell1 | cell2 |\n"
+                      "| cell3 | cell4 |\n"
+                      "|     a | aa    |\n"
+                      "\n");
+    assertCursor(6, 0);
+}
+
 TEST_F(EditorTestHarness, LeavingUntouchedTableDoesNotReformat)
 {
     setContent("| a | bb |\n|---|---|\n| ccc | d |\nend");

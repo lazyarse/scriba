@@ -226,6 +226,15 @@ spaces. The cost: a capped row's first pipe may sit one column left of its
 aligned neighbours (e.g. `   |    ` under `foo | bar`). Render-validity wins;
 if you ever align borderless rows by hand, keep them under four leading spaces.
 
+`formatMdTable` avoids that cosmetic cost for real tables: when a borderless
+table's first column is right/center-aligned (or holds a wide empty cell) such
+that a data row would need four leading spaces to line up, the formatter
+upgrades the whole table to bordered style instead. The leading pipe anchors
+column zero, so the pipes stay aligned and md4c keeps the row in the table
+(the delimiter row then carries pipes too, so the upgrade is idempotent). The
+cap still applies to hand-typed borderless rows and to the empty rows
+`makeEmptyTableRow` emits, where there is no aligned column to protect.
+
 ### Git Graph topology
 
 The Mermaid Git Graph panel (`src/GitGraphBuilder.cpp`, bundled libgit2) assigns

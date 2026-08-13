@@ -531,10 +531,34 @@ QString formatMdTable(const QStringList &rows, int padding)
 
     const QString pipeSpacing = QString(padding, ' ') + "|" + QString(padding, ' ');
 
+    // A borderless row has no leading pipe to anchor column zero, so a
+    // right/center-aligned first cell (or an empty default-aligned one) can
+    // push its leading padding past md4c's four-space indented-code limit;
+    // capTableRowIndent would then shift that row's first pipe off the aligned
+    // column. When that would happen, upgrade the whole table to bordered so
+    // the pipes line up and the table keeps rendering (see docs/gotchas.md).
+    bool useBordered = bordered;
+    if (!useBordered) {
+        for (int r = 0; r < cellRows.size(); ++r) {
+            if (r == sepIndex)
+                continue;
+            const QStringList &cells = cellRows[r];
+            const QString content = cells.isEmpty() ? QString() : cells[0];
+            const QString cell0 = padMdCell(content, width[0], align[0]);
+            int lead = 0;
+            while (lead < cell0.size() && cell0[lead] == ' ')
+                ++lead;
+            if (lead > 3) {
+                useBordered = true;
+                break;
+            }
+        }
+    }
+
     QStringList out;
     out.reserve(rows.size());
     for (int r = 0; r < cellRows.size(); ++r) {
-        if (bordered) {
+        if (useBordered) {
             // Existing behaviour: pipes on both sides of every row.
             if (r == sepIndex) {
                 QString line = "|";

@@ -299,6 +299,51 @@ TEST(FormatMdTableTest, BorderlessPaddingTwo) {
         "ccc  |  d ");
 }
 
+TEST(FormatMdTableTest, BorderlessRightAlignedFirstColumnUpgradesToBordered) {
+    // md4c ends a borderless table at any row with four or more leading spaces
+    // (indented-code check wins over table continuation), so a right-aligned
+    // first column whose narrow cells would need that much leading padding
+    // cannot stay borderless without either dropping the row from the render
+    // or misaligning its first pipe (the cap). Upgrade to bordered instead:
+    // the leading pipe anchors column zero, so the pipes line up and the
+    // table keeps rendering.
+    QStringList rows = {
+        "asdf | asdf",
+        "----: | -----",
+        "cell1 | cell2",
+        "cell3 | cell4",
+        "a | aa"
+    };
+    EXPECT_EQ(formatMdTable(rows),
+        "|  asdf | asdf  |\n"
+        "|------:|-------|\n"
+        "| cell1 | cell2 |\n"
+        "| cell3 | cell4 |\n"
+        "|     a | aa    |");
+}
+
+TEST(FormatMdTableTest, BorderlessRightAlignedFirstColumnStaysBorderlessWhenItFits) {
+    // Right alignment that never needs four leading spaces keeps the bare
+    // style: no gratuitous conversion for short, single-column tables.
+    QStringList rows = {"a | b", "--: | --", "x | y"};
+    EXPECT_EQ(formatMdTable(rows),
+        "a | b\n"
+        "--: | ---\n"
+        "x | y");
+}
+
+TEST(FormatMdTableTest, BorderlessCenterAlignedFirstColumnUpgradesToBordered) {
+    QStringList rows = {
+        "abcdefghi | x",
+        ":---: | ---",
+        "a | y"
+    };
+    EXPECT_EQ(formatMdTable(rows),
+        "| abcdefghi | x |\n"
+        "|:---------:|---|\n"
+        "|     a     | y |");
+}
+
 TEST(MakeEmptyTableRow, PaddingScalesBorderedCells) {
     EXPECT_EQ(makeEmptyTableRow(2, MdRowStyle{true, true}, 2), "|    |    |");
     EXPECT_EQ(makeEmptyTableRow(2, MdRowStyle{true, true}, 0), "|||");
