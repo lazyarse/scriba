@@ -800,20 +800,5 @@ add_executable(test_find_dialog tests/test_find_dialog.cpp
         scriba_core GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets)
     add_test(NAME test_pdf_import COMMAND ${_TEST_PREFIX} ./test_pdf_import)
 
-    # WebEngine-spawning suites must not fork concurrently: concurrent WebEngine
-    # processes cause flaky failures. Serialize them against each other (via
-    # RESOURCE_LOCK) under `ctest -jN` while non-WebEngine tests run in parallel.
-    set_tests_properties(
-        test_mermaid_dialog test_chart_dialog test_stock_chart_dialog
-        test_advanced_chart_dialog
-        test_katex_helper_dialog test_mchem_helper_dialog
-        test_scroll_sync test_html_to_markdown test_anchor_navigation
-        test_emoji_preview test_auto_save test_multi_tab_typing
-        test_dirty_on_load test_editor_initial_css test_find_dialog
-        test_pdf_export test_preview_pagination test_export_html test_docx_image_export test_docx_import
-        test_pdf_import test_corpus_recent
-        test_corpus_watcher_integration
-        test_corpus_export
-        PROPERTIES RESOURCE_LOCK webkit)
-endif()
+    endif()
 

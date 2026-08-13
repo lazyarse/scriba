@@ -224,8 +224,9 @@ TEST_F(AnchorNavigationTest, CrossDocumentJumpScrollsAndSwitchesDoc)
         [](const QVariant &) {});
     ASSERT_TRUE(waitForLoaded(window, &loadSpy));
 
-    // Allow the retry timer to run until it hits the target (300ms ticks).
-    EXPECT_GT(pollScrollY(500.0, 30), 500);
+    // Allow the retry timer to run until it hits the target (300ms ticks; the
+    // C++ budget is ~18s, so poll that long to survive slow page loads).
+    EXPECT_GT(pollScrollY(500.0, 60), 500);
 }
 
 TEST_F(AnchorNavigationTest, MissingHeadingStaysPutWithoutCrashing)

@@ -585,3 +585,20 @@ common-ancestor logic is computed once across all of them.
   so the discrepancy never shows for the same image — but a DPI-basis change to one path must be
   mirrored in the other.
 
+## `QWebEnginePage::runJavaScript` callbacks can be dropped during navigation
+
+A `runJavaScript` promise against a page that is being replaced (e.g. a cross-document
+anchor jump swaps the preview HTML right after the click) can resolve **never** — the
+callback is silently lost with the old frame. Code that builds a retry chain by re-arming
+a `QTimer` *inside the callback* dies on the first lost tick and the retry stops forever,
+which shows up as a hard-to-trace intermittent failure only under CPU load (parallel test
+runs, CI).
+
+`MainWindow::tryScrollPreviewToAnchor` must therefore re-arm on the **timer**, not the
+callback: fire the JS every tick regardless, and only use the callback to *stop* on
+success (`src/MainWindow_Preview.cpp`). Also note the heading ids a cross-doc jump targets
+only exist after the deferred heavy render pass (`generateHeadingIds()` runs in the
+`setTimeout(…, HeavyRender)` tail of `scribaUpdate`), so a fresh page must get its own
+retry budget once `loadFinished` fires — see the `scrollPreviewToAnchor` re-arm in
+`MainWindow::onPreviewLoadFinished`.
+

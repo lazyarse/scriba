@@ -394,15 +394,22 @@ void MainWindow::tryScrollPreviewToAnchor()
     const QString js = QStringLiteral("scribaScrollToSlug('%1')")
         .arg(escapeJsString(m_pendingAnchor));
     m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
-        // Give up after ~6s; the ids appear after the heavy render pass, so
-        // retries normally succeed on the second or third tick.
-        if (result.toBool() || ++m_anchorTries > 20) {
+        if (result.toBool()) {
             m_anchorTimer->stop();
             m_pendingAnchor.clear();
-        } else {
-            m_anchorTimer->start();
         }
     });
+    // Keep ticking even if the runJavaScript callback never fires: a
+    // navigation that replaces the page mid-flight can drop the pending
+    // callback, and a chain that only re-arms from the callback would die
+    // on the first lost tick. Cap the budget at ~18s (60 x 300ms ticks) so
+    // a genuinely-missing anchor still gives up.
+    if (++m_anchorTries > 60) {
+        m_pendingAnchor.clear();
+        m_anchorTimer->stop();
+        return;
+    }
+    m_anchorTimer->start();
 }
 
 void MainWindow::refreshPreviewForTocTab(int index, const QString &rootDir)

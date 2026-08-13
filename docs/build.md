@@ -104,4 +104,4 @@ The `-D` flags are only needed the first time a build dir is configured; CMake c
 cd build-dbg && ctest --output-on-failure -j4
 ```
 
-Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't crash on your headless CI. Parallel runs are safe: WebEngine suites serialize via `RESOURCE_LOCK webkit`, and each test's config is isolated to a per-process temp dir.
+Tests auto-wrap in `xvfb-run` when available (CMake detects it) so they don't crash on your headless CI. Parallel runs are safe: `setupTestConfig()` gives each test process a unique application name, so Qt WebEngine's disk-based data dirs (AppDataLocation/CacheLocation) are per-process too and even WebEngine-spawning suites may run concurrently under `ctest -jN`.

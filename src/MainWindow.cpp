@@ -116,6 +116,11 @@ MainWindow::MainWindow(QWidget *parent, bool skipCorpusRestore)
             // page converges to the editor's position.
             QTimer::singleShot(300, this, &MainWindow::syncPreviewScroll);
             QTimer::singleShot(1500, this, &MainWindow::syncPreviewScroll);
+            // A cross-document anchor jump (other.md#section) starts its retry
+            // timer at click time, while the page is still being replaced, so
+            // the fresh page must get a full retry budget once it has loaded.
+            if (!m_pendingAnchor.isEmpty())
+                scrollPreviewToAnchor(m_pendingAnchor);
         } else {
             m_preview->showRenderError(QStringLiteral("Preview failed to load."));
         }
