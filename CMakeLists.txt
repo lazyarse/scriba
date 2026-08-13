@@ -127,10 +127,9 @@ set(SCRIBA_APP_WEBENGINE_SOURCES
     src/ZipReader.cpp src/OoxmlToHtml.cpp src/OoxmlConverter.cpp
     src/DocxImporter.cpp src/HtmlToMarkdown.cpp src/PdfImporter.cpp
     src/SpellCheckDialog.cpp
-    ${SCRIBA_EDITOR_SOURCES}
     src/Preview.cpp src/PreviewBridge.cpp src/ExportCorpusDialog.cpp
     src/PdfRenderer.cpp src/CssConfig.cpp src/CssLoader.cpp
-    ${SCRIBA_PREFS_SOURCES} src/CssEditorDialog.cpp src/CssHighlighter.cpp
+    src/CssEditorDialog.cpp src/CssHighlighter.cpp
     src/ExportPdfDialog.cpp src/ExportHtmlDialog.cpp src/ExportDocxDialog.cpp
     src/JsRenderEngine.cpp src/DocxExporter.cpp src/HtmlToOoxml.cpp
     src/UnitConverter.cpp src/CssValueParser.cpp src/ChartDialog.cpp
@@ -140,7 +139,7 @@ set(SCRIBA_APP_WEBENGINE_SOURCES
     src/CsvColumnMapDialog.cpp src/TableDialog.cpp)
 
 # The app's WebEngine sources as one object library. Every full-app test target
-# used to expand SCRIBA_APP_WEBENGINE_SOURCES and recompile all ~66 files from
+# used to expand SCRIBA_APP_WEBENGINE_SOURCES and recompile all ~58 files from
 # scratch; the scriba executable compiled them as a superset. With OBJECT
 # libraries each file compiles once (in this lib) and every consumer links the
 # same objects — identical runtime behaviour, a fraction of the dev-loop work.
@@ -157,6 +156,23 @@ target_link_libraries(scriba_app PUBLIC
     Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Svg Qt6::PrintSupport
     mathml2omml stoppard
     scriba_gitgraph miniz)
+
+# Editor and Preferences sources get their own object libraries: the standalone
+# editor/prefs test targets (test_folding, test_gutter_*, test_editor_*, ...)
+# used to expand SCRIBA_EDITOR_SOURCES / SCRIBA_PREFS_SOURCES directly and
+# recompile all 13 files per target. These are pulled OUT of
+# SCRIBA_APP_WEBENGINE_SOURCES (above) so each file compiles exactly once.
+# Deliberately no scriba_core/scriba_spell on the link: those exist only when
+# BUILD_TESTS is on, and the Release scriba resolves Editor/prefs's spell/core
+# symbols from its own direct objects. Consumers link scriba_core/scriba_spell/
+# scriba_resources themselves as needed — object-lib FILES do not propagate.
+add_library(scriba_editor OBJECT ${SCRIBA_EDITOR_SOURCES})
+target_include_directories(scriba_editor PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(scriba_editor PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg stoppard)
+
+add_library(scriba_prefs OBJECT ${SCRIBA_PREFS_SOURCES})
+target_include_directories(scriba_prefs PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(scriba_prefs PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg stoppard)
 
 # scriba links scriba_app for the shared app sources and compiles the rest
 # (markdown core, spell/validation, typography, parsers) directly — these are
@@ -197,6 +213,8 @@ target_include_directories(scriba PRIVATE
 
 target_link_libraries(scriba PRIVATE
     scriba_app
+    scriba_editor
+    scriba_prefs
     scriba_resources
     scriba_twemoji
 )
@@ -517,69 +535,69 @@ if(BUILD_TESTS)
     add_test(NAME test_editor_autocomplete COMMAND ${_TEST_PREFIX} ./test_editor_autocomplete)
 
     find_package(Qt6 REQUIRED COMPONENTS Test)
-    add_executable(test_editor_completion_ui tests/test_editor_completion_ui.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_editor_completion_ui tests/test_editor_completion_ui.cpp)
     target_include_directories(test_editor_completion_ui PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest test_editor_helpers Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell scriba_resources scriba_twemoji)
+    target_link_libraries(test_editor_completion_ui PRIVATE GTest::gtest test_editor_helpers Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_editor scriba_core scriba_spell scriba_resources scriba_twemoji)
     add_test(NAME test_editor_completion_ui COMMAND ${_TEST_PREFIX} ./test_editor_completion_ui)
 
-    add_executable(test_folding tests/test_folding.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_folding tests/test_folding.cpp)
     target_include_directories(test_folding PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_folding PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell scriba_resources)
+    target_link_libraries(test_folding PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_editor scriba_core scriba_spell scriba_resources)
     add_test(NAME test_folding COMMAND ${_TEST_PREFIX} ./test_folding)
 
-    add_executable(test_gutter_line_height tests/test_gutter_line_height.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_gutter_line_height tests/test_gutter_line_height.cpp)
     target_include_directories(test_gutter_line_height PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_gutter_line_height PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell scriba_resources)
+    target_link_libraries(test_gutter_line_height PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_editor scriba_core scriba_spell scriba_resources)
     add_test(NAME test_gutter_line_height COMMAND ${_TEST_PREFIX} ./test_gutter_line_height)
 
-    add_executable(test_gutter_width tests/test_gutter_width.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_gutter_width tests/test_gutter_width.cpp)
     target_include_directories(test_gutter_width PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_gutter_width PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_core scriba_spell scriba_resources)
+    target_link_libraries(test_gutter_width PRIVATE GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test scriba_editor scriba_core scriba_spell scriba_resources)
     add_test(NAME test_gutter_width COMMAND ${_TEST_PREFIX} ./test_gutter_width)
 
-    add_executable(test_editor_typing tests/test_editor_typing.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_editor_typing tests/test_editor_typing.cpp)
     target_include_directories(test_editor_typing PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_editor_typing PRIVATE GTest::gtest test_editor_helpers scriba_spell scriba_resources)
+    target_link_libraries(test_editor_typing PRIVATE GTest::gtest test_editor_helpers scriba_editor scriba_spell scriba_resources)
     add_test(NAME test_editor_typing COMMAND ${_TEST_PREFIX} ./test_editor_typing)
 
-    add_executable(test_editor_autocorrect tests/test_editor_autocorrect.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_editor_autocorrect tests/test_editor_autocorrect.cpp)
     target_include_directories(test_editor_autocorrect PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_editor_autocorrect PRIVATE GTest::gtest test_editor_helpers scriba_spell scriba_resources)
+    target_link_libraries(test_editor_autocorrect PRIVATE GTest::gtest test_editor_helpers scriba_editor scriba_spell scriba_resources)
     add_test(NAME test_editor_autocorrect COMMAND ${_TEST_PREFIX} ./test_editor_autocorrect)
 
-    add_executable(test_editor_wrap tests/test_editor_wrap.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_editor_wrap tests/test_editor_wrap.cpp)
     target_include_directories(test_editor_wrap PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_editor_wrap PRIVATE GTest::gtest test_editor_helpers scriba_spell scriba_resources)
+    target_link_libraries(test_editor_wrap PRIVATE GTest::gtest test_editor_helpers scriba_editor scriba_spell scriba_resources)
     add_test(NAME test_editor_wrap COMMAND ${_TEST_PREFIX} ./test_editor_wrap)
 
-    add_executable(test_enter_scroll tests/test_enter_scroll.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_enter_scroll tests/test_enter_scroll.cpp)
     target_include_directories(test_enter_scroll PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_enter_scroll PRIVATE GTest::gtest test_editor_helpers scriba_spell scriba_resources)
+    target_link_libraries(test_enter_scroll PRIVATE GTest::gtest test_editor_helpers scriba_editor scriba_spell scriba_resources)
     add_test(NAME test_enter_scroll COMMAND ${_TEST_PREFIX} ./test_enter_scroll)
 
-    add_executable(test_underline_overlay tests/test_underline_overlay.cpp ${SCRIBA_EDITOR_SOURCES})
+    add_executable(test_underline_overlay tests/test_underline_overlay.cpp)
     target_include_directories(test_underline_overlay PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_underline_overlay PRIVATE GTest::gtest scriba_core scriba_spell scriba_resources)
+    target_link_libraries(test_underline_overlay PRIVATE GTest::gtest scriba_editor scriba_core scriba_spell scriba_resources)
     add_test(NAME test_underline_overlay COMMAND ${_TEST_PREFIX} ./test_underline_overlay)
 
     add_executable(test_spell_check_dialog tests/test_spell_check_dialog.cpp
-        src/SpellCheckDialog.cpp ${SCRIBA_EDITOR_SOURCES})
+        src/SpellCheckDialog.cpp)
     target_include_directories(test_spell_check_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_spell_check_dialog PRIVATE
-        GTest::gtest scriba_core scriba_spell Qt6::Test Qt6::Widgets scriba_resources)
+        GTest::gtest scriba_editor scriba_core scriba_spell Qt6::Test Qt6::Widgets scriba_resources)
     add_test(NAME test_spell_check_dialog COMMAND ${_TEST_PREFIX} ./test_spell_check_dialog)
 
     add_executable(test_preferences_search tests/test_preferences_search.cpp
-        ${SCRIBA_PREFS_SOURCES} src/CssEditorDialog.cpp src/CssHighlighter.cpp
+        src/CssEditorDialog.cpp src/CssHighlighter.cpp
         src/CssConfig.cpp src/CssLoader.cpp)
     target_include_directories(test_preferences_search PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_preferences_search PRIVATE
-        scriba_core scriba_spell scriba_test_main Qt6::Test scriba_resources)
+        scriba_editor scriba_prefs scriba_core scriba_spell scriba_test_main Qt6::Test scriba_resources)
     add_test(NAME test_preferences_search COMMAND ${_TEST_PREFIX} ./test_preferences_search)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp)
     target_link_libraries(test_scroll_sync PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_scroll_sync COMMAND ${_TEST_PREFIX} ./test_scroll_sync)
 
     add_executable(test_html_to_markdown
@@ -592,52 +610,52 @@ if(BUILD_TESTS)
 
     add_executable(test_anchor_navigation tests/test_anchor_navigation.cpp)
     target_link_libraries(test_anchor_navigation PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_anchor_navigation COMMAND ${_TEST_PREFIX} ./test_anchor_navigation)
 
     add_executable(test_emoji_preview tests/test_emoji_preview.cpp)
     target_link_libraries(test_emoji_preview PRIVATE
-        scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_resources scriba_twemoji)
+        scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources scriba_twemoji)
     add_test(NAME test_emoji_preview COMMAND ${_TEST_PREFIX} ./test_emoji_preview)
 
     add_executable(test_auto_save tests/test_auto_save.cpp)
     target_link_libraries(test_auto_save PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
 
     add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp)
     target_link_libraries(test_multi_tab_typing PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_multi_tab_typing COMMAND ${_TEST_PREFIX} ./test_multi_tab_typing)
 
     add_executable(test_corpus_recent tests/test_corpus_recent.cpp)
     target_link_libraries(test_corpus_recent PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_corpus_recent COMMAND ${_TEST_PREFIX} ./test_corpus_recent)
 
     add_executable(test_dirty_on_load tests/test_dirty_on_load.cpp)
     target_link_libraries(test_dirty_on_load PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_dirty_on_load COMMAND ${_TEST_PREFIX} ./test_dirty_on_load)
 
     add_executable(test_corpus_watcher_integration tests/test_corpus_watcher_integration.cpp)
     target_link_libraries(test_corpus_watcher_integration PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_corpus_watcher_integration COMMAND ${_TEST_PREFIX} ./test_corpus_watcher_integration)
 
     add_executable(test_corpus_export tests/test_corpus_export.cpp)
     target_link_libraries(test_corpus_export PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_corpus_export COMMAND ${_TEST_PREFIX} ./test_corpus_export)
 
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp)
 target_link_libraries(test_editor_initial_css PRIVATE
-    scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+    scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
 add_test(NAME test_editor_initial_css COMMAND ${_TEST_PREFIX} ./test_editor_initial_css)
 
 add_executable(test_find_dialog tests/test_find_dialog.cpp)
     target_link_libraries(test_find_dialog PRIVATE
-        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_resources)
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_find_dialog COMMAND ${_TEST_PREFIX} ./test_find_dialog)
 
     add_executable(test_print_css_file tests/test_print_css_file.cpp)

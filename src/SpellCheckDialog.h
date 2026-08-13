@@ -50,7 +50,7 @@ public:
     // MainWindow to follow the active tab. The per-editor "ignore once" set
     // is preserved so switching back keeps earlier suppressions.
     void retarget(Editor *editor);
-    Editor *targetEditor() const { return m_editor; }
+    Editor *targetEditor() const;
 
     // Test-facing state: the current error list (document order).
     QVector<SpellHighlighter::SpellIssue> issues() const { return m_issues; }

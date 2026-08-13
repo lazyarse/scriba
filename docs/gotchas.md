@@ -715,11 +715,14 @@ offloading entirely (this was the original tab-close freeze).
 
 ## CMake object libraries: static-initializer side effects and no transitive files
 
-To stop recompiling the qrc (and the ~66 app sources) in every full-app test target,
-`CMakeLists.txt` builds three **OBJECT** libraries that every consumer links:
-`scriba_resources`/`scriba_twemoji` (compile the qrc files once) and `scriba_app`
-(compiles `SCRIBA_APP_WEBENGINE_SOURCES` once). Two CMake behaviours make this
-structure easy to break:
+To stop recompiling the qrc (and the app sources) in every full-app test target,
+`CMakeLists.txt` builds five **OBJECT** libraries that consumers link:
+`scriba_resources`/`scriba_twemoji` (compile the qrc files once), `scriba_app`
+(compiles `SCRIBA_APP_WEBENGINE_SOURCES` once), and `scriba_editor`/`scriba_prefs`
+(compile the Editor and Preferences sources once — pulled OUT of
+`SCRIBA_APP_WEBENGINE_SOURCES` so each file compiles exactly once and the standalone
+editor/prefs test targets link the objects instead of recompiling them). Two CMake
+behaviours make this structure easy to break:
 
 - **They must stay OBJECT, never STATIC.** The generated `qrc_scriba.cpp` registers
   resources via an anonymous-namespace static initializer (`qInitResources_scriba`),
@@ -738,7 +741,16 @@ structure easy to break:
   symptom is the same as a dropped archive object: `qt.svg: Cannot open file
   ':/icons/…'` and `Uncaught ReferenceError: scribaScrollToSourceLine is not defined`
   in WebEngine tests. Every consumer of `scriba_app` must link `scriba_resources` (and
-  `scriba_twemoji` where emoji is needed) **explicitly** — there is no way to make an
+  `scriba_twemoji` where emoji is needed), and every consumer of the app sources must
+  link `scriba_editor`/`scriba_prefs`, **explicitly** — there is no way to make an
   object lib's files reach grandchildren.
+
+A related trap: moving a `Q_OBJECT` source out of a target into an object lib can
+break the *moc* autogen for consumers that still include that source's header. If a
+header forward-declares a class and only defined its accessor inline
+(e.g. `SpellCheckDialog.h` returning a `QPointer<Editor>`), it used to compile only
+because the consumer also compiled `Editor.cpp`, so `moc_Editor.cpp` was included
+first in `mocs_compilation.cpp` — order luck. The accessor must be declared in the
+header and defined in the `.cpp` (where the full type is included), not inline.
 
 

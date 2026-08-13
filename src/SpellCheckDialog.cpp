@@ -136,6 +136,11 @@ void SpellCheckDialog::retarget(Editor *editor)
     showCurrent();
 }
 
+Editor *SpellCheckDialog::targetEditor() const
+{
+    return m_editor;
+}
+
 void SpellCheckDialog::closeEvent(QCloseEvent *event)
 {
     if (m_editor)
