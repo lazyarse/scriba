@@ -86,6 +86,9 @@ void MainWindow::buildFileMenu(QMenuBar *bar)
     });
 
     QMenu *corpusMenu = fileMenu->addMenu(tr("C&orpus"));
+    QAction *newCorpusAct = corpusMenu->addAction(tr("&New Corpus…"));
+    newCorpusAct->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
+    connect(newCorpusAct, &QAction::triggered, this, &MainWindow::newCorpusAction);
     QAction *saveCorpusAct = corpusMenu->addAction(tr("&Save Corpus"));
     connect(saveCorpusAct, &QAction::triggered, this, &MainWindow::saveCorpusAction);
     QAction *saveCorpusAsAct = corpusMenu->addAction(tr("Save Corpus &As…"));

@@ -474,6 +474,42 @@ void MainWindow::saveCorpusAsAction()
     statusBar()->showMessage(tr("Corpus saved: %1").arg(QFileInfo(m_corpus.filePath).fileName()), 2000);
 }
 
+void MainWindow::newCorpusAction()
+{
+    const QString path = ensureDefaultSuffix(
+        QFileDialog::getSaveFileName(this, tr("New Corpus"),
+                                     QString(), tr("Scriba Corpus (*.scriba)")),
+        "scriba");
+    if (path.isEmpty())
+        return;                        // cancel: nothing touched
+
+    if (!maybeDiscardCurrentTabs())
+        return;                        // cancel: current corpus stays open
+
+    closeAllTabs();
+    stopCorpusWatcher();
+    m_corpus = Corpus{};               // reset everything a .scriba can store
+    applyCorpusDictionary();           // clears old corpus words/override off editors
+    updateWindowTitle();
+    updateTabBarVisibility();
+
+    m_corpus.filePath = QFileInfo(path).absoluteFilePath();
+    refreshCorpusFromTabs();           // records the blank tab as the first embedded doc
+    QString error;
+    if (!m_corpus.save(&error)) {
+        showCenteredWarning(tr("New Corpus Failed"),
+            tr("Could not save the corpus file."), error);
+        return;
+    }
+    addRecentCorpus(m_corpus.filePath);
+    QSettings().setValue(Preferences::LastCorpusPath, m_corpus.filePath);
+    updateWindowTitle();
+    updateTabBarVisibility();
+    updateRecentCorporaMenu();
+    startCorpusWatcher();
+    statusBar()->showMessage(tr("New corpus created: %1").arg(QFileInfo(m_corpus.filePath).fileName()), 3000);
+}
+
 void MainWindow::openCorpusAction()
 {
     const QString path = QFileDialog::getOpenFileName(

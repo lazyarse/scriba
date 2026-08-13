@@ -629,6 +629,15 @@ saved corpus and corpus document tabs map 1:1 to `m_corpus.documents` (tab index
 == corpus index). Embedded untitled documents with real content still restore
 normally — only the empty placeholder is dropped.
 
+`MainWindow::newCorpusAction` (File → Corpus → New Corpus, `Ctrl+Shift+N`)
+resets the full corpus state: watcher stopped, `m_corpus = Corpus{}` (fresh
+dictionary — old corpus custom/ignored words and language/dialect override are
+cleared off the editors via `applyCorpusDictionary()`), tabs closed to one blank
+embedded document, and only the *new* `.scriba` file is written. The filename
+dialog runs first and the dirty-tab prompt gates the destructive path, so
+cancelling aborts before anything is touched — the old corpus file is never
+written to.
+
 ## Corpus export: embedded (untitled) documents are exported but not TOC-linked
 
 `CorpusIndex::renderToc` deliberately skips embedded/untitled documents (they

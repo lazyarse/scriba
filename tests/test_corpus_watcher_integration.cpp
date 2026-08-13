@@ -21,12 +21,14 @@
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QSettings>
 #include <QStackedWidget>
 #include <QTabBar>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
 
 #include <functional>
 
@@ -354,6 +356,71 @@ TEST_F(CorpusWatcherIntegrationTest, ClosingWindowResavesCorpus)
     EXPECT_FALSE(readFile(m_corpusPath).contains(QStringLiteral("\"name\":\"Untitled\"")));
     EXPECT_FALSE(readFile(m_corpusPath).contains(QStringLiteral("\"Untitled\"")))
         << "the empty placeholder tab must never be serialized into the corpus";
+}
+
+TEST_F(CorpusWatcherIntegrationTest, NewCorpusClosesTabsSavesFreshCorpus)
+{
+    QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs, true);
+    writeFile(m_root + "/doc.md", "one");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    writeFile(m_root + "/doc2.md", "two");
+    m_window->loadFile(m_root + "/doc2.md");
+    QApplication::processEvents();
+    auto *tabs = m_window->findChild<QTabBar *>();
+    ASSERT_NE(tabs, nullptr);
+    ASSERT_EQ(tabs->count(), 2);
+    const QString newPath = m_root + "/fresh.scriba";
+    QTimer::singleShot(0, [&]() {
+        auto *dlg = qobject_cast<QFileDialog *>(qApp->activeModalWidget());
+        if (!dlg)
+            return;
+        dlg->selectFile(newPath);
+        QMetaObject::invokeMethod(dlg, "accept", Qt::QueuedConnection);
+    });
+    triggerAction(m_window, QStringLiteral("New Corpus"));
+    QApplication::processEvents();
+    QTest::qWait(300);
+
+    ASSERT_EQ(tabs->count(), 1) << "New Corpus must close the old session's tabs";
+    EXPECT_EQ(tabs->tabToolTip(0), QString()) << "the fresh corpus starts with a blank tab";
+    const QString fresh = readFile(newPath);
+    EXPECT_TRUE(fresh.contains(QStringLiteral("\"name\": \"Untitled\"")))
+        << "the blank tab is serialized as the first embedded document";
+    EXPECT_FALSE(fresh.contains(QStringLiteral("\"path\"")))
+        << "a fresh corpus has no file-backed documents";
+    EXPECT_EQ(QSettings().value(Preferences::LastCorpusPath).toString(), newPath);
+}
+
+TEST_F(CorpusWatcherIntegrationTest, NewCorpusCancelKeepsCurrentCorpus)
+{
+    QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs, true);
+    writeFile(m_root + "/doc.md", "one");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    writeFile(m_root + "/doc2.md", "two");
+    m_window->loadFile(m_root + "/doc2.md");
+    QApplication::processEvents();
+    auto *tabs = m_window->findChild<QTabBar *>();
+    ASSERT_NE(tabs, nullptr);
+    ASSERT_EQ(tabs->count(), 2);
+
+    const QString newPath = m_root + "/cancelled.scriba";
+    QTimer::singleShot(0, [&]() {
+        auto *dlg = qobject_cast<QFileDialog *>(qApp->activeModalWidget());
+        if (!dlg)
+            return;
+        dlg->selectFile(newPath);
+        QMetaObject::invokeMethod(dlg, "reject", Qt::QueuedConnection);
+    });
+    triggerAction(m_window, QStringLiteral("New Corpus"));
+    QApplication::processEvents();
+    QTest::qWait(300);
+
+    ASSERT_EQ(tabs->count(), 2) << "cancelling New Corpus must leave the session untouched";
+    EXPECT_FALSE(QFile::exists(newPath));
 }
 
 } // namespace

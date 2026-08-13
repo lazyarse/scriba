@@ -272,6 +272,7 @@ private:
     void restoreCorpus(const QJsonObject &corpus);
     void saveCorpusAction();
     void saveCorpusAsAction();
+    void newCorpusAction();
     void openCorpusAction();
     bool maybeDiscardCurrentTabs();
     bool saveAllDirtyTabs();

@@ -500,6 +500,7 @@ void MainWindow::closeAllTabs()
         m_tabs[0].editor->clear();
         m_tabs[0].previewHtmlValid = false;
         m_tabs[0].filePath.clear();
+        m_tabBar->setTabToolTip(0, QString());
         setTabSaved(0);
         // A virtual TOC/report tab left as the sole tab is blanked into an
         // Untitled placeholder; drop its mapping so it can't haunt the next corpus.
