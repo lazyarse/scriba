@@ -930,4 +930,20 @@ colors as the editor's underlines).
   (`QScrollBar:vertical` rules in `CssUtils::buildQss`); only the marker colors
   come from the underline-color settings.
 
+## Issue Summary pane
+
+- The pane's counts come from `SpellHighlighter::counts()` — the same live
+  per-block caches the in-editor underlines are painted from, so the two can
+  never drift. Grammar counts lag the debounced async lint; they land when
+  `onLintFinished()` emits `spellHitsChanged()` (this emission is also what
+  repaints the editor's underline overlay for grammar).
+- A row appears only when its category is selected in the Issue Summary prefs
+  AND the corresponding in-editor check is enabled. This is deliberate: the
+  pane reports exactly what the editor underlines, no more.
+- The pane is shown for `.md` files only (suffix check in
+  `Editor::isMarkdownFile()`); untitled tabs, corpus-embedded docs and
+  generated report/TOC tabs never show it. Dismissing it (`[x]` or timeout)
+  keeps it hidden for that file until the next explicit trigger — tab switch,
+  file open, or a preference re-apply — NOT on every keystroke.
+
 
