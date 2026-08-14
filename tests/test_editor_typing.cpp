@@ -188,6 +188,15 @@ TEST_F(EditorTestHarness, EnterMidListItemContinuesList)
     assertCursor(1, 2);
 }
 
+TEST_F(EditorTestHarness, EnterMidListItemTailAlreadyMarkedDoesNotDouble)
+{
+    setContent("- item1 is long - this is going to be a new item");
+    placeCursor(0, 16);   // start of "- this is"
+    enter();
+    EXPECT_EQ(text(), "- item1 is long \n- this is going to be a new item");
+    assertCursor(1, 0);
+}
+
 TEST_F(EditorTestHarness, EnterMidOrderedListItemContinuesList)
 {
     setContent("1. one two");

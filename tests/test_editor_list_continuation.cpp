@@ -352,3 +352,7 @@ TEST(ListSplitReturn, ThematicBreakReturnsEmpty) {
     EXPECT_EQ(handleListSplitReturn("---", 2), QString());
 }
 
+TEST(ListSplitReturn, TailAlreadyStartsWithMarkerDoesNotDouble) {
+    EXPECT_EQ(handleListSplitReturn("- item1 is long - this is going to be a new item", 16), QString());
+}
+

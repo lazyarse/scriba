@@ -118,7 +118,13 @@ QString handleListSplitReturn(const QString &line, int caretPos)
         return {};
     if (caretPos < prefix.length())
         return {};
-    if (line.mid(caretPos).trimmed().isEmpty())
+    const QString tail = line.mid(caretPos);
+    if (tail.trimmed().isEmpty())
+        return {};
+    // The tail already begins with its own list marker (e.g. "- a - b" split
+    // before the second dash): move it down verbatim instead of doubling the
+    // prefix into "- - b".
+    if (!listMarkerPrefix(tail).isEmpty())
         return {};
     return prefix;
 }
