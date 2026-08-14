@@ -351,7 +351,9 @@ QPair<int, int> frontMatterRange(const Model &m)
         if (opener == QLatin1Char('{') ? t.startsWith(QLatin1Char('}')) : t.startsWith(close1))
             return {1, i + 1};
     }
-    return {1, m.lines.size()};   // unterminated front matter swallows the file
+    // Unterminated delimiter is not front matter (a leading `---` is a
+    // horizontal rule) — mirrors markdownlint's frontMatter handling.
+    return {-1, -1};
 }
 
 // ---- raw-line helpers -----------------------------------------------------
@@ -372,6 +374,38 @@ bool isFrontMatterLine(const Model &m, int line /*1-based*/)
     return line >= fm.first && line <= fm.second;
 }
 
+bool isInQuote(const Model &m, int line /*1-based*/)
+{
+    for (const auto &q : m.quotes)
+        if (line >= q.first && line <= q.second)
+            return true;
+    return false;
+}
+
+bool isHeadingLine(const Model &m, int line /*1-based*/)
+{
+    for (const auto &h : m.headings)
+        if (h.line == line)
+            return true;
+    return false;
+}
+
+bool isTableLine(const Model &m, int line /*1-based*/)
+{
+    for (const auto &t : m.tables)
+        if (line >= t.begLine && line <= t.endLine)
+            return true;
+    return false;
+}
+
+bool isListItemLine(const Model &m, int line /*1-based*/)
+{
+    for (const auto &li : m.listItems)
+        if (li.line == line)
+            return true;
+    return false;
+}
+
 // ---- issue helpers --------------------------------------------------------
 
 struct RuleCtx {
@@ -382,9 +416,10 @@ struct RuleCtx {
 
 // Appends one issue, honoring enable/severity; skips lines in front matter
 // (callers opt back in per rule) and, by default, code lines (the legacy
-// MarkdownChecker only scanned checkable lines — parity).
+// MarkdownChecker only scanned checkable lines — parity). skipQuote
+// suppresses findings inside blockquote ranges.
 void emitIssue(RuleCtx &ctx, const QString &ruleId, int line /*1-based*/, int col,
-          int length, const QString &detail, bool skipCode = true)
+               int length, const QString &detail, bool skipCode = true, bool skipQuote = false)
 {
     const MdLintRule *rule = MdLintRules::byKey(ruleId);
     if (!rule || !ctx.cfg.enabled(ruleId))
@@ -392,6 +427,8 @@ void emitIssue(RuleCtx &ctx, const QString &ruleId, int line /*1-based*/, int co
     if (isFrontMatterLine(ctx.m, line))
         return;
     if (skipCode && isCodeLine(ctx.m, line))
+        return;
+    if (skipQuote && isInQuote(ctx.m, line))
         return;
     ctx.issues.append({ruleId, rule->alias, rule->description,
                        ctx.cfg.severity(ruleId), line, col, length, detail});
@@ -468,8 +505,14 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
     // ---- rules ------------------------------------------------------------
     RuleCtx ctx{c.m, config, {}};
 
-    // --- raw-line rules: MD009, MD012, MD013, MD018, MD900 (parity set) ----
+    // --- raw-line rules: MD009, MD010, MD011, MD012, MD013, MD018-MD021,
+    //     MD027, MD028, MD900 ------------------------------------------------
     static const QRegularExpression noSpaceHashRe(QStringLiteral(R"(^\#{1,6}+\S)"));
+    static const QRegularExpression tooManySpacesRe(QStringLiteral(R"(^(\#{1,6})( {2,}))"));
+    static const QRegularExpression closedNoSpaceRe(QStringLiteral(R"(^(\#{1,6}\s+.+)([^#\s])(\#+\s*)$)"));
+    static const QRegularExpression closedExtraSpaceRe(QStringLiteral(R"(^(\#{1,6}\s+.+)( {2,})(\#+\s*)$)"));
+    static const QRegularExpression quoteExtraSpaceRe(QStringLiteral(R"(^(\s{0,3}>)( {2,}))"));
+    static const QRegularExpression reversedLinkRe(QStringLiteral(R"(\(([^)]*)\)\[([^\]]*)\])"));
     static const QRegularExpression footnoteDefRe(QStringLiteral(R"(^\[\^([^\]]+)\]:)"));
     static const QRegularExpression footnoteUseRe(QStringLiteral(R"(\[\^([^\]\n]+)\])"));
     static const QRegularExpression inlineCodeRe(QStringLiteral(R"(`[^`\n]*`)"));
@@ -481,10 +524,46 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
     for (int i = 0; i < c.m.lines.size(); ++i) {
         const int line = i + 1;
         const QString &raw = c.m.lines.at(i);
+        const bool codeLine = isCodeLine(c.m, line);
+        const bool fmLine = isFrontMatterLine(c.m, line);
 
-        // Code and front-matter lines are invisible to every parity check
-        // (legacy MarkdownChecker's `checkable` rule).
-        if (isCodeLine(c.m, line) || isFrontMatterLine(c.m, line)) {
+        // MD013 — line length. Runs before the code/front-matter skip so code
+        // lines can still be measured when `code_blocks` allows it.
+        if (config.enabled(QStringLiteral("MD013")) && !fmLine) {
+            int limit = kMaxLineLength;
+            bool skip = false;
+            if (codeLine) {
+                skip = !config.param(QStringLiteral("MD013"), "code_blocks", true).toBool();
+                const int cl = config.param(QStringLiteral("MD013"), "code_block_line_length", 0).toInt();
+                if (cl > 0)
+                    limit = cl;
+            } else if (isHeadingLine(c.m, line)) {
+                skip = !config.param(QStringLiteral("MD013"), "headings", true).toBool();
+                const int hl = config.param(QStringLiteral("MD013"), "heading_line_length", 0).toInt();
+                if (hl > 0)
+                    limit = hl;
+            } else if (isTableLine(c.m, line)) {
+                skip = !config.param(QStringLiteral("MD013"), "tables", true).toBool();
+            }
+            const bool strict = config.param(QStringLiteral("MD013"), "strict", false).toBool();
+            if (!skip && raw.size() > limit
+                && (strict || !raw.endsWith(QStringLiteral("  "))))
+                emitIssue(ctx, QStringLiteral("MD013"), line, limit + 1,
+                     raw.size() - limit,
+                     QStringLiteral("Line length: %1").arg(raw.size()),
+                     /*skipCode=*/false, /*skipQuote=*/false);
+        }
+
+        // Code and front-matter lines are invisible to the remaining checks
+        // (legacy MarkdownChecker's `checkable` rule), except MD010 when
+        // `code_blocks` asks for code lines to be scanned.
+        if (fmLine || codeLine) {
+            if (codeLine && config.enabled(QStringLiteral("MD010"))
+                && !config.param(QStringLiteral("MD010"), "code_blocks", true).toBool())
+                for (int j = 0; j < raw.size(); ++j)
+                    if (raw.at(j) == QLatin1Char('\t'))
+                        emitIssue(ctx, QStringLiteral("MD010"), line, j + 1, 1,
+                             QStringLiteral("Column: %1").arg(j + 1), /*skipCode=*/false);
             blankRun = 0;
             continue;
         }
@@ -496,6 +575,11 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
             if (blankRun == maximum + 1)
                 emitIssue(ctx, QStringLiteral("MD012"), line, 1, 0,
                      QStringLiteral("Expected: %1; Actual: %2").arg(maximum).arg(blankRun));
+            // MD028 — blank line sandwiched between blockquote lines
+            if (config.enabled(QStringLiteral("MD028")) && line > 1 && line < c.m.lines.size()
+                && isInQuote(c.m, line - 1) && isInQuote(c.m, line + 1))
+                emitIssue(ctx, QStringLiteral("MD028"), line, 1, 0,
+                     QStringLiteral("Blank line inside blockquote"));
             continue;
         }
         blankRun = 0;
@@ -520,17 +604,79 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
             }
         }
 
-        // MD013 — line length
-        if (config.enabled(QStringLiteral("MD013")) && raw.size() > kMaxLineLength)
-            emitIssue(ctx, QStringLiteral("MD013"), line, kMaxLineLength + 1,
-                 raw.size() - kMaxLineLength,
-                 QStringLiteral("Line length: %1").arg(raw.size()));
+        // MD010 — hard tabs (code lines are exempt via the collector skip
+        // above unless `code_blocks` enables them)
+        if (config.enabled(QStringLiteral("MD010"))) {
+            for (int j = 0; j < raw.size(); ++j)
+                if (raw.at(j) == QLatin1Char('\t'))
+                    emitIssue(ctx, QStringLiteral("MD010"), line, j + 1, 1,
+                         QStringLiteral("Column: %1").arg(j + 1));
+        }
+
+        // MD011 — reversed link syntax, e.g. (text)[url]
+        if (config.enabled(QStringLiteral("MD011"))) {
+            QVector<QPair<int, int>> codeRanges;
+            auto cit = inlineCodeRe.globalMatch(raw);
+            while (cit.hasNext()) {
+                const auto cm = cit.next();
+                codeRanges.append({cm.capturedStart(), cm.capturedLength()});
+            }
+            auto rit = reversedLinkRe.globalMatch(raw);
+            while (rit.hasNext()) {
+                const auto rm = rit.next();
+                bool inCode = false;
+                for (const auto &r : codeRanges)
+                    if (rm.capturedStart() >= r.first && rm.capturedStart() < r.first + r.second)
+                        inCode = true;
+                if (!inCode)
+                    emitIssue(ctx, QStringLiteral("MD011"), line,
+                         static_cast<int>(rm.capturedStart() + 1),
+                         static_cast<int>(rm.capturedLength()), rm.captured(0));
+            }
+        }
 
         // MD018 — `#` heading without a space
         const auto noSpace = noSpaceHashRe.match(raw);
         if (noSpace.hasMatch())
             emitIssue(ctx, QStringLiteral("MD018"), line, 1, noSpace.capturedLength(),
                  QStringLiteral("Expected: 1 space; Actual: 0"));
+
+        // MD019 — multiple spaces after the hashes
+        const auto tooManySpaces = tooManySpacesRe.match(raw);
+        if (tooManySpaces.hasMatch())
+            emitIssue(ctx, QStringLiteral("MD019"), line,
+                 static_cast<int>(tooManySpaces.capturedStart(2) + 1),
+                 static_cast<int>(tooManySpaces.capturedLength(2)),
+                 QStringLiteral("Expected: 1 space; Actual: %1")
+                     .arg(tooManySpaces.capturedLength(2)));
+
+        // MD020 — closed atx heading with no space before the closing hashes
+        // ([^#\s] keeps the content's last char from backtracing into the
+        // closing run, so `## Title ##` stays valid)
+        const auto closedNoSpace = closedNoSpaceRe.match(raw);
+        if (closedNoSpace.hasMatch())
+            emitIssue(ctx, QStringLiteral("MD020"), line,
+                 static_cast<int>(closedNoSpace.capturedEnd(2) + 1), 1,
+                 QStringLiteral("Expected: 1 space; Actual: 0"));
+
+        // MD021 — closed atx heading with multiple spaces before the closing
+        // hashes
+        const auto closedExtraSpace = closedExtraSpaceRe.match(raw);
+        if (closedExtraSpace.hasMatch())
+            emitIssue(ctx, QStringLiteral("MD021"), line,
+                 static_cast<int>(closedExtraSpace.capturedStart(2) + 1),
+                 static_cast<int>(closedExtraSpace.capturedLength(2)),
+                 QStringLiteral("Expected: 1 space; Actual: %1")
+                     .arg(closedExtraSpace.capturedLength(2)));
+
+        // MD027 — multiple spaces after the blockquote marker
+        const auto quoteExtraSpace = quoteExtraSpaceRe.match(raw);
+        if (quoteExtraSpace.hasMatch())
+            emitIssue(ctx, QStringLiteral("MD027"), line,
+                 static_cast<int>(quoteExtraSpace.capturedStart(2) + 1),
+                 static_cast<int>(quoteExtraSpace.capturedLength(2)),
+                 QStringLiteral("Expected: 1 space; Actual: %1")
+                     .arg(quoteExtraSpace.capturedLength(2)));
 
         // MD900 — footnote definitions + usages (raw scan; inline code spans
         // excluded so `[^x]` inside backticks is not reported).
@@ -559,6 +705,32 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
             }
         }
     }
+
+    // MD014 — a `$` command line followed by another `$` command line inside a
+    // fenced block (the first command shows no output)
+    if (config.enabled(QStringLiteral("MD014"))) {
+        for (const auto &cb : c.m.codeBlocks) {
+            if (cb.indented)
+                continue;
+            for (int i = cb.begLine - 1; i < cb.endLine; ++i) {
+                const QString &l = c.m.lines.at(i);
+                if (!l.startsWith(QStringLiteral("$ ")))
+                    continue;
+                bool nextIsDollar = false;
+                for (int k = i + 1; k < cb.endLine; ++k) {
+                    if (isBlank(c.m.lines.at(k)))
+                        continue;
+                    nextIsDollar = c.m.lines.at(k).startsWith(QStringLiteral("$ "));
+                    break;
+                }
+                if (nextIsDollar)
+                    emitIssue(ctx, QStringLiteral("MD014"), i + 1, 1, 1,
+                         QStringLiteral("Dollar sign used before a command without output"),
+                         /*skipCode=*/false);
+            }
+        }
+    }
+
     if (config.enabled(QStringLiteral("MD900"))) {
         // Usages resolved by md4c (footnoteLabelsUsed) are fine; a definition
         // collected above satisfies a usage too; anything else is unmatched.
@@ -569,7 +741,7 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
         }
     }
 
-    // --- model rules: MD001, MD024 (parity set) ----------------------------
+    // --- model rules: MD001, MD022-MD026, MD024, MD029-MD032, MD035, MD047 --
     int prevLevel = 0;
     for (const auto &h : c.m.headings) {
         if (config.enabled(QStringLiteral("MD001")) && prevLevel > 0 && h.level > prevLevel + 1)
@@ -577,6 +749,48 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
                  QStringLiteral("Expected: %1; Actual: %2").arg(prevLevel + 1).arg(h.level));
         prevLevel = h.level;
     }
+
+    // MD022 — blank lines around headings
+    if (config.enabled(QStringLiteral("MD022"))) {
+        const int above = config.param(QStringLiteral("MD022"), "lines_above", 1).toInt();
+        const int below = config.param(QStringLiteral("MD022"), "lines_below", 1).toInt();
+        for (const auto &h : c.m.headings) {
+            const int bottomLine = h.setext ? h.line + 1 : h.line;
+            if (h.line > 1 && !isFrontMatterLine(c.m, h.line - 1)) {
+                int blanks = 0;
+                for (int k = h.line - 2; k >= 0 && isBlank(c.m.lines.at(k)); --k)
+                    ++blanks;
+                if (blanks < above)
+                    emitIssue(ctx, QStringLiteral("MD022"), h.line, 1, 0,
+                         QStringLiteral("Expected: %1 blank line(s) above; Actual: %2")
+                             .arg(above).arg(blanks));
+            }
+            if (bottomLine < c.m.lines.size()) {
+                int blanks = 0;
+                for (int k = bottomLine; k < c.m.lines.size() && isBlank(c.m.lines.at(k)); ++k)
+                    ++blanks;
+                if (blanks < below)
+                    emitIssue(ctx, QStringLiteral("MD022"), h.line, 1, 0,
+                         QStringLiteral("Expected: %1 blank line(s) below; Actual: %2")
+                             .arg(below).arg(blanks));
+            }
+        }
+    }
+
+    // MD023 — leading spaces on heading lines
+    if (config.enabled(QStringLiteral("MD023"))) {
+        for (const auto &h : c.m.headings) {
+            const QString &raw = c.m.lines.at(h.line - 1);
+            int n = 0;
+            while (n < raw.size() && raw.at(n) == QLatin1Char(' '))
+                ++n;
+            if (n > 0)
+                emitIssue(ctx, QStringLiteral("MD023"), h.line, 1, n,
+                     QStringLiteral("Expected: 0 spaces; Actual: %1").arg(n));
+        }
+    }
+
+    // MD024 — duplicate headings
     if (config.enabled(QStringLiteral("MD024"))) {
         QSet<QString> seen;
         for (const auto &h : c.m.headings) {
@@ -589,6 +803,228 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
             else
                 seen.insert(slug);
         }
+    }
+
+    // MD025 — multiple top-level headings (front-matter title exempt)
+    if (config.enabled(QStringLiteral("MD025"))) {
+        const int level = config.param(QStringLiteral("MD025"), "level", 1).toInt();
+        const QString fmTitle =
+            config.param(QStringLiteral("MD025"), "front_matter_title", QString()).toString();
+        bool seen = false;
+        for (const auto &h : c.m.headings) {
+            if (h.level != level)
+                continue;
+            if (!fmTitle.isEmpty() && h.text.trimmed().compare(fmTitle, Qt::CaseInsensitive) == 0)
+                continue;
+            if (seen)
+                emitIssue(ctx, QStringLiteral("MD025"), h.line, 1, 0,
+                     QStringLiteral("Multiple top-level headings in the same document"));
+            seen = true;
+        }
+    }
+
+    // MD026 — trailing punctuation on headings
+    if (config.enabled(QStringLiteral("MD026"))) {
+        const QString punct =
+            config.param(QStringLiteral("MD026"), "punctuation",
+                         QStringLiteral(".,;:!。，；：！")).toString();
+        for (const auto &h : c.m.headings) {
+            const QString content = h.text.trimmed();
+            if (content.isEmpty())
+                continue;
+            const QChar last = content.at(content.size() - 1);
+            if (!punct.contains(last))
+                continue;
+            const QString &raw = c.m.lines.at(h.line - 1);
+            const int pos = raw.lastIndexOf(content);
+            const int col = (pos >= 0 ? pos : 0) + content.size();
+            emitIssue(ctx, QStringLiteral("MD026"), h.line, col, 1,
+                 QStringLiteral("Remove trailing punctuation: %1").arg(last));
+        }
+    }
+
+    // MD029 — ordered list numbering style, grouped into runs of consecutive
+    // same-depth items
+    if (config.enabled(QStringLiteral("MD029"))) {
+        const QString style =
+            config.param(QStringLiteral("MD029"), "style", QStringLiteral("one")).toString();
+        int runIndex = 0;
+        int runDepth = -1;
+        int runPrevLine = -2;
+        for (const auto &li : c.m.listItems) {
+            if (!li.mark.isNull() || li.depth != runDepth || li.line != runPrevLine + 1) {
+                runIndex = 0;
+                runDepth = li.depth;
+            }
+            runPrevLine = li.line;
+            const QString &raw = c.m.lines.at(li.line - 1);
+            int j = 0;
+            while (j < raw.size() && raw.at(j) == QLatin1Char(' '))
+                ++j;
+            int num = 0;
+            while (j < raw.size() && raw.at(j).isDigit()) {
+                num = num * 10 + raw.at(j).digitValue();
+                ++j;
+            }
+            if (style == QLatin1String("one_or_ordered")) {
+                if (num != 1 && num != runIndex + 1)
+                    emitIssue(ctx, QStringLiteral("MD029"), li.line, 1, 0,
+                         QStringLiteral("Expected: %1 or %2; Actual: %3")
+                             .arg(1).arg(runIndex + 1).arg(num));
+            } else {
+                int expected = 1;
+                if (style == QLatin1String("zero"))
+                    expected = runIndex;
+                else if (style == QLatin1String("ordered"))
+                    expected = runIndex + 1;
+                if (num != expected)
+                    emitIssue(ctx, QStringLiteral("MD029"), li.line, 1, 0,
+                         QStringLiteral("Expected: %1; Actual: %2").arg(expected).arg(num));
+            }
+            ++runIndex;
+        }
+    }
+
+    // MD030 — spaces after the list marker
+    if (config.enabled(QStringLiteral("MD030"))) {
+        const int ulMulti = config.param(QStringLiteral("MD030"), "ul_multi", 3).toInt();
+        const int olMulti = config.param(QStringLiteral("MD030"), "ol_multi", 2).toInt();
+        for (int idx = 0; idx < c.m.listItems.size(); ++idx) {
+            const auto &li = c.m.listItems.at(idx);
+            const QString &raw = c.m.lines.at(li.line - 1);
+            int j = 0;
+            while (j < raw.size() && raw.at(j) == QLatin1Char(' '))
+                ++j;
+            const int markerStart = j;
+            if (li.mark.isNull()) {
+                while (j < raw.size() && raw.at(j).isDigit())
+                    ++j;
+                if (j < raw.size())
+                    ++j;
+            } else {
+                ++j;
+            }
+            int spaces = 0;
+            while (j < raw.size() && (raw.at(j) == QLatin1Char(' ')
+                                      || raw.at(j) == QLatin1Char('\t'))) {
+                ++spaces;
+                ++j;
+            }
+            if (spaces <= 1)
+                continue;
+            // multiline: any following line before the next item at this depth
+            // or deeper, indented to at least the content column
+            bool multiline = false;
+            const int nextLine = (idx + 1 < c.m.listItems.size()
+                                  && c.m.listItems.at(idx + 1).depth <= li.depth)
+                                     ? c.m.listItems.at(idx + 1).line
+                                     : c.m.lines.size() + 1;
+            for (int k = li.line + 1; k < nextLine; ++k) {
+                const QString &l2 = c.m.lines.at(k);
+                if (isBlank(l2))
+                    continue;
+                int ws = 0;
+                while (ws < l2.size() && l2.at(ws) == QLatin1Char(' '))
+                    ++ws;
+                if (ws >= li.contentCol - 1) {
+                    multiline = true;
+                    break;
+                }
+            }
+            const int allowed = multiline ? (li.mark.isNull() ? olMulti : ulMulti) : 1;
+            if (spaces > allowed)
+                emitIssue(ctx, QStringLiteral("MD030"), li.line, markerStart + 1, spaces,
+                     QStringLiteral("Expected: %1 space(s); Actual: %2")
+                         .arg(allowed).arg(spaces));
+        }
+    }
+
+    // MD031 — blank lines around fenced code blocks
+    if (config.enabled(QStringLiteral("MD031"))) {
+        const bool listItems = config.param(QStringLiteral("MD031"), "list_items", true).toBool();
+        for (const auto &cb : c.m.codeBlocks) {
+            if (cb.indented)
+                continue;
+            if (listItems && isListItemLine(c.m, cb.begLine))
+                continue;
+            if (cb.begLine > 1 && !isFrontMatterLine(c.m, cb.begLine - 1)
+                && !isBlank(c.m.lines.at(cb.begLine - 2)))
+                emitIssue(ctx, QStringLiteral("MD031"), cb.begLine, 1, 0,
+                     QStringLiteral("Expected: 1 blank line before; Actual: 0"),
+                     /*skipCode=*/false);
+            if (cb.endLine < c.m.lines.size() && !isBlank(c.m.lines.at(cb.endLine)))
+                emitIssue(ctx, QStringLiteral("MD031"), cb.endLine, 1, 0,
+                     QStringLiteral("Expected: 1 blank line after; Actual: 0"),
+                     /*skipCode=*/false);
+        }
+    }
+
+    // MD032 — blank lines around lists (grouped runs of same-depth items)
+    if (config.enabled(QStringLiteral("MD032"))) {
+        int g = 0;
+        while (g < c.m.listItems.size()) {
+            const int depth = c.m.listItems.at(g).depth;
+            int gEnd = g;
+            while (gEnd + 1 < c.m.listItems.size()
+                   && c.m.listItems.at(gEnd + 1).depth == depth)
+                ++gEnd;
+            const int firstLine = c.m.listItems.at(g).line;
+            const int lastLine = c.m.listItems.at(gEnd).line;
+            if (firstLine > 1 && !isFrontMatterLine(c.m, firstLine - 1)
+                && !isBlank(c.m.lines.at(firstLine - 2))
+                && !isListItemLine(c.m, firstLine - 1))
+                emitIssue(ctx, QStringLiteral("MD032"), firstLine, 1, 0,
+                     QStringLiteral("Expected: 1 blank line before; Actual: 0"));
+            if (lastLine < c.m.lines.size() && !isBlank(c.m.lines.at(lastLine))
+                && !isListItemLine(c.m, lastLine + 1))
+                emitIssue(ctx, QStringLiteral("MD032"), lastLine, 1, 0,
+                     QStringLiteral("Expected: 1 blank line after; Actual: 0"));
+            g = gEnd + 1;
+        }
+    }
+
+    // MD035 — horizontal rule marker consistency
+    if (config.enabled(QStringLiteral("MD035"))) {
+        const QString style =
+            config.param(QStringLiteral("MD035"), "style", QStringLiteral("consistent"))
+                .toString();
+        QChar consistent = QChar();
+        for (const int line : c.m.hrLines) {
+            const QString &raw = c.m.lines.at(line - 1);
+            const QString trimmed = raw.trimmed();
+            QChar marker = QChar();
+            for (int k = 0; k < trimmed.size(); ++k) {
+                const QChar ch = trimmed.at(k);
+                if (ch == QLatin1Char('-') || ch == QLatin1Char('*') || ch == QLatin1Char('_')) {
+                    marker = ch;
+                    break;
+                }
+            }
+            bool ok = false;
+            if (style == QLatin1String("consistent")) {
+                if (consistent.isNull())
+                    consistent = marker;
+                ok = marker == consistent;
+            } else {
+                const QChar want = style == QLatin1String("***")   ? QLatin1Char('*')
+                                   : style == QLatin1String("___") ? QLatin1Char('_')
+                                                                   : QLatin1Char('-');
+                ok = marker == want;
+            }
+            if (!ok)
+                emitIssue(ctx, QStringLiteral("MD035"), line, 1, raw.size(),
+                     QStringLiteral("Expected: %1; Actual: %2").arg(style, trimmed));
+        }
+    }
+
+    // MD047 — exactly one trailing newline at end of file
+    if (config.enabled(QStringLiteral("MD047"))) {
+        int n = 0;
+        for (int k = text.size() - 1; k >= 0 && text.at(k) == QLatin1Char('\n'); --k)
+            ++n;
+        if (!text.isEmpty() && n != 1)
+            emitIssue(ctx, QStringLiteral("MD047"), c.m.lines.size(), 1, 0,
+                 QStringLiteral("Expected: 1 trailing newline; Actual: %1").arg(n));
     }
 
     std::sort(ctx.issues.begin(), ctx.issues.end(), [](const MdLintIssue &a, const MdLintIssue &b) {

@@ -450,6 +450,11 @@ if(BUILD_TESTS)
     target_link_libraries(test_md_lint_structure PRIVATE scriba_core GTest::gtest_main scriba_spell)
     add_test(NAME test_md_lint_structure COMMAND ${_TEST_PREFIX} ./test_md_lint_structure)
 
+    add_executable(test_md_lint_whitespace tests/test_md_lint_whitespace.cpp)
+    target_include_directories(test_md_lint_whitespace PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_md_lint_whitespace PRIVATE scriba_core GTest::gtest_main scriba_spell)
+    add_test(NAME test_md_lint_whitespace COMMAND ${_TEST_PREFIX} ./test_md_lint_whitespace)
+
     add_executable(test_md_lint_config tests/test_md_lint_config.cpp)
     target_include_directories(test_md_lint_config PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_md_lint_config PRIVATE scriba_core GTest::gtest_main scriba_spell)
