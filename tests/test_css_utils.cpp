@@ -24,6 +24,7 @@ TEST(CssUtilsTest, EmptyInput) {
     EXPECT_TRUE(css.contains("QScrollBar"));
     EXPECT_TRUE(css.contains("#scriba-editor QScrollBar:vertical"));
     EXPECT_TRUE(css.contains("width: 16px"));
+    EXPECT_TRUE(css.contains("border-radius: 2px"));
 }
 
 TEST(CssUtilsTest, DarkThemeBackground) {

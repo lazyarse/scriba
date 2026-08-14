@@ -236,6 +236,24 @@ TEST_F(IssueSummaryPaneTest, ZeroTimeoutKeepsVisible)
     EXPECT_TRUE(m_pane->isVisible());
 }
 
+TEST_F(IssueSummaryPaneTest, BackgroundRendersSemiTransparent)
+{
+    m_pane->setRows({});
+    m_pane->resize(200, 100);
+    m_pane->show();
+    QApplication::processEvents();
+
+    ASSERT_TRUE(m_pane->isVisible());
+    const QImage img = m_pane->grab().toImage();
+    ASSERT_FALSE(img.isNull());
+    const int cx = img.width() / 2;
+    const int cy = img.height() - 4; // bottom margin, clear of text
+    ASSERT_TRUE(cy > 0 && cy < img.height());
+    const QColor px = img.pixelColor(cx, cy);
+    EXPECT_GT(px.alpha(), 200) << "the pane background must render semi-transparently";
+    EXPECT_LT(px.alpha(), 240) << "the background must not be fully opaque";
+}
+
 class IssueSummaryEditorTest : public ::testing::Test
 {
 protected:

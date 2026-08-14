@@ -226,7 +226,7 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }\n"
         "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }\n"
         "#scriba-editor QScrollBar:vertical { width: 16px; }\n"
-        "#scriba-editor QScrollBar::handle:vertical { border-radius: 3px; }\n"
+        "#scriba-editor QScrollBar::handle:vertical { border-radius: 2px; }\n"
         "QScrollBar:horizontal { background: %2; height: 12px; }\n"
         "QScrollBar::handle:horizontal { background: %4; border-radius: 6px; min-width: 30px; }\n"
         "QScrollBar::handle:horizontal:hover { background: %5; }\n"
@@ -263,7 +263,7 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         "\n"
         "::-webkit-scrollbar { width: 12px; height: 12px; }\n"
         "::-webkit-scrollbar-track { background: %2; }\n"
-        "::-webkit-scrollbar-thumb { background: %4; border-radius: 6px; }\n"
+        "::-webkit-scrollbar-thumb { background: %4; border-radius: 2px; }\n"
         "::-webkit-scrollbar-thumb:hover { background: %5; }\n"
     ).arg(
         track.name(),   // %1 — splitter handle, hover bg

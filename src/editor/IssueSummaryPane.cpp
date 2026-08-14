@@ -17,6 +17,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QToolButton>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -64,25 +65,27 @@ void IssueSummaryPane::setTheme(const QColor &background, const QColor &foregrou
 {
     m_bg = background;
     m_fg = foreground;
-    QColor bgAlpha = background;
-    bgAlpha.setAlpha(205);
     QColor hover = foreground;
     hover.setAlpha(40);
     setStyleSheet(QString(
-        "#issue-summary-pane {"
-        "  background-color: rgba(%1,%2,%3,%4);"
-        "  border: 1px solid %5;"
-        "  border-radius: 8px;"
-        "}"
-        "#issue-summary-pane QLabel { color: %6; background: transparent; }"
-        "#issue-summary-pane QToolButton { color: %6; background: transparent;"
+        "#issue-summary-pane QLabel { color: %1; background: transparent; }"
+        "#issue-summary-pane QToolButton { color: %1; background: transparent;"
         "  border: none; font-size: 11pt; }"
         "#issue-summary-pane QToolButton:hover {"
-        "  background-color: rgba(%7,%8,%9,%10); border-radius: 4px; }")
-        .arg(bgAlpha.red()).arg(bgAlpha.green()).arg(bgAlpha.blue()).arg(bgAlpha.alpha())
-        .arg(foreground.name())
+        "  background-color: rgba(%2,%3,%4,%5); border-radius: 4px; }")
         .arg(foreground.name())
         .arg(hover.red()).arg(hover.green()).arg(hover.blue()).arg(hover.alpha()));
+}
+
+void IssueSummaryPane::paintEvent(QPaintEvent *)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+    QColor bg = m_bg;
+    bg.setAlpha(205);
+    p.setPen(QPen(m_fg, 1));
+    p.setBrush(bg);
+    p.drawRoundedRect(rect(), 8, 8);
 }
 
 void IssueSummaryPane::setRows(const QVector<Row> &rows)

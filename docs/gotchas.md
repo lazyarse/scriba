@@ -931,7 +931,8 @@ colors as the editor's underlines).
   (`QScrollBar:vertical` rules in `CssUtils::buildQss`); only the marker colors
   come from the underline-color settings. The editor's vertical bar is widened
   to 16px via a scoped `#scriba-editor` rule (same buildQss string); all other
-  scrollbars stay 12px.
+  scrollbars stay 12px. Both the editor handle and the preview's
+  `::-webkit-scrollbar-thumb` use a 2px border-radius (squarer look).
 
 ## Issue Summary pane
 
@@ -948,5 +949,12 @@ colors as the editor's underlines).
   generated report/TOC tabs never show it. Dismissing it (`[x]` or timeout)
   keeps it hidden for that file until the next explicit trigger — tab switch,
   file open, or a preference re-apply — NOT on every keystroke.
+- **`paintEvent`-based background:** the pane's semi-transparent background is
+  painted in a custom `paintEvent` (rounded rect with alpha 205), not via QSS.
+  Qt ignores stylesheet `background-color` on custom `QWidget` subclasses
+  without `WA_StyledBackground`, and the combination of `WA_StyledBackground`
+  + `WA_TranslucentBackground` is unreliable across platforms. The custom
+  paintEvent approach matches the underline-overlay pattern and works
+  everywhere.
 
 
