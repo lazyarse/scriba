@@ -798,6 +798,7 @@ TEST(ChartSourceMermaid, DetectType) {
     EXPECT_EQ(ChartSource::detectMermaidType("quadrantChart"),
               ChartSource::MermaidType::Quadrant);
     EXPECT_EQ(ChartSource::detectMermaidType("sankey-beta"), ChartSource::MermaidType::Sankey);
+    EXPECT_EQ(ChartSource::detectMermaidType("radar-beta"), ChartSource::MermaidType::Radar);
     EXPECT_EQ(ChartSource::detectMermaidType("random"), ChartSource::MermaidType::Unknown);
 }
 
@@ -1242,6 +1243,52 @@ TEST(ChartSourceMermaid, Sankey) {
     EXPECT_EQ(out.type, ChartSource::MermaidType::Sankey);
     ASSERT_EQ(out.sankeyLinks.size(), 2);
     EXPECT_EQ(out.sankeyLinks[0], (QStringList{"Revenue", "Product Sales", "600"}));
+}
+
+TEST(ChartSourceMermaid, Radar) {
+    const QString diagram =
+        "radar-beta\n"
+        "  title My Radar\n"
+        "  axis speed[\"Speed\"], reliability[\"Reliability\"]\n"
+        "  curve car[\"Car\"]{6, 9}\n"
+        "  curve bike[\"Bike\"]{4, 3}\n"
+        "  showLegend true\n"
+        "  max 100\n"
+        "  min 0\n"
+        "  graticule circle\n"
+        "  ticks 5\n";
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(diagram, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Radar);
+    EXPECT_EQ(out.radarTitle, "My Radar");
+    ASSERT_EQ(out.radarAxes.size(), 2);
+    EXPECT_EQ(out.radarAxes[0], (QStringList{"speed", "Speed"}));
+    EXPECT_EQ(out.radarAxes[1], (QStringList{"reliability", "Reliability"}));
+    ASSERT_EQ(out.radarCurves.size(), 2);
+    EXPECT_EQ(out.radarCurves[0], (QStringList{"car", "Car", "6, 9"}));
+    EXPECT_EQ(out.radarCurves[1], (QStringList{"bike", "Bike", "4, 3"}));
+    EXPECT_TRUE(out.radarShowLegend);
+    EXPECT_EQ(out.radarMax, 100);
+    EXPECT_EQ(out.radarMin, 0);
+    EXPECT_EQ(out.radarGraticule, "circle");
+    EXPECT_EQ(out.radarTicks, 5);
+}
+
+TEST(ChartSourceMermaid, RadarMultipleOnOneLine) {
+    // axis and curve both accept multiple comma-separated items per line.
+    const QString diagram =
+        "radar-beta\n"
+        "  axis a[\"A\"], b[\"B\"]\n"
+        "  curve c1[\"Curve 1\"]{1, 2}, c2[\"Curve 2\"]{3, 4}\n";
+    ChartSource::MermaidData out;
+    ASSERT_TRUE(ChartSource::parseMermaid(diagram, out));
+    EXPECT_EQ(out.type, ChartSource::MermaidType::Radar);
+    ASSERT_EQ(out.radarAxes.size(), 2);
+    EXPECT_EQ(out.radarAxes[0], (QStringList{"a", "A"}));
+    EXPECT_EQ(out.radarAxes[1], (QStringList{"b", "B"}));
+    ASSERT_EQ(out.radarCurves.size(), 2);
+    EXPECT_EQ(out.radarCurves[0], (QStringList{"c1", "Curve 1", "1, 2"}));
+    EXPECT_EQ(out.radarCurves[1], (QStringList{"c2", "Curve 2", "3, 4"}));
 }
 
 TEST(ChartSourceMermaid, ClassFallsBackToRaw) {

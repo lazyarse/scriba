@@ -79,6 +79,7 @@ MermaidType detectMermaidType(const QString &rawDiagram)
         if (line.startsWith(QLatin1String("journey"))) return MermaidType::Journey;
         if (line.startsWith(QLatin1String("quadrantChart"))) return MermaidType::Quadrant;
         if (line.startsWith(QLatin1String("sankey"))) return MermaidType::Sankey;
+        if (line.startsWith(QLatin1String("radar"))) return MermaidType::Radar;
         return MermaidType::Unknown;
     }
     return MermaidType::Unknown;
@@ -776,6 +777,72 @@ static bool parseSankey(const QString &diagram, MermaidData &out)
 }
 
 // ---------------------------------------------------------------------------
+// Mermaid — Radar
+// ---------------------------------------------------------------------------
+
+static bool parseRadar(const QString &diagram, MermaidData &out)
+{
+    bool sawHeader = false;
+    for (const QString &rawLine : diagram.split('\n')) {
+        QString line = rawLine.trimmed();
+        if (line.isEmpty())
+            continue;
+        if (line.startsWith(QLatin1String("radar"))) {
+            sawHeader = true;
+            continue;
+        }
+        if (line.startsWith(QLatin1String("title "))) {
+            out.radarTitle = line.mid(6).trimmed();
+            continue;
+        }
+        // `axis id1["Label1"], id2["Label2"]` — one or more per line.
+        if (line.startsWith(QLatin1String("axis "))) {
+            static const QRegularExpression re(
+                QStringLiteral(R"(([^\s,]+)\[\"([^\"]*)\"\])"));
+            QRegularExpressionMatchIterator it = re.globalMatch(line);
+            while (it.hasNext()) {
+                const QRegularExpressionMatch m = it.next();
+                out.radarAxes.append({m.captured(1), m.captured(2)});
+            }
+            continue;
+        }
+        // `curve c1["Curve 1"]{1, 2, 3}` — one or more per line.
+        if (line.startsWith(QLatin1String("curve "))) {
+            static const QRegularExpression re(
+                QStringLiteral(R"(([^\s,]+)\[\"([^\"]*)\"\]\{([^}]*)\})"));
+            QRegularExpressionMatchIterator it = re.globalMatch(line);
+            while (it.hasNext()) {
+                const QRegularExpressionMatch m = it.next();
+                out.radarCurves.append({m.captured(1), m.captured(2), m.captured(3).trimmed()});
+            }
+            continue;
+        }
+        if (line.startsWith(QLatin1String("showLegend "))) {
+            out.radarShowLegend = line.mid(11).trimmed() == QLatin1String("true");
+            continue;
+        }
+        if (line.startsWith(QLatin1String("max "))) {
+            out.radarMax = line.mid(4).trimmed().toInt();
+            continue;
+        }
+        if (line.startsWith(QLatin1String("min "))) {
+            out.radarMin = line.mid(4).trimmed().toInt();
+            continue;
+        }
+        if (line.startsWith(QLatin1String("graticule "))) {
+            out.radarGraticule = line.mid(10).trimmed();
+            continue;
+        }
+        if (line.startsWith(QLatin1String("ticks "))) {
+            out.radarTicks = line.mid(6).trimmed().toInt();
+            continue;
+        }
+    }
+    out.parseable = sawHeader && !out.radarAxes.isEmpty() && !out.radarCurves.isEmpty();
+    return out.parseable;
+}
+
+// ---------------------------------------------------------------------------
 // Mermaid — dispatch
 // ---------------------------------------------------------------------------
 
@@ -796,6 +863,7 @@ bool parseMermaid(const QString &diagram, MermaidData &out)
     case MermaidType::Journey:    return parseJourney(diagram, out);
     case MermaidType::Quadrant:   return parseQuadrant(diagram, out);
     case MermaidType::Sankey:     return parseSankey(diagram, out);
+    case MermaidType::Radar:      return parseRadar(diagram, out);
     case MermaidType::Class:
     case MermaidType::ER:
     case MermaidType::Unknown:

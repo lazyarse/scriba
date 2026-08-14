@@ -35,7 +35,7 @@ protected:
     static QComboBox *chartTypeCombo(MermaidDialog &dlg) {
         const auto combos = dlg.findChildren<QComboBox*>();
         for (auto *c : combos)
-            if (c->count() == 14) return c;
+            if (c->count() == 15) return c;
         return nullptr;
     }
 
@@ -227,6 +227,25 @@ TEST_F(MermaidDialogTest, SankeyDiagram)
     EXPECT_TRUE(block.contains("600"));
 }
 
+TEST_F(MermaidDialogTest, RadarChart)
+{
+    MermaidDialog dlg{""};
+    selectChartType(dlg, 12);
+    QString block = dlg.mermaidBlock();
+    EXPECT_FALSE(block.isEmpty());
+    EXPECT_TRUE(block.contains("radar-beta"));
+    EXPECT_TRUE(block.contains("title My Radar"));
+    EXPECT_TRUE(block.contains("axis speed[\"Speed\"]"));
+    EXPECT_TRUE(block.contains("axis speed[\"Speed\"], reliability[\"Reliability\"], comfort[\"Comfort\"]"));
+    EXPECT_TRUE(block.contains("curve car[\"Car\"]{6, 9, 8}"));
+    EXPECT_TRUE(block.contains("curve bike[\"Bike\"]{4, 3, 6}"));
+    EXPECT_TRUE(block.contains("showLegend true"));
+    EXPECT_TRUE(block.contains("max 100"));
+    EXPECT_TRUE(block.contains("min 0"));
+    EXPECT_TRUE(block.contains("graticule circle"));
+    EXPECT_TRUE(block.contains("ticks 5"));
+}
+
 TEST_F(MermaidDialogTest, GitGraphPanelLoadsRepository)
 {
     QTemporaryDir repo;
@@ -234,7 +253,7 @@ TEST_F(MermaidDialogTest, GitGraphPanelLoadsRepository)
     ASSERT_TRUE(GitTestRepo::create(repo.path()));
 
     MermaidDialog dlg{""};
-    selectChartType(dlg, 12);
+    selectChartType(dlg, 13);
 
     const auto edits = dlg.findChildren<QLineEdit*>();
     QLineEdit *pathEdit = nullptr;
@@ -259,13 +278,13 @@ TEST_F(MermaidDialogTest, GitGraphPanelLoadsRepository)
 TEST_F(MermaidDialogTest, GitGraphPanelWithoutRepoProducesNothing)
 {
     MermaidDialog dlg{""};
-    selectChartType(dlg, 12);
+    selectChartType(dlg, 13);
     EXPECT_TRUE(dlg.mermaidBlock().isEmpty());
 }
 
 TEST_F(MermaidDialogTest, AllChartTypesProduceOutput)
 {
-    for (int i = 0; i < 12; ++i) {
+    for (int i = 0; i < 13; ++i) {
         MermaidDialog dlg{""};
         selectChartType(dlg, i);
         QString block = dlg.mermaidBlock();

@@ -432,6 +432,26 @@ sankey-beta
 
 ---
 
+## Radar Chart
+
+Multivariate data displayed as spokes around a central point, with one value
+per axis per curve.
+
+```mermaid
+radar-beta
+  title Team Skill Assessment
+  axis speed["Speed"], reliability["Reliability"], comfort["Comfort"]
+  curve car["Car"]{6, 9, 8}
+  curve bike["Bike"]{4, 3, 6}
+  showLegend true
+  max 100
+  min 0
+  graticule circle
+  ticks 5
+```
+
+---
+
 ## Architecture
 
 Software/hardware components and the edges between them.

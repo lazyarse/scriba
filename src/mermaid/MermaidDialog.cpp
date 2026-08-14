@@ -99,7 +99,7 @@
 
 namespace {
 
-constexpr int kSourcePanelIndex = 13; // index of the raw-source fallback panel
+constexpr int kSourcePanelIndex = 14; // index of the raw-source fallback panel
 
 }
 
@@ -229,6 +229,7 @@ void MermaidDialog::setupUi()
     m_chartTypeCombo->addItem(tr("User Journey"),          static_cast<int>(ChartType::Journey));
     m_chartTypeCombo->addItem(tr("Quadrant Chart"),        static_cast<int>(ChartType::Quadrant));
     m_chartTypeCombo->addItem(tr("Sankey Diagram"),        static_cast<int>(ChartType::Sankey));
+    m_chartTypeCombo->addItem(tr("Radar Chart"),            static_cast<int>(ChartType::Radar));
     m_chartTypeCombo->addItem(tr("Git Graph"),             static_cast<int>(ChartType::GitGraph));
     m_chartTypeCombo->addItem(tr("Diagram Source"),        kSourcePanelIndex);
     leftLayout->addWidget(m_chartTypeCombo);
@@ -248,10 +249,13 @@ void MermaidDialog::setupUi()
     m_panels->addWidget(createQuadrantPanel());  // 10
     m_panels->addWidget(createSankeyPanel());    // 11
 
-    // 12 — git graph panel
+    // 12 — radar panel
+    m_panels->addWidget(createRadarPanel());
+
+    // 13 — git graph panel
     m_panels->addWidget(createGitGraphPanel());
 
-    // 13 — raw-source fallback panel
+    // 14 — raw-source fallback panel
     auto *sourcePanel = new QWidget(this);
     auto *sourceLayout = new QVBoxLayout(sourcePanel);
     sourceLayout->setContentsMargins(12, 12, 12, 12);
@@ -381,6 +385,7 @@ QString MermaidDialog::buildDiagram() const
     case ChartType::Journey:    return buildJourneyDiagram();
     case ChartType::Quadrant:   return buildQuadrantDiagram();
     case ChartType::Sankey:     return buildSankeyDiagram();
+    case ChartType::Radar:      return buildRadarDiagram();
     case ChartType::GitGraph:   return buildGitGraphDiagram();
     }
     return {};
@@ -610,6 +615,30 @@ void MermaidDialog::applyPrefill(const ChartSource::MermaidData &d)
             m_sankeyTable->setItem(r, 2, new QTableWidgetItem(d.sankeyLinks[r][2]));
         }
         setChartType(static_cast<int>(ChartType::Sankey));
+        break;
+
+    case ChartSource::MermaidType::Radar:
+        if (m_radarTitle) m_radarTitle->setText(d.radarTitle);
+        m_radarAxisTable->setRowCount(d.radarAxes.size());
+        for (int r = 0; r < d.radarAxes.size(); ++r) {
+            m_radarAxisTable->setItem(r, 0, new QTableWidgetItem(d.radarAxes[r][0]));
+            m_radarAxisTable->setItem(r, 1, new QTableWidgetItem(d.radarAxes[r][1]));
+        }
+        m_radarCurveTable->setRowCount(d.radarCurves.size());
+        for (int r = 0; r < d.radarCurves.size(); ++r) {
+            m_radarCurveTable->setItem(r, 0, new QTableWidgetItem(d.radarCurves[r][0]));
+            m_radarCurveTable->setItem(r, 1, new QTableWidgetItem(d.radarCurves[r][1]));
+            m_radarCurveTable->setItem(r, 2, new QTableWidgetItem(d.radarCurves[r][2]));
+        }
+        if (m_radarShowLegend) m_radarShowLegend->setChecked(d.radarShowLegend);
+        if (m_radarMin) m_radarMin->setValue(d.radarMin);
+        if (m_radarMax) m_radarMax->setValue(d.radarMax);
+        {
+            int gi = m_radarGraticule->findData(d.radarGraticule);
+            if (gi >= 0) m_radarGraticule->setCurrentIndex(gi);
+        }
+        if (m_radarTicks) m_radarTicks->setValue(d.radarTicks);
+        setChartType(static_cast<int>(ChartType::Radar));
         break;
 
     case ChartSource::MermaidType::Class:

@@ -42,7 +42,7 @@ class MermaidDialog : public QDialog
 public:
     enum class ChartType {
         Pie, Flowchart, Sequence, Gantt, Class, ER,
-        State, Mindmap, Timeline, Journey, Quadrant, Sankey, GitGraph
+        State, Mindmap, Timeline, Journey, Quadrant, Sankey, Radar, GitGraph
     };
     Q_ENUM(ChartType)
 
@@ -81,6 +81,7 @@ private:
     QWidget *createJourneyPanel();
     QWidget *createQuadrantPanel();
     QWidget *createSankeyPanel();
+    QWidget *createRadarPanel();
     QWidget *createGitGraphPanel();
 
     QString buildPieDiagram() const;
@@ -95,6 +96,7 @@ private:
     QString buildJourneyDiagram() const;
     QString buildQuadrantDiagram() const;
     QString buildSankeyDiagram() const;
+    QString buildRadarDiagram() const;
     QString buildGitGraphDiagram() const;
     QString buildDiagram() const;
 
@@ -189,6 +191,16 @@ private:
 
     // Sankey
     QTableWidget *m_sankeyTable;
+
+    // Radar
+    QLineEdit *m_radarTitle;
+    QTableWidget *m_radarAxisTable;
+    QTableWidget *m_radarCurveTable;
+    QCheckBox *m_radarShowLegend;
+    QSpinBox *m_radarMin;
+    QSpinBox *m_radarMax;
+    QComboBox *m_radarGraticule;
+    QSpinBox *m_radarTicks;
 
     // Git Graph
     QLineEdit *m_gitRepoPath = nullptr;

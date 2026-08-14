@@ -33,7 +33,7 @@ namespace ChartSource {
 
 enum class MermaidType {
     Pie, Flowchart, Sequence, Gantt, Class, ER, State, Mindmap,
-    Timeline, Journey, Quadrant, Sankey, Unknown
+    Timeline, Journey, Quadrant, Sankey, Radar, Unknown
 };
 
 MermaidType detectMermaidType(const QString &diagram);
@@ -89,6 +89,16 @@ struct MermaidData {
 
     // Sankey
     QList<QStringList> sankeyLinks; // source, target, value
+
+    // Radar
+    QString radarTitle;
+    QList<QStringList> radarAxes;    // id, label
+    QList<QStringList> radarCurves;  // id, label, values
+    bool radarShowLegend = true;
+    int radarMin = 0;
+    int radarMax = 100;
+    QString radarGraticule = QStringLiteral("circle");
+    int radarTicks = 5;
 };
 
 bool parseMermaid(const QString &diagram, MermaidData &out);

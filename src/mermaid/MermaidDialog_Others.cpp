@@ -22,12 +22,17 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateEdit>
+#include <QHBoxLayout>
 #include <QHash>
+#include <QHeaderView>
+#include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QSpinBox>
 #include <QStringList>
 #include <QTableWidget>
 #include <QTreeWidget>
+#include <QVBoxLayout>
 #include <functional>
 
 void MermaidDialog::populateComboColumns(QTableWidget *table,
@@ -192,6 +197,153 @@ QString MermaidDialog::buildSankeyDiagram() const
         if (!src.isEmpty() && !tgt.isEmpty() && !val.isEmpty())
             out += "    " + src + "," + tgt + "," + val + "\n";
     }
+    return out;
+}
+
+QWidget *MermaidDialog::createRadarPanel()
+{
+    auto *panel = new QWidget(this);
+    auto *layout = new QVBoxLayout(panel);
+    layout->setContentsMargins(12, 12, 12, 12);
+
+    layout->addWidget(new QLabel(tr("Title:")));
+    m_radarTitle = new QLineEdit(panel);
+    m_radarTitle->setPlaceholderText("My Radar");
+    m_radarTitle->setText("My Radar");
+    layout->addWidget(m_radarTitle);
+
+    layout->addWidget(new QLabel(tr("Axes (ID, Label):")));
+    auto *axisBtnLayout = new QHBoxLayout();
+    auto *addAxisBtn = new QPushButton("+Row", panel);
+    axisBtnLayout->addWidget(addAxisBtn);
+    axisBtnLayout->addStretch();
+    layout->addLayout(axisBtnLayout);
+
+    const int axisDelCol = 2;
+    m_radarAxisTable = new QTableWidget(3, 3, panel);
+    m_radarAxisTable->setHorizontalHeaderLabels({"ID", "Label", "Del"});
+    m_radarAxisTable->setItem(0, 0, new QTableWidgetItem("speed"));
+    m_radarAxisTable->setItem(0, 1, new QTableWidgetItem("Speed"));
+    m_radarAxisTable->setItem(1, 0, new QTableWidgetItem("reliability"));
+    m_radarAxisTable->setItem(1, 1, new QTableWidgetItem("Reliability"));
+    m_radarAxisTable->setItem(2, 0, new QTableWidgetItem("comfort"));
+    m_radarAxisTable->setItem(2, 1, new QTableWidgetItem("Comfort"));
+    m_radarAxisTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_radarAxisTable->horizontalHeader()->setSectionResizeMode(axisDelCol, QHeaderView::Fixed);
+    m_radarAxisTable->setColumnWidth(axisDelCol, 32);
+    m_radarAxisTable->verticalHeader()->setDefaultSectionSize(28);
+    for (int r = 0; r < m_radarAxisTable->rowCount(); ++r)
+        addDeleteButton(m_radarAxisTable, axisDelCol, r);
+    layout->addWidget(m_radarAxisTable);
+
+    layout->addWidget(new QLabel(tr("Curves (ID, Label, Values):")));
+    auto *curveBtnLayout = new QHBoxLayout();
+    auto *addCurveBtn = new QPushButton("+Row", panel);
+    curveBtnLayout->addWidget(addCurveBtn);
+    curveBtnLayout->addStretch();
+    layout->addLayout(curveBtnLayout);
+
+    const int curveDelCol = 3;
+    m_radarCurveTable = new QTableWidget(2, 4, panel);
+    m_radarCurveTable->setHorizontalHeaderLabels({"ID", "Label", "Values", "Del"});
+    m_radarCurveTable->setItem(0, 0, new QTableWidgetItem("car"));
+    m_radarCurveTable->setItem(0, 1, new QTableWidgetItem("Car"));
+    m_radarCurveTable->setItem(0, 2, new QTableWidgetItem("6, 9, 8"));
+    m_radarCurveTable->setItem(1, 0, new QTableWidgetItem("bike"));
+    m_radarCurveTable->setItem(1, 1, new QTableWidgetItem("Bike"));
+    m_radarCurveTable->setItem(1, 2, new QTableWidgetItem("4, 3, 6"));
+    m_radarCurveTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_radarCurveTable->horizontalHeader()->setSectionResizeMode(curveDelCol, QHeaderView::Fixed);
+    m_radarCurveTable->setColumnWidth(curveDelCol, 32);
+    m_radarCurveTable->verticalHeader()->setDefaultSectionSize(28);
+    for (int r = 0; r < m_radarCurveTable->rowCount(); ++r)
+        addDeleteButton(m_radarCurveTable, curveDelCol, r);
+    layout->addWidget(m_radarCurveTable);
+
+    auto *optionsLayout = new QHBoxLayout();
+    m_radarShowLegend = new QCheckBox(tr("Show legend"), panel);
+    m_radarShowLegend->setChecked(true);
+    optionsLayout->addWidget(m_radarShowLegend);
+    optionsLayout->addWidget(new QLabel(tr("Min:")));
+    m_radarMin = new QSpinBox(panel);
+    m_radarMin->setRange(0, 100000);
+    m_radarMin->setValue(0);
+    optionsLayout->addWidget(m_radarMin);
+    optionsLayout->addWidget(new QLabel(tr("Max:")));
+    m_radarMax = new QSpinBox(panel);
+    m_radarMax->setRange(0, 1000000);
+    m_radarMax->setValue(100);
+    optionsLayout->addWidget(m_radarMax);
+    optionsLayout->addWidget(new QLabel(tr("Graticule:")));
+    m_radarGraticule = new QComboBox(panel);
+    m_radarGraticule->addItem("Circle", "circle");
+    m_radarGraticule->addItem("Polygon", "polygon");
+    optionsLayout->addWidget(m_radarGraticule);
+    optionsLayout->addWidget(new QLabel(tr("Ticks:")));
+    m_radarTicks = new QSpinBox(panel);
+    m_radarTicks->setRange(1, 20);
+    m_radarTicks->setValue(5);
+    optionsLayout->addWidget(m_radarTicks);
+    optionsLayout->addStretch();
+    layout->addLayout(optionsLayout);
+
+    layout->addStretch();
+
+    connect(m_radarTitle, &QLineEdit::textChanged, this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_radarAxisTable, &QTableWidget::itemChanged, this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_radarCurveTable, &QTableWidget::itemChanged, this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_radarShowLegend, &QCheckBox::toggled, this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_radarMin, QOverload<int>::of(&QSpinBox::valueChanged), this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_radarMax, QOverload<int>::of(&QSpinBox::valueChanged), this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_radarGraticule, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MermaidDialog::schedulePreviewUpdate);
+    connect(m_radarTicks, QOverload<int>::of(&QSpinBox::valueChanged), this, &MermaidDialog::schedulePreviewUpdate);
+    connect(addAxisBtn, &QPushButton::clicked, this, [this]() {
+        int row = m_radarAxisTable->rowCount();
+        m_radarAxisTable->insertRow(row);
+        addDeleteButton(m_radarAxisTable, axisDelCol, row);
+        schedulePreviewUpdate();
+    });
+    connect(addCurveBtn, &QPushButton::clicked, this, [this]() {
+        int row = m_radarCurveTable->rowCount();
+        m_radarCurveTable->insertRow(row);
+        addDeleteButton(m_radarCurveTable, curveDelCol, row);
+        schedulePreviewUpdate();
+    });
+
+    return panel;
+}
+
+QString MermaidDialog::buildRadarDiagram() const
+{
+    QString out = "radar-beta\n";
+    QString title = m_radarTitle->text().trimmed();
+    if (!title.isEmpty())
+        out += "  title " + title + "\n";
+
+    QStringList axisParts;
+    for (int r = 0; r < m_radarAxisTable->rowCount(); ++r) {
+        QString id = m_radarAxisTable->item(r, 0) ? m_radarAxisTable->item(r, 0)->text().trimmed() : QString();
+        QString label = m_radarAxisTable->item(r, 1) ? m_radarAxisTable->item(r, 1)->text().trimmed() : QString();
+        if (!id.isEmpty() && !label.isEmpty())
+            axisParts += id + "[\"" + label + "\"]";
+    }
+    if (!axisParts.isEmpty())
+        out += "  axis " + axisParts.join(", ") + "\n";
+
+    for (int r = 0; r < m_radarCurveTable->rowCount(); ++r) {
+        QString id = m_radarCurveTable->item(r, 0) ? m_radarCurveTable->item(r, 0)->text().trimmed() : QString();
+        QString label = m_radarCurveTable->item(r, 1) ? m_radarCurveTable->item(r, 1)->text().trimmed() : QString();
+        QString values = m_radarCurveTable->item(r, 2) ? m_radarCurveTable->item(r, 2)->text().trimmed() : QString();
+        if (!id.isEmpty() && !label.isEmpty() && !values.isEmpty())
+            out += "  curve " + id + "[\"" + label + "\"]{" + values + "}\n";
+    }
+
+    out += "  showLegend " + QString(m_radarShowLegend->isChecked() ? "true" : "false") + "\n";
+    out += "  max " + QString::number(m_radarMax->value()) + "\n";
+    out += "  min " + QString::number(m_radarMin->value()) + "\n";
+    out += "  graticule " + m_radarGraticule->currentData().toString() + "\n";
+    out += "  ticks " + QString::number(m_radarTicks->value()) + "\n";
+
     return out;
 }
 QString MermaidDialog::buildGitGraphDiagram() const

@@ -31,6 +31,7 @@ declare -A TARGETS=(
     [stock-chart-dialog]="shot_stock_chart_dialog|Stock chart builder"
     [advanced-charts]="shot_advanced_charts|Advanced Charts builder (sankey/treemap/...)"
     [mermaid-dialog]="shot_mermaid_dialog|Mermaid chart helper"
+    [mermaid-radar]="shot_mermaid_radar|Mermaid Radar helper (Radar panel)"
     [mermaid-gitgraph]="shot_mermaid_gitgraph|Mermaid Git Graph helper (loads the scriba repo)"
     [check-spelling]="shot_check_spelling|Check Spelling dialog"
     [validation-report]="shot_validation_report|Validation Report options"
@@ -42,7 +43,7 @@ declare -A TARGETS=(
 # Display order for --help rows and the full-suite run (assoc arrays don't
 # preserve insertion order).
 TARGET_ORDER=(screenshot tabbar gutter-pencil preferences table-dialog emoji-picker katex-dialog
-              mchem-dialog chart-dialog stock-chart-dialog advanced-charts mermaid-dialog mermaid-gitgraph
+              mchem-dialog chart-dialog stock-chart-dialog advanced-charts mermaid-dialog mermaid-radar mermaid-gitgraph
               check-spelling validation-report toc corpus-files print-pdf-dialog)
 
 usage() {
@@ -374,6 +375,24 @@ shot_advanced_charts() {
 # --- Mermaid chart helper (default pie chart) ---
 shot_mermaid_dialog() { open ctrl+m; capture "Mermaid Diagrams" "$OUT_DIR/mermaid-dialog.png"; }
 
+# --- Mermaid Radar helper: switch the chart-type combo to "Radar Chart"
+# (index 12): Home resets to Pie, then 12 Downs. The panel's default sample
+# axes/curves render immediately, so a short wait suffices.
+shot_mermaid_radar() {
+    open ctrl+m
+    MDG=$(waitwin "Mermaid Diagrams") || { echo "WARN: Mermaid Diagrams window not found"; return 1; }
+    sleep 1
+    xdotool key Home
+    sleep 0.3
+    for ((i = 0; i < 12; i++)); do xdotool key Down; sleep 0.05; done
+    sleep 2
+    import -window "$MDG" "$OUT_DIR/mermaid-radar.png"
+    echo "  -> $OUT_DIR/mermaid-radar.png"
+    xdotool key Escape
+    sleep 1
+    xdotool windowfocus "$WID"
+}
+
 # --- Mermaid Git Graph helper: build a small fixture repo in /tmp (fast,
 # deterministic shot) and load it into the panel. The repo-path field is
 # focused by mouse-click, NOT Tab: Tab does not land in the field, and a
@@ -406,11 +425,11 @@ shot_mermaid_gitgraph() {
     open ctrl+m
     MDG=$(waitwin "Mermaid Diagrams") || { echo "WARN: Mermaid Diagrams window not found"; return 1; }
     sleep 1
-    # Jump the chart-type combo to "Git Graph" (index 12): Home resets to Pie,
-    # then 12 Downs.
+    # Jump the chart-type combo to "Git Graph" (index 13): Home resets to Pie,
+    # then 13 Downs.
     xdotool key Home
     sleep 0.3
-    for ((i = 0; i < 12; i++)); do xdotool key Down; sleep 0.05; done
+    for ((i = 0; i < 13; i++)); do xdotool key Down; sleep 0.05; done
     sleep 0.5
     # Open the Browse file dialog (Alt+B), navigate to the fixture repo via
     # the GTK location bar (Ctrl+L), then confirm with two Returns.

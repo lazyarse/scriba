@@ -293,6 +293,26 @@ QString emitSankey(const ChartSource::MermaidData &d)
     return out;
 }
 
+QString emitRadar(const ChartSource::MermaidData &d)
+{
+    QString out = "radar-beta\n";
+    if (!d.radarTitle.isEmpty())
+        out += "  title " + d.radarTitle + "\n";
+    QStringList axisParts;
+    for (const auto &a : d.radarAxes)
+        axisParts += a.at(0) + "[\"" + a.at(1) + "\"]";
+    if (!axisParts.isEmpty())
+        out += "  axis " + axisParts.join(", ") + "\n";
+    for (const auto &c : d.radarCurves)
+        out += "  curve " + c.at(0) + "[\"" + c.at(1) + "\"]{" + c.at(2) + "}\n";
+    out += "  showLegend " + QString(d.radarShowLegend ? "true" : "false") + "\n";
+    out += "  max " + QString::number(d.radarMax) + "\n";
+    out += "  min " + QString::number(d.radarMin) + "\n";
+    out += "  graticule " + d.radarGraticule + "\n";
+    out += "  ticks " + QString::number(d.radarTicks) + "\n";
+    return out;
+}
+
 // Canonical text for a parsed (supported) diagram: parse(emit(x)) == x.
 QString canonicalMermaid(const ChartSource::MermaidData &d)
 {
@@ -307,6 +327,7 @@ QString canonicalMermaid(const ChartSource::MermaidData &d)
     case ChartSource::MermaidType::Journey:   return emitJourney(d);
     case ChartSource::MermaidType::Quadrant:  return emitQuadrant(d);
     case ChartSource::MermaidType::Sankey:    return emitSankey(d);
+    case ChartSource::MermaidType::Radar:     return emitRadar(d);
     default:                                   return QString();
     }
 }
@@ -820,6 +841,7 @@ TEST(DocsMermaid, ParsingConsistentWithDetection)
         case ChartSource::MermaidType::Journey:
         case ChartSource::MermaidType::Quadrant:
         case ChartSource::MermaidType::Sankey:
+        case ChartSource::MermaidType::Radar:
             EXPECT_TRUE(ok)
                 << "supported diagram failed to parse:\n" << block.toStdString();
             break;
@@ -1039,6 +1061,7 @@ TEST(DocsMermaid, SupportedDiagramsExtractAndRoundTrip)
         case ChartSource::MermaidType::Journey:
         case ChartSource::MermaidType::Quadrant:
         case ChartSource::MermaidType::Sankey:
+        case ChartSource::MermaidType::Radar:
             break;
         default:
             continue; // documented raw/unsupported diagrams are exercised below
