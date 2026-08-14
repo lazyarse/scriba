@@ -107,6 +107,27 @@ TEST_F(EditorTestHarness, YearAtLineStartContinuesList)
     EXPECT_EQ(text(), "2024. text\n2025. ");
 }
 
+TEST_F(EditorTestHarness, ColonDefContinuesOnEnter)
+{
+    typeLine(": def");
+    EXPECT_EQ(text(), ": def\n: ");
+    assertCursor(1, 2);
+}
+
+TEST_F(EditorTestHarness, TildeDefContinuesOnEnter)
+{
+    typeLine("~ def");
+    EXPECT_EQ(text(), "~ def\n~ ");
+    assertCursor(1, 2);
+}
+
+TEST_F(EditorTestHarness, EmptyDefLineClearsToNewline)
+{
+    typeLine(": ");
+    EXPECT_EQ(text(), "\n");
+    assertCursor(1, 0);
+}
+
 TEST_F(EditorTestHarness, OrderedListContinuesWhenPrecededByOne)
 {
     setContent("1. first\n2. second");

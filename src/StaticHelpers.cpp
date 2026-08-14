@@ -64,6 +64,12 @@ static const QRegularExpression &orderedListRe()
     return re;
 }
 
+static const QRegularExpression &definitionMarkerRe()
+{
+    static QRegularExpression re(R"(^(\s*)([:~])(?=\s|$))");
+    return re;
+}
+
 bool isThematicBreak(const QString &line)
 {
     static QRegularExpression re(R"(^\s*([-*_])(?:\s*\1){2,}\s*$)");
@@ -89,6 +95,9 @@ static QString listMarkerPrefix(const QString &line)
     if (match.hasMatch())
         return match.captured(1) + QString::number(match.captured(2).toInt() + 1)
                + match.captured(3) + " ";
+    match = definitionMarkerRe().match(line);
+    if (match.hasMatch())
+        return match.captured(1) + match.captured(2) + " ";
     return {};
 }
 
@@ -174,6 +183,9 @@ static int listIndentStep(const QString &line)
     match = orderedListRe().match(line);
     if (match.hasMatch())
         return match.captured(2).length() + match.captured(3).length() + 1;
+    match = definitionMarkerRe().match(line);
+    if (match.hasMatch())
+        return 2;
     return 0;
 }
 

@@ -445,9 +445,11 @@ bool Editor::handleTabKey(QKeyEvent *event)
 
     static const QRegularExpression unorderedRe(R"(^\s*[-*+]\s?)");
     static const QRegularExpression orderedRe(R"(^\s*\d+[.)]\s?)");
+    static const QRegularExpression definitionRe(R"(^\s*[:~]\s?)");
     auto matchUnordered = unorderedRe.match(line);
     auto matchOrdered = orderedRe.match(line);
-    bool isList = matchUnordered.hasMatch() || matchOrdered.hasMatch();
+    auto matchDefinition = definitionRe.match(line);
+    bool isList = matchUnordered.hasMatch() || matchOrdered.hasMatch() || matchDefinition.hasMatch();
 
     if (event->key() == Qt::Key_Backtab || shift) {
         if (isList) {

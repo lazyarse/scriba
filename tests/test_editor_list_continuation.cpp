@@ -111,6 +111,27 @@ TEST(ListContinuation, EmptyLineReturnsEmpty) {
     EXPECT_EQ(handleListReturn(""), QString());
 }
 
+TEST(ListContinuation, ColonDefContinues) {
+    EXPECT_EQ(handleListReturn(": def"), ": ");
+}
+
+TEST(ListContinuation, TildeDefContinues) {
+    EXPECT_EQ(handleListReturn("~ def"), "~ ");
+}
+
+TEST(ListContinuation, EmptyColonDefClears) {
+    EXPECT_EQ(handleListReturn(": "), QString(clearSentinel));
+}
+
+TEST(ListContinuation, IndentedColonDef) {
+    EXPECT_EQ(handleListReturn("  : def"), "  : ");
+}
+
+TEST(ListContinuation, CodeFenceTildeNotDef) {
+    EXPECT_EQ(handleListReturn("~~~ python"), QString());
+    EXPECT_EQ(handleListReturn("~~~"), QString());
+}
+
 TEST(IndentListLine, IndentsDash) {
     EXPECT_EQ(indentListLine("- item"), "  - item");
 }
@@ -125,6 +146,22 @@ TEST(IndentListLine, IndentsOrdered) {
 
 TEST(IndentListLine, IndentsOrderedParen) {
     EXPECT_EQ(indentListLine("1) item"), "   1) item");
+}
+
+TEST(IndentListLine, IndentsColonDef) {
+    EXPECT_EQ(indentListLine(": def"), "  : def");
+}
+
+TEST(IndentListLine, IndentsTildeDef) {
+    EXPECT_EQ(indentListLine("~ def"), "  ~ def");
+}
+
+TEST(IndentListLine, OutdentsColonDef) {
+    EXPECT_EQ(outdentListLine("  : def"), ": def");
+}
+
+TEST(IndentListLine, OutdentDoesNotGoBelowZero) {
+    EXPECT_EQ(outdentListLine(": def"), ": def");
 }
 
 TEST(IndentListLine, IndentsOrderedParenIndented) {
