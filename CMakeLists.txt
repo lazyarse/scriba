@@ -124,6 +124,7 @@ set(SCRIBA_APP_WEBENGINE_SOURCES
     src/preview/PreviewPagination.cpp src/preview/PreviewRenderWorker.cpp
     ${SCRIBA_MAINWINDOW_SOURCES}
     src/corpus/Corpus.cpp src/corpus/CorpusWatcher.cpp src/corpus/LinkFixer.cpp src/corpus/CorpusIndex.cpp
+    src/corpus/CorpusFilesPanel.cpp
     src/io/ZipReader.cpp src/io/OoxmlToHtml.cpp src/io/OoxmlConverter.cpp
     src/io/DocxImporter.cpp src/io/HtmlToMarkdown.cpp src/io/PdfImporter.cpp
     src/spell/SpellCheckDialog.cpp
@@ -394,6 +395,12 @@ if(BUILD_TESTS)
     target_include_directories(test_corpus_watcher PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_corpus_watcher PRIVATE scriba_core scriba_test_main Qt6::Test)
     add_test(NAME test_corpus_watcher COMMAND ${_TEST_PREFIX} ./test_corpus_watcher)
+
+    add_executable(test_corpus_files_panel tests/test_corpus_files_panel.cpp
+        src/corpus/CorpusFilesPanel.cpp)
+    target_include_directories(test_corpus_files_panel PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_corpus_files_panel PRIVATE scriba_core scriba_test_main Qt6::Test)
+    add_test(NAME test_corpus_files_panel COMMAND ${_TEST_PREFIX} ./test_corpus_files_panel)
 
     add_executable(test_corpus_linkfix tests/test_corpus_linkfix.cpp src/corpus/LinkFixer.cpp)
     target_include_directories(test_corpus_linkfix PRIVATE ${CMAKE_SOURCE_DIR}/src)

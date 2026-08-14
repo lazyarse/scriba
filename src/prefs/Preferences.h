@@ -38,6 +38,9 @@ namespace Preferences {
     // and aborts the corpus save / window close if the user cancels.
     constexpr const char *CorpusUnsavedDocs = "corpusUnsavedDocs";
     constexpr const char *CorpusExternalExportDirName = "corpusExternalExportDirName";
+    // Corpus Files sidecar panel (View menu). Whether the dock is shown when a
+    // corpus is open; the dock hides itself when no corpus is open.
+    constexpr const char *ShowCorpusFilesPanel = "showCorpusFilesPanel";
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *LastCursorBlock = "lastCursorBlock";

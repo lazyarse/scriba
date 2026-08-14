@@ -17,6 +17,7 @@
 #include "MainWindow.h"
 #include "editor/Editor.h"
 #include "corpus/Corpus.h"
+#include "corpus/CorpusFilesPanel.h"
 #include "corpus/CorpusIndex.h"
 #include "corpus/CorpusWatcher.h"
 #include "css/CssLoader.h"
@@ -30,6 +31,7 @@
 #include "StaticHelpers.h"
 #include "validation/ValidationReport.h"
 #include <QDir>
+#include <QDockWidget>
 #include <QCryptographicHash>
 #include <QFile>
 #include <QFileDialog>
@@ -739,8 +741,10 @@ void MainWindow::applyCorpusDictionary()
 void MainWindow::startCorpusWatcher()
 {
     stopCorpusWatcher();
-    if (!m_corpus.monitor || m_corpus.filePath.isEmpty())
+    if (!m_corpus.monitor || m_corpus.filePath.isEmpty()) {
+        updateCorpusFilesPanel();
         return;
+    }
     QSet<QString> files;
     for (const CorpusDocument &d : m_corpus.documents) {
         QString content;
@@ -760,11 +764,49 @@ void MainWindow::startCorpusWatcher()
             files.insert(target);
     }
     m_corpusWatcher->setMonitoredFiles(files.values());
+    updateCorpusFilesPanel();
 }
 
 void MainWindow::stopCorpusWatcher()
 {
     m_corpusWatcher->clear();
+    updateCorpusFilesPanel();
+}
+
+void MainWindow::updateCorpusFilesPanel()
+{
+    if (m_corpus.filePath.isEmpty()) {
+        m_corpusFilesPanel->clear();
+        m_corpusFilesDock->setVisible(false);
+        return;
+    }
+    m_corpusFilesPanel->setRootDir(m_corpus.rootDir());
+    m_corpusFilesPanel->setExcludedPath(m_corpus.filePath);
+    m_corpusFilesDock->setVisible(
+        QSettings().value(Preferences::ShowCorpusFilesPanel, true).toBool());
+}
+
+void MainWindow::onCorpusFileActivated(const QString &absPath)
+{
+    // Mirrors the preview link-click dispatch (MainWindow.cpp:140-165).
+    if (QFileInfo(absPath).suffix().compare(QLatin1String("md"), Qt::CaseInsensitive) == 0)
+        loadFile(absPath);          // focuses the existing tab when already open
+    else
+        insertCorpusResourceLink(absPath);
+}
+
+void MainWindow::insertCorpusResourceLink(const QString &absPath)
+{
+    Editor *ed = currentEditor();
+    if (!ed)
+        return;
+    const QString rel = Corpus::storedPath(m_corpus.rootDir(), absPath);
+    const QString label = QFileInfo(absPath).completeBaseName();
+    const QString text = isSafePreviewImage(absPath)
+        ? QStringLiteral("![%1](%2)").arg(label, rel)
+        : QStringLiteral("[%1](%2)").arg(label, rel);
+    ed->insertPlainText(text);
+    ed->setFocus();
 }
 
 void MainWindow::handleExternalEdit(const QString &path)

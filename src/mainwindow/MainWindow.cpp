@@ -19,6 +19,7 @@
 #include "preview/Preview.h"
 #include "preview/PreviewBridge.h"
 #include "corpus/Corpus.h"
+#include "corpus/CorpusFilesPanel.h"
 #include "corpus/CorpusWatcher.h"
 #include "css/CssConfig.h"
 #include "css/CssLoader.h"
@@ -71,6 +72,7 @@ static constexpr int kMsPerMinute = 60000;
 #include <QToolButton>
 #include <QCloseEvent>
 #include <QDesktopServices>
+#include <QDockWidget>
 #include <QTabBar>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -103,6 +105,20 @@ MainWindow::MainWindow(QWidget *parent, bool skipCorpusRestore)
             &MainWindow::handleExternalRename);
     connect(m_corpusWatcher, &CorpusWatcher::deleted, this,
             &MainWindow::handleExternalDelete);
+
+    connect(m_corpusFilesPanel, &CorpusFilesPanel::fileActivated, this,
+            &MainWindow::onCorpusFileActivated);
+    connect(m_corpusFilesPanel, &CorpusFilesPanel::insertLinkRequested, this,
+            &MainWindow::insertCorpusResourceLink);
+    connect(m_corpusFilesPanel, &CorpusFilesPanel::copyPathRequested, this,
+            [this](const QString &absPath) {
+                QApplication::clipboard()->setText(
+                    Corpus::storedPath(m_corpus.rootDir(), absPath));
+            });
+    connect(m_corpusFilesPanel, &CorpusFilesPanel::openExternalRequested, this,
+            [this](const QString &absPath) {
+                QDesktopServices::openUrl(QUrl::fromLocalFile(absPath));
+            });
 
     QFontDatabase::addApplicationFont(":/fonts/Symbola.ttf");
 
@@ -378,6 +394,13 @@ void MainWindow::setupUi()
     m_statsLabel->setAlignment(Qt::AlignCenter);
     m_statsLabel->setContentsMargins(0, 0, 0, 0);
     statusBar()->addWidget(m_statsLabel, 1);
+
+    m_corpusFilesDock = new QDockWidget(tr("Corpus Files"), this);
+    m_corpusFilesDock->setObjectName(QStringLiteral("CorpusFilesDock"));
+    m_corpusFilesPanel = new CorpusFilesPanel(m_corpusFilesDock);
+    m_corpusFilesDock->setWidget(m_corpusFilesPanel);
+    m_corpusFilesDock->setVisible(false);      // no corpus yet
+    addDockWidget(Qt::LeftDockWidgetArea, m_corpusFilesDock);
 }
 
 Editor *MainWindow::currentEditor() const

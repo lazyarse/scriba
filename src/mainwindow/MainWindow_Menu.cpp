@@ -40,6 +40,7 @@
 #include "dialogs/TableDialog.h"
 #include "validation/ValidationReport.h"
 #include <QAction>
+#include <QDockWidget>
 #include <QFontDatabase>
 #include <QInputDialog>
 #include <QMenu>
@@ -302,6 +303,16 @@ void MainWindow::buildViewMenu(QMenuBar *bar)
     addLayoutAction("&Editor", 0);
     addLayoutAction("&Preview", 3);
     syncPreviewLayout();
+
+    QAction *corpusFilesAction = viewMenu->addAction("Show Corpus &Files");
+    corpusFilesAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F));
+    corpusFilesAction->setCheckable(true);
+    corpusFilesAction->setChecked(
+        QSettings().value(Preferences::ShowCorpusFilesPanel, true).toBool());
+    connect(corpusFilesAction, &QAction::toggled, this, [this](bool checked) {
+        QSettings().setValue(Preferences::ShowCorpusFilesPanel, checked);
+        m_corpusFilesDock->setVisible(checked);
+    });
 
     viewMenu->addSeparator();
 

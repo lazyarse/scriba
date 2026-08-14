@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileDialog>
@@ -30,12 +31,15 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
+#include <QTreeView>
+#include <QDockWidget>
 
 #include <functional>
 
 #include "mainwindow/MainWindow.h"
 #include "editor/Editor.h"
 #include "corpus/Corpus.h"
+#include "corpus/CorpusFilesPanel.h"
 #include "prefs/Preferences.h"
 #include "TestConfig.h"
 
@@ -185,6 +189,34 @@ protected:
             }
         }
         FAIL() << "No action containing text: " << textSubstring.toStdString();
+    }
+
+    CorpusFilesPanel *filesPanel() const
+    {
+        return m_window->findChild<CorpusFilesPanel *>();
+    }
+
+    QDockWidget *filesDock() const
+    {
+        return m_window->findChild<QDockWidget *>(QStringLiteral("CorpusFilesDock"));
+    }
+
+    // File names shown by the corpus-files panel at its top level.
+    QStringList filesRootNames() const
+    {
+        auto *tree = filesPanel() ? filesPanel()->findChild<QTreeView *>() : nullptr;
+        if (!tree)
+            return {};
+        QAbstractItemModel *m = tree->model();
+        const QModelIndex root = tree->rootIndex();
+        QStringList names;
+        const int count = m->rowCount(root);
+        for (int i = 0; i < count; ++i) {
+            const QModelIndex idx = m->index(i, 0, root);
+            if (idx.isValid())
+                names.append(idx.data().toString());
+        }
+        return names;
     }
 
     std::unique_ptr<QTemporaryDir> m_dir;
@@ -631,6 +663,84 @@ TEST_F(CorpusWatcherIntegrationTest, NewCorpusCancelKeepsCurrentCorpus)
 
     ASSERT_EQ(tabs->count(), 2) << "cancelling New Corpus must leave the session untouched";
     EXPECT_FALSE(QFile::exists(newPath));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, FilesPanelDockHiddenWithoutCorpus)
+{
+    m_window = new MainWindow(nullptr, /*skipCorpusRestore=*/true);
+    QApplication::processEvents();
+
+    ASSERT_NE(filesPanel(), nullptr);
+    ASSERT_NE(filesDock(), nullptr);
+    EXPECT_TRUE(filesDock()->isHidden()) << "no corpus loaded, the dock stays hidden";
+}
+
+TEST_F(CorpusWatcherIntegrationTest, FilesPanelListsCorpusRootAndExcludesScriba)
+{
+    writeFile(m_root + "/doc.md", "one");
+    writeFile(m_root + "/img.png", "png");
+    ASSERT_TRUE(QDir().mkpath(m_root + "/notes"));
+    writeFile(m_root + "/notes/sub.md", "sub");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    ASSERT_NE(filesPanel(), nullptr);
+    ASSERT_NE(filesDock(), nullptr);
+    EXPECT_FALSE(filesDock()->isHidden())
+        << "opening a corpus shows the Corpus Files dock";
+    EXPECT_TRUE(waitFor([&] {
+        const QStringList names = filesRootNames();
+        return names.contains(QStringLiteral("doc.md"))
+            && names.contains(QStringLiteral("img.png"))
+            && names.contains(QStringLiteral("notes"));
+    })) << "the panel lists every file in the corpus root";
+    EXPECT_FALSE(filesRootNames().contains(QStringLiteral("corpus.scriba")))
+        << "the corpus's own .scriba is excluded from the panel";
+}
+
+TEST_F(CorpusWatcherIntegrationTest, FilesPanelDocActivationLoadsTab)
+{
+    writeFile(m_root + "/doc.md", "one");
+    writeFile(m_root + "/other.md", "other");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    auto *panel = filesPanel();
+    ASSERT_NE(panel, nullptr);
+    panel->fileActivated(m_root + "/other.md");
+    QApplication::processEvents();
+
+    EXPECT_TRUE(waitFor([&] {
+        auto *tabs = m_window->findChild<QTabBar *>();
+        if (!tabs)
+            return false;
+        for (int i = 0; i < tabs->count(); ++i) {
+            if (tabs->tabToolTip(i) == m_root + "/other.md")
+                return true;
+        }
+        return false;
+    })) << "double-clicking a .md in the panel opens it as a tab";
+    EXPECT_EQ(readFile(m_root + "/other.md"), QStringLiteral("other"));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, FilesPanelImageActivationInsertsLink)
+{
+    writeFile(m_root + "/doc.md", "one");
+    writeFile(m_root + "/img.png", "png");
+    makeCorpus({"doc.md"});
+    openCorpus();
+
+    auto *panel = filesPanel();
+    ASSERT_NE(panel, nullptr);
+    ASSERT_NE(tabEditor(0), nullptr);
+    panel->fileActivated(m_root + "/img.png");
+    QApplication::processEvents();
+
+    EXPECT_TRUE(waitFor([&] {
+        return tabEditor(0) && tabEditor(0)->toPlainText().contains(QStringLiteral("![img](img.png)"));
+    })) << "double-clicking an image in the panel inserts a relative image link";
+    EXPECT_FALSE(readFile(m_root + "/doc.md").contains(QStringLiteral("img.png")))
+        << "the inserted link must not have touched the file on disk";
 }
 
 } // namespace

@@ -53,6 +53,8 @@ class KatexHelperDialog;
 class MchemHelperDialog;
 class SpellCheckDialog;
 class CorpusWatcher;
+class CorpusFilesPanel;
+class QDockWidget;
 class PreviewRenderWorker;
 class QWebChannel;
 class QMenu;
@@ -126,6 +128,8 @@ private slots:
     void onEditorScroll();
     void toggleFullscreen();
     void togglePreview();
+    void onCorpusFileActivated(const QString &absPath);
+    void insertCorpusResourceLink(const QString &absPath);
     void updateStats();
     void showChartBuilder();
     void showStockChartBuilder();
@@ -285,6 +289,9 @@ private:
     void applyCorpusDictionary();
     void startCorpusWatcher();
     void stopCorpusWatcher();
+    // Shows/hides and re-roots the Corpus Files sidecar panel to match the
+    // current corpus lifecycle. Idempotent; called from the watcher helpers.
+    void updateCorpusFilesPanel();
     void handleExternalEdit(const QString &path);
     void handleExternalRename(const QString &from, const QString &to);
     void handleExternalDelete(const QString &path);
@@ -315,6 +322,8 @@ private:
     CssLoader *m_cssLoader;
     QFileSystemWatcher *m_cssWatcher;
     CorpusWatcher *m_corpusWatcher = nullptr;
+    CorpusFilesPanel *m_corpusFilesPanel = nullptr;
+    QDockWidget *m_corpusFilesDock = nullptr;
     QTabBar *m_tabBar;
     QStackedWidget *m_editorStack;
     QVector<TabInfo> m_tabs;
