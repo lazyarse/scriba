@@ -615,7 +615,7 @@ if(BUILD_TESTS)
         src/io/HtmlToMarkdown.cpp)
     target_include_directories(test_html_to_markdown PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_html_to_markdown
-        PRIVATE GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets scriba_resources)
+        PRIVATE GTest::gtest Qt6::Widgets Qt6::WebEngineWidgets scriba_core scriba_resources)
     add_test(NAME test_html_to_markdown COMMAND ${_TEST_PREFIX} ./test_html_to_markdown)
 
     add_executable(test_anchor_navigation tests/test_anchor_navigation.cpp)

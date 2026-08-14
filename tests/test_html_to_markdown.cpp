@@ -20,6 +20,7 @@
 
 #include "TestConfig.h"
 #include "io/HtmlToMarkdown.h"
+#include "preview/MarkdownParser.h"
 
 // Runs turndown.js in a real QWebEnginePage, so these tests exercise the
 // exact conversion path used by the app (HTML -> Markdown).
@@ -153,6 +154,55 @@ TEST(HtmlToMarkdown, MathDollarSurvives)
     const QString md = convert(
         "<p>Inline $a^2$ and display $$\\frac{a}{b}$$ both survive.</p>");
     EXPECT_EQ(norm(md), "Inline $a^2$ and display $$\\\\frac{a}{b}$$ both survive.");
+}
+
+// Definition lists round-trip to Scriba's `term\n: def` syntax (the same
+// markers MarkdownParser::toHtml emits). Structure matters here — norm()
+// would collapse the newlines — so assert on the raw trimmed output.
+static QString defConvert(const QString &html)
+{
+    return HtmlToMarkdown::convert(html).trimmed();
+}
+
+TEST(HtmlToMarkdown, DefinitionListBasic)
+{
+    EXPECT_EQ(defConvert("<dl><dt>Apple</dt><dd>A fruit.</dd></dl>"),
+              "Apple\n: A fruit.");
+}
+
+TEST(HtmlToMarkdown, DefinitionListMultipleGroups)
+{
+    // A <dt> after a <dd> starts a new term group; groups are separated by a
+    // blank line so the second term isn't swallowed as a lazy continuation.
+    EXPECT_EQ(defConvert(
+                  "<dl><dt>Apple</dt><dd>A fruit.</dd>"
+                  "<dt>Car</dt><dd>A vehicle.</dd></dl>"),
+              "Apple\n: A fruit.\n\nCar\n: A vehicle.");
+}
+
+TEST(HtmlToMarkdown, DefinitionListMultiTermMultiDef)
+{
+    EXPECT_EQ(defConvert(
+                  "<dl><dt>Term A</dt><dt>Term B</dt>"
+                  "<dd>Def one</dd><dd>Def two</dd></dl>"),
+              "Term A\nTerm B\n: Def one\n: Def two");
+}
+
+TEST(HtmlToMarkdown, DefinitionListInlineMarkup)
+{
+    EXPECT_EQ(defConvert(
+                  "<dl><dt>Apple</dt><dd>A <em>fruit</em> with "
+                  "<code>seeds</code>.</dd></dl>"),
+              "Apple\n: A *fruit* with `seeds`.");
+}
+
+TEST(HtmlToMarkdown, DefinitionListRoundTripThroughParser)
+{
+    // The <dl> HTML emitted by the renderer imports back to the same syntax.
+    const QString rendered = MarkdownParser::toHtml(
+        QStringLiteral("Apple\n: A fruit.\n\nCar\n: A vehicle."));
+    const QString md = defConvert(rendered);
+    EXPECT_EQ(md, "Apple\n: A fruit.\n\nCar\n: A vehicle.");
 }
 
 int main(int argc, char **argv)
