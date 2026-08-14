@@ -182,9 +182,9 @@ target_link_libraries(scriba_prefs PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::S
 add_executable(scriba WIN32
     src/main.cpp
     src/preview/MarkdownParser.cpp
-    src/validation/MarkdownChecker.cpp
     src/validation/MdLintRules.cpp
     src/validation/MdLintConfig.cpp
+    src/validation/MdLintEngine.cpp
     src/preview/MdRenderer.cpp
     src/preview/Typography.cpp
     src/css/CssUtils.cpp
@@ -318,9 +318,9 @@ if(BUILD_TESTS)
         src/spell/SpellChecker.cpp
         src/spell/SpellHighlighter.cpp
         src/validation/LinkValidator.cpp
-        src/validation/MarkdownChecker.cpp
         src/validation/MdLintRules.cpp
         src/validation/MdLintConfig.cpp
+        src/validation/MdLintEngine.cpp
         src/spell/GrammarChecker.cpp
         src/spell/StoppardEngine.cpp
     )
@@ -445,10 +445,10 @@ if(BUILD_TESTS)
     target_link_libraries(test_broken_links PRIVATE GTest::gtest scriba_spell Qt6::Test)
     add_test(NAME test_broken_links COMMAND ${_TEST_PREFIX} ./test_broken_links)
 
-    add_executable(test_markdown_checker tests/test_markdown_checker.cpp)
-    target_include_directories(test_markdown_checker PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(test_markdown_checker PRIVATE scriba_core GTest::gtest_main scriba_spell)
-    add_test(NAME test_markdown_checker COMMAND ${_TEST_PREFIX} ./test_markdown_checker)
+    add_executable(test_md_lint_structure tests/test_md_lint_structure.cpp)
+    target_include_directories(test_md_lint_structure PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_md_lint_structure PRIVATE scriba_core GTest::gtest_main scriba_spell)
+    add_test(NAME test_md_lint_structure COMMAND ${_TEST_PREFIX} ./test_md_lint_structure)
 
     add_executable(test_md_lint_config tests/test_md_lint_config.cpp)
     target_include_directories(test_md_lint_config PRIVATE ${CMAKE_SOURCE_DIR}/src)

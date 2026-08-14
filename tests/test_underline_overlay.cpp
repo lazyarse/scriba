@@ -236,13 +236,8 @@ TEST_F(UnderlineOverlayTest, MarkdownSubChecksGateWhichUnderlinesAppear)
 {
     QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
     // Only duplicate-heading checking on; everything else off for real time.
-    QSettings().setValue(Preferences::MarkdownCheckHeadingLevelSkip, false);
-    QSettings().setValue(Preferences::MarkdownCheckDuplicateHeading, true);
-    QSettings().setValue(Preferences::MarkdownCheckTrailingWhitespace, false);
-    QSettings().setValue(Preferences::MarkdownCheckConsecutiveBlankLines, false);
-    QSettings().setValue(Preferences::MarkdownCheckOverlongLine, false);
-    QSettings().setValue(Preferences::MarkdownCheckHashNoSpace, false);
-    QSettings().setValue(Preferences::MarkdownCheckFootnoteReference, false);
+    QSettings().setValue(Preferences::MarkdownLintConfig,
+                         QStringLiteral(R"({"default": false, "MD024": true})"));
     m_editor->recheckSpelling();
 
     // Line 1 is a duplicate heading; line 2 has trailing whitespace.

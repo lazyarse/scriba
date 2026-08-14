@@ -179,6 +179,11 @@ MdLintConfig MdLintConfig::defaults()
         cfg.m_entries.insert(r.id, seed.m_entries.value(r.id));
     }
     cfg.m_entries[QLatin1String("MD013")].params.insert(QLatin1String("line_length"), 120);
+    // Parity with the legacy MarkdownChecker: any trailing whitespace is
+    // flagged (br_spaces 0) and only runs of 3+ blank lines are reported
+    // (maximum 2), where markdownlint's own defaults are 2 and 1.
+    cfg.m_entries[QLatin1String("MD009")].params.insert(QLatin1String("br_spaces"), 0);
+    cfg.m_entries[QLatin1String("MD012")].params.insert(QLatin1String("maximum"), 2);
     return cfg;
 }
 

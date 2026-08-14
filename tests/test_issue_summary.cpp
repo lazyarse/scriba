@@ -34,7 +34,7 @@
 #include "spell/GrammarChecker.h"
 #include "spell/SpellChecker.h"
 #include "spell/SpellHighlighter.h"
-#include "validation/MarkdownChecker.h"
+#include "validation/MdLintConfig.h"
 #include "TestConfig.h"
 
 namespace {
@@ -112,7 +112,7 @@ TEST_F(IssueSummaryCountsTest, CountsSumLiveCaches)
     m_doc->documentLayout()->documentSize(); // force full layout so highlightBlock runs everywhere
     m_hl->setLinkCheckingEnabled(true);
     m_hl->setMarkdownCheckingEnabled(true);
-    m_hl->setMarkdownChecks(MarkdownChecker::defaultChecks());
+    m_hl->setMarkdownConfig(MdLintConfig::defaults());
     m_hl->setCurrentFile(m_tmp->filePath(QStringLiteral("__test__.md")));
     m_hl->refresh();
 

@@ -15,7 +15,7 @@
 #pragma once
 
 #include "GrammarChecker.h"
-#include "validation/MarkdownChecker.h"
+#include "validation/MdLintConfig.h"
 #include <QDateTime>
 #include <QHash>
 #include <QList>
@@ -142,9 +142,9 @@ public:
     // per-keystroke distraction, so like grammar it must be opted into.
     void setMarkdownCheckingEnabled(bool enabled);
     // The subset of markdown-consistency checks to underline. The checks are
-    // read from the preferences; an empty set underlines nothing. Changing
-    // them re-runs the scan so underlines follow immediately.
-    void setMarkdownChecks(const QSet<MarkdownChecker::Check> &checks);
+    // read from the preferences; an empty config underlines nothing. Changing
+    // it re-runs the scan so underlines follow immediately.
+    void setMarkdownConfig(const MdLintConfig &config);
     // The document's file path: link targets are resolved relative to its
     // directory (an empty path resolves against the current working
     // directory). Triggers a re-check so underlines follow the new base.
@@ -276,8 +276,10 @@ private:
     bool m_linkEnabled = true;
     bool m_markdownEnabled = false;
     bool m_forceSyncChecks = false;
-    // The markdown-consistency checks to underline; empty disables them all.
-    QSet<MarkdownChecker::Check> m_markdownChecks = MarkdownChecker::defaultChecks();
+    // The markdown-lint rule configuration (from preferences; the default-
+    // constructed config underlines nothing). Changing it re-runs the scan so
+    // underlines follow immediately.
+    MdLintConfig m_markdownConfig;
     // The document's file path, for resolving relative link targets.
     QString m_currentFile;
     // Base dir for relative link targets in untitled tabs (corpus root).

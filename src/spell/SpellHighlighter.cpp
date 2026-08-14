@@ -14,7 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "SpellHighlighter.h"
 #include "validation/LinkValidator.h"
-#include "validation/MarkdownChecker.h"
+#include "validation/MdLintEngine.h"
 #include "prefs/Preferences.h"
 #include "SpellChecker.h"
 #include "StaticHelpers.h"
@@ -317,9 +317,9 @@ void SpellHighlighter::setMarkdownCheckingEnabled(bool enabled)
         emit spellHitsChanged(); // clear any painted underlines
 }
 
-void SpellHighlighter::setMarkdownChecks(const QSet<MarkdownChecker::Check> &checks)
+void SpellHighlighter::setMarkdownConfig(const MdLintConfig &config)
 {
-    m_markdownChecks = checks;
+    m_markdownConfig = config;
     m_markdownHits.clear();
     if (m_markdownEnabled)
         runSpellCheck(); // recompute so underlines follow the new selection
@@ -459,14 +459,15 @@ void SpellHighlighter::runSpellCheck()
         for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next())
             lines.append(block.text());
         m_markdownHits.clear();
-        // Issue::line is 1-based and lines map 1:1 to blocks.
-        const auto mdIssues = MarkdownChecker::scan(lines.join(QLatin1Char('\n')),
-                                                    m_markdownChecks);
+        // Issue::line is 1-based and lines map 1:1 to blocks; Issue::col is
+        // 1-based and GrammarHit::start is 0-based within the block.
+        const auto mdIssues = MdLintEngine::lint(lines.join(QLatin1Char('\n')),
+                                                 m_markdownConfig);
         for (const auto &issue : mdIssues) {
             const int blockNumber = issue.line - 1;
             if (blockNumber < 0 || blockNumber >= lines.size())
                 continue;
-            m_markdownHits[blockNumber].append({issue.start, issue.length, issue.message, {}});
+            m_markdownHits[blockNumber].append({issue.col - 1, issue.length, issue.detail, {}});
         }
     }
 
