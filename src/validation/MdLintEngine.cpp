@@ -89,10 +89,12 @@ struct Model {
     QVector<int> hrLines;        // 1-based (raw scan, see collectHrs)
     QVector<QPair<int, int>> quotes;   // (begLine, endLine) 1-based (raw scan)
     QVector<QPair<int, int>> htmlBlocks; // (begLine, endLine) 1-based
+    QVector<QPair<int, int>> paragraphs; // (begByte, lastEndByte)
     QVector<Token> tokens;
     QVector<Span> spans;
     QSet<QString> footnoteLabelsUsed;  // labels of MD_SPAN_FOOTNOTE_REF
     QSet<QString> headingSlugs;        // LinkValidator::headingSlug of each heading text
+    QVector<int> altLessImgs;          // byte offset of "![" (no alt text)
     int lastByte = 0;                  // total input size
 };
 
@@ -108,6 +110,35 @@ int lineIndexOf(const Model &m, int byteOff)
 QString rawSpan(const Model &m, int begByte, int endByte)
 {
     return QString::fromUtf8(m.utf8.mid(begByte, qMax(0, endByte - begByte)));
+}
+
+// 1-based character column for a byte offset.
+int byteToCol(const Model &m, int byteOff)
+{
+    const int li = lineIndexOf(m, byteOff);
+    if (li < 0)
+        return 1;
+    const int rel = byteOff - m.lineStarts.value(li);
+    const QByteArray lineUtf8 = m.lines.at(li).toUtf8();
+    const int clamp = qMin(rel, lineUtf8.size());
+    return QString::fromUtf8(lineUtf8.left(clamp)).size() + 1;
+}
+
+// Byte range of the full source of a span, expanding past its markers:
+// left marker run (chars in `markers`) adjacent to the first token, and the
+// matching right run. Returns (-1,-1) when the span has no text tokens.
+QPair<int, int> spanSourceBytes(const Model &m, const Span &s, const char *markers)
+{
+    if (s.beg < 0 || s.end < 0)
+        return {-1, -1};
+    const QByteArray &u = m.utf8;
+    int l = s.beg;
+    int r = s.end;
+    while (l > 0 && strchr(markers, u.at(l - 1)))
+        --l;
+    while (r < u.size() && strchr(markers, u.at(r)))
+        ++r;
+    return {l, r};
 }
 
 // ---- collector ------------------------------------------------------------
@@ -133,6 +164,9 @@ struct Collector {
     };
     QVector<OpenSpan> spans;
 
+    // End of the most recent text token (anchor for alt-less image positions).
+    int lastTextEnd = 0;
+
     // List nesting depth (incremented on UL/OL enter).
     int listDepth = 0;
     // Heading nesting depth (enclosing UL/OL/QUOTE blocks).
@@ -146,6 +180,7 @@ struct Collector {
         Token tok{type, beg, static_cast<int>(size)};
         m.tokens.append(tok);
         const int end = beg + static_cast<int>(size);
+        lastTextEnd = qMax(lastTextEnd, end);
         for (auto &b : blocks) {
             if (b.begByte < 0)
                 b.begByte = beg;
@@ -293,6 +328,9 @@ struct Collector {
             if (b.begByte >= 0)
                 m.htmlBlocks.append({lineIndexOf(m, b.begByte) + 1,
                                      lineIndexOf(m, b.lastEnd) + 1});
+        } else if (type == MD_BLOCK_P) {
+            if (b.begByte >= 0)
+                m.paragraphs.append({b.begByte, b.lastEnd});
         }
     }
 
@@ -332,8 +370,16 @@ struct Collector {
         if (spans.isEmpty())
             return;
         const OpenSpan s = spans.takeLast();
-        if (s.type == type)
+        if (s.type == type) {
             m.spans.append(s.span);
+            if (type == MD_SPAN_IMG && s.span.beg < 0) {
+                // No alt text: anchor the position at the first `![` after the
+                // most recent text token (md4c gives the span no offset).
+                const int pos = m.utf8.indexOf("![", lastTextEnd);
+                if (pos >= 0)
+                    m.altLessImgs.append(pos);
+            }
+        }
     }
 };
 
@@ -1320,6 +1366,578 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
             if (t.endLine < c.m.lines.size() && !isBlank(c.m.lines.at(t.endLine)))
                 emitIssue(ctx, QStringLiteral("MD058"), t.endLine, 1, 0,
                      QStringLiteral("Expected: 1 blank line after; Actual: 0"));
+        }
+    }
+
+    // ---- reference scans (MD052/053) ------------------------------------------
+    struct RefScan {
+        QHash<QString, int> defLine;              // label -> 1-based line
+        QVector<QPair<QString, int>> uses;        // (label, 1-based line)
+    };
+    static const QRegularExpression refDefRe(QStringLiteral(R"(^\s{0,3}(?:>\s*)*\[([^\]]+)\]:)"));
+    static const QRegularExpression shortcutUseRe(
+        QStringLiteral(R"((?<!\])(?<!\[)\[([^\]\n]+)\](?!\()(?!\[))"));
+    static const QRegularExpression collapsedUseRe(QStringLiteral(R"(\[([^\]\n]+)\]\[\])"));
+    static const QRegularExpression fullUseRe(QStringLiteral(R"(\[([^\]\n]+)\]\[([^\]\n]+)\])"));
+    auto scanReferences = [&](const QString &ruleId) {
+        const bool shortcut = config.param(ruleId, "shortcut_syntax", true).toBool();
+        const bool collapsed = config.param(ruleId, "collapsed_syntax", true).toBool();
+        RefScan out;
+        for (int i = 0; i < c.m.lines.size(); ++i) {
+            if (isCodeLine(c.m, i + 1))
+                continue;
+            const QString &line = c.m.lines.at(i);
+            QVector<QPair<int, int>> codeRanges;
+            auto cit = inlineCodeRe.globalMatch(line);
+            while (cit.hasNext()) {
+                const auto cm = cit.next();
+                codeRanges.append({cm.capturedStart(), cm.capturedLength()});
+            }
+            auto inCode = [&codeRanges](int pos) {
+                for (const auto &r : codeRanges)
+                    if (pos >= r.first && pos < r.first + r.second)
+                        return true;
+                return false;
+            };
+            const auto dm = refDefRe.match(line);
+            if (dm.hasMatch() && !dm.captured(1).startsWith(QLatin1Char('^'))) {
+                const QString label = dm.captured(1).trimmed();
+                if (!label.isEmpty() && !out.defLine.contains(label))
+                    out.defLine.insert(label, i + 1);
+                continue;
+            }
+            if (shortcut) {
+                auto it = shortcutUseRe.globalMatch(line);
+                while (it.hasNext()) {
+                    const auto um = it.next();
+                    const QString label = um.captured(1).trimmed();
+                    if (!label.isEmpty() && !label.startsWith(QLatin1Char('^'))
+                        && !inCode(um.capturedStart(1)))
+                        out.uses.append({label, i + 1});
+                }
+            }
+            if (collapsed) {
+                auto it = collapsedUseRe.globalMatch(line);
+                while (it.hasNext()) {
+                    const auto um = it.next();
+                    const QString label = um.captured(1).trimmed();
+                    if (!label.isEmpty() && !label.startsWith(QLatin1Char('^'))
+                        && !inCode(um.capturedStart(1)))
+                        out.uses.append({label, i + 1});
+                }
+            }
+            {
+                auto it = fullUseRe.globalMatch(line);
+                while (it.hasNext()) {
+                    const auto um = it.next();
+                    const QString label = um.captured(2).trimmed();
+                    if (!label.isEmpty() && !label.startsWith(QLatin1Char('^'))
+                        && !inCode(um.capturedStart(2)))
+                        out.uses.append({label, i + 1});
+                }
+            }
+        }
+        return out;
+    };
+
+    // --- span/link rules: MD033-039, MD042, MD044, MD045, MD049-054, MD059
+    // MD033 — no inline HTML
+    if (config.enabled(QStringLiteral("MD033"))) {
+        const QStringList allowed =
+            config.param(QStringLiteral("MD033"), "allowed_elements", QStringList())
+                .toStringList();
+        for (const auto &t : c.m.tokens) {
+            if (t.type != MD_TEXT_HTML)
+                continue;
+            const QString text = rawSpan(c.m, t.beg, t.beg + t.len);
+            QString elem;
+            int k = 0;
+            while (k < text.size()
+                   && (text.at(k) == QLatin1Char('<') || text.at(k) == QLatin1Char('/')
+                       || text.at(k).isSpace()))
+                ++k;
+            while (k < text.size()
+                   && (text.at(k).isLetterOrNumber() || text.at(k) == QLatin1Char('-'))) {
+                elem += text.at(k).toLower();
+                ++k;
+            }
+            if (elem.isEmpty() || allowed.contains(elem))
+                continue;
+            emitIssue(ctx, QStringLiteral("MD033"), lineIndexOf(c.m, t.beg) + 1,
+                 byteToCol(c.m, t.beg), t.len, QStringLiteral("Element: %1").arg(elem));
+        }
+    }
+
+    // MD034 — bare URLs used in text
+    if (config.enabled(QStringLiteral("MD034"))) {
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_A || !s.autolink || s.beg < 0)
+                continue;
+            // `<url>` autolinks have the angle bracket right before the text;
+            // permissive autolinks (`url` bare) don't.
+            if (s.beg > 0 && c.m.utf8.at(s.beg - 1) == '<')
+                continue;
+            const QString url = rawSpan(c.m, s.beg, s.end);
+            emitIssue(ctx, QStringLiteral("MD034"), lineIndexOf(c.m, s.beg) + 1,
+                 byteToCol(c.m, s.beg), s.end - s.beg,
+                 QStringLiteral("Bare URL used: %1").arg(url));
+        }
+    }
+
+    // MD036 — emphasis used instead of a heading (a paragraph consisting of a
+    // single EM/STRONG span and nothing else)
+    if (config.enabled(QStringLiteral("MD036"))) {
+        for (const auto &p : c.m.paragraphs) {
+            const Span *only = nullptr;
+            for (const auto &s : c.m.spans)
+                if (s.beg >= p.first && s.end <= p.second) {
+                    if (only)
+                        only = nullptr;   // more than one span
+                    else if (only == nullptr)
+                        only = &s;
+                }
+            if (!only || (only->type != MD_SPAN_EM && only->type != MD_SPAN_STRONG))
+                continue;
+            bool clean = true;
+            for (const auto &t : c.m.tokens) {
+                const int tEnd = t.beg + t.len;
+                if (t.beg >= p.first && tEnd <= p.second
+                    && !(t.beg >= only->beg && tEnd <= only->end)) {
+                    clean = false;
+                    break;
+                }
+            }
+            if (!clean)
+                continue;
+            emitIssue(ctx, QStringLiteral("MD036"), lineIndexOf(c.m, only->beg) + 1,
+                 byteToCol(c.m, only->beg), only->end - only->beg,
+                 QStringLiteral("Emphasis used instead of a heading"));
+        }
+    }
+
+    // MD037 — spaces inside emphasis markers
+    if (config.enabled(QStringLiteral("MD037"))) {
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_EM && s.type != MD_SPAN_STRONG)
+                continue;
+            const auto src = spanSourceBytes(c.m, s, "*_");
+            if (src.first < 0)
+                continue;
+            const QByteArray &u = c.m.utf8;
+            int l = src.first;
+            while (l < src.second && (u.at(l) == '*' || u.at(l) == '_'))
+                ++l;
+            int r = src.second;
+            while (r > l && (u.at(r - 1) == '*' || u.at(r - 1) == '_'))
+                --r;
+            if (l >= r)
+                continue;
+            int bad = -1;
+            if (u.at(l) == QLatin1Char(' ') || u.at(l) == QLatin1Char('\t'))
+                bad = l;
+            else if (u.at(r - 1) == QLatin1Char(' ') || u.at(r - 1) == QLatin1Char('\t'))
+                bad = r - 1;
+            if (bad >= 0)
+                emitIssue(ctx, QStringLiteral("MD037"), lineIndexOf(c.m, bad) + 1,
+                     byteToCol(c.m, bad), 1,
+                     QStringLiteral("Expected: 0 spaces; Actual: 1"));
+        }
+        // Raw fallback: md4c does not parse emphasis with a space next to a
+        // marker (CommonMark), so pair up marker runs in the source text
+        // (mirrors markdownlint's bare-token pairing).
+        static const QRegularExpression markerRunRe(QStringLiteral("[*_]{1,3}"));
+        for (int i = 0; i < c.m.lines.size(); ++i) {
+            const int line = i + 1;
+            if (isCodeLine(c.m, line))
+                continue;
+            const QString &raw = c.m.lines.at(i);
+            QVector<QPair<int, int>> runs;
+            QVector<QPair<int, int>> codeSpans;
+            auto cit = inlineCodeRe.globalMatch(raw);
+            while (cit.hasNext()) {
+                const auto cm = cit.next();
+                codeSpans.append({cm.capturedStart(), cm.capturedEnd()});
+            }
+            auto mit = markerRunRe.globalMatch(raw);
+            while (mit.hasNext()) {
+                const auto m2 = mit.next();
+                bool same = true;
+                for (int k = 1; k < m2.capturedLength(); ++k)
+                    if (m2.captured(0).at(k) != m2.captured(0).at(0))
+                        same = false;
+                if (!same)
+                    continue;
+                const int r0 = m2.capturedStart();
+                bool inCode = false;
+                for (const auto &cs : codeSpans)
+                    if (r0 >= cs.first && r0 < cs.second) {
+                        inCode = true;
+                        break;
+                    }
+                if (!inCode)
+                    runs.append({r0, m2.capturedLength()});
+            }
+            int k2 = 0;
+            while (k2 + 1 < runs.size()) {
+                const int c0 = raw.at(runs[k2].first).toLatin1();
+                if (c0 != raw.at(runs[k2 + 1].first).toLatin1()) {
+                    ++k2;
+                    continue;
+                }
+                const int sEnd = runs[k2].first + runs[k2].second;
+                const int ePos = runs[k2 + 1].first;
+                if (sEnd + 1 < raw.size() && raw.at(sEnd).isSpace()
+                    && !raw.at(sEnd + 1).isSpace())
+                    emitIssue(ctx, QStringLiteral("MD037"), line, sEnd + 1, 1,
+                         QStringLiteral("Expected: 0 spaces; Actual: 1"));
+                else if (ePos >= 2 && raw.at(ePos - 1).isSpace()
+                         && !raw.at(ePos - 2).isSpace())
+                    emitIssue(ctx, QStringLiteral("MD037"), line, ePos, 1,
+                         QStringLiteral("Expected: 0 spaces; Actual: 1"));
+                k2 += 2;
+            }
+        }
+    }
+
+    // MD038 — spaces inside code spans
+    if (config.enabled(QStringLiteral("MD038"))) {
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_CODE)
+                continue;
+            const auto src = spanSourceBytes(c.m, s, "`");
+            if (src.first < 0)
+                continue;
+            const QByteArray &u = c.m.utf8;
+            // md4c strips one space from each side of the content (CommonMark
+            // code-span rule), so expand past markers AND spaces to reach the
+            // padding; only spaces sitting between marker and content count.
+            int l = src.first;
+            while (l > 0 && (u.at(l - 1) == '`' || u.at(l - 1) == ' '))
+                --l;
+            int r = src.second;
+            while (r < u.size() && (u.at(r) == '`' || u.at(r) == ' '))
+                ++r;
+            while (l < r && u.at(l) == '`')
+                ++l;
+            int padL = 0;
+            while (l < r && u.at(l) == ' ') {
+                ++padL;
+                ++l;
+            }
+            while (r > l && u.at(r - 1) == '`')
+                --r;
+            int padR = 0;
+            while (r > l && u.at(r - 1) == ' ') {
+                ++padR;
+                --r;
+            }
+            if (padL > 0 || padR > 0)
+                emitIssue(ctx, QStringLiteral("MD038"), lineIndexOf(c.m, src.first) + 1,
+                     byteToCol(c.m, padL > 0 ? l - padL : r), 1,
+                     QStringLiteral("Expected: 0 spaces; Actual: 1"));
+        }
+    }
+
+    // MD039 — spaces inside link text
+    if (config.enabled(QStringLiteral("MD039"))) {
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_A || s.autolink)
+                continue;
+            const auto src = spanSourceBytes(c.m, s, "[]");
+            if (src.first < 0)
+                continue;
+            const QByteArray &u = c.m.utf8;
+            int l = src.first;
+            while (l < src.second && u.at(l) == '[')
+                ++l;
+            int r = src.second;
+            while (r > l && u.at(r - 1) == ']')
+                --r;
+            if (l >= r)
+                continue;
+            int bad = -1;
+            if (u.at(l) == ' ' || u.at(l) == '\t')
+                bad = l;
+            else if (u.at(r - 1) == ' ' || u.at(r - 1) == '\t')
+                bad = r - 1;
+            if (bad >= 0)
+                emitIssue(ctx, QStringLiteral("MD039"), lineIndexOf(c.m, bad) + 1,
+                     byteToCol(c.m, bad), 1,
+                     QStringLiteral("Expected: 0 spaces; Actual: 1"));
+        }
+    }
+
+    // MD042 — empty link text
+    if (config.enabled(QStringLiteral("MD042"))) {
+        static const QRegularExpression emptyLinkRe(
+            QStringLiteral(R"(\[([^\]\\]|\\.)*\]\(\s*(?:<[^<>]*>|(?:[^)\\]|\\.)*)\s*\))"));
+        for (int i = 0; i < c.m.lines.size(); ++i) {
+            const int line = i + 1;
+            if (isCodeLine(c.m, line))
+                continue;
+            const QString &raw = c.m.lines.at(i);
+            QVector<QPair<int, int>> codeRanges;
+            auto cit = inlineCodeRe.globalMatch(raw);
+            while (cit.hasNext()) {
+                const auto cm = cit.next();
+                codeRanges.append({cm.capturedStart(), cm.capturedLength()});
+            }
+            auto it = emptyLinkRe.globalMatch(raw);
+            while (it.hasNext()) {
+                const auto m2 = it.next();
+                bool inCode = false;
+                for (const auto &r : codeRanges)
+                    if (m2.capturedStart() >= r.first && m2.capturedStart() < r.first + r.second)
+                        inCode = true;
+                if (inCode)
+                    continue;
+                bool empty = true;
+                for (int k = m2.capturedStart(1); k < m2.capturedEnd(1); ++k)
+                    if (!raw.at(k).isSpace()) {
+                        empty = false;
+                        break;
+                    }
+                if (empty)
+                    emitIssue(ctx, QStringLiteral("MD042"), line,
+                         static_cast<int>(m2.capturedStart() + 1),
+                         static_cast<int>(m2.capturedLength()),
+                         QStringLiteral("Empty link"));
+            }
+        }
+    }
+
+    // MD044 — proper names
+    if (config.enabled(QStringLiteral("MD044"))) {
+        const QStringList names =
+            config.param(QStringLiteral("MD044"), "names", QStringList()).toStringList();
+        const bool codeBlocks =
+            config.param(QStringLiteral("MD044"), "code_blocks", true).toBool();
+        const bool htmlElements =
+            config.param(QStringLiteral("MD044"), "html_elements", true).toBool();
+        auto inHtmlBlock = [&c](int line /*1-based*/) {
+            for (const auto &h : c.m.htmlBlocks)
+                if (line >= h.first && line <= h.second)
+                    return true;
+            return false;
+        };
+        for (int i = 0; i < c.m.lines.size(); ++i) {
+            const int line = i + 1;
+            if (codeBlocks && isCodeLine(c.m, line))
+                continue;
+            if (htmlElements && inHtmlBlock(line))
+                continue;
+            QString scan = c.m.lines.at(i);
+            if (codeBlocks) {
+                auto cit = inlineCodeRe.globalMatch(scan);
+                while (cit.hasNext()) {
+                    const auto cm = cit.next();
+                    for (int k = cm.capturedStart(); k < cm.capturedEnd(); ++k)
+                        scan[k] = QLatin1Char(' ');
+                }
+            }
+            for (const auto &name : names) {
+                const QRegularExpression re(
+                    QStringLiteral("\\b%1\\b").arg(QRegularExpression::escape(name)),
+                    QRegularExpression::CaseInsensitiveOption);
+                auto it = re.globalMatch(scan);
+                while (it.hasNext()) {
+                    const auto m2 = it.next();
+                    if (m2.captured(0) == name)
+                        continue;
+                    emitIssue(ctx, QStringLiteral("MD044"), line,
+                         static_cast<int>(m2.capturedStart() + 1),
+                         static_cast<int>(m2.capturedLength()),
+                         QStringLiteral("Expected: %1; Actual: %2").arg(name, m2.captured(0)));
+                }
+            }
+        }
+    }
+
+    // MD045 — images should have alternate text
+    if (config.enabled(QStringLiteral("MD045"))) {
+        for (const int pos : c.m.altLessImgs)
+            emitIssue(ctx, QStringLiteral("MD045"), lineIndexOf(c.m, pos) + 1,
+                 byteToCol(c.m, pos), 2,
+                 QStringLiteral("Images should have alternate text"));
+    }
+
+    // MD049/MD050 — emphasis / strong marker style
+    if (config.enabled(QStringLiteral("MD049"))
+        || config.enabled(QStringLiteral("MD050"))) {
+        QChar firstEm, firstStrong;
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_EM && s.type != MD_SPAN_STRONG)
+                continue;
+            const auto src = spanSourceBytes(c.m, s, "*_");
+            if (src.first < 0)
+                continue;
+            const QChar marker = QChar(c.m.utf8.at(src.first));
+            const QString ruleId = s.type == MD_SPAN_EM ? QStringLiteral("MD049")
+                                                        : QStringLiteral("MD050");
+            if (!config.enabled(ruleId))
+                continue;
+            QChar &first = s.type == MD_SPAN_EM ? firstEm : firstStrong;
+            if (first.isNull())
+                first = marker;
+            const QString style =
+                config.param(ruleId, "style", QStringLiteral("consistent")).toString();
+            QChar expected;
+            if (style == QLatin1String("asterisk"))
+                expected = QLatin1Char('*');
+            else if (style == QLatin1String("underscore"))
+                expected = QLatin1Char('_');
+            else
+                expected = first;
+            if (marker != expected)
+                emitIssue(ctx, ruleId, lineIndexOf(c.m, src.first) + 1,
+                     byteToCol(c.m, src.first), 1,
+                     QStringLiteral("Expected: %1; Actual: %2").arg(expected, marker));
+        }
+    }
+
+    // MD051 — link fragments should point to an existing heading
+    if (config.enabled(QStringLiteral("MD051"))) {
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_A || !s.href.startsWith(QLatin1Char('#')) || s.beg < 0)
+                continue;
+            const QString frag = s.href.mid(1);
+            if (frag.isEmpty() || c.m.headingSlugs.contains(frag))
+                continue;
+            emitIssue(ctx, QStringLiteral("MD051"), lineIndexOf(c.m, s.beg) + 1,
+                 byteToCol(c.m, s.beg), s.end - s.beg,
+                 QStringLiteral("Link fragment not found: #%1").arg(frag));
+        }
+    }
+
+    // MD052 — missing reference links/images
+    if (config.enabled(QStringLiteral("MD052"))) {
+        const RefScan scan = scanReferences(QStringLiteral("MD052"));
+        for (const auto &use : scan.uses)
+            if (!scan.defLine.contains(use.first))
+                emitIssue(ctx, QStringLiteral("MD052"), use.second, 1, 0,
+                     QStringLiteral("Missing reference: %1").arg(use.first));
+    }
+
+    // MD053 — unused link/image reference definitions
+    if (config.enabled(QStringLiteral("MD053"))) {
+        const RefScan scan = scanReferences(QStringLiteral("MD053"));
+        for (auto it = scan.defLine.constBegin(); it != scan.defLine.constEnd(); ++it) {
+            bool used = false;
+            for (const auto &use : scan.uses)
+                if (use.first == it.key()) {
+                    used = true;
+                    break;
+                }
+            if (!used)
+                emitIssue(ctx, QStringLiteral("MD053"), it.value(), 1, 0,
+                     QStringLiteral("Definition is not used: %1").arg(it.key()));
+        }
+    }
+
+    // MD054 — link/image style
+    if (config.enabled(QStringLiteral("MD054"))) {
+        const QString style =
+            config.param(QStringLiteral("MD054"), "style", QStringLiteral("consistent"))
+                .toString();
+        QString consistent;
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_A && s.type != MD_SPAN_IMG)
+                continue;
+            if (s.beg < 0)
+                continue;
+            QString actual;
+            const auto src = spanSourceBytes(c.m, s, "[]");
+            if (s.autolink)
+                actual = QStringLiteral("autolink");
+            else if (src.first >= 0) {
+                const int after = src.second;
+                if (after < c.m.utf8.size()) {
+                    const char ch = c.m.utf8.at(after);
+                    if (ch == '(')
+                        actual = QStringLiteral("inlined");
+                    else if (ch == '[')
+                        actual = QStringLiteral("full");
+                    else if (ch == ']')
+                        actual = QStringLiteral("collapsed");
+                }
+                if (actual.isEmpty())
+                    actual = QStringLiteral("shortcut");
+            }
+            if (actual.isEmpty())
+                continue;
+            if (consistent.isEmpty())
+                consistent = actual;
+            const QString expected =
+                style == QLatin1String("consistent") ? consistent : style;
+            if (actual != expected)
+                emitIssue(ctx, QStringLiteral("MD054"), lineIndexOf(c.m, s.beg) + 1,
+                     byteToCol(c.m, s.beg), s.end - s.beg,
+                     QStringLiteral("Expected: %1; Actual: %2").arg(expected, actual));
+        }
+        // Raw fallback: md4c leaves unresolved shortcut references as plain
+        // text, so scan the source for bracket groups that are not part of a
+        // parsed link and classify them as shortcut style.
+        static const QRegularExpression bracketGroupRe(
+            QStringLiteral(R"((?<!\])(?<!\[)\[[^\]\n]+\](?!\()(?!\[))"));
+        QVector<QPair<int, int>> spanSources;
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_A && s.type != MD_SPAN_IMG)
+                continue;
+            if (s.beg < 0)
+                continue;
+            const auto src = spanSourceBytes(c.m, s, "[]");
+            if (src.first >= 0)
+                spanSources.append(src);
+        }
+        for (int i = 0; i < c.m.lines.size(); ++i) {
+            const QString &raw = c.m.lines.at(i);
+            auto bit = bracketGroupRe.globalMatch(raw);
+            while (bit.hasNext()) {
+                const auto bm = bit.next();
+                const int b0 = bm.capturedStart() + c.m.lineStarts.value(i);
+                const int b1 = bm.capturedEnd() + c.m.lineStarts.value(i);
+                bool inSpan = false;
+                for (const auto &sr : spanSources)
+                    if (b0 >= sr.first && b1 <= sr.second) {
+                        inSpan = true;
+                        break;
+                    }
+                if (inSpan)
+                    continue;
+                if (consistent.isEmpty())
+                    consistent = QStringLiteral("shortcut");
+                const QString expected =
+                    style == QLatin1String("consistent") ? consistent : style;
+                if (expected != QLatin1String("shortcut"))
+                    emitIssue(ctx, QStringLiteral("MD054"), i + 1,
+                         bm.capturedStart() + 1, bm.capturedLength(),
+                         QStringLiteral("Expected: %1; Actual: %2")
+                             .arg(expected, QStringLiteral("shortcut")));
+            }
+        }
+    }
+
+    // MD059 — descriptive link text
+    if (config.enabled(QStringLiteral("MD059"))) {
+        const QString test =
+            config.param(QStringLiteral("MD059"), "test", QStringLiteral("markdownlint"))
+                .toString();
+        static const QStringList weak{QStringLiteral("here"), QStringLiteral("click here"),
+                                      QStringLiteral("link"), QStringLiteral("this"),
+                                      QStringLiteral("this link"), QStringLiteral("this page")};
+        static const QStringList weakGithub{QStringLiteral("click"), QStringLiteral("here"),
+                                            QStringLiteral("more"), QStringLiteral("read more")};
+        for (const auto &s : c.m.spans) {
+            if (s.type != MD_SPAN_A || s.beg < 0)
+                continue;
+            const QString text = rawSpan(c.m, s.beg, s.end).trimmed();
+            bool hit = weak.contains(text, Qt::CaseInsensitive);
+            if (!hit && test == QLatin1String("markdownlint-github"))
+                hit = weakGithub.contains(text, Qt::CaseInsensitive);
+            if (hit)
+                emitIssue(ctx, QStringLiteral("MD059"), lineIndexOf(c.m, s.beg) + 1,
+                     byteToCol(c.m, s.beg), s.end - s.beg,
+                     QStringLiteral("Link text is not descriptive"));
         }
     }
 
