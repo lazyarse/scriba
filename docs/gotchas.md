@@ -953,9 +953,12 @@ colors as the editor's underlines).
   later repaint (scroll, tab-away-and-back). The debounce sidesteps that: by
   the time it fires, the counts are final and the show paints correctly, so
   the pane also never flashes all-zero counts.
-- The pane is shown for `.md` files only (suffix check in
-  `Editor::isMarkdownFile()`); untitled tabs, corpus-embedded docs and
-  generated report/TOC tabs never show it. Dismissing it (`[x]` or timeout)
+- The pane is shown for markdown content only (`Editor::isMarkdownFile()`):
+  files with `.md`, `.markdown` or `.txt` suffixes (the same suffix set as
+  the app's open filter) and untitled tabs (empty path — new docs and
+  corpus-embedded documents are markdown by construction; the app's save
+  dialogs default to `.md`). Only genuinely non-markdown files (e.g. `.rtf`
+  opened via "All Files") never show it. Dismissing it (`[x]` or timeout)
   keeps it hidden for that file until the next explicit trigger — tab switch,
   file open, or a preference re-apply — NOT on every keystroke.
 - **`paintEvent`-based background:** the pane's semi-transparent background is
