@@ -64,7 +64,6 @@ IssueSummaryPane::IssueSummaryPane(QWidget *parent)
 void IssueSummaryPane::setTheme(const QColor &background, const QColor &foreground)
 {
     m_bg = background;
-    m_fg = foreground;
     QColor hover = foreground;
     hover.setAlpha(40);
     setStyleSheet(QString(
@@ -80,12 +79,9 @@ void IssueSummaryPane::setTheme(const QColor &background, const QColor &foregrou
 void IssueSummaryPane::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
-    p.setRenderHint(QPainter::Antialiasing);
     QColor bg = m_bg;
     bg.setAlpha(205);
-    p.setPen(QPen(m_fg, 1));
-    p.setBrush(bg);
-    p.drawRoundedRect(rect(), 8, 8);
+    p.fillRect(rect(), bg);
 }
 
 void IssueSummaryPane::setRows(const QVector<Row> &rows)

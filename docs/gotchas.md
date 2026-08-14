@@ -950,11 +950,11 @@ colors as the editor's underlines).
   keeps it hidden for that file until the next explicit trigger — tab switch,
   file open, or a preference re-apply — NOT on every keystroke.
 - **`paintEvent`-based background:** the pane's semi-transparent background is
-  painted in a custom `paintEvent` (rounded rect with alpha 205), not via QSS.
-  Qt ignores stylesheet `background-color` on custom `QWidget` subclasses
-  without `WA_StyledBackground`, and the combination of `WA_StyledBackground`
-  + `WA_TranslucentBackground` is unreliable across platforms. The custom
-  paintEvent approach matches the underline-overlay pattern and works
-  everywhere.
+  painted in a custom `paintEvent` (plain `fillRect` with alpha 205, square
+  corners, no border), not via QSS. Qt ignores stylesheet `background-color` on
+  custom `QWidget` subclasses without `WA_StyledBackground`, and the
+  combination of `WA_StyledBackground` + `WA_TranslucentBackground` is
+  unreliable across platforms. The custom paintEvent approach matches the
+  underline-overlay pattern and works everywhere.
 
 

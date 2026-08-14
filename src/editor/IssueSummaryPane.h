@@ -68,7 +68,6 @@ private:
 
     QVector<Row> m_rows;
     QColor m_bg = QColor(QStringLiteral("#ffffff"));
-    QColor m_fg = QColor(QStringLiteral("#333333"));
     QToolButton *m_closeBtn = nullptr;
     QTimer *m_timer = nullptr;
     QVBoxLayout *m_rowsLayout = nullptr;
