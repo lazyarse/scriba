@@ -26,6 +26,9 @@ class LinkFixer
 public:
     // Raw link destination strings (for tests / counting).
     static QStringList linkTargets(const QString &source);
+    // Absolute, cleaned paths of every destination referenced by source,
+    // resolved against docDir (fragments and remote/data schemes dropped).
+    static QStringList resolvedLinkTargets(const QString &source, const QString &docDir);
     // Rewrites destinations resolving to oldAbs into the relative spelling of
     // newAbs (from docDir). Angle-bracket autolinks stay angle-bracketed.
     static QString rewrite(const QString &source, const QString &docDir,

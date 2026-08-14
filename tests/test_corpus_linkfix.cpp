@@ -128,4 +128,31 @@ TEST_F(LinkFixerTest, LinkTargetsCollectsRawDestinations)
               QStringList({"target.md", "image.png", "def.md", "autolink.md", "https://x.md"}));
 }
 
+TEST_F(LinkFixerTest, ResolvedLinkTargetsCollectsAbsolutePaths)
+{
+    const QString src = QStringLiteral(
+        "See [a](target.md) and ![i](image.png).\n"
+        "[ref]: def.md\n"
+        "<autolink.md> also <https://x.md>\n");
+    EXPECT_EQ(LinkFixer::resolvedLinkTargets(src, m_base),
+              QStringList({m_base + "/target.md", m_base + "/image.png",
+                           m_base + "/def.md", m_base + "/autolink.md"}));
+}
+
+TEST_F(LinkFixerTest, ResolvedLinkTargetsSkipsFragmentsSchemesAndAnchors)
+{
+    const QString src = QStringLiteral(
+        "Same [file](old.md#heading) anchor and [jump](#local).\n"
+        "[web](https://example.com/old.md) [data](data:text/plain,hi)\n");
+    const QStringList out = LinkFixer::resolvedLinkTargets(src, m_base);
+    EXPECT_EQ(out, QStringList({m_base + "/old.md"}));
+}
+
+TEST_F(LinkFixerTest, ResolvedLinkTargetsNormalizesDotDot)
+{
+    const QString src = QStringLiteral("[up](../shared.md)");
+    EXPECT_EQ(LinkFixer::resolvedLinkTargets(src, m_base + "/sub"),
+              QStringList({m_base + "/shared.md"}));
+}
+
 } // namespace

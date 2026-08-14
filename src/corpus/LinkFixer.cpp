@@ -68,6 +68,34 @@ QStringList LinkFixer::linkTargets(const QString &source)
     return out;
 }
 
+QStringList LinkFixer::resolvedLinkTargets(const QString &source, const QString &docDir)
+{
+    QStringList out;
+    static const QRegularExpression inlineLink(
+        R"((?m)(?<!\!)\[[^\]]*\]\s*\(\s*([^\s)\]]+))");
+    static const QRegularExpression imageLink(
+        R"((?m)!\[[^\]]*\]\s*\(\s*([^\s)\]]+))");
+    static const QRegularExpression refDef(
+        R"((?m)^\[[^\]]*\]:\s*([^\s<]+))");
+    static const QRegularExpression angleLink(
+        R"(<((?:[^">\s]*\.md|\.md[^">\s]*))>)");
+    for (const auto &re : {inlineLink, imageLink, refDef, angleLink}) {
+        for (const QRegularExpressionMatch &m : re.globalMatch(source)) {
+            QString raw = m.captured(1);
+            const qsizetype hash = raw.indexOf(QLatin1Char('#'));
+            if (hash >= 0)
+                raw = raw.left(hash);          // "doc.md#heading" -> "doc.md"
+            const QString resolved = resolvedTarget(raw, docDir);
+            if (resolved.isEmpty())
+                continue;
+            const QString cleaned = QDir::cleanPath(resolved);
+            if (!out.contains(cleaned))
+                out.append(cleaned);
+        }
+    }
+    return out;
+}
+
 QString LinkFixer::rewrite(const QString &source, const QString &docDir,
                            const QString &oldAbs, const QString &newAbs)
 {
