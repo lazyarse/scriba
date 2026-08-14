@@ -94,6 +94,17 @@ blockquote {
     page-break-inside: avoid;
 }
 
+dl {
+    margin: 1em 0;
+    page-break-inside: avoid;
+}
+dt {
+    font-weight: bold;
+}
+dd {
+    margin: 0 0 0.5em 1.5em;
+}
+
 table {
     border-collapse: collapse;
     width: 100%;
