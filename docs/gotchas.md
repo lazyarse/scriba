@@ -638,6 +638,36 @@ dialog runs first and the dirty-tab prompt gates the destructive path, so
 cancelling aborts before anything is touched — the old corpus file is never
 written to.
 
+## Definition lists (`MD_FLAG_DEFINITIONLISTS`)
+
+Definition lists are a vendored md4c extension (patch
+`vendor/md4c/patches/definition-lists.patch`): a term paragraph directly
+followed (no blank line) by `: ` / `~ ` lines becomes `<dl><dt>…</dt><dd>…</dd></dl>`
+in the preview, print, and DOCX export. The editor auto-continues `: `/`~ `
+lines on Enter and indents/outdents them with Tab. Constraints and spec-correct
+behavior worth remembering:
+
+- The **term must start a fresh paragraph**: if the previous block is a
+  paragraph and there's no blank line before the term, the term lazy-continues
+  the previous paragraph and no `<dl>` forms. Put a blank line before the term
+  when it follows text.
+- A blank line between the term and the `: ` line makes the `: ` line a
+  **literal paragraph** (spec-correct per CommonMark — the marker is only
+  recognized on a line directly following the term). Similarly a `: `/`~ `
+  line with no term at all is a literal paragraph.
+- **Every** line between the term start and the first definition becomes a
+  `<dt>` (multi-term lists). A line you intended as a separate paragraph inside
+  the term is also a `<dt>`.
+- A 4-space-indented line inside a `<dd>` starts an **indented code block**
+  (CommonMark indented-code rule) — an intentional limitation.
+- Marker is `:` or `~` plus up to 4 spaces, recognized only when
+  `MD_FLAG_DEFINITIONLISTS` is on (Scriba enables it always). A `~~~` fenced
+  code fence wins over the `~` definition marker (checked earlier in
+  `md_analyze_line`), and the editor's def-marker regex requires whitespace
+  after `:`/`~` so `~~~` isn't auto-continued as a definition line.
+- Unindented continuation lines lazy-merge into the same `<dd>` (CommonMark
+  lazy continuation) — e.g. `Apple\n: fruit\ncontinues` is one `<dd>`.
+
 ## Corpus export: embedded (untitled) documents are exported but not TOC-linked
 
 `CorpusIndex::renderToc` deliberately skips embedded/untitled documents (they

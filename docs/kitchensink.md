@@ -89,6 +89,23 @@ Task lists:
 - [x] Task done
 - [ ] Task pending
 
+Definition lists (`: ` marker):
+
+Apple
+: A round fruit.
+: Often red or green.
+
+Definitions with `~` marker:
+
+Scribe
+~ A person who copies out documents.
+
+Term with a lazy continuation line:
+
+Rabbit
+: A small mammal with long ears.
+  The pet variety is also called a bunny.
+
 ### Tables
 
 | Feature       | Status |
