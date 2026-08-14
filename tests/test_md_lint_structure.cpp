@@ -150,4 +150,149 @@ TEST(MdLintStructure, EmptyConfigDisablesEverything)
     EXPECT_TRUE(issues.isEmpty());
 }
 
+MdLintConfig withRule(const char *id)
+{
+    return MdLintConfig::fromJson(QStringLiteral("{\"%1\": true}").arg(QLatin1String(id)));
+}
+
+MdLintConfig withRuleAndParams(const char *id, const QString &paramsJson)
+{
+    return MdLintConfig::fromJson(
+        QStringLiteral("{\"%1\": {\"enabled\": true, \"params\": %2}}")
+            .arg(QLatin1String(id), paramsJson));
+}
+
+int countRule(const QVector<MdLintIssue> &issues, const char *id)
+{
+    const QString want = QLatin1String(id);
+    return std::count_if(issues.begin(), issues.end(),
+                         [&want](const MdLintIssue &i) { return i.rule == want; });
+}
+
+// ---- MD003 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md003AtxStyle)
+{
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("# A\n## B\n"), withRule("MD003")), "MD003"));
+    const auto issues = lint(QStringLiteral("# A\nB\n===\n"), withRule("MD003"));
+    ASSERT_EQ(1, countRule(issues, "MD003"));
+    EXPECT_EQ(2, issues.at(0).line);
+}
+
+TEST(MdLintStructure, Md003ConsistentStyle)
+{
+    const auto issues = lint(QStringLiteral("# A\nA\n---\n"), withRule("MD003"));
+    ASSERT_EQ(1, countRule(issues, "MD003"));
+    EXPECT_EQ(2, issues.at(0).line);
+}
+
+// ---- MD004 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md004ConsistentStyle)
+{
+    EXPECT_EQ(1, countRule(lint(QStringLiteral("- a\n* b\n"), withRule("MD004")), "MD004"));
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("* a\n* b\n"), withRule("MD004")), "MD004"));
+}
+
+TEST(MdLintStructure, Md004SublistUsesDifferentMarker)
+{
+    const auto issues = lint(QStringLiteral("* a\n  - b\n"),
+                             withRuleAndParams("MD004", QStringLiteral(R"({"style": "sublist"})")));
+    ASSERT_EQ(1, countRule(issues, "MD004"));
+    EXPECT_EQ(2, issues.at(0).line);
+}
+
+// ---- MD005 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md005ConsistentIndentPerLevel)
+{
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("- a\n  - b\n- c\n"), withRule("MD005")), "MD005"));
+    const auto issues = lint(QStringLiteral("- a\n  - b\n   - c\n"), withRule("MD005"));
+    ASSERT_EQ(1, countRule(issues, "MD005"));
+    EXPECT_EQ(3, issues.at(0).line);
+}
+
+// ---- MD007 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md007IndentNestedUl)
+{
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("- a\n  - b\n"), withRule("MD007")), "MD007"));
+    const auto issues = lint(QStringLiteral("- a\n    - b\n"), withRule("MD007"));
+    ASSERT_EQ(1, countRule(issues, "MD007"));
+    EXPECT_EQ(2, issues.at(0).line);
+}
+
+// ---- MD024 nesting variants ----------------------------------------------
+
+TEST(MdLintStructure, Md024SiblingsOnlyIgnoresNested)
+{
+    const auto issues = lint(QStringLiteral("# A\n\n> # A\n"),
+                             withRuleAndParams("MD024", QStringLiteral(R"({"siblings_only": true})")));
+    EXPECT_EQ(0, countRule(issues, "MD024"));
+    EXPECT_EQ(1, countRule(lint(QStringLiteral("# A\n\n> # A\n"), withRule("MD024")), "MD024"));
+}
+
+// ---- MD040 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md040FenceNeedsLanguage)
+{
+    EXPECT_EQ(1, countRule(lint(QStringLiteral("```\ncode\n```\n"), withRule("MD040")), "MD040"));
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("```cpp\ncode\n```\n"), withRule("MD040")), "MD040"));
+}
+
+// ---- MD041 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md041FirstLineHeading)
+{
+    EXPECT_EQ(1, countRule(lint(QStringLiteral("text\n"), withRule("MD041")), "MD041"));
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("# A\n\ntext\n"), withRule("MD041")), "MD041"));
+}
+
+// ---- MD043 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md043RequiredHeadingStructure)
+{
+    const auto issues = lint(QStringLiteral("# A\n## B\n"),
+                             withRuleAndParams("MD043",
+                                               QStringLiteral(R"({"headings": ["# A", "## C"]})")));
+    EXPECT_EQ(1, countRule(issues, "MD043"));
+}
+
+// ---- MD046 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md046CodeBlockStyle)
+{
+    const auto issues = lint(QStringLiteral("    indented\n\n```\nfenced\n```\n"),
+                             withRule("MD046"));
+    EXPECT_EQ(1, countRule(issues, "MD046"));
+    const auto fenced = lint(QStringLiteral("    indented\n\n```\nfenced\n```\n"),
+                             withRuleAndParams("MD046", QStringLiteral(R"({"style": "fenced"})")));
+    ASSERT_EQ(1, countRule(fenced, "MD046"));
+    EXPECT_EQ(1, fenced.at(0).line);
+}
+
+// ---- MD048 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md048FenceStyle)
+{
+    const auto consistent = lint(QStringLiteral("```\n```\n\n~~~\n~~~\n"), withRule("MD048"));
+    ASSERT_EQ(1, countRule(consistent, "MD048"));
+    EXPECT_EQ(4, consistent.at(0).line);
+    const auto backtick = lint(QStringLiteral("```\n```\n\n~~~\n~~~\n"),
+                               withRuleAndParams("MD048", QStringLiteral(R"({"style": "backtick"})")));
+    ASSERT_EQ(1, countRule(backtick, "MD048"));
+    EXPECT_EQ(4, backtick.at(0).line);
+}
+
+// ---- MD058 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md058BlanksAroundTables)
+{
+    const auto issues = lint(QStringLiteral("| a |\n|---|\n| b |\ntext\n"), withRule("MD058"));
+    ASSERT_EQ(1, countRule(issues, "MD058"));
+    EXPECT_EQ(3, issues.at(0).line);
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("text\n\n| a |\n|---|\n"), withRule("MD058")),
+                           "MD058"));
+}
+
 } // namespace

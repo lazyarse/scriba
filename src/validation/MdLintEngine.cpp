@@ -47,6 +47,8 @@ struct Span {
 struct Heading {
     int line = 0;     // 1-based line of the heading text
     int level = 1;
+    int depth = 0;        // enclosing UL/OL/QUOTE blocks
+    QString enclKey;      // enclosing block types, e.g. "Q", "UL", "UL,Q"
     bool closed = false;   // atx_closed style (raw-line detection)
     bool setext = false;
     QString text;          // reconstructed from tokens
@@ -102,14 +104,6 @@ int lineIndexOf(const Model &m, int byteOff)
     return static_cast<int>(it - m.lineStarts.begin()) - 1;
 }
 
-// 1-based character column for a byte offset on the given (0-based) line.
-int charColAt(const QString &line, int byteCol)
-{
-    const QByteArray lineUtf8 = line.toUtf8();
-    const int clamp = qMin(byteCol, lineUtf8.size());
-    return QString::fromUtf8(lineUtf8.left(clamp)).size() + 1;
-}
-
 // Raw source text between two byte offsets.
 QString rawSpan(const Model &m, int begByte, int endByte)
 {
@@ -141,6 +135,8 @@ struct Collector {
 
     // List nesting depth (incremented on UL/OL enter).
     int listDepth = 0;
+    // Heading nesting depth (enclosing UL/OL/QUOTE blocks).
+    int hDepth = 0;
     // Current list marks, one entry per depth level.
     QVector<QPair<QChar, QChar>> listMarks;   // (mark, olDelim)
 
@@ -182,11 +178,15 @@ struct Collector {
             listMarks.resize(listDepth + 1);
             listMarks[listDepth] = {QChar(d->mark), QChar()};
             ++listDepth;
+            ++hDepth;
         } else if (type == MD_BLOCK_OL) {
             auto *d = static_cast<MD_BLOCK_OL_DETAIL *>(detail);
             listMarks.resize(listDepth + 1);
             listMarks[listDepth] = {QChar(), QChar(d->mark_delimiter)};
             ++listDepth;
+            ++hDepth;
+        } else if (type == MD_BLOCK_QUOTE) {
+            ++hDepth;
         } else if (type == MD_BLOCK_LI) {
             auto *d = static_cast<MD_BLOCK_LI_DETAIL *>(detail);
             const int line = lineIndexOf(m, begByte) + 1;
@@ -194,25 +194,22 @@ struct Collector {
                 listMarks.isEmpty() ? QPair<QChar, QChar>{QLatin1Char('-'), QChar()}
                                     : listMarks.value(listDepth - 1);
             const QString raw = m.lines.value(line - 1);
-            int contentCol = 1;
-            // contentCol: first non-space char after the marker run.
+            // markerCol: 1-based column of the bullet/digit run; contentCol:
+            // 1-based column of the first non-space char after the marker.
             int i = 0;
             while (i < raw.size() && (raw.at(i) == QLatin1Char(' ') || raw.at(i) == QLatin1Char('\t')))
                 ++i;
+            const int markerCol = i + 1;
             if (i < raw.size() && raw.at(i) == marks.first)
                 ++i;   // bullet
             else if (i < raw.size() && raw.at(i).isDigit())
                 while (i < raw.size() && raw.at(i).isDigit())
                     ++i;
-            while (i < raw.size() && (raw.at(i) == QLatin1Char(' ') || raw.at(i) == QLatin1Char('\t')))
-                ++i;
-            contentCol = i + 1;
+            int c = i;
+            while (c < raw.size() && (raw.at(c) == QLatin1Char(' ') || raw.at(c) == QLatin1Char('\t')))
+                ++c;
             m.listItems.append({line, qMax(0, listDepth - 1), marks.first, marks.second,
-                                charColAt(raw, 0) + static_cast<int>(
-                                    raw.indexOf(marks.first, 0) < 0 && marks.first.isNull()
-                                        ? qMax(0, raw.indexOf(marks.second, 0))
-                                        : qMax(0, raw.indexOf(marks.first, 0))),
-                                contentCol});
+                                markerCol, c + 1});
         }
         blocks.append(b);
     }
@@ -220,13 +217,30 @@ struct Collector {
     void leaveBlock(MD_BLOCKTYPE type, void *detail)
     {
         const OpenBlock b = blocks.takeLast();
-        if (type == MD_BLOCK_UL || type == MD_BLOCK_OL)
+        if (type == MD_BLOCK_UL || type == MD_BLOCK_OL) {
             --listDepth;
+            if (hDepth > 0)
+                --hDepth;
+        } else if (type == MD_BLOCK_QUOTE) {
+            if (hDepth > 0)
+                --hDepth;
+        }
 
         if (type == MD_BLOCK_H) {
             Heading h;
             h.line = lineIndexOf(m, b.begByte) + 1;
             h.level = detail ? static_cast<MD_BLOCK_H_DETAIL *>(detail)->level : 1;
+            h.depth = hDepth;
+            QStringList encl;
+            for (const auto &blk : blocks) {
+                switch (blk.type) {
+                case MD_BLOCK_UL: encl << QStringLiteral("UL"); break;
+                case MD_BLOCK_OL: encl << QStringLiteral("OL"); break;
+                case MD_BLOCK_QUOTE: encl << QStringLiteral("Q"); break;
+                default: break;
+                }
+            }
+            h.enclKey = encl.join(QLatin1Char(','));
             const QString raw = m.lines.value(h.line - 1);
             h.setext = !raw.startsWith(QLatin1Char('#'));
             h.closed = !h.setext && QRegularExpression(
@@ -239,7 +253,17 @@ struct Collector {
             cb.begLine = lineIndexOf(m, b.begByte) + 1;
             cb.indented = d->fence_char == 0;
             cb.fenceChar = QChar(d->fence_char);
-            cb.fenceLen = 0;   // filled in Task 5 (raw fence run)
+            const QString raw = m.lines.value(cb.begLine - 1);
+            cb.fenceLen = 0;
+            if (!cb.indented) {
+                int k = 0;
+                while (k < raw.size() && (raw.at(k) == QLatin1Char(' ') || raw.at(k) == QLatin1Char('\t')))
+                    ++k;
+                while (k < raw.size() && raw.at(k) == cb.fenceChar) {
+                    ++cb.fenceLen;
+                    ++k;
+                }
+            }
             cb.lang = QString::fromUtf8(d->lang.text, d->lang.size);
             const int lastTokLine = lineIndexOf(m, b.lastEnd) + 1;
             // Fenced blocks end at the closing fence line (one past the last
@@ -252,7 +276,18 @@ struct Collector {
             Q_UNUSED(d);
             Table t;
             t.begLine = lineIndexOf(m, b.begByte) + 1;
-            t.endLine = lineIndexOf(m, b.lastEnd) + 1;
+            const int lastTokLine = lineIndexOf(m, b.lastEnd) + 1;
+            // md4c folds lazy continuation lines into the table's last row
+            // (e.g. `| b |\ntext`), so the physical end is the last line that
+            // looks like a row (starts with `|`, or contains one — permissive
+            // body rows).
+            t.endLine = qMax(t.begLine, lastTokLine);
+            for (int i = t.begLine; i < m.lines.size(); ++i) {
+                const QString tr = m.lines.at(i).trimmed();
+                if (tr.isEmpty() || (!tr.startsWith(QLatin1Char('|')) && !tr.contains(QLatin1Char('|'))))
+                    break;
+                t.endLine = i + 1;
+            }
             m.tables.append(t);
         } else if (type == MD_BLOCK_HTML) {
             if (b.begByte >= 0)
@@ -741,13 +776,101 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
         }
     }
 
-    // --- model rules: MD001, MD022-MD026, MD024, MD029-MD032, MD035, MD047 --
+    // --- model rules: MD001, MD003-MD007, MD022-MD026, MD024, MD029-MD032,
+    //     MD035, MD040, MD041, MD043, MD046, MD047, MD048, MD058 -------------
     int prevLevel = 0;
     for (const auto &h : c.m.headings) {
         if (config.enabled(QStringLiteral("MD001")) && prevLevel > 0 && h.level > prevLevel + 1)
             emitIssue(ctx, QStringLiteral("MD001"), h.line, 1, 0,
                  QStringLiteral("Expected: %1; Actual: %2").arg(prevLevel + 1).arg(h.level));
         prevLevel = h.level;
+    }
+
+    // MD003 — heading style
+    if (config.enabled(QStringLiteral("MD003"))) {
+        const QString style =
+            config.param(QStringLiteral("MD003"), "style", QStringLiteral("consistent"))
+                .toString();
+        QString consistent;
+        for (const auto &h : c.m.headings) {
+            QString actual;
+            if (h.setext)
+                actual = QStringLiteral("setext");
+            else if (h.closed)
+                actual = QStringLiteral("atx_closed");
+            else
+                actual = QStringLiteral("atx");
+            if (consistent.isEmpty())
+                consistent = actual;
+            QString expected = style == QLatin1String("consistent") ? consistent : style;
+            if (style == QLatin1String("setext_with_atx"))
+                expected = h.level <= 2 ? QStringLiteral("setext") : QStringLiteral("atx");
+            else if (style == QLatin1String("setext_with_atx_closed"))
+                expected = h.level <= 2 ? QStringLiteral("setext")
+                                        : QStringLiteral("atx_closed");
+            if (actual != expected)
+                emitIssue(ctx, QStringLiteral("MD003"), h.line, 1, 0,
+                     QStringLiteral("Expected: %1; Actual: %2").arg(expected, actual));
+        }
+    }
+
+    // MD004 — unordered list marker style
+    if (config.enabled(QStringLiteral("MD004"))) {
+        const QString style =
+            config.param(QStringLiteral("MD004"), "style", QStringLiteral("consistent"))
+                .toString();
+        QVector<QChar> depthMark;   // first mark seen per depth level
+        for (const auto &li : c.m.listItems) {
+            if (li.mark.isNull())
+                continue;
+            if (depthMark.size() <= li.depth)
+                depthMark.resize(li.depth + 1);
+            if (depthMark[li.depth].isNull())
+                depthMark[li.depth] = li.mark;
+            QChar expected;
+            if (style == QLatin1String("asterisk"))
+                expected = QLatin1Char('*');
+            else if (style == QLatin1String("dash"))
+                expected = QLatin1Char('-');
+            else if (style == QLatin1String("plus"))
+                expected = QLatin1Char('+');
+            else if (style == QLatin1String("sublist"))
+                expected = li.depth > 0 ? depthMark.value(li.depth - 1) : QChar();
+            else   // consistent
+                expected = depthMark.first();
+            if (expected.isNull() || li.mark == expected)
+                continue;
+            emitIssue(ctx, QStringLiteral("MD004"), li.line, li.markerCol, 1,
+                 QStringLiteral("Expected: %1; Actual: %2").arg(expected, li.mark));
+        }
+    }
+
+    // MD005 — consistent list item indentation per depth level
+    if (config.enabled(QStringLiteral("MD005"))) {
+        QVector<int> depthCol;
+        for (const auto &li : c.m.listItems) {
+            if (depthCol.size() <= li.depth)
+                depthCol.resize(li.depth + 1, -1);
+            if (depthCol[li.depth] < 0)
+                depthCol[li.depth] = li.markerCol;
+            else if (li.markerCol != depthCol[li.depth])
+                emitIssue(ctx, QStringLiteral("MD005"), li.line, li.markerCol, 1,
+                     QStringLiteral("Expected: %1; Actual: %2")
+                         .arg(depthCol[li.depth]).arg(li.markerCol));
+        }
+    }
+
+    // MD007 — unordered list indentation (marker column per depth level)
+    if (config.enabled(QStringLiteral("MD007"))) {
+        const int indent = config.param(QStringLiteral("MD007"), "indent", 2).toInt();
+        for (const auto &li : c.m.listItems) {
+            if (li.mark.isNull())
+                continue;
+            const int expected = indent * li.depth + 1;
+            if (li.markerCol != expected)
+                emitIssue(ctx, QStringLiteral("MD007"), li.line, li.markerCol, 1,
+                     QStringLiteral("Expected: %1; Actual: %2").arg(expected).arg(li.markerCol));
+        }
     }
 
     // MD022 — blank lines around headings
@@ -790,18 +913,37 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
         }
     }
 
-    // MD024 — duplicate headings
+    // MD024 — duplicate headings (with nesting constraints)
     if (config.enabled(QStringLiteral("MD024"))) {
-        QSet<QString> seen;
-        for (const auto &h : c.m.headings) {
+        const bool siblingsOnly =
+            config.param(QStringLiteral("MD024"), "siblings_only", false).toBool();
+        const bool allowDiffNesting =
+            config.param(QStringLiteral("MD024"), "allow_different_nesting", false).toBool();
+        QHash<QString, QVector<int>> seen;   // slug -> heading indices
+        for (int idx = 0; idx < c.m.headings.size(); ++idx) {
+            const auto &h = c.m.headings.at(idx);
             const QString slug = LinkValidator::headingSlug(h.text);
             if (slug.isEmpty())
                 continue;
-            if (seen.contains(slug))
+            const auto prevIdxs = seen.value(slug);
+            bool dup = false;
+            for (const int p : prevIdxs) {
+                const auto &prev = c.m.headings.at(p);
+                bool same = true;
+                if (siblingsOnly && (prev.enclKey != h.enclKey || prev.depth != h.depth))
+                    same = false;
+                if (allowDiffNesting && prev.depth != h.depth)
+                    same = false;
+                if (same) {
+                    dup = true;
+                    break;
+                }
+            }
+            if (dup)
                 emitIssue(ctx, QStringLiteral("MD024"), h.line, 1, 0,
                           QStringLiteral("Duplicate heading: %1").arg(h.text.trimmed()));
             else
-                seen.insert(slug);
+                seen[slug].append(idx);
         }
     }
 
@@ -1025,6 +1167,160 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
         if (!text.isEmpty() && n != 1)
             emitIssue(ctx, QStringLiteral("MD047"), c.m.lines.size(), 1, 0,
                  QStringLiteral("Expected: 1 trailing newline; Actual: %1").arg(n));
+    }
+
+    // MD040 — fenced code blocks should declare a language
+    if (config.enabled(QStringLiteral("MD040"))) {
+        const QStringList allowed =
+            config.param(QStringLiteral("MD040"), "allowed_languages", QStringList())
+                .toStringList();
+        const bool languageOnly =
+            config.param(QStringLiteral("MD040"), "language_only", false).toBool();
+        for (const auto &cb : c.m.codeBlocks) {
+            if (cb.indented)
+                continue;
+            QString info = cb.lang.trimmed();
+            if (languageOnly)
+                info = info.section(QLatin1Char(' '), 0, 0);
+            if (info.isEmpty()) {
+                emitIssue(ctx, QStringLiteral("MD040"), cb.begLine, 1, 0,
+                     QStringLiteral("Fenced code blocks should have a language specified"),
+                     /*skipCode=*/false);
+            } else if (!allowed.isEmpty()) {
+                bool known = false;
+                for (const auto &lang : allowed)
+                    if (info.compare(lang, Qt::CaseInsensitive) == 0) {
+                        known = true;
+                        break;
+                    }
+                if (!known)
+                    emitIssue(ctx, QStringLiteral("MD040"), cb.begLine, 1, 0,
+                         QStringLiteral("Allowed languages: %1; Actual: %2")
+                             .arg(allowed.join(QLatin1String(", ")), info),
+                         /*skipCode=*/false);
+            }
+        }
+    }
+
+    // MD041 — first line of the file should be a heading
+    if (config.enabled(QStringLiteral("MD041"))) {
+        const int level = config.param(QStringLiteral("MD041"), "level", 1).toInt();
+        const QString fmTitle =
+            config.param(QStringLiteral("MD041"), "front_matter_title", QString()).toString();
+        const auto fm = frontMatterRange(c.m);
+        const int firstLine = fm.first > 0 ? fm.second + 1 : 1;
+        const Heading *first = nullptr;
+        for (const auto &h : c.m.headings)
+            if (h.line >= firstLine) {
+                first = &h;
+                break;
+            }
+        bool exempt = false;
+        if (!fmTitle.isEmpty() && fm.first > 0)
+            for (int i = fm.first - 1; i < fm.second && i < c.m.lines.size(); ++i)
+                if (c.m.lines.at(i).trimmed() == fmTitle)
+                    exempt = true;
+        if (!exempt && (!first || first->line != firstLine || first->level != level))
+            emitIssue(ctx, QStringLiteral("MD041"), firstLine, 1, 0,
+                 QStringLiteral("Expected: a heading at the beginning of the file"));
+    }
+
+    // MD043 — required heading structure
+    if (config.enabled(QStringLiteral("MD043"))) {
+        const QStringList required =
+            config.param(QStringLiteral("MD043"), "headings", QStringList()).toStringList();
+        const bool matchCase =
+            config.param(QStringLiteral("MD043"), "match_case", false).toBool();
+        struct Req { int level; QString text; };
+        QVector<Req> wanted;
+        for (const auto &entry : required) {
+            const QString t = entry.trimmed();
+            if (t.startsWith(QLatin1Char('#'))) {
+                int lvl = 0;
+                while (lvl < t.size() && t.at(lvl) == QLatin1Char('#'))
+                    ++lvl;
+                wanted.append({lvl, t.mid(lvl).trimmed()});
+            } else {
+                wanted.append({-1, t});
+            }
+        }
+                for (int i = 0; i < wanted.size(); ++i) {
+            const auto &want = wanted.at(i);
+            if (i >= c.m.headings.size()) {
+                // Doc ran out of headings — flag the last heading (or line 1).
+                const auto &h = c.m.headings.isEmpty() ? Heading{} : c.m.headings.last();
+                emitIssue(ctx, QStringLiteral("MD043"), h.line > 0 ? h.line : 1, 1, 0,
+                     QStringLiteral("Required heading structure: Not in file"));
+                break;
+            }
+            const auto &h = c.m.headings.at(i);
+            const bool sameText = matchCase ? h.text.trimmed() == want.text
+                                            : h.text.trimmed().compare(want.text,
+                                                                       Qt::CaseInsensitive) == 0;
+            if (want.level != -1 && h.level != want.level || !sameText)
+                emitIssue(ctx, QStringLiteral("MD043"), h.line, 1, 0,
+                     QStringLiteral("Required heading structure: Not in file"));
+        }
+    }
+
+    // MD046 — code block style (fenced vs indented)
+    if (config.enabled(QStringLiteral("MD046"))) {
+        const QString style =
+            config.param(QStringLiteral("MD046"), "style", QStringLiteral("consistent"))
+                .toString();
+        QString consistent;
+        for (const auto &cb : c.m.codeBlocks) {
+            const QString actual = cb.indented ? QStringLiteral("indented")
+                                               : QStringLiteral("fenced");
+            if (consistent.isEmpty())
+                consistent = actual;
+            const QString expected =
+                style == QLatin1String("consistent") ? consistent : style;
+            if (actual != expected)
+                emitIssue(ctx, QStringLiteral("MD046"), cb.begLine, 1, 0,
+                     QStringLiteral("Expected: %1; Actual: %2").arg(expected, actual),
+                     /*skipCode=*/false);
+        }
+    }
+
+    // MD048 — code fence character style
+    if (config.enabled(QStringLiteral("MD048"))) {
+        const QString style =
+            config.param(QStringLiteral("MD048"), "style", QStringLiteral("consistent"))
+                .toString();
+        QChar consistent = QChar();
+        for (const auto &cb : c.m.codeBlocks) {
+            if (cb.indented)
+                continue;
+            if (consistent.isNull())
+                consistent = cb.fenceChar;
+            const QChar expected = style == QLatin1String("consistent")
+                                       ? consistent
+                                       : (style == QLatin1String("tilde")
+                                              ? QLatin1Char('~')
+                                              : QLatin1Char('`'));
+            if (cb.fenceChar != expected)
+                emitIssue(ctx, QStringLiteral("MD048"), cb.begLine, 1, 0,
+                     QStringLiteral("Expected: %1; Actual: %2")
+                         .arg(expected == QLatin1Char('~') ? QStringLiteral("tilde")
+                                                           : QStringLiteral("backtick"),
+                              cb.fenceChar == QLatin1Char('~') ? QStringLiteral("tilde")
+                                                               : QStringLiteral("backtick")),
+                     /*skipCode=*/false);
+        }
+    }
+
+    // MD058 — blank lines around tables
+    if (config.enabled(QStringLiteral("MD058"))) {
+        for (const auto &t : c.m.tables) {
+            if (t.begLine > 1 && !isFrontMatterLine(c.m, t.begLine - 1)
+                && !isBlank(c.m.lines.at(t.begLine - 2)))
+                emitIssue(ctx, QStringLiteral("MD058"), t.begLine, 1, 0,
+                     QStringLiteral("Expected: 1 blank line before; Actual: 0"));
+            if (t.endLine < c.m.lines.size() && !isBlank(c.m.lines.at(t.endLine)))
+                emitIssue(ctx, QStringLiteral("MD058"), t.endLine, 1, 0,
+                     QStringLiteral("Expected: 1 blank line after; Actual: 0"));
+        }
     }
 
     std::sort(ctx.issues.begin(), ctx.issues.end(), [](const MdLintIssue &a, const MdLintIssue &b) {
