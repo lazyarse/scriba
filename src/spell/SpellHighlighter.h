@@ -204,7 +204,8 @@ public:
         int spelling = 0;
         int grammar = 0;
         int links = 0;
-        int markdown = 0;
+        int markdown = 0;          // error-severity markdown lint issues
+        int markdownWarnings = 0;  // warning-severity markdown lint issues
     };
     IssueCounts counts() const;
     bool grammarCheckingEnabled() const { return m_grammarEnabled; }
@@ -317,4 +318,7 @@ private:
     QHash<int, QVector<GrammarHit>> m_linkHits;
     // blockNumber → markdown-consistency ranges within the block
     QHash<int, QVector<GrammarHit>> m_markdownHits;
+    // Severity split of the last markdown scan (counts() reports these).
+    int m_markdownErrors = 0;
+    int m_markdownWarnings = 0;
 };

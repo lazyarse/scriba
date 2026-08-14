@@ -311,6 +311,8 @@ void SpellHighlighter::setMarkdownCheckingEnabled(bool enabled)
 {
     m_markdownEnabled = enabled;
     m_markdownHits.clear();
+    m_markdownErrors = 0;
+    m_markdownWarnings = 0;
     if (enabled)
         runSpellCheck(); // recompute so fresh underlines appear immediately
     else
@@ -321,6 +323,8 @@ void SpellHighlighter::setMarkdownConfig(const MdLintConfig &config)
 {
     m_markdownConfig = config;
     m_markdownHits.clear();
+    m_markdownErrors = 0;
+    m_markdownWarnings = 0;
     if (m_markdownEnabled)
         runSpellCheck(); // recompute so underlines follow the new selection
     else
@@ -359,6 +363,8 @@ void SpellHighlighter::refresh()
     m_spellHits.clear();
     m_linkHits.clear();
     m_markdownHits.clear();
+    m_markdownErrors = 0;
+    m_markdownWarnings = 0;
     m_staleBlocks.clear();
     const bool spellActive = m_spellEnabled && m_checker && m_checker->isLoaded();
     if (spellActive || m_linkEnabled || m_markdownEnabled) {
@@ -459,6 +465,8 @@ void SpellHighlighter::runSpellCheck()
         for (QTextBlock block = document()->firstBlock(); block.isValid(); block = block.next())
             lines.append(block.text());
         m_markdownHits.clear();
+        m_markdownErrors = 0;
+        m_markdownWarnings = 0;
         // Issue::line is 1-based and lines map 1:1 to blocks; Issue::col is
         // 1-based and GrammarHit::start is 0-based within the block.
         const auto mdIssues = MdLintEngine::lint(lines.join(QLatin1Char('\n')),
@@ -468,6 +476,10 @@ void SpellHighlighter::runSpellCheck()
             if (blockNumber < 0 || blockNumber >= lines.size())
                 continue;
             m_markdownHits[blockNumber].append({issue.col - 1, issue.length, issue.detail, {}});
+            if (issue.severity == Severity::Warning)
+                ++m_markdownWarnings;
+            else
+                ++m_markdownErrors;
         }
     }
 
@@ -787,8 +799,8 @@ SpellHighlighter::IssueCounts SpellHighlighter::counts() const
         c.grammar += it.value().size();
     for (auto it = m_linkHits.constBegin(); it != m_linkHits.constEnd(); ++it)
         c.links += it.value().size();
-    for (auto it = m_markdownHits.constBegin(); it != m_markdownHits.constEnd(); ++it)
-        c.markdown += it.value().size();
+    c.markdown = m_markdownErrors;
+    c.markdownWarnings = m_markdownWarnings;
     return c;
 }
 

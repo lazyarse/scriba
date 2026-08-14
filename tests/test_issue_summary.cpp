@@ -123,6 +123,26 @@ TEST_F(IssueSummaryCountsTest, CountsSumLiveCaches)
     EXPECT_EQ(counts.grammar, 0);
 }
 
+TEST_F(IssueSummaryCountsTest, MarkdownWarningSplit)
+{
+    // MD009 (trailing spaces) configured as a warning, MD040 (fenced code
+    // language) as an error: the counts split by severity.
+    m_doc->setPlainText(QStringLiteral(
+        "trailing   \n"
+        "```\ncode\n```\n"));
+    m_doc->markContentsDirty(0, m_doc->characterCount());
+    m_doc->documentLayout()->documentSize();
+    m_hl->setMarkdownCheckingEnabled(true);
+    m_hl->setMarkdownConfig(MdLintConfig::fromJson(QStringLiteral(
+        R"({"MD009": {"enabled": true, "severity": "warning"}, "MD040": {"enabled": true}})")));
+    m_hl->setCurrentFile(m_tmp->filePath(QStringLiteral("__test__.md")));
+    m_hl->refresh();
+
+    const auto counts = m_hl->counts();
+    EXPECT_EQ(counts.markdown, 1);          // MD040 error
+    EXPECT_EQ(counts.markdownWarnings, 1);  // MD009 warning
+}
+
 TEST_F(IssueSummaryCountsTest, GrammarCountPopulatesAfterLint)
 {
     m_doc->setPlainText(QStringLiteral("this has a grammer error"));

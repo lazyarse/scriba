@@ -492,6 +492,10 @@ void Editor::updateIssueSummary()
     addRow(IssueSummaryPane::Kind::Lint,
            QStringLiteral("Markdown"), counts.markdown,
            SpellHighlighter::markdownUnderlineColor(), m_spellHighlighter->markdownCheckingEnabled());
+    if (counts.markdownWarnings > 0)
+        addRow(IssueSummaryPane::Kind::Lint,
+               QStringLiteral("Markdown warnings"), counts.markdownWarnings,
+               SpellHighlighter::markdownUnderlineColor(), m_spellHighlighter->markdownCheckingEnabled());
     addRow(IssueSummaryPane::Kind::Links,
            QStringLiteral("Broken links"), counts.links,
            SpellHighlighter::linkUnderlineColor(), m_spellHighlighter->linkCheckingEnabled());
