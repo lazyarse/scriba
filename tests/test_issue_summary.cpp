@@ -337,9 +337,28 @@ TEST_F(IssueSummaryEditorTest, PaneShowsForMdFileAndTracksCounts)
     EXPECT_TRUE(allText.contains(QStringLiteral("Broken links")));
 }
 
+TEST_F(IssueSummaryEditorTest, PaneShowsForUntitledFile)
+{
+    // No setCurrentFile: a fresh tab is untitled markdown and must show the pane.
+    m_editor->setIssueSummaryOptions(options(), QColor(QStringLiteral("#ffffff")),
+                                     QColor(QStringLiteral("#333333")));
+    m_editor->setPlainText(QStringLiteral("helo world\n[missing](no-such-file.md)\n"));
+    m_editor->showIssueSummary();
+    QTest::qWait(700); // spell/link pass (word-boundary triggered on newline)
+
+    IssueSummaryPane *pane = m_editor->issueSummaryPane();
+    ASSERT_NE(pane, nullptr);
+    ASSERT_TRUE(pane->isVisible());
+    QString allText;
+    for (QLabel *lbl : pane->findChildren<QLabel *>())
+        allText += lbl->text();
+    EXPECT_TRUE(allText.contains(QStringLiteral("Typos")));
+    EXPECT_TRUE(allText.contains(QStringLiteral("Broken links")));
+}
+
 TEST_F(IssueSummaryEditorTest, PaneHiddenForNonMdFile)
 {
-    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("data.txt")));
+    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("data.rtf")));
     m_editor->setIssueSummaryOptions(options(), QColor(QStringLiteral("#ffffff")),
                                      QColor(QStringLiteral("#333333")));
     m_editor->setPlainText(QStringLiteral("helo world\n"));
