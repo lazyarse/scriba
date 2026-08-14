@@ -166,6 +166,20 @@ namespace Preferences {
     constexpr const char *LinkUnderlineColor = "linkUnderlineColor";
     constexpr const char *MarkdownUnderlineColor = "markdownUnderlineColor";
 
+    // Issue summary pane: a live per-.md-file overlay counting typos, grammar
+    // errors, markdown-lint issues and broken links. Rows appear only for
+    // categories selected here AND enabled in-editor (the Spelling page's
+    // as-you-type toggles). The timeout is optional: unchecked keeps the pane
+    // displayed until the user closes it.
+    constexpr const char *IssueSummaryEnabled = "issueSummaryEnabled";
+    constexpr const char *IssueSummaryTimeoutEnabled = "issueSummaryTimeoutEnabled";
+    constexpr const char *IssueSummaryTimeoutSeconds = "issueSummaryTimeoutSeconds";
+    constexpr int DefaultIssueSummaryTimeoutSeconds = 5;
+    constexpr const char *IssueSummaryShowTypos = "issueSummaryShowTypos";
+    constexpr const char *IssueSummaryShowGrammar = "issueSummaryShowGrammar";
+    constexpr const char *IssueSummaryShowLint = "issueSummaryShowLint";
+    constexpr const char *IssueSummaryShowLinks = "issueSummaryShowLinks";
+
     constexpr const char *StripPreviewScripts = "stripPreviewScripts";
     constexpr const char *StripExportScripts = "stripExportScripts";
     constexpr const char *BlockRawHtmlPreview = "blockRawHtmlPreview";

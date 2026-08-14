@@ -261,6 +261,55 @@ void PreferencesDialog::setupEditorPage()
         tablesLayout->addLayout(paddingRow);
 
         layout->addWidget(tablesGroup);
+
+        /* --- Issue Summary --- */
+        QGroupBox *issueGroup = new QGroupBox("Issue Summary");
+        QVBoxLayout *issueLayout = new QVBoxLayout(issueGroup);
+        issueLayout->addSpacing(8);
+
+        m_issueSummaryCheck = new QCheckBox("Show issue summary pane");
+        m_issueSummaryCheck->setChecked(settings.value(Preferences::IssueSummaryEnabled, false).toBool());
+        issueLayout->addWidget(m_issueSummaryCheck);
+
+        QHBoxLayout *timeoutRow = new QHBoxLayout();
+        m_issueSummaryTimeoutCheck = new QCheckBox("Hide automatically after");
+        m_issueSummaryTimeoutCheck->setChecked(
+            settings.value(Preferences::IssueSummaryTimeoutEnabled, false).toBool());
+        m_issueSummaryTimeoutSpin = new QSpinBox();
+        m_issueSummaryTimeoutSpin->setRange(1, 120);
+        m_issueSummaryTimeoutSpin->setSuffix(" s");
+        m_issueSummaryTimeoutSpin->setValue(settings.value(Preferences::IssueSummaryTimeoutSeconds,
+            Preferences::DefaultIssueSummaryTimeoutSeconds).toInt());
+        m_issueSummaryTimeoutSpin->setEnabled(m_issueSummaryTimeoutCheck->isChecked());
+        connect(m_issueSummaryTimeoutCheck, &QCheckBox::toggled,
+                m_issueSummaryTimeoutSpin, &QSpinBox::setEnabled);
+        timeoutRow->addWidget(m_issueSummaryTimeoutCheck);
+        timeoutRow->addWidget(m_issueSummaryTimeoutSpin);
+        timeoutRow->addStretch();
+        issueLayout->addLayout(timeoutRow);
+
+        m_issueSummaryTyposCheck = new QCheckBox("Show typos");
+        m_issueSummaryTyposCheck->setChecked(settings.value(Preferences::IssueSummaryShowTypos, true).toBool());
+        m_issueSummaryGrammarCheck = new QCheckBox("Show grammar issues");
+        m_issueSummaryGrammarCheck->setChecked(settings.value(Preferences::IssueSummaryShowGrammar, true).toBool());
+        m_issueSummaryLintCheck = new QCheckBox("Show markdown linting");
+        m_issueSummaryLintCheck->setChecked(settings.value(Preferences::IssueSummaryShowLint, true).toBool());
+        m_issueSummaryLinksCheck = new QCheckBox("Show broken links");
+        m_issueSummaryLinksCheck->setChecked(settings.value(Preferences::IssueSummaryShowLinks, true).toBool());
+        issueLayout->addWidget(m_issueSummaryTyposCheck);
+        issueLayout->addWidget(m_issueSummaryGrammarCheck);
+        issueLayout->addWidget(m_issueSummaryLintCheck);
+        issueLayout->addWidget(m_issueSummaryLinksCheck);
+
+        QLabel *issueHint = new QLabel(
+            "Rows appear only for checks also enabled under Spelling & Grammar. "
+            "The pane is shown for .md files only and stays displayed until "
+            "closed unless the timeout is enabled.");
+        issueHint->setWordWrap(true);
+        issueHint->setStyleSheet("color:#888;");
+        issueLayout->addWidget(issueHint);
+
+        layout->addWidget(issueGroup);
         layout->addStretch();
 
     }

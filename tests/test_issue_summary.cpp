@@ -372,6 +372,26 @@ TEST_F(IssueSummaryEditorTest, DismissedStaysHiddenUntilExplicitShow)
     EXPECT_TRUE(pane->isVisible());
 }
 
+TEST(IssueSummaryPrefsTest, SettingsKeysRoundTrip)
+{
+    QSettings().clear();
+    QSettings().setValue(Preferences::IssueSummaryEnabled, true);
+    QSettings().setValue(Preferences::IssueSummaryTimeoutEnabled, true);
+    QSettings().setValue(Preferences::IssueSummaryTimeoutSeconds, 12);
+    QSettings().setValue(Preferences::IssueSummaryShowTypos, true);
+    QSettings().setValue(Preferences::IssueSummaryShowGrammar, false);
+    QSettings().setValue(Preferences::IssueSummaryShowLint, true);
+    QSettings().setValue(Preferences::IssueSummaryShowLinks, false);
+
+    EXPECT_TRUE(QSettings().value(Preferences::IssueSummaryEnabled, false).toBool());
+    EXPECT_TRUE(QSettings().value(Preferences::IssueSummaryTimeoutEnabled, false).toBool());
+    EXPECT_EQ(QSettings().value(Preferences::IssueSummaryTimeoutSeconds, 5).toInt(), 12);
+    EXPECT_TRUE(QSettings().value(Preferences::IssueSummaryShowTypos, true).toBool());
+    EXPECT_FALSE(QSettings().value(Preferences::IssueSummaryShowGrammar, true).toBool());
+    EXPECT_TRUE(QSettings().value(Preferences::IssueSummaryShowLint, true).toBool());
+    EXPECT_FALSE(QSettings().value(Preferences::IssueSummaryShowLinks, true).toBool());
+}
+
 } // namespace
 
 int main(int argc, char **argv)

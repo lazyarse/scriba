@@ -228,6 +228,15 @@ private:
     QPushButton *m_linkColorBtn;
     QPushButton *m_markdownColorBtn;
 
+    // Issue summary pane
+    QCheckBox *m_issueSummaryCheck = nullptr;
+    QCheckBox *m_issueSummaryTimeoutCheck = nullptr;
+    QSpinBox *m_issueSummaryTimeoutSpin = nullptr;
+    QCheckBox *m_issueSummaryTyposCheck = nullptr;
+    QCheckBox *m_issueSummaryGrammarCheck = nullptr;
+    QCheckBox *m_issueSummaryLintCheck = nullptr;
+    QCheckBox *m_issueSummaryLinksCheck = nullptr;
+
     // Corpus
     Corpus *m_corpus = nullptr;
     QCheckBox *m_corpusMonitorCheck = nullptr;

@@ -296,6 +296,13 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::GrammarUnderlineColor, m_grammarColorBtn->text());
         settings.setValue(Preferences::LinkUnderlineColor, m_linkColorBtn->text());
         settings.setValue(Preferences::MarkdownUnderlineColor, m_markdownColorBtn->text());
+        settings.setValue(Preferences::IssueSummaryEnabled, m_issueSummaryCheck->isChecked());
+        settings.setValue(Preferences::IssueSummaryTimeoutEnabled, m_issueSummaryTimeoutCheck->isChecked());
+        settings.setValue(Preferences::IssueSummaryTimeoutSeconds, m_issueSummaryTimeoutSpin->value());
+        settings.setValue(Preferences::IssueSummaryShowTypos, m_issueSummaryTyposCheck->isChecked());
+        settings.setValue(Preferences::IssueSummaryShowGrammar, m_issueSummaryGrammarCheck->isChecked());
+        settings.setValue(Preferences::IssueSummaryShowLint, m_issueSummaryLintCheck->isChecked());
+        settings.setValue(Preferences::IssueSummaryShowLinks, m_issueSummaryLinksCheck->isChecked());
         // An active corpus's dictionary language/dialect override the global
         // selections for spell-checking; when a corpus is open the combos show
         // the corpus values read-only, so don't clobber the global prefs.
