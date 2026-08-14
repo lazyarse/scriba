@@ -124,6 +124,7 @@ private:
     QPushButton *m_editButton;
     QPushButton *m_editPreviewBtn;
     QCheckBox *m_reopenCheck;
+    QCheckBox *m_restorePositionsCheck;
     QCheckBox *m_syncCheck;
     QCheckBox *m_stripPreviewScriptsCheck;
     QCheckBox *m_stripExportScriptsCheck;

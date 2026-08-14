@@ -184,6 +184,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     connect(buttonBox, &QDialogButtonBox::accepted, this, [this]() {
         QSettings settings;
         settings.setValue(Preferences::ReopenLastCorpus, m_reopenCheck->isChecked());
+        settings.setValue(Preferences::RestorePositions, m_restorePositionsCheck->isChecked());
         settings.setValue(Preferences::SyncScroll, m_syncCheck->isChecked());
         settings.setValue(Preferences::TableStriping, m_stripeCheck->isChecked());
         settings.setValue(Preferences::ShowCodeLangPreview, m_showCodeLangPreviewCheck->isChecked());

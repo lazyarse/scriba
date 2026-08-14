@@ -49,6 +49,13 @@ void PreferencesDialog::setupCorpusPage()
         m_reopenCheck->setChecked(settings.value(Preferences::ReopenLastCorpus, true).toBool());
         startupLayout->addWidget(m_reopenCheck);
 
+        m_restorePositionsCheck = new QCheckBox(
+            "Restore cursor and viewport position when reopening a corpus");
+        m_restorePositionsCheck->setObjectName("corpus-restore-positions");
+        m_restorePositionsCheck->setChecked(
+            settings.value(Preferences::RestorePositions, true).toBool());
+        startupLayout->addWidget(m_restorePositionsCheck);
+
         layout->addWidget(startupGroup);
 
         QGroupBox *recentGroup = new QGroupBox("Recent Corpora");

@@ -411,9 +411,14 @@ void MainWindow::restoreTabState(int idx, const CorpusDocument &d)
 
     if (!d.folds.isEmpty())
         ed->restoreFolds(d.folds);
-    QTextCursor tc = restoreCursorPosition(ed->document(), d.cursorBlock, d.cursorCol);
+
+    const bool restorePositions = QSettings().value(Preferences::RestorePositions, true).toBool();
+    const int block = restorePositions ? d.cursorBlock : 0;
+    const int col = restorePositions ? d.cursorCol : 0;
+    const int scroll = restorePositions ? d.scroll : 0;
+
+    QTextCursor tc = restoreCursorPosition(ed->document(), block, col);
     ed->setTextCursor(tc);
-    const int scroll = d.scroll;
     QTimer::singleShot(0, [this, idx, scroll]() {
         if (idx < m_tabs.size() && m_tabs[idx].editor)
             m_tabs[idx].editor->verticalScrollBar()->setValue(scroll);

@@ -24,6 +24,10 @@ namespace Preferences {
     constexpr const char *CssFiles = "cssFiles";
     constexpr const char *ActiveCssFile = "activeCssFile";
     constexpr const char *ReopenLastCorpus = "reopenLastCorpus";
+    // When a corpus is reopened, restore each document's saved cursor + viewport
+    // position (off = reset to the top-left of the document). Positions are still
+    // always saved to disk.
+    constexpr const char *RestorePositions = "restorePositions";
     constexpr const char *OnExitCorpusData = "onExitCorpusData";
     constexpr const char *LastCorpusPath = "lastCorpusPath";
     constexpr const char *RecentCorpora = "recentCorpora";

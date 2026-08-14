@@ -673,6 +673,11 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_corpus_export COMMAND ${_TEST_PREFIX} ./test_corpus_export)
 
+    add_executable(test_corpus_restore tests/test_corpus_restore.cpp)
+    target_link_libraries(test_corpus_restore PRIVATE
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
+    add_test(NAME test_corpus_restore COMMAND ${_TEST_PREFIX} ./test_corpus_restore)
+
     add_executable(test_editor_initial_css tests/test_editor_initial_css.cpp)
 target_link_libraries(test_editor_initial_css PRIVATE
     scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
