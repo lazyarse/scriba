@@ -35,6 +35,7 @@ declare -A TARGETS=(
     [check-spelling]="shot_check_spelling|Check Spelling dialog"
     [validation-report]="shot_validation_report|Validation Report options"
     [toc]="shot_toc|Table of Contents tab with a fixture corpus open"
+    [corpus-files]="shot_corpus_files|Corpus Files sidecar panel with a fixture corpus open"
     [print-pdf-dialog]="shot_print_pdf_dialog|Print / Export PDF dialog"
 )
 
@@ -42,7 +43,7 @@ declare -A TARGETS=(
 # preserve insertion order).
 TARGET_ORDER=(screenshot tabbar gutter-pencil preferences table-dialog emoji-picker katex-dialog
               mchem-dialog chart-dialog stock-chart-dialog advanced-charts mermaid-dialog mermaid-gitgraph
-              check-spelling validation-report toc print-pdf-dialog)
+              check-spelling validation-report toc corpus-files print-pdf-dialog)
 
 usage() {
     cat <<'EOF'
@@ -524,6 +525,61 @@ JSON
     sleep 5                       # WebEngine renders the TOC preview
     import -window "$WID" "$OUT_DIR/toc.png"
     echo "  -> $OUT_DIR/toc.png"
+    xdotool key Escape
+    sleep 1
+    xdotool windowfocus "$WID"
+}
+
+# --- Corpus Files sidecar panel (View → Show Corpus Files / Ctrl+Shift+F) ---
+# Open the same style of fixture corpus as shot_toc, then capture the left dock
+# listing every file under the corpus root (documents + image + subdirectory;
+# the corpus.scriba itself is excluded).
+shot_corpus_files() {
+    local demo=/tmp/scriba-corpus-files-demo
+    rm -rf "$demo"
+    mkdir -p "$demo/docs" "$demo/assets"
+    printf '# Alpha\n\nIntro to Alpha.\n' > "$demo/docs/a.md"
+    printf '# Beta\n\nIntro to Beta.\n' > "$demo/docs/b.md"
+    printf '\x89PNG\r\n\x1a\n' > "$demo/assets/logo.png"   # tiny placeholder image
+    cat > "$demo/corpus.scriba" <<JSON
+{
+    "version": 1,
+    "name": "Files Demo",
+    "active": 0,
+    "monitor": false,
+    "dictionary": {},
+    "documents": [
+        { "path": "docs/a.md" },
+        { "path": "docs/b.md" }
+    ]
+}
+JSON
+
+    xdotool windowfocus "$WID"
+    sleep 0.2
+    xdotool key alt+f
+    sleep 0.5
+    xdotool key Down          # highlight "C&orpus" submenu
+    sleep 0.3
+    xdotool key Right         # open the Corpus submenu
+    sleep 0.5
+    xdotool key o             # highlight &Open Corpus… ('o' also matches File → &Open…, so Return confirms)
+    sleep 0.3
+    xdotool key Return
+    sleep 2
+    local FD
+    FD=$(xdotool search --onlyvisible --name "Open Corpus" | head -1)
+    if [ -z "$FD" ]; then
+        echo "WARN: Open Corpus dialog not found"; xdotool key Escape; return 1
+    fi
+    xdotool windowfocus "$FD"; sleep 1
+    xdotool key ctrl+l; sleep 0.5
+    xdotool type -- "$demo/corpus.scriba"; sleep 0.5
+    xdotool key Return; sleep 1   # jump to the directory
+    xdotool key Return; sleep 3   # confirm Open, let the docs load
+    sleep 2                       # let the files panel list the root
+    import -window "$WID" "$OUT_DIR/corpus-files.png"
+    echo "  -> $OUT_DIR/corpus-files.png"
     xdotool key Escape
     sleep 1
     xdotool windowfocus "$WID"

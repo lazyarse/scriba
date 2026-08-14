@@ -12,6 +12,10 @@ Auto-generated table of contents
 
 [![Read-only Table of Contents tab generated from the open corpus (Ctrl+Shift+T)](images/toc.png)](images/toc.png)
 
+## Corpus Files
+
+[![Corpus Files sidecar panel listing every file under the corpus root (Ctrl+Shift+F)](images/corpus-files.png)](images/corpus-files.png)
+
 ## Gutter — chart edit pencil
 
 The pencil in the gutter edits the mermaid/ECharts code block it sits beside using a visual chart assistant.
