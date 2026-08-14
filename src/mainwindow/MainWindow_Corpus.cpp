@@ -40,10 +40,21 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QScrollBar>
+#include <QSet>
 #include <QSettings>
 #include <QStatusBar>
 #include <QTextDocument>
 #include <QTimer>
+
+static QString readTextFile(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return QString();
+    const QString s = QString::fromUtf8(f.readAll());
+    f.close();
+    return s;
+}
 
 void MainWindow::exportCorpus()
 {
@@ -730,15 +741,25 @@ void MainWindow::startCorpusWatcher()
     stopCorpusWatcher();
     if (!m_corpus.monitor || m_corpus.filePath.isEmpty())
         return;
-    QStringList files;
+    QSet<QString> files;
     for (const CorpusDocument &d : m_corpus.documents) {
+        QString content;
+        QString docDir = m_corpus.rootDir();
         if (!d.path.isEmpty()) {
             const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
             if (QFileInfo::exists(abs))
-                files.append(abs);
+                files.insert(abs);
+            const int tabIdx = findTabByPath(abs);
+            content = tabIdx >= 0 ? m_tabs[tabIdx].editor->toPlainText()
+                                  : readTextFile(abs);
+            docDir = QFileInfo(abs).absolutePath();
+        } else {
+            content = d.content;               // embedded doc: stored snapshot
         }
+        for (const QString &target : LinkFixer::resolvedLinkTargets(content, docDir))
+            files.insert(target);
     }
-    m_corpusWatcher->setMonitoredFiles(files);
+    m_corpusWatcher->setMonitoredFiles(files.values());
 }
 
 void MainWindow::stopCorpusWatcher()
@@ -840,14 +861,7 @@ void MainWindow::rewriteLinksForFile(const QString &oldAbs, const QString &newAb
                                       QStringLiteral("open")).toString() == QLatin1String("all");
 
     auto consider = [&](const QString &absPath, Editor *ed, int tabIndex, bool onDisk) {
-        const QString source = ed ? ed->toPlainText() : [&]{
-            QFile f(absPath);
-            if (!f.open(QIODevice::ReadOnly))
-                return QString();
-            const QString s = QString::fromUtf8(f.readAll());
-            f.close();
-            return s;
-        }();
+        const QString source = ed ? ed->toPlainText() : readTextFile(absPath);
         const QString docDir = QFileInfo(absPath).absolutePath();
         const QString rewritten = LinkFixer::rewrite(source, docDir, oldAbs, newAbs);
         if (rewritten == source)

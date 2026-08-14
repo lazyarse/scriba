@@ -340,6 +340,26 @@ TEST_F(CorpusWatcherIntegrationTest, DocsLoadedAfterCorpusOpenPolicyIgnoreSkipsR
     EXPECT_FALSE(tabDirty(1));
 }
 
+// The reported repro: a.md is NOT a corpus member (not in the .scriba, not an
+// open tab) but is linked from b.md. An external `mv a.md a2.md` must still be
+// detected and rewrite b.md's link.
+TEST_F(CorpusWatcherIntegrationTest, ExternalRenameOfLinkedNonCorpusFileRewritesLink)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("silent"));
+    writeFile(m_root + "/a.md", "a content");
+    writeFile(m_root + "/b.md", "See [x](a.md)");
+    makeCorpus({"b.md"});
+    openCorpus();
+
+    ASSERT_TRUE(QFile::rename(m_root + "/a.md", m_root + "/a2.md"));
+
+    EXPECT_TRUE(waitFor([&] {
+        return tabEditor(0) && tabEditor(0)->toPlainText().contains(QStringLiteral("a2.md"));
+    })) << "external rename of a linked-but-non-corpus file must update links";
+    EXPECT_TRUE(tabDirty(0));
+    EXPECT_EQ(tabEditor(0)->toPlainText(), QStringLiteral("See [x](a2.md)"));
+}
+
 TEST_F(CorpusWatcherIntegrationTest, DefaultRewritePolicyIsAskFirst)
 {
     QSettings().remove(Preferences::CorpusLinkRewritePolicy);
