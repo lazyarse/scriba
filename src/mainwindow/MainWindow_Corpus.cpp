@@ -832,6 +832,9 @@ void MainWindow::handleExternalRename(const QString &from, const QString &to)
                                  .arg(QFileInfo(from).fileName(), QFileInfo(to).fileName()),
                              4000);
     rewriteLinksForFile(from, to);
+    // Re-extract the monitored set from the corpus docs + their link targets so
+    // the renamed path (and any links the rewrite just changed) are tracked.
+    startCorpusWatcher();
     if (!m_tocTabs.isEmpty())
         refreshOpenToc();
 }

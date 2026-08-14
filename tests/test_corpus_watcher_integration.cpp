@@ -360,6 +360,29 @@ TEST_F(CorpusWatcherIntegrationTest, ExternalRenameOfLinkedNonCorpusFileRewrites
     EXPECT_EQ(tabEditor(0)->toPlainText(), QStringLiteral("See [x](a2.md)"));
 }
 
+// A second external rename of the already-rewritten file must keep following
+// the link. startCorpusWatcher re-extracts the monitored set (corpus docs +
+// link targets) after each handled rename, so the chain never stalls.
+TEST_F(CorpusWatcherIntegrationTest, ExternalRenameChainFollowsRepeatedRenames)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("silent"));
+    writeFile(m_root + "/a.md", "a content");
+    writeFile(m_root + "/b.md", "See [x](a.md)");
+    makeCorpus({"b.md"});
+    openCorpus();
+
+    ASSERT_TRUE(QFile::rename(m_root + "/a.md", m_root + "/a2.md"));
+    EXPECT_TRUE(waitFor([&] {
+        return tabEditor(0) && tabEditor(0)->toPlainText().contains(QStringLiteral("a2.md"));
+    }));
+
+    ASSERT_TRUE(QFile::rename(m_root + "/a2.md", m_root + "/a3.md"));
+    EXPECT_TRUE(waitFor([&] {
+        return tabEditor(0) && tabEditor(0)->toPlainText().contains(QStringLiteral("a3.md"));
+    }));
+    EXPECT_EQ(tabEditor(0)->toPlainText(), QStringLiteral("See [x](a3.md)"));
+}
+
 TEST_F(CorpusWatcherIntegrationTest, DefaultRewritePolicyIsAskFirst)
 {
     QSettings().remove(Preferences::CorpusLinkRewritePolicy);
