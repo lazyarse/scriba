@@ -318,6 +318,11 @@ private:
     void openValidationReport();
     void stopValidationReport();
 
+    // Pushes the saved Issue Summary preferences (options + theme colors) into
+    // every editor and triggers the pane on the active one. Called after
+    // preference changes, on tab creation, and re-triggered on tab switches.
+    void applyIssueSummarySettings();
+
     QSplitter *m_splitter;
     Preview *m_preview;
     QWebChannel *m_webChannel = nullptr;

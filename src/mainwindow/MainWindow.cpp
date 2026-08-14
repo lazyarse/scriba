@@ -602,6 +602,7 @@ void MainWindow::showPreferences()
             for (const auto &tab : m_tabs)
                 if (tab.editor)
                     tab.editor->refreshUnderlines();
+            applyIssueSummarySettings();
         });
     QSettings s;
     if (dlg.exec() == QDialog::Accepted) {
@@ -630,6 +631,7 @@ void MainWindow::showPreferences()
             m_showPageBreaksAction->setChecked(s.value(Preferences::PreviewShowPageBreaks, false).toBool());
         updateTabBarVisibility();
         updatePreview();
+        applyIssueSummarySettings();
 
         int interval = s.value(Preferences::AutoSaveInterval, 0).toInt();
         if (interval > 0)

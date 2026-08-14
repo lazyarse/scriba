@@ -25,6 +25,8 @@
 #include "spell/StoppardEngine.h"
 #include "validation/ValidationReport.h"
 #include "validation/ValidationReportDialog.h"
+#include "css/CssLoader.h"
+#include "css/CssUtils.h"
 #include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
@@ -317,4 +319,31 @@ void MainWindow::stopValidationReport()
     thread->quit();
     thread->wait();
     delete thread; // ValidationReportThread dtor frees the grammar checker
+}
+
+void MainWindow::applyIssueSummarySettings()
+{
+    QSettings settings;
+    Editor::IssueSummaryOptions opts;
+    opts.enabled = settings.value(Preferences::IssueSummaryEnabled, false).toBool();
+    opts.timeoutEnabled = settings.value(Preferences::IssueSummaryTimeoutEnabled, false).toBool();
+    opts.timeoutSeconds = settings.value(Preferences::IssueSummaryTimeoutSeconds,
+                                          Preferences::DefaultIssueSummaryTimeoutSeconds).toInt();
+    opts.categories.clear();
+    if (settings.value(Preferences::IssueSummaryShowTypos, true).toBool())
+        opts.categories.insert(ValidationReport::Category::Spelling);
+    if (settings.value(Preferences::IssueSummaryShowGrammar, true).toBool())
+        opts.categories.insert(ValidationReport::Category::Grammar);
+    if (settings.value(Preferences::IssueSummaryShowLint, true).toBool())
+        opts.categories.insert(ValidationReport::Category::Markdown);
+    if (settings.value(Preferences::IssueSummaryShowLinks, true).toBool())
+        opts.categories.insert(ValidationReport::Category::Links);
+
+    const CssUtils::ThemeColors tc = CssUtils::themeColors(m_cssLoader->themeCss());
+    for (const auto &tab : m_tabs) {
+        if (tab.editor)
+            tab.editor->setIssueSummaryOptions(opts, tc.background, tc.text);
+    }
+    if (Editor *ed = currentEditor())
+        ed->showIssueSummary();
 }

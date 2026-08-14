@@ -130,6 +130,7 @@ int MainWindow::addTab(const QString &filePath)
     editor->updateGutterSettings();
 
     updateTabBarVisibility();
+    applyIssueSummarySettings(); // pane options + immediate show for this file
     editor->setFocus();
     return idx;
 }
@@ -375,6 +376,8 @@ void MainWindow::onTabChanged(int index)
     connectActiveEditor();
     if (auto *ed = currentEditor())
         ed->setFocus();
+    if (auto *ed = currentEditor())
+        ed->showIssueSummary();
 
     TabInfo *info = activeTabInfo();
     if (info) {

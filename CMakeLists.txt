@@ -642,6 +642,11 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_anchor_navigation COMMAND ${_TEST_PREFIX} ./test_anchor_navigation)
 
+    add_executable(test_issue_summary_mainwindow tests/test_issue_summary_mainwindow.cpp)
+    target_link_libraries(test_issue_summary_mainwindow PRIVATE
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
+    add_test(NAME test_issue_summary_mainwindow COMMAND ${_TEST_PREFIX} ./test_issue_summary_mainwindow)
+
     add_executable(test_emoji_preview tests/test_emoji_preview.cpp)
     target_link_libraries(test_emoji_preview PRIVATE
         scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources scriba_twemoji)
