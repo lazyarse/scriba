@@ -22,6 +22,8 @@ TEST(CssUtilsTest, EmptyInput) {
     EXPECT_FALSE(css.isEmpty());
     EXPECT_TRUE(css.contains("QDialog"));
     EXPECT_TRUE(css.contains("QScrollBar"));
+    EXPECT_TRUE(css.contains("#scriba-editor QScrollBar:vertical"));
+    EXPECT_TRUE(css.contains("width: 20px"));
 }
 
 TEST(CssUtilsTest, DarkThemeBackground) {

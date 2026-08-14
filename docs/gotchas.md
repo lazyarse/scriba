@@ -929,7 +929,9 @@ colors as the editor's underlines).
   markers refresh when the lint result lands without a dedicated signal.
 - **Theme:** the track/handle stay themed by the app-wide QSS
   (`QScrollBar:vertical` rules in `CssUtils::buildQss`); only the marker colors
-  come from the underline-color settings.
+  come from the underline-color settings. The editor's vertical bar is widened
+  to 20px via a scoped `#scriba-editor` rule (same buildQss string); all other
+  scrollbars stay 12px.
 
 ## Issue Summary pane
 
