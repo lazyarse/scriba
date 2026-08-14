@@ -678,6 +678,17 @@ pass recomputes content hashes and compares against last-seen hashes
   `saveCorpusAsAction`/`renameCurrentFile` re-arm too). The link-rewrite
   preference default remains "Ask me first" (`CorpusLinkRewritePolicy` =
   `"prompt"`).
+- **Linked-but-non-corpus files are watched too.** `startCorpusWatcher` builds
+  the monitored set from the corpus documents **and** every link target those
+  documents reference (`LinkFixer::resolvedLinkTargets`), so an external
+  rename of a file that is only *linked from* a corpus doc (not itself a
+  corpus member) is detected and its links rewritten — the "ask"/"silent"
+  policy applies consistently. The set is re-armed on open/load/save/rename
+  and after each handled external rename; a link target that doesn't exist on
+  disk isn't watched until the next re-arm.
+- **The "Ask me first" prompt gates closed-doc disk writes.** With scope "all",
+  a closed affected document is rewritten to disk only after the user confirms;
+  declining leaves it untouched. (Open docs were already deferred via tab edits.)
 
 ## Definition lists (`MD_FLAG_DEFINITIONLISTS`)
 
