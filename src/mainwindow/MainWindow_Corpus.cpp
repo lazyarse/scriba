@@ -860,6 +860,7 @@ void MainWindow::rewriteLinksForFile(const QString &oldAbs, const QString &newAb
     struct TabEdit { Editor *editor = nullptr; int tabIndex = -1; QString replaced; };
     QStringList affectedDocs;
     QList<TabEdit> tabEdits;
+    QList<QPair<QString, QString>> diskEdits;   // abs path -> rewritten content
     const bool scopeAll = prefs.value(Preferences::CorpusLinkRewriteScope,
                                       QStringLiteral("open")).toString() == QLatin1String("all");
 
@@ -873,11 +874,7 @@ void MainWindow::rewriteLinksForFile(const QString &oldAbs, const QString &newAb
         if (ed)
             tabEdits.append({ed, tabIndex, rewritten});
         else if (onDisk) {
-            QFile f(absPath);
-            if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-                f.write(rewritten.toUtf8());
-                f.close();
-            }
+            diskEdits.append({absPath, rewritten});
         }
     };
 
@@ -901,6 +898,14 @@ void MainWindow::rewriteLinksForFile(const QString &oldAbs, const QString &newAb
                  tr("Update links to %1 in %2 document(s)?")
                      .arg(QFileInfo(oldAbs).fileName()).arg(affectedDocs.size())) != QMessageBox::Yes)
             return;
+    }
+    // Deferred past the prompt: declining must not have rewritten closed docs.
+    for (const auto &de : diskEdits) {
+        QFile f(de.first);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            f.write(de.second.toUtf8());
+            f.close();
+        }
     }
     for (const TabEdit &te : tabEdits) {
         te.editor->setPlainText(te.replaced);

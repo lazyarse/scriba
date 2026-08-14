@@ -23,6 +23,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QMessageBox>
 #include <QSettings>
 #include <QStackedWidget>
 #include <QTabBar>
@@ -381,6 +382,80 @@ TEST_F(CorpusWatcherIntegrationTest, ExternalRenameChainFollowsRepeatedRenames)
         return tabEditor(0) && tabEditor(0)->toPlainText().contains(QStringLiteral("a3.md"));
     }));
     EXPECT_EQ(tabEditor(0)->toPlainText(), QStringLiteral("See [x](a3.md)"));
+}
+
+// Scope "all" + ask policy: a closed affected doc (b.md) must be rewritten to
+// disk only AFTER the user confirms. Clicking Yes applies the rewrite.
+TEST_F(CorpusWatcherIntegrationTest, AskPolicyYesAppliesClosedDocDiskRewrite)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("prompt"));
+    QSettings().setValue(Preferences::CorpusLinkRewriteScope, QStringLiteral("all"));
+    writeFile(m_root + "/a.md", "a content");
+    writeFile(m_root + "/b.md", "See [x](a.md)");
+    makeCorpus({"a.md", "b.md"});
+    openCorpus();
+
+    // Close b.md's tab so the rewrite must take the on-disk branch (scope "all").
+    auto *tabs = m_window->findChild<QTabBar *>();
+    ASSERT_NE(tabs, nullptr);
+    tabs->setCurrentIndex(1);
+    QApplication::processEvents();
+    triggerAction(m_window, QStringLiteral("Close Tab"));
+    QApplication::processEvents();
+    ASSERT_EQ(tabs->count(), 1);
+
+    QTimer promptDriver;
+    promptDriver.start(50);
+    QObject::connect(&promptDriver, &QTimer::timeout, [&]() {
+        if (auto *mb = qobject_cast<QMessageBox *>(qApp->activeModalWidget())) {
+            mb->button(QMessageBox::Yes)->click();
+            promptDriver.stop();
+        }
+    });
+
+    ASSERT_TRUE(QFile::rename(m_root + "/a.md", m_root + "/a2.md"));
+    EXPECT_TRUE(waitFor([&] {
+        return readFile(m_root + "/b.md").contains(QStringLiteral("a2.md"));
+    }));
+    promptDriver.stop();
+    EXPECT_EQ(readFile(m_root + "/b.md"), QStringLiteral("See [x](a2.md)"));
+}
+
+// Scope "all" + ask policy: declining the prompt must leave the closed doc
+// untouched on disk. Today the disk write happens before the prompt, so this
+// test fails (b.md is rewritten despite clicking No).
+TEST_F(CorpusWatcherIntegrationTest, AskPolicyNoLeavesClosedDocOnDiskUntouched)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("prompt"));
+    QSettings().setValue(Preferences::CorpusLinkRewriteScope, QStringLiteral("all"));
+    writeFile(m_root + "/a.md", "a content");
+    writeFile(m_root + "/b.md", "See [x](a.md)");
+    makeCorpus({"a.md", "b.md"});
+    openCorpus();
+
+    auto *tabs = m_window->findChild<QTabBar *>();
+    ASSERT_NE(tabs, nullptr);
+    tabs->setCurrentIndex(1);
+    QApplication::processEvents();
+    triggerAction(m_window, QStringLiteral("Close Tab"));
+    QApplication::processEvents();
+    ASSERT_EQ(tabs->count(), 1);
+
+    QTimer promptDriver;
+    promptDriver.start(50);
+    QObject::connect(&promptDriver, &QTimer::timeout, [&]() {
+        if (auto *mb = qobject_cast<QMessageBox *>(qApp->activeModalWidget())) {
+            mb->reject();                        // = No
+            promptDriver.stop();
+        }
+    });
+
+    ASSERT_TRUE(QFile::rename(m_root + "/a.md", m_root + "/a2.md"));
+    QTest::qWait(2500);                          // > Debounce::CorpusWatch + prompt handling
+    promptDriver.stop();
+
+    EXPECT_EQ(readFile(m_root + "/b.md"), QStringLiteral("See [x](a.md)"))
+        << "declining the ask prompt must not rewrite closed docs to disk";
 }
 
 TEST_F(CorpusWatcherIntegrationTest, DefaultRewritePolicyIsAskFirst)
