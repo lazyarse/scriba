@@ -54,10 +54,10 @@ TEST(IssueSummaryMainWindowTest, OpensMdFileShowsPane)
     EXPECT_TRUE(pane->isVisible());
 }
 
-TEST(IssueSummaryMainWindowTest, OpensTxtFileHidesPane)
+TEST(IssueSummaryMainWindowTest, OpensRtfFileHidesPane)
 {
     QTemporaryDir tmp;
-    QFile txtFile(tmp.filePath(QStringLiteral("data.txt")));
+    QFile txtFile(tmp.filePath(QStringLiteral("data.rtf")));
     ASSERT_TRUE(txtFile.open(QIODevice::WriteOnly | QIODevice::Text));
     txtFile.write("helo world\n");
     txtFile.close();
