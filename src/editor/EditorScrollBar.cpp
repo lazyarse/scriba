@@ -20,8 +20,6 @@
 #include <QAbstractTextDocumentLayout>
 #include <QPainter>
 #include <QSettings>
-#include <QStyle>
-#include <QStyleOptionSlider>
 #include <QTextBlock>
 #include <QTextDocument>
 
@@ -93,12 +91,6 @@ void EditorScrollBar::paintEvent(QPaintEvent *event)
     if (m_entries.isEmpty())
         return;
 
-    // The thumb's current band: markers landing under it are skipped.
-    QStyleOptionSlider opt;
-    initStyleOption(&opt);
-    const QRect thumb = style()->subControlRect(QStyle::CC_ScrollBar, &opt,
-                                                QStyle::SC_ScrollBarSlider, this);
-
     const QTextDocument *doc = m_highlighter->document();
     const qreal docHeight = qMax<qreal>(1.0,
         doc->documentLayout()->documentSize().height());
@@ -125,8 +117,6 @@ void EditorScrollBar::paintEvent(QPaintEvent *event)
             if (!(e.flags & t.flag))
                 continue;
             const int lineY = y + offset;
-            if (lineY >= thumb.top() && lineY <= thumb.bottom())
-                break; // this block is on-screen; its markers are under the thumb
             p.fillRect(1, lineY, width() - 2, 2, t.color);
             offset += 2;
         }

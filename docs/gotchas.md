@@ -917,8 +917,9 @@ colors as the editor's underlines).
 - **Whole-document overview:** a marker's track position is
   `blockBoundingRect(block).center().y() / documentSize().height() × trackHeight`
   (ratio-based, so it is DPI-safe and independent of scroll offset), not
-  viewport-relative. Markers that would land under the thumb are skipped so the
-  handle stays readable.
+  viewport-relative. Markers paint on top of the handle too — the marker pass
+  runs after the base `QScrollBar::paintEvent`, so errors stay visible even
+  when the thumb covers them (no under-thumb skip).
 - **Per-block-per-type:** a block with a typo inside a broken link paints two
   stacked lines (spell + link), offset 2 px apart; it is not per-word-instance.
 - **Staleness mirrors the underlines:** the index rebuilds on `spellHitsChanged`

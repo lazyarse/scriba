@@ -215,7 +215,7 @@ TEST_F(EditorScrollbarTest, MarkerPaintedOutsideThumbBand)
         << "a red spell marker must be painted at the block's track position";
 }
 
-TEST_F(EditorScrollbarTest, MarkerHiddenUnderThumbBand)
+TEST_F(EditorScrollbarTest, MarkerVisibleUnderThumbBand)
 {
     QStringList lines;
     const int total = 200;
@@ -239,8 +239,8 @@ TEST_F(EditorScrollbarTest, MarkerHiddenUnderThumbBand)
 
     const QImage img = sb->grab().toImage();
     ASSERT_FALSE(img.isNull());
-    EXPECT_FALSE(colorNear(img, expectedY, isRed))
-        << "the marker under the thumb must be skipped";
+    EXPECT_TRUE(colorNear(img, expectedY, isRed))
+        << "the marker must be painted on top of the thumb";
 }
 
 TEST_F(EditorScrollbarTest, ToggleOffHidesAllMarkers)
