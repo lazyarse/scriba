@@ -303,14 +303,22 @@ void MainWindow::buildViewMenu(QMenuBar *bar)
     addLayoutAction("&Preview", 3);
     syncPreviewLayout();
 
-    QAction *corpusFilesAction = viewMenu->addAction("Show Corpus &Files");
-    corpusFilesAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F));
-    corpusFilesAction->setCheckable(true);
-    corpusFilesAction->setChecked(
+    m_showCorpusFilesAction = viewMenu->addAction("Show Corpus &Files");
+    m_showCorpusFilesAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F));
+    m_showCorpusFilesAction->setCheckable(true);
+    m_showCorpusFilesAction->setChecked(
         QSettings().value(Preferences::ShowCorpusFilesPanel, true).toBool());
-    connect(corpusFilesAction, &QAction::toggled, this, [this](bool checked) {
+    connect(m_showCorpusFilesAction, &QAction::toggled, this, [this](bool checked) {
         QSettings().setValue(Preferences::ShowCorpusFilesPanel, checked);
         m_corpusFilesDock->setVisible(checked);
+    });
+    // Mirror the dock back into the action/pref: the title-bar [x] button
+    // hides the dock without touching the action, leaving a stale checked
+    // state that re-shows the panel on the next watcher refresh. setChecked/
+    // setVisible with an unchanged value do not re-emit, so no loop.
+    connect(m_corpusFilesDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        QSettings().setValue(Preferences::ShowCorpusFilesPanel, visible);
+        m_showCorpusFilesAction->setChecked(visible);
     });
 
     viewMenu->addSeparator();

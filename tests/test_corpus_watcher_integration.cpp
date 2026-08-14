@@ -762,6 +762,39 @@ TEST_F(CorpusWatcherIntegrationTest, FilesPanelImageActivationInsertsLink)
         << "the inserted link must not have touched the file on disk";
 }
 
+TEST_F(CorpusWatcherIntegrationTest, DockCloseUnchecksViewMenuAction)
+{
+    writeFile(m_root + "/doc.md", "one");
+    makeCorpus({"doc.md"});
+    openCorpus();
+    EXPECT_FALSE(filesDock()->isHidden());
+
+    QAction *action = nullptr;
+    for (QAction *a : m_window->findChildren<QAction *>())
+        if (a->text() == QStringLiteral("Show Corpus &Files"))
+            action = a;
+    ASSERT_NE(action, nullptr);
+    ASSERT_TRUE(action->isChecked());
+
+    // The title-bar [x] button hides the dock without touching the action.
+    filesDock()->close();
+    QApplication::processEvents();
+    EXPECT_TRUE(filesDock()->isHidden());
+    EXPECT_FALSE(action->isChecked());
+    EXPECT_FALSE(QSettings().value(Preferences::ShowCorpusFilesPanel, true).toBool());
+
+    // The panel must not reappear on the next watcher refresh.
+    writeFile(m_root + "/doc.md", "two");
+    QTest::qWait(1600);   // > Debounce::CorpusWatch
+    EXPECT_TRUE(filesDock()->isHidden());
+
+    // Round-trip: the menu action re-shows the dock and persists.
+    action->trigger();
+    QApplication::processEvents();
+    EXPECT_FALSE(filesDock()->isHidden());
+    EXPECT_TRUE(QSettings().value(Preferences::ShowCorpusFilesPanel, false).toBool());
+}
+
 } // namespace
 
 int main(int argc, char **argv)

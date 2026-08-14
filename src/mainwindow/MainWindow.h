@@ -356,6 +356,7 @@ private:
     QAction *m_mermaidAction;
     QAction *m_wrapTextAction = nullptr;
     QAction *m_showPageBreaksAction = nullptr;
+    QAction *m_showCorpusFilesAction = nullptr;
     QTimer *m_updateTimer = nullptr;
     QTimer *m_anchorTimer = nullptr;
     QString m_pendingAnchor;
