@@ -33,7 +33,6 @@
 
 #include <functional>
 
-#include "validation/ValidationReport.h"
 #include "corpus/Corpus.h"
 #include "preview/PrintOptions.h"
 
@@ -138,7 +137,6 @@ private slots:
     void showKatexHelper();
     void showMchemHelper();
     void showSpellCheckDialog();
-    void generateValidationReport();
     void handleChartEdit(const QString &kind, int line, int index, const QString &tex);
     void editChartBlock(Editor *ed, int blockNumber);
 
@@ -310,14 +308,6 @@ private:
     // corpus root (matching the preview); clear on corpus close / new corpus.
     void applyUntitledLinkBaseDir();
 
-    // Validation Report (Tools → Validation Report…): snapshots the open
-    // documents, scans spelling/links/markdown synchronously, runs the
-    // expensive whole-document grammar pass on a background thread, then
-    // opens the assembled markdown in a new tab.
-    void onValidationReportReady(const QVector<QList<GrammarChecker::Issue>> &grammarIssues);
-    void openValidationReport();
-    void stopValidationReport();
-
     // Pushes the saved Issue Summary preferences (options + theme colors) into
     // every editor and triggers the pane on the active one. Called after
     // preference changes, on tab creation, and re-triggered on tab switches.
@@ -372,18 +362,6 @@ private:
     int m_anchorTries = 0;
     Corpus m_corpus;
     QMenu *m_recentCorpusMenu = nullptr;
-
-    // Validation Report state. m_reportSources/m_reportDocs are snapshots made
-    // on the UI thread before the grammar worker starts; the worker's results
-    // are merged into m_reportDocs in onValidationReportReady(). m_reportTitles
-    // keys report tab indices to their date-stamped title so updateTabLabel()
-    // keeps them after edits.
-    bool m_reportInFlight = false;
-    QThread *m_reportThread = nullptr;
-    QHash<int, QString> m_reportTitles;
-    QVector<ValidationReport::DocumentSource> m_reportSources;
-    QVector<ValidationReport::DocumentReport> m_reportDocs;
-    ValidationReport::ValidationOptions m_reportOptions;
 
 protected:
     void updateTabBarVisibility();

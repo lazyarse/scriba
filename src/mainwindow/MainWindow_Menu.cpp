@@ -38,7 +38,6 @@
 #include "StaticHelpers.h"
 #include "charts/StockChartDialog.h"
 #include "dialogs/TableDialog.h"
-#include "validation/ValidationReport.h"
 #include <QAction>
 #include <QDockWidget>
 #include <QFontDatabase>
@@ -409,16 +408,6 @@ void MainWindow::buildToolsMenu(QMenuBar *bar)
                 ed->insertPlainText(block);
         }
     });
-
-    toolsMenu->addSeparator();
-
-    QAction *spellCheckAction = toolsMenu->addAction("&Check Spelling...");
-    spellCheckAction->setShortcut(QKeySequence(Qt::Key_F7));
-    connect(spellCheckAction, &QAction::triggered, this, &MainWindow::showSpellCheckDialog);
-
-    QAction *reportAction = toolsMenu->addAction("&Validation Report...");
-    reportAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F7));
-    connect(reportAction, &QAction::triggered, this, &MainWindow::generateValidationReport);
 
     toolsMenu->addSeparator();
 

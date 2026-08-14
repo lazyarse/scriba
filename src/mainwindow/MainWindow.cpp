@@ -16,6 +16,7 @@
 
 #include "MainWindow.h"
 #include "editor/Editor.h"
+#include "editor/IssueSummaryPane.h"
 #include "preview/Preview.h"
 #include "preview/PreviewBridge.h"
 #include "corpus/Corpus.h"
@@ -32,7 +33,6 @@
 #include "StaticHelpers.h"
 #include "spell/SpellChecker.h"
 #include "spell/StoppardEngine.h"
-#include "validation/ValidationReport.h"
 #include <QAtomicInteger>
 #include <QWebChannel>
 
@@ -770,4 +770,31 @@ void MainWindow::updateTabBarVisibility()
 {
     const bool alwaysShow = QSettings().value(Preferences::TabBarAlwaysShow, false).toBool();
     m_tabBar->setVisible(alwaysShow || m_tabs.size() > 1);
+}
+
+void MainWindow::applyIssueSummarySettings()
+{
+    QSettings settings;
+    Editor::IssueSummaryOptions opts;
+    opts.enabled = settings.value(Preferences::IssueSummaryEnabled, false).toBool();
+    opts.timeoutEnabled = settings.value(Preferences::IssueSummaryTimeoutEnabled, false).toBool();
+    opts.timeoutSeconds = settings.value(Preferences::IssueSummaryTimeoutSeconds,
+                                          Preferences::DefaultIssueSummaryTimeoutSeconds).toInt();
+    opts.categories.clear();
+    if (settings.value(Preferences::IssueSummaryShowTypos, true).toBool())
+        opts.categories.insert(IssueSummaryPane::Kind::Typos);
+    if (settings.value(Preferences::IssueSummaryShowGrammar, true).toBool())
+        opts.categories.insert(IssueSummaryPane::Kind::Grammar);
+    if (settings.value(Preferences::IssueSummaryShowLint, true).toBool())
+        opts.categories.insert(IssueSummaryPane::Kind::Lint);
+    if (settings.value(Preferences::IssueSummaryShowLinks, true).toBool())
+        opts.categories.insert(IssueSummaryPane::Kind::Links);
+
+    const CssUtils::ThemeColors tc = CssUtils::themeColors(m_cssLoader->themeCss());
+    for (const auto &tab : m_tabs) {
+        if (tab.editor)
+            tab.editor->setIssueSummaryOptions(opts, tc.background, tc.text);
+    }
+    if (Editor *ed = currentEditor())
+        ed->showIssueSummary();
 }

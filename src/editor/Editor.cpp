@@ -497,23 +497,22 @@ void Editor::updateIssueSummary()
         return;
 
     const auto counts = m_spellHighlighter->counts();
-    const QSet<ValidationReport::Category> &sel = m_issueSummaryOptions.categories;
+    const QSet<IssueSummaryPane::Kind> &sel = m_issueSummaryOptions.categories;
     QVector<IssueSummaryPane::Row> rows;
-    auto addRow = [&](IssueSummaryPane::Kind kind, ValidationReport::Category cat,
-                      const QString &label, int count, const QColor &color, bool engineOn) {
-        if (sel.contains(cat) && engineOn)
+    auto addRow = [&](IssueSummaryPane::Kind kind, const QString &label, int count, const QColor &color, bool engineOn) {
+        if (sel.contains(kind) && engineOn)
             rows.append({kind, label, count, color});
     };
-    addRow(IssueSummaryPane::Kind::Typos, ValidationReport::Category::Spelling,
+    addRow(IssueSummaryPane::Kind::Typos,
            QStringLiteral("Typos"), counts.spelling,
            SpellHighlighter::spellUnderlineColor(), m_spellHighlighter->spellCheckingEnabled());
-    addRow(IssueSummaryPane::Kind::Grammar, ValidationReport::Category::Grammar,
+    addRow(IssueSummaryPane::Kind::Grammar,
            QStringLiteral("Grammar"), counts.grammar,
            SpellHighlighter::grammarUnderlineColor(), m_spellHighlighter->grammarCheckingEnabled());
-    addRow(IssueSummaryPane::Kind::Lint, ValidationReport::Category::Markdown,
+    addRow(IssueSummaryPane::Kind::Lint,
            QStringLiteral("Markdown"), counts.markdown,
            SpellHighlighter::markdownUnderlineColor(), m_spellHighlighter->markdownCheckingEnabled());
-    addRow(IssueSummaryPane::Kind::Links, ValidationReport::Category::Links,
+    addRow(IssueSummaryPane::Kind::Links,
            QStringLiteral("Broken links"), counts.links,
            SpellHighlighter::linkUnderlineColor(), m_spellHighlighter->linkCheckingEnabled());
 

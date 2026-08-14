@@ -29,7 +29,7 @@
 #include "prefs/Preferences.h"
 #include "preview/Preview.h"
 #include "StaticHelpers.h"
-#include "validation/ValidationReport.h"
+
 #include <QDir>
 #include <QDockWidget>
 #include <QCryptographicHash>
@@ -92,7 +92,7 @@ void MainWindow::exportCorpus()
     QHash<QString, QString> untitledByLabel;   // live text of open untitled tabs
     for (int i = 0; i < m_tabs.size(); ++i) {
         const TabInfo &ti = m_tabs[i];
-        if (ti.filePath.isEmpty() && !m_reportTitles.contains(i))
+        if (ti.filePath.isEmpty())
             untitledByLabel.insert(tabTitleForEmbedded(i), ti.editor->toPlainText());
     }
     int untitled = 0;
@@ -320,8 +320,6 @@ void MainWindow::refreshCorpusFromTabs()
     int activeIndex = -1;
     for (int i = 0; i < m_tabs.size(); ++i) {
         const TabInfo &info = m_tabs[i];
-        if (m_reportTitles.contains(i))
-            continue;   // generated report tabs are not part of the corpus
         if (!info.filePath.isEmpty() && isCorpusTocPath(info.filePath))
             continue;   // the corpus TOC sidecar is never a corpus document
 
@@ -352,8 +350,6 @@ bool MainWindow::promptSaveUnsavedCorpusDocs()
         return true;
 
     for (int i = 0; i < m_tabs.size(); ++i) {
-        if (m_reportTitles.contains(i))
-            continue;
         TabInfo &info = m_tabs[i];
         if (!info.filePath.isEmpty())
             continue;
@@ -395,8 +391,6 @@ QString MainWindow::tabTitleForEmbedded(int index) const
 {
     if (index < 0 || index >= m_tabs.size())
         return QString();
-    if (m_reportTitles.contains(index))
-        return m_reportTitles.value(index);
     return m_tabs[index].filePath.isEmpty() ? QStringLiteral("Untitled")
                                             : QFileInfo(m_tabs[index].filePath).fileName();
 }
@@ -989,4 +983,109 @@ void MainWindow::rewriteLinksForFile(const QString &oldAbs, const QString &newAb
     }
     statusBar()->showMessage(tr("Updated links to %1 in %2 document(s)")
                                  .arg(QFileInfo(oldAbs).fileName()).arg(affectedDocs.size()), 4000);
+}
+
+void MainWindow::openCorpusToc()
+{
+    if (m_corpus.documents.isEmpty()) {
+        showCenteredWarning(tr("No Corpus"), tr("No corpus is open."), QString());
+        return;
+    }
+    if (m_corpus.filePath.isEmpty()) {
+        showCenteredWarning(tr("Unsaved Corpus"),
+            tr("Save the corpus first — its Table of Contents is a file in the corpus folder."),
+            QString());
+        return;
+    }
+
+    const QString tocPath = corpusTocPath();
+    if (!QFileInfo::exists(tocPath)) {
+        QString links = CorpusIndex::renderTocLinks(m_corpus, tocLinks());
+        QString templateText = QSettings().value(Preferences::CorpusTocTemplate).toString();
+        if (templateText.trimmed().isEmpty())
+            templateText = CorpusIndex::defaultTocTemplate();
+        QString content = CorpusIndex::replaceTocBlock(templateText, links);
+        QFile out(tocPath);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            showCenteredWarning(tr("Table of Contents Failed"),
+                tr("Could not create %1").arg(tocPath), QString());
+            return;
+        }
+        out.write(content.toUtf8());
+        out.close();
+    }
+
+    const int existing = findTabByPath(tocPath);
+    if (existing >= 0) {
+        m_tabBar->setCurrentIndex(existing);
+    } else {
+        loadFile(tocPath);   // opens a normal, editable tab
+    }
+    refreshCorpusToc();
+}
+
+QHash<QString, QString> MainWindow::tocLinks() const
+{
+    QHash<QString, QString> links;
+    for (const CorpusDocument &d : m_corpus.documents) {
+        if (d.path.isEmpty())
+            continue;
+        const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
+        if (QFileInfo(d.path).isAbsolute())
+            links.insert(abs, QUrl::fromLocalFile(abs).toString());
+        else
+            links.insert(abs, d.path);
+    }
+    return links;
+}
+
+void MainWindow::refreshCorpusToc()
+{
+    const QString tocPath = corpusTocPath();
+    if (tocPath.isEmpty() || !QFileInfo::exists(tocPath))
+        return;
+
+    QFile in(tocPath);
+    if (!in.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+    const QString before = QString::fromUtf8(in.readAll());
+    in.close();
+    if (before.isEmpty() || !before.contains(CorpusIndex::tocStartMarker()))
+        return; // user removed the markers: leave the file alone
+
+    const QString after = CorpusIndex::replaceTocBlock(before, CorpusIndex::renderTocLinks(m_corpus, tocLinks()));
+    if (after == before)
+        return;
+
+    QFile out(tocPath);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+    out.write(after.toUtf8());
+    out.close();
+
+    // Sync any open tab: replace only the marker region, preserving user text
+    // above/below and the dirty flag.
+    const int idx = findTabByPath(tocPath);
+    if (idx < 0 || !m_tabs[idx].editor)
+        return;
+    QTextCursor c(m_tabs[idx].editor->document());
+    c.beginEditBlock();
+    QTextCursor startCursor = c.document()->find(CorpusIndex::tocStartMarker(), c);
+    if (!startCursor.isNull()) {
+        // Select from the start-marker to just past the end-marker line.
+        QTextCursor region = startCursor;
+        region.setPosition(startCursor.selectionEnd(), QTextCursor::MoveAnchor);
+        QTextCursor endCursor = region.document()->find(CorpusIndex::tocEndMarker(), region);
+        if (!endCursor.isNull()) {
+            region.setPosition(endCursor.selectionEnd(), QTextCursor::MoveAnchor);
+            region.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
+            const QString newBlock = CorpusIndex::tocStartMarker() + QLatin1Char('\n')
+                + CorpusIndex::renderTocLinks(m_corpus, tocLinks())
+                + QLatin1Char('\n') + CorpusIndex::tocEndMarker();
+            region.insertText(newBlock);
+        }
+    }
+    c.endEditBlock();
+    if (!m_tabs[idx].dirty)
+        setTabSaved(idx);
 }

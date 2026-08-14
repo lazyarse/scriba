@@ -19,7 +19,6 @@
 #include "preview/Preview.h"
 #include "prefs/Preferences.h"
 #include "spell/SpellCheckDialog.h"
-#include "validation/ValidationReport.h"
 #include <QCloseEvent>
 #include <QCryptographicHash>
 #include <QFileDialog>
@@ -156,17 +155,7 @@ void MainWindow::removeTab(int index)
         if (Editor *next = currentEditor())
             m_spellCheckDlg->retarget(next);
     }
-    delete editor;
-
-    // Removing a tab renumbers every following tab: shift report-tab titles
-    // down so updateTabLabel() still finds them.
-    m_reportTitles.remove(index);
-    QHash<int, QString> shifted;
-    for (auto it = m_reportTitles.constBegin(); it != m_reportTitles.constEnd(); ++it) {
-        const int key = it.key();
-        shifted.insert(key > index ? key - 1 : key, it.value());
-    }
-    m_reportTitles = shifted;
+delete editor;
 
     updateTabBarVisibility();
 }
@@ -179,19 +168,13 @@ void MainWindow::onTabMoved(int from, int to)
         return;
 
     // The tab bar reorders itself when the user drags a tab, but the parallel
-    // containers (m_tabs, m_editorStack, m_reportTitles) stay in their old
+    // containers (m_tabs, m_editorStack) stay in their old
     // order. Rebuild them all from the tab bar's authoritative order using the
     // Editor* identity stamped in each tab's tabData. Without this, index-keyed
     // lookups (activeTabInfo()/currentEditor() -> m_tabs[tabBar->currentIndex()])
     // return the wrong tab after a drag, so the preview would show another
     // file's cached render. Called on every tabMoved during a drag; idempotent
     // because identity is the stable Editor*.
-
-    QHash<Editor *, QString> oldReportTitles;
-    for (int i = 0; i < m_tabs.size(); ++i) {
-        if (m_reportTitles.contains(i))
-            oldReportTitles.insert(m_tabs[i].editor, m_reportTitles.value(i));
-    }
 
     QVector<TabInfo> reordered;
     reordered.reserve(m_tabs.size());
@@ -223,20 +206,11 @@ void MainWindow::onTabMoved(int from, int to)
     if (active >= 0 && active < m_editorStack->count())
         m_editorStack->setCurrentIndex(active);
 
-    m_reportTitles.clear();
-    for (int i = 0; i < m_tabs.size(); ++i) {
-        if (auto it = oldReportTitles.constFind(m_tabs[i].editor);
-            it != oldReportTitles.constEnd()) {
-            m_reportTitles.insert(i, it.value());
-        }
-    }
-
     m_connectedTabIndex = -1;
     connectActiveEditor();
     for (int i = 0; i < m_tabs.size(); ++i)
         updateTabLabel(i);
 }
-
 int MainWindow::findTabByPath(const QString &filePath) const
 {
     if (filePath.isEmpty())
@@ -314,12 +288,8 @@ void MainWindow::updateTabLabel(int index)
         return;
 
     const TabInfo &info = m_tabs[index];
-    QString name;
-    if (m_reportTitles.contains(index))
-        name = m_reportTitles.value(index);
-    else
-        name = info.filePath.isEmpty() ? QStringLiteral("Untitled")
-                                       : QFileInfo(info.filePath).fileName();
+    QString name = info.filePath.isEmpty() ? QStringLiteral("Untitled")
+                                           : QFileInfo(info.filePath).fileName();
     if (info.dirty)
         name += QStringLiteral(" *");
     if (index == m_tabBar->currentIndex())
@@ -483,9 +453,6 @@ void MainWindow::closeAllTabs()
         m_tabs[0].filePath.clear();
         m_tabBar->setTabToolTip(0, QString());
         setTabSaved(0);
-        // A virtual report tab left as the sole tab is blanked into an
-        // Untitled placeholder; drop its mapping so it can't haunt the next corpus.
-        m_reportTitles.remove(idx);
     }
 }
 

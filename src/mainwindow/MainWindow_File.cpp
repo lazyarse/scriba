@@ -34,7 +34,6 @@
 #include "prefs/Preferences.h"
 #include "preview/PrintOptions.h"
 #include "StaticHelpers.h"
-#include "validation/ValidationReport.h"
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QFileDialog>
@@ -677,10 +676,7 @@ void MainWindow::renderDocumentHtml(const QString &markdown, const QString &base
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // A still-running validation grammar worker would keep a QThread alive
-    // past the MainWindow it signals back to: stop and reap it first.
-    stopValidationReport();
-    // Likewise the background preview-render worker (large documents).
+    // The background preview-render worker (large documents).
     stopPreviewRenderWorker();
 
     QSettings s;

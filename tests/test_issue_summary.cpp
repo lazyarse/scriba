@@ -287,9 +287,9 @@ protected:
         o.timeoutEnabled = true;
         o.timeoutSeconds = 2;
         o.categories = {
-            ValidationReport::Category::Spelling,
-            ValidationReport::Category::Links,
-            ValidationReport::Category::Markdown,
+            IssueSummaryPane::Kind::Typos,
+            IssueSummaryPane::Kind::Links,
+            IssueSummaryPane::Kind::Lint,
         };
         return o;
     }

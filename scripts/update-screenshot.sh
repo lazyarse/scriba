@@ -34,7 +34,6 @@ declare -A TARGETS=(
     [mermaid-radar]="shot_mermaid_radar|Mermaid Radar helper (Radar panel)"
     [mermaid-gitgraph]="shot_mermaid_gitgraph|Mermaid Git Graph helper (loads the scriba repo)"
     [check-spelling]="shot_check_spelling|Check Spelling dialog"
-    [validation-report]="shot_validation_report|Validation Report options"
     [toc]="shot_toc|Editable Table of Contents file (toc.md) with a fixture corpus open"
     [corpus-files]="shot_corpus_files|Corpus Files sidecar panel with a fixture corpus open"
     [print-pdf-dialog]="shot_print_pdf_dialog|Print / Export PDF dialog"
@@ -44,7 +43,7 @@ declare -A TARGETS=(
 # preserve insertion order).
 TARGET_ORDER=(screenshot tabbar gutter-pencil preferences table-dialog emoji-picker katex-dialog
               mchem-dialog chart-dialog stock-chart-dialog advanced-charts mermaid-dialog mermaid-radar mermaid-gitgraph
-              check-spelling validation-report toc corpus-files print-pdf-dialog)
+              check-spelling toc corpus-files print-pdf-dialog)
 
 usage() {
     cat <<'EOF'
@@ -472,16 +471,6 @@ shot_check_spelling() {
     xdotool keydown 73
     xdotool keyup 73
     capture "Check Spelling" "$OUT_DIR/check-spelling.png"
-}
-
-# --- Validation Report options (choose which checks to run) ---
-# NB: like the F7 above, `xdotool key` with F7 latches a phantom Alt, so send
-# the raw keycode (73 = F7) with Ctrl+Shift held down instead.
-shot_validation_report() {
-    xdotool windowfocus "$WID"
-    sleep 0.2
-    xdotool keydown ctrl keydown shift keydown 73 keyup 73 keyup shift keyup ctrl
-    capture "Validation Report Options" "$OUT_DIR/validation-report.png"
 }
 
 # --- Print / Export PDF (long wait: WebEngine load, mermaid/echarts promises,

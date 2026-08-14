@@ -23,7 +23,7 @@
 #include <QColor>
 #include <memory>
 #include "spell/SpellHighlighter.h"
-#include "validation/ValidationReport.h"
+#include "editor/IssueSummaryPane.h"
 
 class QCompleter;
 class QAction;
@@ -74,19 +74,19 @@ public:
     // off.
     void formatTableAt(int documentPos);
 
-    // Issue-summary pane options (read from preferences by MainWindow and
-    // pushed in here). Rows are shown only for categories that are both in
-    // `categories` AND enabled in-editor; the pane itself only appears for
-    // .md files. `timeoutEnabled`/`timeoutSeconds` are the optional auto-hide.
+// Issue-summary pane options (read from preferences by MainWindow and
+// pushed in here). Rows are shown only for categories that are both in
+// `categories` AND enabled in-editor; the pane itself only appears for
+// .md files. `timeoutEnabled`/`timeoutSeconds` are the optional auto-hide.
     struct IssueSummaryOptions {
         bool enabled = false;
         bool timeoutEnabled = false;
         int timeoutSeconds = 5;
-        QSet<ValidationReport::Category> categories = {
-            ValidationReport::Category::Spelling,
-            ValidationReport::Category::Grammar,
-            ValidationReport::Category::Links,
-            ValidationReport::Category::Markdown,
+        QSet<IssueSummaryPane::Kind> categories = {
+            IssueSummaryPane::Kind::Typos,
+            IssueSummaryPane::Kind::Grammar,
+            IssueSummaryPane::Kind::Lint,
+            IssueSummaryPane::Kind::Links,
         };
     };
     void setIssueSummaryOptions(const IssueSummaryOptions &options,

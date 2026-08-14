@@ -28,7 +28,6 @@
 #include "preview/PreviewRenderWorker.h"
 #include "preview/PrintOptions.h"
 #include "StaticHelpers.h"
-#include "validation/ValidationReport.h"
 #include <QApplication>
 #include <QFileSystemWatcher>
 #include <QGuiApplication>

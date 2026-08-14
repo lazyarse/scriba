@@ -16,7 +16,7 @@ scriba/
 │   ├── mermaid/                 — Mermaid diagram dialog (MermaidDialog.cpp/h + per-family TUs, GitGraphBuilder)
 │   ├── corpus/                  — Corpus/project system (Corpus, CorpusIndex, CorpusWatcher, LinkFixer, ExportCorpusDialog)
 │   ├── spell/                   — Spelling + grammar (SpellChecker, SpellHighlighter, SpellCheckDialog, GrammarChecker, StoppardEngine)
-│   ├── validation/              — Markdown validator/linter (MarkdownChecker, LinkValidator, ValidationReport, ValidationReportDialog)
+│   ├── validation/              — Markdown validator/linter (MarkdownChecker, LinkValidator)
 │   └── prefs/                   — Preferences UI (PreferencesDialog, PreferencesPages*, Preferences.h)
 ├── docs/
 │   ├── kitchensink.md          — Sample document (canonical copy)
