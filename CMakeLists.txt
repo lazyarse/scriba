@@ -104,6 +104,7 @@ set(SCRIBA_GUTTER_SOURCES src/editor/Gutter.cpp)
 set(SCRIBA_EDITOR_SOURCES src/editor/Editor.cpp
     src/editor/EditorTyping.cpp src/editor/EditorTable.cpp src/editor/EditorFolding.cpp
     src/editor/EditorCompletions.cpp src/editor/EditorMenu.cpp src/editor/EditorScrollBar.cpp
+    src/editor/IssueSummaryPane.cpp
     ${SCRIBA_GUTTER_SOURCES})
 
 set(SCRIBA_MAINWINDOW_SOURCES src/mainwindow/MainWindow.cpp

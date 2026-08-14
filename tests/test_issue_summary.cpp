@@ -25,6 +25,9 @@
 #include <memory>
 
 #include "editor/Editor.h"
+#include "editor/IssueSummaryPane.h"
+#include <QLabel>
+#include <QToolButton>
 #include "prefs/Preferences.h"
 #include "spell/GrammarChecker.h"
 #include "spell/SpellChecker.h"
@@ -152,6 +155,83 @@ TEST_F(IssueSummaryCountsTest, EngineGettersReportToggleState)
     EXPECT_TRUE(m_hl->grammarCheckingEnabled());
     m_hl->setMarkdownCheckingEnabled(true);
     EXPECT_TRUE(m_hl->markdownCheckingEnabled());
+}
+
+class IssueSummaryPaneTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        m_pane = new IssueSummaryPane;
+        m_pane->setTheme(QColor(QStringLiteral("#1e1e1e")), QColor(QStringLiteral("#d4d4d4")));
+    }
+
+    void TearDown() override
+    {
+        delete m_pane;
+        QSettings().clear();
+    }
+
+    IssueSummaryPane *m_pane = nullptr;
+};
+
+TEST_F(IssueSummaryPaneTest, RowsRenderLabelAndCount)
+{
+    QVector<IssueSummaryPane::Row> rows = {
+        {IssueSummaryPane::Kind::Typos, QStringLiteral("Typos"), 3,
+         QColor(QStringLiteral("#d64050"))},
+        {IssueSummaryPane::Kind::Links, QStringLiteral("Broken links"), 0,
+         QColor(QStringLiteral("#f09000"))},
+    };
+    m_pane->setRows(rows);
+    m_pane->showWithTimeout(0);
+    QApplication::processEvents();
+
+    ASSERT_TRUE(m_pane->isVisible());
+    QString allText;
+    for (QLabel *lbl : m_pane->findChildren<QLabel *>())
+        allText += lbl->text();
+    EXPECT_TRUE(allText.contains(QStringLiteral("Typos")));
+    EXPECT_TRUE(allText.contains(QStringLiteral("3")));
+    EXPECT_TRUE(allText.contains(QStringLiteral("Broken links")));
+}
+
+TEST_F(IssueSummaryPaneTest, CloseButtonHidesAndEmits)
+{
+    bool emitted = false;
+    QObject::connect(m_pane, &IssueSummaryPane::closeRequested, [&emitted]() { emitted = true; });
+    m_pane->setRows({});
+    m_pane->showWithTimeout(0);
+    QApplication::processEvents();
+    ASSERT_TRUE(m_pane->isVisible());
+
+    QToolButton *closeBtn = nullptr;
+    for (QToolButton *btn : m_pane->findChildren<QToolButton *>())
+        closeBtn = btn;
+    ASSERT_NE(closeBtn, nullptr);
+    QTest::mouseClick(closeBtn, Qt::LeftButton);
+
+    EXPECT_TRUE(emitted);
+    EXPECT_FALSE(m_pane->isVisible());
+}
+
+TEST_F(IssueSummaryPaneTest, TimeoutHidesAfterInterval)
+{
+    m_pane->setRows({});
+    m_pane->showWithTimeout(60);
+    QApplication::processEvents();
+    ASSERT_TRUE(m_pane->isVisible());
+
+    QTest::qWait(250);
+    EXPECT_FALSE(m_pane->isVisible());
+}
+
+TEST_F(IssueSummaryPaneTest, ZeroTimeoutKeepsVisible)
+{
+    m_pane->setRows({});
+    m_pane->showWithTimeout(0);
+    QTest::qWait(250);
+    EXPECT_TRUE(m_pane->isVisible());
 }
 
 } // namespace
