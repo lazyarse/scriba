@@ -152,6 +152,16 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
     m_preview->setDocumentPath(filePath);
     m_previewInitialized = false;
     updatePreview();
+
+    // A corpus is open: fold this tab into the corpus document list and re-arm
+    // the watcher on the live tab set. m_corpus.documents (which drives both
+    // the monitored files and the link-rewrite scope) is only otherwise synced
+    // at save/close, so without this a file opened after the corpus was
+    // created is never watched and its links are never rewritten on rename.
+    if (!m_corpus.filePath.isEmpty()) {
+        refreshCorpusFromTabs();
+        startCorpusWatcher();
+    }
 }
 
 void MainWindow::saveFile(const QString &filePath)
@@ -256,6 +266,13 @@ void MainWindow::renameCurrentFile()
 
     // Update any corpus links that pointed at the old path.
     rewriteLinksForFile(oldAbs, newPath);
+
+    // The tab path changed: keep the corpus document list and the watcher's
+    // monitored set in sync so the new path is tracked going forward.
+    if (!m_corpus.filePath.isEmpty()) {
+        refreshCorpusFromTabs();
+        startCorpusWatcher();
+    }
 }
 
 void MainWindow::autoSave()
@@ -669,6 +686,17 @@ void MainWindow::closeEvent(QCloseEvent *event)
     QSettings s;
 
     bool autoSave = s.value(Preferences::AutoSaveOnExit, false).toBool();
+
+    // In "prompt" mode, save untitled corpus documents to real files before the
+    // corpus is written; cancelling a save dialog aborts the close entirely.
+    if (!promptSaveUnsavedCorpusDocs()) {
+        event->ignore();
+        return;
+    }
+
+    // Recompute dirty flags: the prompt pass above may have just saved some
+    // (or all) dirty tabs, so the stale flags would otherwise raise a spurious
+    // "Unsaved Changes" prompt.
     bool anyDirty = false;
     bool hasUntitledDirty = false;
 

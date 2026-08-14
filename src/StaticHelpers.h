@@ -144,6 +144,7 @@ namespace Debounce {
     constexpr int DialogPreview    = 300;  // Mermaid/KaTeX/Mchem/ECharts dialog previews
     constexpr int HeavyRender      = 1500; // JS heavy-render setTimeout in preview
     constexpr int TabSwitchRender  = 100;  // JS heavy-render delay after a tab switch
+    constexpr int CorpusWatch      = 1000; // corpus external-change watcher debounce
 }
 
 // C++ non-debounce timing values that are not embedded in JS strings.

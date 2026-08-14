@@ -207,6 +207,30 @@ TEST_F(CorpusWatcherIntegrationTest, ExternalEditReloadsCleanTab)
     EXPECT_FALSE(tabDirty(0));
 }
 
+// Scriba's own save writes the tab's text back to disk; the watcher reports it
+// as an external edit, but handleExternalEdit must not reload/prompt when the
+// on-disk content already matches the tab. Here "two" is written by the app
+// (mimicking auto-save), so the dirty tab must keep its text AND stay dirty —
+// a force reload would mark it clean.
+TEST_F(CorpusWatcherIntegrationTest, OwnWriteWithMatchingContentDoesNotReloadDirtyTab)
+{
+    QSettings().setValue(Preferences::CorpusExternalEditPolicy, QStringLiteral("autoReloadDirty"));
+    writeFile(m_root + "/doc.md", "one");
+    makeCorpus({"doc.md"});
+    openCorpus();
+    ASSERT_EQ(tabEditor(0)->toPlainText(), QStringLiteral("one"));
+
+    tabEditor(0)->setPlainText(QStringLiteral("two"));   // unsaved edit -> dirty
+    QApplication::processEvents();
+    ASSERT_TRUE(tabDirty(0));
+
+    writeFile(m_root + "/doc.md", QStringLiteral("two")); // own-write, matches tab
+    QTest::qWait(1600);                                   // > Debounce::CorpusWatch
+
+    EXPECT_EQ(tabEditor(0)->toPlainText(), QStringLiteral("two"));
+    EXPECT_TRUE(tabDirty(0)) << "own-write matching the tab must not reload it";
+}
+
 TEST_F(CorpusWatcherIntegrationTest, RenameUpdatesTabAndCorpusJson)
 {
     QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("ignore"));
@@ -254,6 +278,74 @@ TEST_F(CorpusWatcherIntegrationTest, PolicySilentRewritesOpenTabAndMarksDirty)
     }));
     EXPECT_TRUE(tabDirty(1));
     EXPECT_EQ(tabEditor(1)->toPlainText(), QStringLiteral("See [x](a2.md)"));
+}
+
+// The exact live-session flow: open a corpus with no file documents, then load
+// doc1.md/doc2.md into it. The watcher must monitor the newly opened files and
+// rewrite links to doc1.md when it is renamed on disk.
+TEST_F(CorpusWatcherIntegrationTest, DocsLoadedAfterCorpusOpenAreMonitoredAndLinksRewritten)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("silent"));
+    writeFile(m_root + "/doc1.md", "one");
+    writeFile(m_root + "/doc2.md", "See [d1](doc1.md)");
+    makeCorpus({});                                // blank placeholder corpus
+
+    m_window = new MainWindow(nullptr, /*skipCorpusRestore=*/true);
+    QApplication::processEvents();
+    m_window->openCorpusFile(m_corpusPath, /*skipPrompt=*/true);
+    QApplication::processEvents();
+    QTest::qWait(200);                             // watcher settles (no files)
+
+    m_window->loadFile(m_root + "/doc1.md");
+    m_window->loadFile(m_root + "/doc2.md");
+    QApplication::processEvents();
+    QTest::qWait(200);                             // let the re-armed watcher settle
+
+    const QString oldAbs = QFileInfo(m_root + "/doc1.md").absoluteFilePath();
+    const QString newAbs = QFileInfo(m_root + "/doc_1.md").absoluteFilePath();
+    ASSERT_TRUE(QFile::rename(m_root + "/doc1.md", m_root + "/doc_1.md"));
+
+    EXPECT_TRUE(waitFor([&] { return tabTooltip(0) == newAbs; }))
+        << "the re-armed watcher must detect the external rename";
+    EXPECT_TRUE(waitFor([&] {
+        return tabEditor(1) && tabEditor(1)->toPlainText().contains(QStringLiteral("doc_1.md"));
+    }));
+    EXPECT_TRUE(tabDirty(1));
+    EXPECT_EQ(tabEditor(1)->toPlainText(), QStringLiteral("See [d1](doc_1.md)"));
+    EXPECT_TRUE(waitFor([&] { return readFile(m_corpusPath).contains(QStringLiteral("doc_1.md")); }));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, DocsLoadedAfterCorpusOpenPolicyIgnoreSkipsRewrite)
+{
+    QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("ignore"));
+    writeFile(m_root + "/doc1.md", "one");
+    writeFile(m_root + "/doc2.md", "See [d1](doc1.md)");
+    makeCorpus({});
+
+    m_window = new MainWindow(nullptr, /*skipCorpusRestore=*/true);
+    QApplication::processEvents();
+    m_window->openCorpusFile(m_corpusPath, /*skipPrompt=*/true);
+    QApplication::processEvents();
+    QTest::qWait(200);
+
+    m_window->loadFile(m_root + "/doc1.md");
+    m_window->loadFile(m_root + "/doc2.md");
+    QApplication::processEvents();
+    QTest::qWait(200);
+
+    ASSERT_TRUE(QFile::rename(m_root + "/doc1.md", m_root + "/doc_1.md"));
+    EXPECT_TRUE(waitFor([&] { return tabTooltip(0) == QFileInfo(m_root + "/doc_1.md").absoluteFilePath(); }));
+    QTest::qWait(400);                             // give any (wrong) rewrite time
+    EXPECT_EQ(tabEditor(1)->toPlainText(), QStringLiteral("See [d1](doc1.md)"));
+    EXPECT_FALSE(tabDirty(1));
+}
+
+TEST_F(CorpusWatcherIntegrationTest, DefaultRewritePolicyIsAskFirst)
+{
+    QSettings().remove(Preferences::CorpusLinkRewritePolicy);
+    EXPECT_EQ(QSettings().value(Preferences::CorpusLinkRewritePolicy,
+                                QStringLiteral("prompt")).toString(),
+              QStringLiteral("prompt"));
 }
 
 TEST_F(CorpusWatcherIntegrationTest, ViewTocCreatesReadOnlyTocTabWithRootRelativeLinks)

@@ -326,6 +326,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
             m_linkRewritePolicyCombo->currentData().toString());
         settings.setValue(Preferences::CorpusLinkRewriteScope,
             m_linkRewriteScopeCombo->currentData().toString());
+        settings.setValue(Preferences::CorpusUnsavedDocs,
+            m_corpusUnsavedCombo->currentData().toString());
         const bool exportExternal =
             m_externalExportCombo->currentData().toString() == QLatin1String("subfolder");
         settings.setValue(Preferences::CorpusExternalExportDirName,

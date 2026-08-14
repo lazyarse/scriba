@@ -30,6 +30,8 @@
 #include "StaticHelpers.h"
 #include "validation/ValidationReport.h"
 #include <QDir>
+#include <QCryptographicHash>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -328,6 +330,46 @@ void MainWindow::refreshCorpusFromTabs()
     m_corpus.active = activeIndex;
 }
 
+bool MainWindow::promptSaveUnsavedCorpusDocs()
+{
+    if (QSettings().value(Preferences::CorpusUnsavedDocs, QStringLiteral("embed")).toString()
+            != QLatin1String("prompt"))
+        return true;
+
+    for (int i = 0; i < m_tabs.size(); ++i) {
+        if (m_reportTitles.contains(i) || m_tocTabs.contains(i))
+            continue;
+        TabInfo &info = m_tabs[i];
+        if (!info.filePath.isEmpty())
+            continue;
+        if (info.editor->toPlainText().isEmpty() && !info.dirty)
+            continue;                            // empty placeholder: nothing to save
+        const QString file = saveAsDialogPath();
+        if (file.isEmpty())
+            return false;                        // cancel: abort the corpus save
+        info.filePath = file;
+        QFile out(file);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            showCenteredWarning(tr("Save Failed"),
+                tr("Could not save \"%1\".\n%2").arg(file, out.errorString()), QString());
+            return false;
+        }
+        out.write(info.editor->toPlainText().toUtf8());
+        out.close();
+        info.editor->setCurrentFile(file);
+        setTabSaved(i);
+        updateTabLabel(i);
+        m_tabBar->setTabToolTip(i, file);
+        if (i == m_tabBar->currentIndex()) {
+            updateWindowTitle();
+            m_preview->setDocumentPath(file);
+            if (m_previewInitialized)
+                updatePreview();                 // untitled save moves the base dir
+        }
+    }
+    return true;
+}
+
 QJsonObject MainWindow::serializeCorpus()
 {
     refreshCorpusFromTabs();
@@ -434,7 +476,10 @@ void MainWindow::saveCorpusAction()
         saveCorpusAsAction();
         return;
     }
+    if (!promptSaveUnsavedCorpusDocs())
+        return;                       // user cancelled a save dialog: abort
     refreshCorpusFromTabs();
+    startCorpusWatcher();          // tab set may have changed without loadFile
     QString error;
     if (!m_corpus.save(&error)) {
         showCenteredWarning(tr("Save Corpus Failed"),
@@ -460,7 +505,10 @@ void MainWindow::saveCorpusAsAction()
     if (path.isEmpty())
         return;
     m_corpus.filePath = QFileInfo(path).absoluteFilePath();
+    if (!promptSaveUnsavedCorpusDocs())
+        return;                       // user cancelled a save dialog: abort
     refreshCorpusFromTabs();
+    startCorpusWatcher();          // tab set may have changed without loadFile
     QString error;
     if (!m_corpus.save(&error)) {
         showCenteredWarning(tr("Save Corpus Failed"),
@@ -494,7 +542,9 @@ void MainWindow::newCorpusAction()
     updateTabBarVisibility();
 
     m_corpus.filePath = QFileInfo(path).absoluteFilePath();
-    refreshCorpusFromTabs();           // records the blank tab as the first embedded doc
+    if (!promptSaveUnsavedCorpusDocs())
+        return;                       // user cancelled a save dialog: abort
+    refreshCorpusFromTabs();          // records the blank tab as the first embedded doc
     QString error;
     if (!m_corpus.save(&error)) {
         showCenteredWarning(tr("New Corpus Failed"),
@@ -701,6 +751,23 @@ void MainWindow::handleExternalEdit(const QString &path)
     const int idx = findTabByPath(path);
     if (idx < 0)
         return;
+
+    // Scriba's own saves (auto-save, save, corpus save) write the tab's text
+    // back to disk, which the watcher reports as an external edit. If the disk
+    // content already equals the tab, there is nothing to reload and no reason
+    // to prompt (this is what makes auto-saving a dirty tab not nag).
+    {
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly)) {
+            const QByteArray diskHash = QCryptographicHash::hash(
+                f.readAll(), QCryptographicHash::Md5);
+            const QByteArray tabHash = QCryptographicHash::hash(
+                m_tabs[idx].editor->toPlainText().toUtf8(), QCryptographicHash::Md5);
+            if (diskHash == tabHash)
+                return;
+        }
+    }
+
     const QString policy = QSettings().value(
         Preferences::CorpusExternalEditPolicy, QStringLiteral("autoReload")).toString();
     if (policy == QLatin1String("prompt")) {

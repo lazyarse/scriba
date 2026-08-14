@@ -628,10 +628,20 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources scriba_twemoji)
     add_test(NAME test_emoji_preview COMMAND ${_TEST_PREFIX} ./test_emoji_preview)
 
+    add_executable(test_svg_upscaling tests/test_svg_upscaling.cpp)
+    target_link_libraries(test_svg_upscaling PRIVATE
+        scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources scriba_twemoji)
+    add_test(NAME test_svg_upscaling COMMAND ${_TEST_PREFIX} ./test_svg_upscaling)
+
     add_executable(test_auto_save tests/test_auto_save.cpp)
     target_link_libraries(test_auto_save PRIVATE
         scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
     add_test(NAME test_auto_save COMMAND ${_TEST_PREFIX} ./test_auto_save)
+
+    add_executable(test_corpus_unsaved tests/test_corpus_unsaved.cpp)
+    target_link_libraries(test_corpus_unsaved PRIVATE
+        scriba_core GTest::gtest Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)
+    add_test(NAME test_corpus_unsaved COMMAND ${_TEST_PREFIX} ./test_corpus_unsaved)
 
     add_executable(test_multi_tab_typing tests/test_multi_tab_typing.cpp)
     target_link_libraries(test_multi_tab_typing PRIVATE

@@ -638,6 +638,47 @@ dialog runs first and the dirty-tab prompt gates the destructive path, so
 cancelling aborts before anything is touched — the old corpus file is never
 written to.
 
+## `CorpusWatcher`: rename detection requires identical content
+
+`CorpusWatcher` classifies external changes by rescan-and-diff: every debounced
+pass recomputes content hashes and compares against last-seen hashes
+(`src/corpus/CorpusWatcher.cpp`). Three behaviours are easy to trip over:
+
+- **The last-seen hashes are refreshed every pass.** A file whose content
+  changed is re-hashed the moment its change is classified, so a later
+  *unrelated* filesystem event (another file edited/created in the watched dir)
+  must not re-report it as `edited`. Similarly, an unpaired deletion is dropped
+  from the watched set (`m_files`/`m_hashes`) on classification so `deleted`
+  fires once, not on every subsequent event. Regression tests:
+  `EditDoesNotRefireOnUnrelatedChange`, `DeleteDoesNotRefireOnUnrelatedChange`.
+- **A rename is only detected when the fresh file's content hash matches the
+  gone file's.** There is deliberately NO "single new file in the same dir as a
+  deleted file" heuristic — it misdetected a delete-plus-create of an unrelated
+  file as a rename, which retargeted the tab to the wrong file and rewrote links
+  (`b.md` → `notes.txt`). The cost: a rename performed *while the content is
+  also edited* no longer pairs, so it surfaces as `deleted` (the fresh file is
+  left unpaired). That is the accepted trade-off.
+- A quick successive rename chain works only because the partner's hash is
+  stored when the pair is matched — don't drop the
+  `m_hashes.insert(partner, contentHash(partner))` in the rename branch.
+- The watcher debounce is `Debounce::CorpusWatch` (`src/StaticHelpers.h`),
+  currently 1000 ms — a latency/coalescing knob, not a steady-state cost
+  (inotify is kernel-driven; the timer only runs after a real change).
+- `MainWindow::handleExternalEdit` short-circuits when the on-disk content
+  already matches the tab's text: the app's own saves (auto-save, save, corpus
+  save) write the tab's text back to disk, which the watcher reports as an
+  external edit. Without the guard, auto-saving a dirty tab prompted
+  "reload and discard your changes?" against the user's own save.
+- **Files opened into a live corpus are folded in lazily.** `m_corpus.documents`
+  (which drives both the watcher's monitored-file list and the link-rewrite
+  scope in `rewriteLinksForFile`) is only synced from the open tabs at
+  save/close — so opening a file after the corpus was created used to leave it
+  unwatched and unrewritten. `loadFile` now calls `refreshCorpusFromTabs()` +
+  `startCorpusWatcher()` when a corpus is open (and `saveCorpusAction`/
+  `saveCorpusAsAction`/`renameCurrentFile` re-arm too). The link-rewrite
+  preference default remains "Ask me first" (`CorpusLinkRewritePolicy` =
+  `"prompt"`).
+
 ## Definition lists (`MD_FLAG_DEFINITIONLISTS`)
 
 Definition lists are a vendored md4c extension (patch
@@ -810,5 +851,28 @@ header forward-declares a class and only defined its accessor inline
 because the consumer also compiled `Editor.cpp`, so `moc_Editor.cpp` was included
 first in `mocs_compilation.cpp` — order luck. The accessor must be declared in the
 header and defined in the `.cpp` (where the full type is included), not inline.
+
+## Corpus unsaved-document handling preference (`corpusUnsavedDocs`)
+
+Untitled (path-less) tabs are corpus documents whose content has nowhere to live
+on disk. `Preferences::CorpusUnsavedDocs` (Corpus → "Unsaved Documents") picks how
+they are persisted when the corpus is saved (`Save Corpus`, `Save As`,
+`New Corpus`) and on window close:
+
+- **`embed`** (default) — `MainWindow::refreshCorpusFromTabs()` stores the tab's
+  content inside the `.scriba` as an embedded `CorpusDocument` (`path == ""`).
+  This is the legacy behavior and is unchanged.
+- **`prompt`** — `MainWindow::promptSaveUnsavedCorpusDocs()` walks the corpus tabs
+  and saves each untitled tab with content (dirty or not) to a real file via the
+  Save-As dialog first; `refreshCorpusFromTabs()` then stores it by path the usual
+  way. Empty clean placeholder tabs (e.g. the blank tab a new corpus starts with)
+  are skipped. **Cancelling any Save-As dialog aborts the whole corpus save** (or,
+  in `closeEvent`, the window close) — earlier tabs already written to disk stay
+  written, but the `.scriba` is not touched.
+
+Note the close path: `promptSaveUnsavedCorpusDocs()` runs before the dirty-flag
+scan in `closeEvent`, and the flags are recomputed afterwards — otherwise a prompt
+pass that saves the only dirty tabs would still raise the "Unsaved Changes"
+dialog from stale flags.
 
 

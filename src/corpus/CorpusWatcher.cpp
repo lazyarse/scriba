@@ -22,6 +22,8 @@
 #include <QSet>
 #include <QTimer>
 
+#include "StaticHelpers.h"
+
 static QByteArray contentHash(const QString &path)
 {
     QFile f(path);
@@ -35,7 +37,7 @@ CorpusWatcher::CorpusWatcher(QObject *parent)
 {
     m_debounce = new QTimer(this);
     m_debounce->setSingleShot(true);
-    m_debounce->setInterval(350);
+    m_debounce->setInterval(Debounce::CorpusWatch);
     connect(m_debounce, &QTimer::timeout, this, &CorpusWatcher::finishDebounce);
 
     m_watcher = new QFileSystemWatcher(this);
@@ -87,7 +89,6 @@ void CorpusWatcher::diffAndEmit()
     const QHash<QString, QByteArray> oldHashes = m_hashes;
 
     // Current state of known files.
-    QHash<QString, QByteArray> now;
     QStringList gone;
     QStringList changed;
     for (const QString &f : m_files) {
@@ -95,7 +96,7 @@ void CorpusWatcher::diffAndEmit()
             gone.append(f);
         } else {
             const QByteArray h = contentHash(f);
-            now.insert(f, h);
+            m_hashes.insert(f, h);
             if (h != oldHashes.value(f))
                 changed.append(f);
         }
@@ -111,16 +112,11 @@ void CorpusWatcher::diffAndEmit()
         }
     }
 
-    const QStringList watchedDirs = m_watcher->directories();
     QStringList deletedUnpaired;
     for (const QString &from : gone) {
         QString partner;
         for (const QString &cand : fresh) {
             if (contentHash(cand) == oldHashes.value(from)) { partner = cand; break; }
-        }
-        if (partner.isEmpty() && fresh.size() == 1
-            && QFileInfo(fresh.first()).absolutePath() == QFileInfo(from).absolutePath()) {
-            partner = fresh.first();     // rename + edit in the same directory
         }
         if (!partner.isEmpty()) {
             m_files.replace(m_files.indexOf(from), partner);
@@ -134,6 +130,9 @@ void CorpusWatcher::diffAndEmit()
 
     for (const QString &p : changed)
         emit edited(p);
-    for (const QString &p : deletedUnpaired)
+    for (const QString &p : deletedUnpaired) {
+        m_files.removeAll(p);
+        m_hashes.remove(p);
         emit deleted(p);
+    }
 }

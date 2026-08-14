@@ -69,7 +69,7 @@ TEST_F(CorpusWatcherTest, EditEmitsEditedSignal)
 
     QTest::qWait(50);
     writeFile(a, "hello world");
-    EXPECT_TRUE(edited.wait(1000));
+    EXPECT_TRUE(edited.wait(2000));
     EXPECT_EQ(edited.count(), 1);
     EXPECT_EQ(edited.first().at(0).toString(), QFileInfo(a).absoluteFilePath());
 }
@@ -85,7 +85,7 @@ TEST_F(CorpusWatcherTest, RenameEmitsRenamedSignal)
     QTest::qWait(50);
     const QString c = file("c.md");
     ASSERT_TRUE(QFile::rename(a, c));       // content preserved
-    EXPECT_TRUE(renamed.wait(1000));
+    EXPECT_TRUE(renamed.wait(2000));
     ASSERT_EQ(renamed.count(), 1);
     EXPECT_EQ(renamed.first().at(0).toString(), QFileInfo(a).absoluteFilePath());
     EXPECT_EQ(renamed.first().at(1).toString(), QFileInfo(c).absoluteFilePath());
@@ -108,7 +108,7 @@ TEST_F(CorpusWatcherTest, CrosswiseRenameDisambiguatedByHash)
     writeFile(file("c.md"), "bbbb");
     writeFile(file("d.md"), "aaaa");
 
-    EXPECT_TRUE(renamed.wait(1000));
+    EXPECT_TRUE(renamed.wait(2000));
     ASSERT_EQ(renamed.count(), 2);
     QSet<QPair<QString, QString>> pairs;
     for (const auto &args : renamed) {
@@ -130,7 +130,7 @@ TEST_F(CorpusWatcherTest, DeleteEmitsDeletedSignal)
 
     QTest::qWait(50);
     ASSERT_TRUE(QFile::remove(a));
-    EXPECT_TRUE(deleted.wait(1000));
+    EXPECT_TRUE(deleted.wait(2000));
     ASSERT_EQ(deleted.count(), 1);
     EXPECT_EQ(deleted.first().at(0).toString(), QFileInfo(a).absoluteFilePath());
 }
@@ -147,11 +147,96 @@ TEST_F(CorpusWatcherTest, NewUnmatchedFileEmitsNoSignal)
 
     QTest::qWait(50);
     writeFile(file("brand-new.md"), "unmatched fresh file");
-    QTest::qWait(700);                       // > debounce
+    QTest::qWait(1500);                      // > debounce
     EXPECT_EQ(edited.count(), 0);
     EXPECT_EQ(renamed.count(), 0);
     EXPECT_EQ(deleted.count(), 0);
     EXPECT_EQ(readFile(file("brand-new.md")), QStringLiteral("unmatched fresh file"));
+}
+
+TEST_F(CorpusWatcherTest, EditDoesNotRefireOnUnrelatedChange)
+{
+    const QString a = file("a.md");
+    writeFile(a, "hello");
+    CorpusWatcher watcher;
+    QSignalSpy edited(&watcher, &CorpusWatcher::edited);
+    watcher.setMonitoredFiles({a});
+
+    QTest::qWait(50);
+    writeFile(a, "hello edited");
+    ASSERT_TRUE(edited.wait(2000));
+    EXPECT_EQ(edited.count(), 1);
+
+    // An unrelated directory event (a fresh unpaired file) must not re-report
+    // a as changed: its content hash was refreshed when the edit was classified.
+    writeFile(file("brand-new.md"), "unrelated");
+    QTest::qWait(1500);                      // > debounce
+    EXPECT_EQ(edited.count(), 1);
+}
+
+TEST_F(CorpusWatcherTest, DeleteDoesNotRefireOnUnrelatedChange)
+{
+    const QString a = file("a.md");
+    const QString b = file("b.md");
+    writeFile(a, "aaa");
+    writeFile(b, "bbb");
+    CorpusWatcher watcher;
+    QSignalSpy deleted(&watcher, &CorpusWatcher::deleted);
+    watcher.setMonitoredFiles({a, b});
+
+    QTest::qWait(50);
+    ASSERT_TRUE(QFile::remove(a));
+    ASSERT_TRUE(deleted.wait(2000));
+    EXPECT_EQ(deleted.count(), 1);
+
+    // A later unrelated event must not re-report the purge as a delete: the
+    // entry was dropped from the watched set when it was classified.
+    writeFile(b, "bbb edited");
+    QTest::qWait(1500);                      // > debounce
+    EXPECT_EQ(deleted.count(), 1);
+}
+
+TEST_F(CorpusWatcherTest, DeletePlusNewFileInSameDirNotRename)
+{
+    const QString a = file("a.md");
+    writeFile(a, "aaa");
+    CorpusWatcher watcher;
+    QSignalSpy renamed(&watcher, &CorpusWatcher::renamed);
+    QSignalSpy deleted(&watcher, &CorpusWatcher::deleted);
+    watcher.setMonitoredFiles({a});
+
+    QTest::qWait(50);
+    // Delete a.md and create an unrelated file in the same directory. Despite
+    // being the only fresh file in the dir, it must not be paired as a rename:
+    // rename detection requires identical content.
+    ASSERT_TRUE(QFile::remove(a));
+    writeFile(file("notes.md"), "unrelated notes");
+
+    EXPECT_TRUE(deleted.wait(2000));
+    ASSERT_EQ(deleted.count(), 1);
+    EXPECT_EQ(deleted.first().at(0).toString(), QFileInfo(a).absoluteFilePath());
+    EXPECT_EQ(renamed.count(), 0);
+}
+
+TEST_F(CorpusWatcherTest, RenameWithEditReportedAsDelete)
+{
+    const QString a = file("a.md");
+    writeFile(a, "original content");
+    CorpusWatcher watcher;
+    QSignalSpy renamed(&watcher, &CorpusWatcher::renamed);
+    QSignalSpy deleted(&watcher, &CorpusWatcher::deleted);
+    watcher.setMonitoredFiles({a});
+
+    QTest::qWait(50);
+    // Rename while also editing the content: the hash no longer matches, so
+    // this surfaces as a delete (the fresh file is left unpaired).
+    ASSERT_TRUE(QFile::rename(a, file("renamed.md")));
+    writeFile(file("renamed.md"), "content edited during rename");
+
+    EXPECT_TRUE(deleted.wait(2000));
+    ASSERT_EQ(deleted.count(), 1);
+    EXPECT_EQ(deleted.first().at(0).toString(), QFileInfo(a).absoluteFilePath());
+    EXPECT_EQ(renamed.count(), 0);
 }
 
 } // namespace

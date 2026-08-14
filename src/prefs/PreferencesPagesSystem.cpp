@@ -147,6 +147,26 @@ void PreferencesDialog::setupCorpusPage()
 
         layout->addWidget(linksGroup);
 
+        QGroupBox *unsavedGroup = new QGroupBox("Unsaved Documents");
+        QVBoxLayout *unsavedLayout = new QVBoxLayout(unsavedGroup);
+        unsavedLayout->addSpacing(8);
+
+        QHBoxLayout *unsavedRow = new QHBoxLayout();
+        auto *unsavedLabel = new QLabel(tr("When saving a corpus with unsaved documents:"));
+        unsavedRow->addWidget(unsavedLabel);
+        m_corpusUnsavedCombo = new QComboBox;
+        m_corpusUnsavedCombo->setObjectName("corpus-unsaved-docs");
+        m_corpusUnsavedCombo->addItem(tr("Embed contents in the corpus file"), "embed");
+        m_corpusUnsavedCombo->addItem(tr("Ask me to save each document"), "prompt");
+        const QString unsavedMode = settings.value(
+            Preferences::CorpusUnsavedDocs, QStringLiteral("embed")).toString();
+        const int usIdx = m_corpusUnsavedCombo->findData(unsavedMode);
+        m_corpusUnsavedCombo->setCurrentIndex(usIdx < 0 ? 0 : usIdx);
+        unsavedRow->addWidget(m_corpusUnsavedCombo, 1);
+        unsavedLayout->addLayout(unsavedRow);
+
+        layout->addWidget(unsavedGroup);
+
         QGroupBox *externalGroup = new QGroupBox("External Documents");
         QVBoxLayout *externalLayout = new QVBoxLayout(externalGroup);
         externalLayout->addSpacing(8);

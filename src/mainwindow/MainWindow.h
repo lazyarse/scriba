@@ -276,6 +276,11 @@ private:
     void openCorpusAction();
     bool maybeDiscardCurrentTabs();
     bool saveAllDirtyTabs();
+    // In "prompt" mode, walks the untitled corpus tabs and saves each one to a
+    // real file via the Save-As dialog. Returns false if the user cancels so
+    // the caller aborts the corpus save (or the window close). No-op (returns
+    // true) in the default "embed" mode.
+    bool promptSaveUnsavedCorpusDocs();
     void closeAllTabs();
     void applyCorpusDictionary();
     void startCorpusWatcher();

@@ -32,6 +32,11 @@ namespace Preferences {
     constexpr const char *CorpusExternalEditPolicy = "corpusExternalEditPolicy";
     constexpr const char *CorpusLinkRewritePolicy = "corpusLinkRewritePolicy";
     constexpr const char *CorpusLinkRewriteScope = "corpusLinkRewriteScope";
+    // How untitled corpus documents are persisted. "embed" stores their content
+    // inside the .scriba file (the legacy default); "prompt" asks the user to
+    // save each one to a real file first (the corpus then stores it by path)
+    // and aborts the corpus save / window close if the user cancels.
+    constexpr const char *CorpusUnsavedDocs = "corpusUnsavedDocs";
     constexpr const char *CorpusExternalExportDirName = "corpusExternalExportDirName";
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";

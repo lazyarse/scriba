@@ -232,6 +232,7 @@ private:
     QComboBox *m_corpusEditPolicyCombo = nullptr;
     QComboBox *m_linkRewritePolicyCombo = nullptr;
     QComboBox *m_linkRewriteScopeCombo = nullptr;
+    QComboBox *m_corpusUnsavedCombo = nullptr;
     QComboBox *m_externalExportCombo = nullptr;
     QLineEdit *m_externalExportDirEdit = nullptr;
     QRadioButton *m_corpusDictOverride = nullptr;

@@ -272,6 +272,7 @@ TEST_F(PreferencesSearchTest, CorpusPageHasExpectedSettingsAndStartupMoved)
         QStringLiteral("When a document changes on disk"),
         QStringLiteral("When a corpus document is renamed/moved"),
         QStringLiteral("Documents outside the corpus root"),
+        QStringLiteral("saving a corpus with unsaved documents"),
     };
     for (const QString &query : queries) {
         searchEdit()->setText(query);
