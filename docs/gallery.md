@@ -18,7 +18,7 @@ Auto-generated `toc.md` file in the corpus folder
 
 ## Gutter — chart edit pencil
 
-The pencil in the gutter edits the mermaid/ECharts code block it sits beside using a visual chart assistant.
+Click the pencil in the gutter to edit the mermaid/ECharts code block using the relevant visual chart assistant.
 
 [![Chart-edit pencil in the gutter beside the mermaid fence](images/gutter-pencil.png)](images/gutter-pencil.png)
 

@@ -966,4 +966,81 @@ colors as the editor's underlines).
   unreliable across platforms. The custom paintEvent approach matches the
   underline-overlay pattern and works everywhere.
 
+## QDockWidget `[x]` close button vs. checkable View-menu actions
 
+`QDockWidget`'s standard title-bar close button (`[x]`) hides the dock and
+emits `visibilityChanged(false)` — it does **not** touch any `QAction`. So a
+checkable View-menu action that controls the dock (and persists its state to
+QSettings, like "Show Corpus Files" ↔ `Preferences::ShowCorpusFilesPanel`)
+goes stale when the user closes via `[x]`: the menu stays checked AND the
+persisted setting stays `true`, so the panel even re-shows on the next
+`updateCorpusFilesPanel()` refresh. This is Qt default behavior — there is no
+automatic wiring between a dock and the action that toggles it (only
+`QDockWidget::toggleViewAction()` self-syncs, at the cost of custom text,
+shortcut and persistence).
+
+The fix pattern (mirror both ways, never just the action):
+
+- Action `toggled` → `setVisible(checked)` + persist (already the natural
+  wiring).
+- Dock `visibilityChanged(visible)` → update the action's checked state +
+  persist the same key. `setChecked`/`setVisible` with an unchanged value
+  don't re-emit, so there is no re-entrancy loop; the double QSettings write
+  is idempotent.
+- Mirror **everything** that hides the dock, not just the `[x]` button:
+  programmatic hides (e.g. `MainWindow::updateCorpusFilesPanel` hiding the
+  dock when no corpus is open) also fire `visibilityChanged`. Persisting those
+  is the desired behavior here (the panel stays hidden on the next corpus
+  open, matching what the user last saw), but be aware the preference now
+  tracks the dock's *actual* state, not just menu clicks.
+- Connect after the dock is created and before any code hides/shows it, so the
+  initial `setVisible(false)` in `setupUi` doesn't clobber a persisted `true`.
+
+
+## Markdown lint engine (MdLintEngine) divergences from markdownlint.js
+
+The lint engine parses with the exact preview flag set (`MarkdownParser.cpp`:
+`MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS | ...`), so lint
+and preview can never disagree on document structure — keep the flag lists in
+sync if either changes.
+
+- **MD014** (dollar signs): flags a `$` command line whose *next* non-blank
+  line (same fenced block) is also `$` — i.e. the first command of a run shows
+  no output. markdownlint flags by scanning token pairs; the two readings
+  differ only in which line of the pair is reported.
+- **MD022** (headings surrounded by blank lines): adjacent headings emit two
+  issues (`# A\n## B\n` → lines 1 and 2). markdownlint reports one per
+  heading boundary; the tests pin the two-issue form.
+- **MD036** (emphasis as heading): no trailing-punctuation exemption — any
+  single-span paragraph of pure emphasis is flagged. markdownlint requires
+  the line to *not* end in punctuation; scriba's tests deliberately dropped
+  that exemption.
+- **MD037** (spaces inside emphasis): md4c never parses `* foo*` as emphasis
+  (CommonMark), so the rule pairs marker runs in the raw source text exactly
+  like markdownlint's bare-token pairing, with a one-issue-per-line cap.
+- **MD044** (proper names): `code_blocks=true` (the default) *skips* code
+  lines — the inverted sense of the markdownlint parameter, matching the
+  engine's MD010 convention.
+- **MD046/MD048** (fenced/unfenced code style): emit with `skipCode=false`,
+  so findings land on the code lines themselves.
+- **MD052/MD053** (reference links): heuristic on raw text — md4c never emits
+  a span for a truly empty/unresolved reference, so usage scanning uses
+  regexes with lookbehind/lookahead (`shortcutUseRe` excludes `[x]` that is
+  part of `[a][x]` full references). No full markdownlint parity is possible
+  without a second parser.
+- **MD054** (link style): unresolved shortcut references (`[b]`) exist only
+  as plain text to md4c, so a raw bracket-group scan classifies them as
+  `shortcut` style; bracket groups inside parsed link spans are excluded.
+- **MD055/MD056/MD060** (table rules): operate on the physical row lines of
+  the table's line range (md4c folds lazy continuation text into the last
+  row). MD060's per-column style reference is the first row; `MD055`
+  `leading_and_trailing` reports every offending row (not just the first).
+- **MD900** (footnote definitions): md4c emits footnote-ref spans without
+  text callbacks, and definitions are only reported when referenced; MD900 is
+  a scriba custom rule catching unreferenced definitions that markdownlint
+  cannot see.
+
+Severity convention: `error` = correctness, `warning` = style, per
+markdownlint. Both paint with the markdown underline color; only the hover
+tooltip and the issue-summary split ("Markdown" vs "Markdown warnings")
+distinguish them.

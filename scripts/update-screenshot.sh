@@ -10,7 +10,7 @@ OUT_DIR="$PROJECT_DIR/docs/images"
 # is selected by clicking the list; each Down moves to the next page (see
 # shot_preference_page). When adding a new page, extend this list AND the
 # idx mapping in shot_preference_page.
-PREF_PAGES=(general appearance themes editor preview typesetting metrics typography auto-correct proofing corpus security)
+PREF_PAGES=(general appearance themes editor preview typesetting metrics typography auto-correct proofing markdown-lint corpus security)
 
 # Table of available targets: <argument> -> "<shot function>|<one-line help>".
 # This is the single source of truth for --help, argument validation, the full
@@ -60,9 +60,10 @@ EOF
         ((${#t} > w)) && w=${#t}
     done
     printf '  %-*s  %s\n' "$w" "preferences-<page>" "one Preferences page; <page> one of:"
-    printf '  %-*s  %s\n' "$w" "" "general themes editor preview advanced"
-    printf '  %-*s  %s\n' "$w" "" "writing typography replacements spelling security"
+    printf '  %-*s  %s\n' "$w" "" "general appearance themes editor preview"
+    printf '  %-*s  %s\n' "$w" "" "typesetting metrics typography auto-correct proofing"
     printf '  %-*s  %s\n' "$w" "" "(a bare <page> name also works, e.g. \"spelling\")"
+    printf '  %-*s  %s\n' "$w" "" "markdown-lint corpus security"
     for t in "${TARGET_ORDER[@]}"; do
         printf '  %-*s  %s\n' "$w" "$t" "${TARGETS[$t]#*|}"
     done
@@ -277,8 +278,9 @@ shot_preference_page() {
         typography) idx=7 ;;
         auto-correct) idx=8 ;;
         proofing) idx=9 ;;
-        corpus) idx=10 ;;
-        security) idx=11 ;;
+        markdown-lint) idx=10 ;;
+        corpus) idx=11 ;;
+        security) idx=12 ;;
         *) echo "WARN: unknown preferences page \"$page\""; return 1 ;;
     esac
     open ctrl+alt+p
