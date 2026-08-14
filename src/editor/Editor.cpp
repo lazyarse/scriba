@@ -17,6 +17,7 @@
 #include "spell/GrammarChecker.h"
 #include "Gutter.h"
 #include "EditorScrollBar.h"
+#include "IssueSummaryPane.h"
 #include "validation/MarkdownChecker.h"
 #include "prefs/Preferences.h"
 #include "spell/SpellChecker.h"
@@ -39,6 +40,7 @@
 #include <QTimer>
 #include <QToolTip>
 #include <QAbstractTextDocumentLayout>
+#include <QFileInfo>
 
 namespace {
 
@@ -143,6 +145,16 @@ Editor::Editor(QWidget *parent)
     connect(document()->documentLayout(), &QAbstractTextDocumentLayout::documentSizeChanged,
             m_errorScrollBar, &EditorScrollBar::invalidate);
 
+    // Issue-summary pane: live counts over the highlighter's caches. It is
+    // child of the viewport like the underline overlay, but stays top-right
+    // and only the [x] button is interactive.
+    m_issueSummaryPane = new IssueSummaryPane(viewport());
+    connect(m_spellHighlighter, &SpellHighlighter::spellHitsChanged,
+            this, &Editor::updateIssueSummary);
+    connect(m_issueSummaryPane, &IssueSummaryPane::closeRequested, this, [this]() {
+        m_issueSummaryDismissed = true; // don't re-show on every keystroke
+    });
+
     connect(this, &Editor::cursorPositionChanged,
             this, &Editor::onCursorPositionChanged);
     // Any text change while the cursor is inside a table marks it dirty so it
@@ -163,6 +175,8 @@ void Editor::setCurrentFile(const QString &path)
     // broken-link underlines follow the new base.
     if (m_spellHighlighter)
         m_spellHighlighter->setCurrentFile(path);
+    if (m_issueSummaryOptions.enabled)
+        updateIssueSummary();
 }
 
 void Editor::setFallbackLinkBaseDir(const QString &dir)
@@ -438,6 +452,93 @@ void Editor::refreshUnderlines()
         m_underlineOverlay->update();
 }
 
+void Editor::setIssueSummaryOptions(const IssueSummaryOptions &options,
+                                    const QColor &themeBg, const QColor &themeFg)
+{
+    m_issueSummaryOptions = options;
+    m_issueSummaryThemeBg = themeBg;
+    m_issueSummaryThemeFg = themeFg;
+    if (!m_issueSummaryPane)
+        return;
+    m_issueSummaryPane->setTheme(themeBg, themeFg);
+    if (!options.enabled) {
+        m_issueSummaryPane->hide();
+        return;
+    }
+    m_issueSummaryDismissed = false;
+    updateIssueSummary();
+}
+
+void Editor::showIssueSummary()
+{
+    if (!m_issueSummaryOptions.enabled)
+        return;
+    m_issueSummaryDismissed = false;
+    updateIssueSummary();
+}
+
+void Editor::updateIssueSummary()
+{
+    if (!m_issueSummaryPane || !m_issueSummaryOptions.enabled || !isMarkdownFile()) {
+        if (m_issueSummaryPane)
+            m_issueSummaryPane->hide();
+        return;
+    }
+    if (!m_spellHighlighter)
+        return;
+
+    const auto counts = m_spellHighlighter->counts();
+    const QSet<ValidationReport::Category> &sel = m_issueSummaryOptions.categories;
+    QVector<IssueSummaryPane::Row> rows;
+    auto addRow = [&](IssueSummaryPane::Kind kind, ValidationReport::Category cat,
+                      const QString &label, int count, const QColor &color, bool engineOn) {
+        if (sel.contains(cat) && engineOn)
+            rows.append({kind, label, count, color});
+    };
+    addRow(IssueSummaryPane::Kind::Typos, ValidationReport::Category::Spelling,
+           QStringLiteral("Typos"), counts.spelling,
+           SpellHighlighter::spellUnderlineColor(), m_spellHighlighter->spellCheckingEnabled());
+    addRow(IssueSummaryPane::Kind::Grammar, ValidationReport::Category::Grammar,
+           QStringLiteral("Grammar"), counts.grammar,
+           SpellHighlighter::grammarUnderlineColor(), m_spellHighlighter->grammarCheckingEnabled());
+    addRow(IssueSummaryPane::Kind::Lint, ValidationReport::Category::Markdown,
+           QStringLiteral("Markdown"), counts.markdown,
+           SpellHighlighter::markdownUnderlineColor(), m_spellHighlighter->markdownCheckingEnabled());
+    addRow(IssueSummaryPane::Kind::Links, ValidationReport::Category::Links,
+           QStringLiteral("Broken links"), counts.links,
+           SpellHighlighter::linkUnderlineColor(), m_spellHighlighter->linkCheckingEnabled());
+
+    if (rows.isEmpty()) {
+        m_issueSummaryPane->hide();
+        return;
+    }
+
+    m_issueSummaryPane->setRows(rows);
+    positionIssueSummaryPane();
+    if (!m_issueSummaryDismissed) {
+        const int timeoutMs = m_issueSummaryOptions.timeoutEnabled
+            ? m_issueSummaryOptions.timeoutSeconds * 1000 : 0;
+        m_issueSummaryPane->showWithTimeout(timeoutMs);
+    }
+}
+
+void Editor::positionIssueSummaryPane()
+{
+    if (!m_issueSummaryPane)
+        return;
+    const int margin = 12;
+    const QSize sh = m_issueSummaryPane->sizeHint();
+    m_issueSummaryPane->setGeometry(viewport()->width() - sh.width() - margin,
+                                    margin, sh.width(), sh.height());
+}
+
+bool Editor::isMarkdownFile() const
+{
+    return !m_currentFile.isEmpty()
+        && QFileInfo(m_currentFile).suffix().compare(QStringLiteral("md"),
+                                                     Qt::CaseInsensitive) == 0;
+}
+
 void Editor::setSpellCheckHighlight(int blockNumber, int start, int length)
 {
     const QTextBlock block = document()->findBlockByNumber(blockNumber);
@@ -612,6 +713,7 @@ void Editor::resizeEvent(QResizeEvent *event)
         m_underlineOverlay->setGeometry(0, 0, viewport()->width(), viewport()->height());
         m_underlineOverlay->update();
     }
+    positionIssueSummaryPane();
 }
 
 void Editor::scrollContentsBy(int dx, int dy)
@@ -624,6 +726,7 @@ void Editor::scrollContentsBy(int dx, int dy)
         m_underlineOverlay->setGeometry(0, 0, viewport()->width(), viewport()->height());
         m_underlineOverlay->update();
     }
+    positionIssueSummaryPane();
 }
 
 void Editor::updateViewportMargins()

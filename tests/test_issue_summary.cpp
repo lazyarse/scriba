@@ -15,10 +15,14 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 #include <QAbstractTextDocumentLayout>
+#include <QFileInfo>
+#include <QLabel>
 #include <QSettings>
 #include <QTextDocument>
 #include <QTemporaryDir>
 #include <QTextEdit>
+#include <QTimer>
+#include <QToolButton>
 #include <QTest>
 #include <QObject>
 #include <atomic>
@@ -26,8 +30,6 @@
 
 #include "editor/Editor.h"
 #include "editor/IssueSummaryPane.h"
-#include <QLabel>
-#include <QToolButton>
 #include "prefs/Preferences.h"
 #include "spell/GrammarChecker.h"
 #include "spell/SpellChecker.h"
@@ -232,6 +234,142 @@ TEST_F(IssueSummaryPaneTest, ZeroTimeoutKeepsVisible)
     m_pane->showWithTimeout(0);
     QTest::qWait(250);
     EXPECT_TRUE(m_pane->isVisible());
+}
+
+class IssueSummaryEditorTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        QSettings().clear();
+        QSettings().setValue(Preferences::SpellCheckEnabled, true);
+        QSettings().setValue(Preferences::LinkCheckEnabled, true);
+        QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
+        QSettings().setValue(Preferences::GrammarCheckEnabled, false);
+        QSettings().setValue(Preferences::DictionaryLanguage, QStringLiteral("en_US"));
+        SpellChecker::availableLanguages();
+        m_tmp = std::make_unique<QTemporaryDir>();
+        m_editor = new Editor;
+        // Editor::applySpellSettings() honours SpellCheckEnabled on ctor.
+        m_editor->show();
+        QApplication::processEvents();
+    }
+
+    void TearDown() override
+    {
+        delete m_editor;
+        m_tmp.reset();
+        QSettings().clear();
+    }
+
+    Editor::IssueSummaryOptions options()
+    {
+        Editor::IssueSummaryOptions o;
+        o.enabled = true;
+        o.timeoutEnabled = true;
+        o.timeoutSeconds = 2;
+        o.categories = {
+            ValidationReport::Category::Spelling,
+            ValidationReport::Category::Links,
+            ValidationReport::Category::Markdown,
+        };
+        return o;
+    }
+
+    std::unique_ptr<QTemporaryDir> m_tmp;
+    Editor *m_editor = nullptr;
+};
+
+TEST_F(IssueSummaryEditorTest, PaneShowsForMdFileAndTracksCounts)
+{
+    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("notes.md")));
+    m_editor->setIssueSummaryOptions(options(), QColor(QStringLiteral("#ffffff")),
+                                     QColor(QStringLiteral("#333333")));
+    m_editor->setPlainText(QStringLiteral("helo world\n[missing](no-such-file.md)\n"));
+    m_editor->showIssueSummary();
+    QTest::qWait(700); // spell/link pass (word-boundary triggered on newline)
+
+    IssueSummaryPane *pane = m_editor->issueSummaryPane();
+    ASSERT_NE(pane, nullptr);
+    ASSERT_TRUE(pane->isVisible());
+    QString allText;
+    for (QLabel *lbl : pane->findChildren<QLabel *>())
+        allText += lbl->text();
+    EXPECT_TRUE(allText.contains(QStringLiteral("Typos")));
+    EXPECT_TRUE(allText.contains(QStringLiteral("Broken links")));
+}
+
+TEST_F(IssueSummaryEditorTest, PaneHiddenForNonMdFile)
+{
+    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("data.txt")));
+    m_editor->setIssueSummaryOptions(options(), QColor(QStringLiteral("#ffffff")),
+                                     QColor(QStringLiteral("#333333")));
+    m_editor->setPlainText(QStringLiteral("helo world\n"));
+    m_editor->showIssueSummary();
+    QTest::qWait(300);
+
+    IssueSummaryPane *pane = m_editor->issueSummaryPane();
+    ASSERT_NE(pane, nullptr);
+    EXPECT_FALSE(pane->isVisible());
+}
+
+TEST_F(IssueSummaryEditorTest, PaneHiddenWhenDisabled)
+{
+    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("notes.md")));
+    Editor::IssueSummaryOptions o = options();
+    o.enabled = false;
+    m_editor->setIssueSummaryOptions(o, QColor(QStringLiteral("#ffffff")),
+                                     QColor(QStringLiteral("#333333")));
+    m_editor->showIssueSummary();
+    QTest::qWait(300);
+
+    IssueSummaryPane *pane = m_editor->issueSummaryPane();
+    ASSERT_NE(pane, nullptr);
+    EXPECT_FALSE(pane->isVisible());
+}
+
+TEST_F(IssueSummaryEditorTest, TimeoutDismissesPane)
+{
+    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("notes.md")));
+    Editor::IssueSummaryOptions o = options();
+    o.timeoutEnabled = true;
+    o.timeoutSeconds = 1;
+    m_editor->setIssueSummaryOptions(o, QColor(QStringLiteral("#ffffff")),
+                                     QColor(QStringLiteral("#333333")));
+    m_editor->setPlainText(QStringLiteral("helo world\n"));
+    m_editor->showIssueSummary();
+    QTest::qWait(400);
+    IssueSummaryPane *pane = m_editor->issueSummaryPane();
+    ASSERT_NE(pane, nullptr);
+    ASSERT_TRUE(pane->isVisible());
+
+    QTest::qWait(1500);
+    EXPECT_FALSE(pane->isVisible());
+}
+
+TEST_F(IssueSummaryEditorTest, DismissedStaysHiddenUntilExplicitShow)
+{
+    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("notes.md")));
+    m_editor->setIssueSummaryOptions(options(), QColor(QStringLiteral("#ffffff")),
+                                     QColor(QStringLiteral("#333333")));
+    m_editor->setPlainText(QStringLiteral("helo world\n"));
+    m_editor->showIssueSummary();
+    QTest::qWait(400);
+    IssueSummaryPane *pane = m_editor->issueSummaryPane();
+    ASSERT_TRUE(pane->isVisible());
+
+    // [x] dismisses; further count changes must NOT re-show it.
+    for (QToolButton *btn : pane->findChildren<QToolButton *>())
+        QTest::mouseClick(btn, Qt::LeftButton);
+    EXPECT_FALSE(pane->isVisible());
+
+    m_editor->setPlainText(QStringLiteral("helo world and more words here\n"));
+    QTest::qWait(400);
+    EXPECT_FALSE(pane->isVisible());
+
+    // An explicit trigger (tab switch / file open) re-shows it.
+    m_editor->showIssueSummary();
+    EXPECT_TRUE(pane->isVisible());
 }
 
 } // namespace

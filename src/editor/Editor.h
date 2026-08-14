@@ -20,8 +20,10 @@
 #include <QStringList>
 #include <QMap>
 #include <QSet>
+#include <QColor>
 #include <memory>
 #include "spell/SpellHighlighter.h"
+#include "validation/ValidationReport.h"
 
 class QCompleter;
 class QAction;
@@ -30,6 +32,7 @@ class QFontMetrics;
 class QKeyEvent;
 class Gutter;
 class EditorScrollBar;
+class IssueSummaryPane;
 class SpellChecker;
 class GrammarChecker;
 struct CorpusDictionary;
@@ -69,6 +72,28 @@ public:
     // No-op when the block isn't a table row or the auto-align preference is
     // off.
     void formatTableAt(int documentPos);
+
+    // Issue-summary pane options (read from preferences by MainWindow and
+    // pushed in here). Rows are shown only for categories that are both in
+    // `categories` AND enabled in-editor; the pane itself only appears for
+    // .md files. `timeoutEnabled`/`timeoutSeconds` are the optional auto-hide.
+    struct IssueSummaryOptions {
+        bool enabled = false;
+        bool timeoutEnabled = false;
+        int timeoutSeconds = 5;
+        QSet<ValidationReport::Category> categories = {
+            ValidationReport::Category::Spelling,
+            ValidationReport::Category::Grammar,
+            ValidationReport::Category::Links,
+            ValidationReport::Category::Markdown,
+        };
+    };
+    void setIssueSummaryOptions(const IssueSummaryOptions &options,
+                                const QColor &themeBg, const QColor &themeFg);
+    // Explicit trigger (tab switch, file open): clears the dismissed flag and
+    // refreshes counts. The pane never auto-appears otherwise.
+    void showIssueSummary();
+    IssueSummaryPane *issueSummaryPane() const { return m_issueSummaryPane; }
 
     SpellChecker *spellChecker() const { return m_spellChecker.get(); }
     SpellHighlighter *spellHighlighter() const { return m_spellHighlighter; }
@@ -162,6 +187,9 @@ private:
     bool showLanguageCompletion(const QString &partialLang);
 
     void applySpellSettings();
+    void updateIssueSummary();
+    void positionIssueSummaryPane();
+    bool isMarkdownFile() const;
     // Push an active corpus's dictionary (word sets, language, dialect and the
     // override/merge mode) onto this editor's spell checker and rehighlight.
     SpellHighlighter::WordHit misspelledWordAt(const QTextCursor &cursor) const;
@@ -226,6 +254,11 @@ private:
     SpellHighlighter *m_spellHighlighter = nullptr;
     QWidget *m_underlineOverlay = nullptr;
     EditorScrollBar *m_errorScrollBar = nullptr;
+    IssueSummaryPane *m_issueSummaryPane = nullptr;
+    IssueSummaryOptions m_issueSummaryOptions;
+    QColor m_issueSummaryThemeBg;
+    QColor m_issueSummaryThemeFg;
+    bool m_issueSummaryDismissed = false;
     // True once a corpus dictionary has been applied; routes the "Add to
     // Dictionary" context action to the corpus word set instead of the global
     // user.dic. Sticky for the editor's lifetime (a corpus, once opened, stays
