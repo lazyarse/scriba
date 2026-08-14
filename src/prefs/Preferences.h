@@ -148,6 +148,9 @@ namespace Preferences {
     constexpr const char *GrammarCheckEnabled = "grammarCheckEnabled";
     constexpr const char *LinkCheckEnabled = "linkCheckEnabled";
     constexpr const char *MarkdownCheckEnabled = "markdownCheckEnabled";
+    // Per-rule markdown-lint configuration as a JSON blob (MdLintConfig).
+    // Only meaningful while MarkdownCheckEnabled is on.
+    constexpr const char *MarkdownLintConfig = "markdownLintConfig";
     // Per-check toggles for the real-time (in-editor) markdown-consistency
     // underlines. Independent of the Validation Report dialog's own selection.
     // Each defaults to enabled; only meaningful while MarkdownCheckEnabled is on.

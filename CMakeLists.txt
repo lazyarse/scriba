@@ -183,6 +183,8 @@ add_executable(scriba WIN32
     src/main.cpp
     src/preview/MarkdownParser.cpp
     src/validation/MarkdownChecker.cpp
+    src/validation/MdLintRules.cpp
+    src/validation/MdLintConfig.cpp
     src/preview/MdRenderer.cpp
     src/preview/Typography.cpp
     src/css/CssUtils.cpp
@@ -317,6 +319,8 @@ if(BUILD_TESTS)
         src/spell/SpellHighlighter.cpp
         src/validation/LinkValidator.cpp
         src/validation/MarkdownChecker.cpp
+        src/validation/MdLintRules.cpp
+        src/validation/MdLintConfig.cpp
         src/spell/GrammarChecker.cpp
         src/spell/StoppardEngine.cpp
     )
@@ -445,6 +449,11 @@ if(BUILD_TESTS)
     target_include_directories(test_markdown_checker PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_markdown_checker PRIVATE scriba_core GTest::gtest_main scriba_spell)
     add_test(NAME test_markdown_checker COMMAND ${_TEST_PREFIX} ./test_markdown_checker)
+
+    add_executable(test_md_lint_config tests/test_md_lint_config.cpp)
+    target_include_directories(test_md_lint_config PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_md_lint_config PRIVATE scriba_core GTest::gtest_main scriba_spell)
+    add_test(NAME test_md_lint_config COMMAND ${_TEST_PREFIX} ./test_md_lint_config)
 
     add_executable(test_editor_list_continuation tests/test_editor_list_continuation.cpp)
     target_link_libraries(test_editor_list_continuation PRIVATE scriba_core GTest::gtest_main)
