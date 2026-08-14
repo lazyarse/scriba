@@ -24,6 +24,7 @@
 #include <QSpinBox>
 #include <QDoubleSpinBox>
 #include <QLabel>
+#include <QJsonObject>
 #include <vector>
 
 
@@ -79,6 +80,7 @@ private:
     void setupTypographyPage();
     void setupReplacementsPage();
     void setupSpellingPage();
+    void setupLintPage();
     void setupCorpusPage();
     void setupSecurityPage();
     void buildSearchIndex();
@@ -94,6 +96,10 @@ private:
     // Builds the 16x16 color-swatch buttons used on the Editor (appearance
     // overrides), Gutter and Spelling (underline color) pages.
     QPushButton *makeSwatchBtn(const QString &hex);
+
+    // Serializes the Markdown lint page's checkbox/param state to the
+    // MdLintConfig JSON blob (used by the OK save handler).
+    QString buildLintConfigJson() const;
 
     CssConfig *m_config;
     CssLoader *m_loader;
@@ -216,7 +222,6 @@ private:
     QCheckBox *m_grammarCheckCheck;
     QCheckBox *m_linkCheckCheck;
     QCheckBox *m_markdownCheckCheck;
-    QVector<QCheckBox*> m_markdownSubChecks; // per-rule real-time markdown checks
     QComboBox *m_languageCombo;
     QComboBox *m_grammarDialectCombo;
     QListWidget *m_customWordsList;
@@ -236,6 +241,10 @@ private:
     QCheckBox *m_issueSummaryGrammarCheck = nullptr;
     QCheckBox *m_issueSummaryLintCheck = nullptr;
     QCheckBox *m_issueSummaryLinksCheck = nullptr;
+
+    // Markdown lint page
+    QVector<QPair<QString, QCheckBox *>> m_lintRuleChecks;  // (rule id, checkbox)
+    QJsonObject m_lintParams;                               // rule id -> params object
 
     // Corpus
     Corpus *m_corpus = nullptr;

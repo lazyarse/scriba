@@ -476,37 +476,9 @@ void PreferencesDialog::setupSpellingPage()
         m_linkCheckCheck->setChecked(settings.value(Preferences::LinkCheckEnabled, true).toBool());
         checkLayout->addWidget(m_linkCheckCheck);
 
-        m_markdownCheckCheck = new QCheckBox("Underline markdown inconsistencies as you type");
+        m_markdownCheckCheck = new QCheckBox("Check markdown as you type");
         m_markdownCheckCheck->setChecked(settings.value(Preferences::MarkdownCheckEnabled, false).toBool());
         checkLayout->addWidget(m_markdownCheckCheck);
-
-        struct MdCheckDef {
-            const char *key;
-            const char *label;
-        };
-        static const std::array<MdCheckDef, 7> kMdChecks = {{
-            {Preferences::MarkdownCheckHeadingLevelSkip, "Heading level &skips"},
-            {Preferences::MarkdownCheckDuplicateHeading, "&Duplicate headings"},
-            {Preferences::MarkdownCheckTrailingWhitespace, "Trailing &whitespace"},
-            {Preferences::MarkdownCheckConsecutiveBlankLines, "Consecutive &blank lines"},
-            {Preferences::MarkdownCheckOverlongLine, "Lines &over 120 characters"},
-            {Preferences::MarkdownCheckHashNoSpace, "'#' headings without a &space"},
-            {Preferences::MarkdownCheckFootnoteReference, "&Unmatched footnote references"},
-        }};
-        auto *mdSubLayout = new QVBoxLayout;
-        mdSubLayout->setContentsMargins(24, 0, 0, 0);
-        for (const auto &def : kMdChecks) {
-            auto *check = new QCheckBox(tr(def.label));
-            check->setChecked(settings.value(QLatin1String(def.key), true).toBool());
-            check->setEnabled(m_markdownCheckCheck->isChecked());
-            m_markdownSubChecks.append(check);
-            mdSubLayout->addWidget(check);
-        }
-        checkLayout->addLayout(mdSubLayout);
-        connect(m_markdownCheckCheck, &QCheckBox::toggled, this, [this](bool checked) {
-            for (auto *check : m_markdownSubChecks)
-                check->setEnabled(checked);
-        });
 
         layout->addWidget(checkGroup);
 

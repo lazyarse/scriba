@@ -113,7 +113,8 @@ set(SCRIBA_MAINWINDOW_SOURCES src/mainwindow/MainWindow.cpp
 
 set(SCRIBA_PREFS_SOURCES src/prefs/PreferencesDialog.cpp src/prefs/PreferencesPages.cpp
     src/prefs/PreferencesPagesTheme.cpp src/prefs/PreferencesPagesContent.cpp
-    src/prefs/PreferencesPagesSystem.cpp src/prefs/PreferencesPagesAppearance.cpp)
+    src/prefs/PreferencesPagesSystem.cpp src/prefs/PreferencesPagesAppearance.cpp
+    src/prefs/PreferencesPagesLint.cpp)
 
 set(SCRIBA_MERMAID_SOURCES src/mermaid/MermaidDialog.cpp
     src/mermaid/MermaidDialog_Flowchart.cpp src/mermaid/MermaidDialog_Gantt.cpp

@@ -147,6 +147,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
     setupTypographyPage();
     setupReplacementsPage();
     setupSpellingPage();
+    setupLintPage();
     setupCorpusPage();
     setupSecurityPage();
 
@@ -279,18 +280,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::GrammarCheckEnabled, m_grammarCheckCheck->isChecked());
         settings.setValue(Preferences::LinkCheckEnabled, m_linkCheckCheck->isChecked());
         settings.setValue(Preferences::MarkdownCheckEnabled, m_markdownCheckCheck->isChecked());
-        static const std::array<const char *, 7> kMdCheckKeys = {{
-            Preferences::MarkdownCheckHeadingLevelSkip,
-            Preferences::MarkdownCheckDuplicateHeading,
-            Preferences::MarkdownCheckTrailingWhitespace,
-            Preferences::MarkdownCheckConsecutiveBlankLines,
-            Preferences::MarkdownCheckOverlongLine,
-            Preferences::MarkdownCheckHashNoSpace,
-            Preferences::MarkdownCheckFootnoteReference,
-        }};
-        for (qsizetype i = 0; i < m_markdownSubChecks.size(); ++i)
-            settings.setValue(QLatin1String(kMdCheckKeys[static_cast<size_t>(i)]),
-                              m_markdownSubChecks.at(i)->isChecked());
+        settings.setValue(Preferences::MarkdownLintConfig, buildLintConfigJson());
         settings.setValue(Preferences::UnderlineColorOverride, m_underlineColorGroup->isChecked());
         settings.setValue(Preferences::SpellUnderlineColor, m_spellColorBtn->text());
         settings.setValue(Preferences::GrammarUnderlineColor, m_grammarColorBtn->text());

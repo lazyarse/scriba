@@ -116,8 +116,8 @@ protected:
 
 TEST_F(PreferencesSearchTest, EmptySearchShowsAllPagesAndNoDim)
 {
-    ASSERT_EQ(pageList()->count(), 12);
-    EXPECT_EQ(visiblePageCount(), 12);
+    ASSERT_EQ(pageList()->count(), 13);
+    EXPECT_EQ(visiblePageCount(), 13);
     EXPECT_FALSE(infoLabel()->isVisible());
     const auto all = m_dialog->findChildren<QWidget *>();
     for (QWidget *w : all) {
@@ -134,7 +134,8 @@ TEST_F(PreferencesSearchTest, TypingNarrowsSidebarToMatchingPage)
 {
     searchEdit()->setText(QStringLiteral("proofing"));
     EXPECT_TRUE(pageVisible(QStringLiteral("Proofing")));
-    EXPECT_EQ(visiblePageCount(), 1);
+    // The Markdown lint page's hint mentions the Proofing page, so it matches too.
+    EXPECT_EQ(visiblePageCount(), 2);
     EXPECT_EQ(currentPage(), QStringLiteral("Proofing"));
 }
 
@@ -244,7 +245,7 @@ TEST_F(PreferencesSearchTest, ClearRestoresAllPagesAndDims)
 {
     searchEdit()->setText(QStringLiteral("wrap"));
     searchEdit()->clear();
-    EXPECT_EQ(visiblePageCount(), 12);
+    EXPECT_EQ(visiblePageCount(), 13);
     EXPECT_FALSE(infoLabel()->isVisible());
     const auto all = m_dialog->findChildren<QWidget *>();
     for (QWidget *w : all) {
@@ -386,6 +387,21 @@ TEST_F(PreferencesSearchTest, PrintingPagePersistsAndRestores)
     EXPECT_FALSE(keepTables2->isChecked());
     EXPECT_EQ(margin2->text(), QStringLiteral("18mm"));
     delete d2;
+}
+
+TEST_F(PreferencesSearchTest, MarkdownLintPageWidgetsExist)
+{
+    auto *enableAll =
+        m_dialog->findChild<QPushButton *>(QStringLiteral("markdown-lint-enable-all"));
+    ASSERT_NE(nullptr, enableAll);
+    auto *md001 = m_dialog->findChild<QCheckBox *>(QStringLiteral("mdlint-MD001"));
+    ASSERT_NE(nullptr, md001);
+    EXPECT_TRUE(md001->isChecked());   // MD001 is in the scriba default set
+    auto *md003 = m_dialog->findChild<QCheckBox *>(QStringLiteral("mdlint-MD003"));
+    ASSERT_NE(nullptr, md003);
+    EXPECT_FALSE(md003->isChecked());  // MD003 is aggressive (default off)
+    auto *tagGroup = m_dialog->findChild<QGroupBox *>(QStringLiteral("markdown-lint-tag-headings"));
+    ASSERT_NE(nullptr, tagGroup);
 }
 
 } // namespace
