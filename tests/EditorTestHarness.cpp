@@ -20,8 +20,8 @@
 #include <QTest>
 #include <QTextCursor>
 
-#include "Editor.h"
-#include "Preferences.h"
+#include "editor/Editor.h"
+#include "prefs/Preferences.h"
 
 EditorTestHarness::EditorTestHarness(CompletionPrefs prefs)
     : m_prefs(prefs)

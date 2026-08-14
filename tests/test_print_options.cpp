@@ -13,8 +13,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
-#include "PrintOptions.h"
-#include "Preferences.h"
+#include "preview/PrintOptions.h"
+#include "prefs/Preferences.h"
 #include <QSettings>
 
 TEST(PrintOptionsTest, DefaultsMatchDr2) {

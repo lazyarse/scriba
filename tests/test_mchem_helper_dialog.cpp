@@ -16,8 +16,8 @@
 #include <QApplication>
 #include <QPlainTextEdit>
 #include <QRadioButton>
-#include "MchemHelperDialog.h"
-#include "CssUtils.h"
+#include "dialogs/MchemHelperDialog.h"
+#include "css/CssUtils.h"
 
 static int g_argc = 1;
 static char g_arg0[] = "test_mchem_helper_dialog";

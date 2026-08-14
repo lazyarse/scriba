@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
-#include "MdRenderer.h"
+#include "preview/MdRenderer.h"
 #include <md4c.h>
 
 TEST(MdRendererEscapeTest, HtmlEntitiesInCode) {

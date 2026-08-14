@@ -17,8 +17,8 @@
 #include <QTemporaryFile>
 #include <QString>
 
-#include "CssConfig.h"
-#include "Preferences.h"
+#include "css/CssConfig.h"
+#include "prefs/Preferences.h"
 
 class CssConfigTest : public testing::Test {
 protected:

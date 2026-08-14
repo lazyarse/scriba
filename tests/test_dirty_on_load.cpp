@@ -24,9 +24,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "MainWindow.h"
-#include "Editor.h"
-#include "Preferences.h"
+#include "mainwindow/MainWindow.h"
+#include "editor/Editor.h"
+#include "prefs/Preferences.h"
 #include "TestConfig.h"
 
 class DirtyOnLoadTest : public testing::Test {

@@ -20,7 +20,7 @@
 #include <QTextEdit>
 #include <QTemporaryDir>
 
-#include "SpellHighlighter.h"
+#include "spell/SpellHighlighter.h"
 #include "TestConfig.h"
 
 namespace {

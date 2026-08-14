@@ -14,10 +14,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 
-#include "SpellChecker.h"
-#include "StoppardEngine.h"
-#include "ValidationReport.h"
-#include "MarkdownParser.h"
+#include "spell/SpellChecker.h"
+#include "spell/StoppardEngine.h"
+#include "validation/ValidationReport.h"
+#include "preview/MarkdownParser.h"
 #include "TestConfig.h"
 
 #include <QApplication>

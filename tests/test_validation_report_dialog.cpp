@@ -20,8 +20,8 @@
 #include <QPushButton>
 #include <QSettings>
 
-#include "ValidationReport.h"
-#include "ValidationReportDialog.h"
+#include "validation/ValidationReport.h"
+#include "validation/ValidationReportDialog.h"
 
 namespace {
 

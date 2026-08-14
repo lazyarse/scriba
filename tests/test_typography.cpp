@@ -14,9 +14,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 
-#include "MarkdownParser.h"
-#include "Preferences.h"
-#include "Typography.h"
+#include "preview/MarkdownParser.h"
+#include "prefs/Preferences.h"
+#include "preview/Typography.h"
 
 #include <QSettings>
 #include <QFile>

@@ -32,7 +32,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "ChartSource.h"
+#include "charts/ChartSource.h"
 
 namespace {
 

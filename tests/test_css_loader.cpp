@@ -18,9 +18,9 @@
 #include <QFile>
 #include <QString>
 
-#include "CssConfig.h"
-#include "CssLoader.h"
-#include "CssUtils.h"
+#include "css/CssConfig.h"
+#include "css/CssLoader.h"
+#include "css/CssUtils.h"
 
 namespace {
 

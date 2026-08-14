@@ -23,9 +23,9 @@
 
 #include <memory>
 
-#include "Corpus.h"
-#include "CorpusIndex.h"
-#include "LinkValidator.h"
+#include "corpus/Corpus.h"
+#include "corpus/CorpusIndex.h"
+#include "validation/LinkValidator.h"
 
 namespace {
 

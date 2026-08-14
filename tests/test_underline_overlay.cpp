@@ -26,10 +26,10 @@
 #include <QTextDocument>
 #include <QTemporaryDir>
 
-#include "Editor.h"
-#include "Preferences.h"
-#include "SpellChecker.h"
-#include "SpellHighlighter.h"
+#include "editor/Editor.h"
+#include "prefs/Preferences.h"
+#include "spell/SpellChecker.h"
+#include "spell/SpellHighlighter.h"
 #include "TestConfig.h"
 
 namespace {

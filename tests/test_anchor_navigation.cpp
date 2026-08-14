@@ -29,10 +29,10 @@
 #include <QUrl>
 #include <QWebEnginePage>
 
-#include "LinkValidator.h"
-#include "MainWindow.h"
-#include "Preferences.h"
-#include "Preview.h"
+#include "validation/LinkValidator.h"
+#include "mainwindow/MainWindow.h"
+#include "prefs/Preferences.h"
+#include "preview/Preview.h"
 #include "TestConfig.h"
 
 #include <QAction>

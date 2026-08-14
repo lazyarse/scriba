@@ -19,7 +19,7 @@
 #include <QTest>
 #include <QTextCursor>
 
-#include "Editor.h"
+#include "editor/Editor.h"
 #include "TestConfig.h"
 
 class FoldingTest : public testing::Test

@@ -17,7 +17,7 @@
 #include <QDir>
 #include <QTemporaryDir>
 
-#include "LinkFixer.h"
+#include "corpus/LinkFixer.h"
 
 namespace {
 

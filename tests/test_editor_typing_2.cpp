@@ -17,9 +17,9 @@
 #include <QSettings>
 #include <QTextBlock>
 
-#include "Editor.h"
+#include "editor/Editor.h"
 #include "EditorTestHarness.h"
-#include "Preferences.h"
+#include "prefs/Preferences.h"
 #include "TestConfig.h"
 
 namespace {

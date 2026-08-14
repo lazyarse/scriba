@@ -16,8 +16,8 @@
 #include <QApplication>
 #include <QPlainTextEdit>
 #include <QRadioButton>
-#include "KatexHelperDialog.h"
-#include "CssUtils.h"
+#include "dialogs/KatexHelperDialog.h"
+#include "css/CssUtils.h"
 
 static int g_argc = 1;
 static char g_arg0[] = "test_katex_helper_dialog";

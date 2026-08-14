@@ -21,7 +21,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 
-#include "CorpusWatcher.h"
+#include "corpus/CorpusWatcher.h"
 
 namespace {
 

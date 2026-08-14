@@ -34,11 +34,11 @@
 #include <functional>
 #include <memory>
 
-#include "Corpus.h"
-#include "Editor.h"
-#include "ExportCorpusDialog.h"
-#include "MainWindow.h"
-#include "Preferences.h"
+#include "corpus/Corpus.h"
+#include "editor/Editor.h"
+#include "corpus/ExportCorpusDialog.h"
+#include "mainwindow/MainWindow.h"
+#include "prefs/Preferences.h"
 #include "TestConfig.h"
 
 namespace {

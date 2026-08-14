@@ -15,7 +15,7 @@
 #include <gtest/gtest.h>
 #include <QRegularExpression>
 #include <QColor>
-#include "CssUtils.h"
+#include "css/CssUtils.h"
 
 TEST(CssUtilsTest, EmptyInput) {
     QString css = CssUtils::deriveChromeCss("");

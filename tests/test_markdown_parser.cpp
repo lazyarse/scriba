@@ -13,9 +13,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
-#include "MarkdownParser.h"
-#include "MdTable.h"
-#include "Preferences.h"
+#include "preview/MarkdownParser.h"
+#include "editor/MdTable.h"
+#include "prefs/Preferences.h"
 #include <QSettings>
 
 TEST(MarkdownParserTest, EmptyInput) {

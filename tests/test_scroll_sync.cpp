@@ -30,13 +30,13 @@
 #include <QJsonObject>
 #include <QTimer>
 
-#include "MainWindow.h"
-#include "Editor.h"
-#include "Gutter.h"
-#include "Preview.h"
+#include "mainwindow/MainWindow.h"
+#include "editor/Editor.h"
+#include "editor/Gutter.h"
+#include "preview/Preview.h"
 #include "StaticHelpers.h"
-#include "Preferences.h"
-#include "Corpus.h"
+#include "prefs/Preferences.h"
+#include "corpus/Corpus.h"
 #include "TestConfig.h"
 
 /* ========== Test A: Preview::scrollToPercent ========== */

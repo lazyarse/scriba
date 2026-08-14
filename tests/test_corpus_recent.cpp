@@ -20,8 +20,8 @@
 #include <QSet>
 #include <QTemporaryDir>
 
-#include "MainWindow.h"
-#include "Preferences.h"
+#include "mainwindow/MainWindow.h"
+#include "prefs/Preferences.h"
 #include "TestConfig.h"
 
 namespace {

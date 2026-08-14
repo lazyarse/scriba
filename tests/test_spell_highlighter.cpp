@@ -14,9 +14,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 
-#include "Preferences.h"
-#include "SpellChecker.h"
-#include "SpellHighlighter.h"
+#include "prefs/Preferences.h"
+#include "spell/SpellChecker.h"
+#include "spell/SpellHighlighter.h"
 
 #include <QAbstractTextDocumentLayout>
 #include <QApplication>

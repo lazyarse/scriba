@@ -19,7 +19,7 @@
 #include <QJsonDocument>
 #include <QTemporaryDir>
 
-#include "Corpus.h"
+#include "corpus/Corpus.h"
 
 namespace {
 

@@ -19,10 +19,10 @@
 #include <QTextBlock>
 #include <QTextLayout>
 
-#include "Editor.h"
+#include "editor/Editor.h"
 #include "EditorTestHarness.h"
-#include "Gutter.h"
-#include "Preferences.h"
+#include "editor/Gutter.h"
+#include "prefs/Preferences.h"
 #include "TestConfig.h"
 
 namespace {

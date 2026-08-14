@@ -24,8 +24,8 @@
 
 #include <cstring>
 
-#include "DocxExporter.h"
-#include "DocxImporter.h"
+#include "io/DocxExporter.h"
+#include "io/DocxImporter.h"
 #include "TestConfig.h"
 #include "miniz.h"
 

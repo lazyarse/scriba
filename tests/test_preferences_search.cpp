@@ -19,10 +19,10 @@
 // "no matches" hint, and clears everything when the box is emptied. Ctrl+F
 // focuses the search box.
 #include <gtest/gtest.h>
-#include "PreferencesDialog.h"
-#include "CssConfig.h"
-#include "CssLoader.h"
-#include "Preferences.h"
+#include "prefs/PreferencesDialog.h"
+#include "css/CssConfig.h"
+#include "css/CssLoader.h"
+#include "prefs/Preferences.h"
 #include "TestConfig.h"
 #include <QApplication>
 #include <QCheckBox>

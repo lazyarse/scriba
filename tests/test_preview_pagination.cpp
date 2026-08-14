@@ -17,8 +17,8 @@
 #include <QTest>
 #include <QWebEngineView>
 
-#include "PreviewPagination.h"
-#include "PrintOptions.h"
+#include "preview/PreviewPagination.h"
+#include "preview/PrintOptions.h"
 #include "TestConfig.h"
 
 // ---------- Pure string tests (no WebEngine) ----------

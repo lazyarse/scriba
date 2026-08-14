@@ -21,7 +21,7 @@
 #include <QTextDocument>
 #include <QTextLayout>
 
-#include "Gutter.h"
+#include "editor/Gutter.h"
 #include "TestConfig.h"
 
 namespace {

@@ -17,10 +17,10 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryDir>
-#include "HtmlToOoxml.h"
-#include "DocxExporter.h"
-#include "Preferences.h"
-#include "ZipReader.h"
+#include "io/HtmlToOoxml.h"
+#include "io/DocxExporter.h"
+#include "prefs/Preferences.h"
+#include "io/ZipReader.h"
 #include "TestConfig.h"
 
 // Extract the first <wp:extent cx=".." cy=".."> from OOXML body XML.

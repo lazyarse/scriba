@@ -19,10 +19,10 @@
 // and matched case-insensitively, and the dialog drives next/prev, change,
 // ignore-once, ignore-always and add-to-dictionary against a real Editor.
 #include <gtest/gtest.h>
-#include "Editor.h"
-#include "SpellCheckDialog.h"
-#include "SpellChecker.h"
-#include "SpellHighlighter.h"
+#include "editor/Editor.h"
+#include "spell/SpellCheckDialog.h"
+#include "spell/SpellChecker.h"
+#include "spell/SpellHighlighter.h"
 #include "TestConfig.h"
 #include <QApplication>
 #include <QDir>

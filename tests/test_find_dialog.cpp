@@ -22,9 +22,9 @@
 #include <QPushButton>
 #include <QDialog>
 
-#include "FindDialog.h"
-#include "MainWindow.h"
-#include "Editor.h"
+#include "dialogs/FindDialog.h"
+#include "mainwindow/MainWindow.h"
+#include "editor/Editor.h"
 #include "TestConfig.h"
 
 class FindDialogTest : public testing::Test {

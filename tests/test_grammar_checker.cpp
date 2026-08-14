@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
-#include "StoppardEngine.h"
+#include "spell/StoppardEngine.h"
 #include <QString>
 #include <memory>
 

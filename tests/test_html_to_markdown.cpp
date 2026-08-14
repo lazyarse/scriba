@@ -19,7 +19,7 @@
 #include <QFile>
 
 #include "TestConfig.h"
-#include "HtmlToMarkdown.h"
+#include "io/HtmlToMarkdown.h"
 
 // Runs turndown.js in a real QWebEnginePage, so these tests exercise the
 // exact conversion path used by the app (HTML -> Markdown).

@@ -21,7 +21,7 @@
 #include <QTemporaryDir>
 #include <QTemporaryFile>
 
-#include "LinkValidator.h"
+#include "validation/LinkValidator.h"
 
 namespace {
 

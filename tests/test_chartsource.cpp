@@ -18,7 +18,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "ChartSource.h"
+#include "charts/ChartSource.h"
 
 namespace {
 

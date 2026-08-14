@@ -32,10 +32,10 @@
 
 #include <functional>
 
-#include "MainWindow.h"
-#include "Editor.h"
-#include "Corpus.h"
-#include "Preferences.h"
+#include "mainwindow/MainWindow.h"
+#include "editor/Editor.h"
+#include "corpus/Corpus.h"
+#include "prefs/Preferences.h"
 #include "TestConfig.h"
 
 namespace {

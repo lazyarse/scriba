@@ -19,7 +19,7 @@
 #include <QTest>
 #include <QTemporaryDir>
 #include "GitTestRepo.h"
-#include "MermaidDialog.h"
+#include "mermaid/MermaidDialog.h"
 
 static int g_argc = 1;
 static char g_arg0[] = "test_mermaid_dialog";

@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
-#include "Readability.h"
+#include "preview/Readability.h"
 
 TEST(CountSentences, EmptyReturnsOne) {
     EXPECT_EQ(countSentences(""), 1);

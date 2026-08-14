@@ -19,8 +19,8 @@
 #include <QProcessEnvironment>
 #include <QTemporaryDir>
 #include <QRegularExpression>
-#include "HtmlToOoxml.h"
-#include "JsRenderEngine.h"
+#include "io/HtmlToOoxml.h"
+#include "preview/JsRenderEngine.h"
 #include "TestConfig.h"
 
 // A tiny 200x100 SVG with intrinsic dimensions.

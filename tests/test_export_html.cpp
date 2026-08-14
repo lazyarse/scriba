@@ -26,12 +26,12 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 
-#include "ExportHtmlDialog.h"
-#include "MarkdownParser.h"
-#include "Preferences.h"
-#include "JsRenderEngine.h"
-#include "CssLoader.h"
-#include "CssConfig.h"
+#include "io/ExportHtmlDialog.h"
+#include "preview/MarkdownParser.h"
+#include "prefs/Preferences.h"
+#include "preview/JsRenderEngine.h"
+#include "css/CssLoader.h"
+#include "css/CssConfig.h"
 #include "TestConfig.h"
 
 class HtmlExportTest : public testing::Test

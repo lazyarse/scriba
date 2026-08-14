@@ -21,11 +21,11 @@
 #include <QTest>
 #include <QWebEnginePage>
 
-#include "Editor.h"
+#include "editor/Editor.h"
 #include "EditorTestHarness.h"
-#include "MainWindow.h"
-#include "Preferences.h"
-#include "Preview.h"
+#include "mainwindow/MainWindow.h"
+#include "prefs/Preferences.h"
+#include "preview/Preview.h"
 #include "TestConfig.h"
 
 class EmojiPreviewHarness : public EditorTestHarness

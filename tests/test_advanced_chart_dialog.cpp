@@ -22,8 +22,8 @@
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTableWidget>
-#include "AdvancedChartDialog.h"
-#include "ChartSource.h"
+#include "charts/AdvancedChartDialog.h"
+#include "charts/ChartSource.h"
 
 static int g_argc = 1;
 static char g_arg0[] = "test_advanced_chart_dialog";

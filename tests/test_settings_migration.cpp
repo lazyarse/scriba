@@ -16,7 +16,7 @@
 #include <QSettings>
 #include <QStringList>
 
-#include "Preferences.h"
+#include "prefs/Preferences.h"
 
 class SettingsMigrationTest : public testing::Test {
 protected:

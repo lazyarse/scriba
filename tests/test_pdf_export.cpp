@@ -30,11 +30,11 @@
 #include <QUrl>
 #include <QImage>
 
-#include "ExportPdfDialog.h"
-#include "CssLoader.h"
-#include "CssConfig.h"
-#include "Preferences.h"
-#include "PrintOptions.h"
+#include "io/ExportPdfDialog.h"
+#include "css/CssLoader.h"
+#include "css/CssConfig.h"
+#include "prefs/Preferences.h"
+#include "preview/PrintOptions.h"
 #include "TestConfig.h"
 #include <QWebEngineView>
 

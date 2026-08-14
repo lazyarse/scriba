@@ -19,7 +19,7 @@
 #include <QJsonArray>
 #include <QComboBox>
 #include <QCheckBox>
-#include "ChartDialog.h"
+#include "charts/ChartDialog.h"
 
 static int g_argc = 1;
 static char g_arg0[] = "test_chart_dialog";

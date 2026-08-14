@@ -18,8 +18,8 @@
 // .txt word lists that union with the active base dictionary, and the user
 // dictionary keeps its count-header format.
 #include <gtest/gtest.h>
-#include "SpellChecker.h"
-#include "Preferences.h"
+#include "spell/SpellChecker.h"
+#include "prefs/Preferences.h"
 #include <QApplication>
 #include <QDir>
 #include <QFile>

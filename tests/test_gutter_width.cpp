@@ -21,9 +21,9 @@
 #include <QAbstractTextDocumentLayout>
 #include <QMouseEvent>
 
-#include "Editor.h"
-#include "Gutter.h"
-#include "Preferences.h"
+#include "editor/Editor.h"
+#include "editor/Gutter.h"
+#include "prefs/Preferences.h"
 #include "TestConfig.h"
 
 namespace {

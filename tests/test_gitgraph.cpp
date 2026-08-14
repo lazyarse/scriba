@@ -19,7 +19,7 @@
 #include <QTime>
 #include <QTemporaryDir>
 #include <memory>
-#include "GitGraphBuilder.h"
+#include "mermaid/GitGraphBuilder.h"
 #include "GitTestRepo.h"
 
 static int g_argc = 1;

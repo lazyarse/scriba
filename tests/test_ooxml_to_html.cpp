@@ -17,7 +17,7 @@
 #include <QString>
 #include <QStringList>
 
-#include "OoxmlToHtml.h"
+#include "io/OoxmlToHtml.h"
 
 namespace {
 

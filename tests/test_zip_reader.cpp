@@ -17,7 +17,7 @@
 #include <QString>
 #include <QTemporaryDir>
 #include <QVector>
-#include "ZipReader.h"
+#include "io/ZipReader.h"
 #include "miniz.h"
 
 namespace {
