@@ -84,7 +84,7 @@ PreferencesDialog::PreferencesDialog(CssConfig *config, CssLoader *loader, QWidg
 {
     setupUi(themeBgColor, themeFgColor);
     setWindowTitle("Preferences");
-    resize(700, 600);
+    resize(750, 600);
 }
 
 QWidget *PreferencesDialog::addPage(const QString &name)
