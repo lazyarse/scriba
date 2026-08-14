@@ -443,9 +443,9 @@ reference) out of the Chromium-based PDF export.
 Page-bottom footnotes are defined in **CSS Generated Content for Paged Media
 Level 3** (`float: footnote`, `@footnote`, `::footnote-call`,
 `::footnote-marker`, `counter(footnote)`). **No browser implements them**:
-Chromium 131+ added native `@page` margin boxes, named pages and page counters
-(see `css-paged-media-plan.md`), but footnotes — along with `string-set` /
-`string()`, `target-counter()`, `leader()` and bookmarks — remain unimplemented.
+Chromium 131+ added native `@page` margin boxes, named pages and page counters,
+but footnotes — along with `string-set` / `string()`, `target-counter()`,
+`leader()` and bookmarks — remain unimplemented.
 Tracking issue (open, unstaffed, no ETA):
 
 - https://issues.chromium.org/issues/376428674 — "Support footnotes from CSS

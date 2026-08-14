@@ -13,6 +13,14 @@ generates a PDF using one of two paths:
 2. **Qt `printToPdf` fallback** — used when no Chromium binary is found. Cannot
    suppress default PDF headers/footers.
 
+**Platform note:** the Chromium binary search (`ExportPdfDialog::findChromiumBinary`)
+probes only Linux paths (`/usr/bin/chromium`, `/usr/bin/chromium-browser`,
+`/usr/bin/google-chrome`, `/usr/bin/google-chrome-stable`, and `chromium` on
+`$PATH`). On Windows none of these resolve, so PDF export always uses the Qt
+`printToPdf` fallback there — default header/footer suppression and the full
+CSS Paged Media extras (margin boxes, `:first`/`:left`/`:right`, named pages)
+are unavailable on Windows unless a `chromium.exe`/`chrome.exe` probe is added.
+
 ## Page size parsing
 
 The `@page { size: ... }` CSS rule is parsed to determine the viewport width for
