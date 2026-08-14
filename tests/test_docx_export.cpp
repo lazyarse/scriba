@@ -183,6 +183,75 @@ TEST_F(DocxExportTest, EmptyDocumentProducesValidXml)
     EXPECT_FALSE(result.bodyXml.isEmpty());
 }
 
+// KaTeX mhchem MathML wraps arrows in <mover>+<none/> (rendered by the OMML
+// converter as limit-above operators) and uses phantom elements to pad
+// subscript height. cleanMhchemMathml must strip those before conversion.
+TEST_F(DocxExportTest, MhchemArrowProducesInlineOperatorNotLimUpp)
+{
+    QString html =
+        "<p>"
+        "<span class=\"katex\" data-tex=\"\\ce{H2O -> A}\" data-mathml=\""
+        "<math><semantics><mrow><mi>H</mi>"
+        "<msub><mover><mi/>.<none/></mover><mn>2</mn></msub>"
+        "<mi>O</mi><mover><mo>\u2192</mo><none/></mover><mi>A</mi><mo>,</mo>"
+        "</mrow><annotation encoding=\"application/x-tex\">\\ce{H2O -> A},</annotation>"
+        "</semantics></math>"
+        "\"></span>"
+        "</p>";
+
+    OoxmlResult result = convert(html);
+
+    EXPECT_TRUE(result.bodyXml.contains("m:oMath"))
+        << "mhchem formula must produce OMML";
+    EXPECT_TRUE(result.bodyXml.contains(QStringLiteral("\u2192")))
+        << "arrow must survive as a text run";
+    EXPECT_FALSE(result.bodyXml.contains("m:limUpp"))
+        << "arrow must not become a limit-above operator";
+    EXPECT_FALSE(result.bodyXml.contains("m:phant"))
+        << "phantom subscript padding must not leak";
+    EXPECT_FALSE(result.bodyXml.contains(QStringLiteral(">.</m:t>")))
+        << "stray period from the subscript mover trick must not leak as text";
+}
+
+TEST_F(DocxExportTest, MhchemYieldAndEquilibriumArrowsBecomeUnicodeRuns)
+{
+    QString html =
+        "<p>"
+        "<span class=\"katex\" data-tex=\"\\ce{H2O => C}\" data-mathml=\""
+        "<math><mrow><mi>H</mi><mo>=</mo><mo>&gt;</mo></mrow></math>"
+        "\"></span>"
+        "<span class=\"katex\" data-tex=\"\\ce{H2O <-> B}\" data-mathml=\""
+        "<math><mrow><mi>H</mi><mo>&lt;</mo><mo>-</mo><mo>&gt;</mo></mrow></math>"
+        "\"></span>"
+        "</p>";
+
+    OoxmlResult result = convert(html);
+
+    EXPECT_TRUE(result.bodyXml.contains(QStringLiteral("\u21D2")))
+        << "=> must become a single yields arrow";
+    EXPECT_TRUE(result.bodyXml.contains(QStringLiteral("\u2194")))
+        << "<-> must become a single left-right arrow";
+    EXPECT_FALSE(result.bodyXml.contains("m:limUpp"));
+}
+
+// The cleanup is scoped to mhchem macros: a non-mhchem formula carrying the
+// same <mover>+<none/> MathML must keep the vendor's (semantically odd but
+// unmodified) limit-above mapping.
+TEST_F(DocxExportTest, MhchemCleanupSkippedForNonMhchemFormulas)
+{
+    QString html =
+        "<p>"
+        "<span class=\"katex\" data-tex=\"A \\rightarrow B\" data-mathml=\""
+        "<math><mrow><mi>A</mi><mover><mo>\u2192</mo><none/></mover><mi>B</mi></mrow></math>"
+        "\"></span>"
+        "</p>";
+
+    OoxmlResult result = convert(html);
+
+    EXPECT_TRUE(result.bodyXml.contains("m:limUpp"))
+        << "non-mhchem MathML must pass through unmodified";
+}
+
 TEST_F(DocxExportTest, NormalListFollowedByTable)
 {
     // Non-task lists should also work correctly

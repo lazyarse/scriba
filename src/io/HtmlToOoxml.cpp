@@ -275,6 +275,58 @@ static QString extractKatexText(SimpleHtmlParser &parser, const QString &endTag)
     return result.trimmed();
 }
 
+// KaTeX's mhchem MathML wraps arrows in <mover>+<none/> (CSS positioning
+// tricks) and pads subscript height with <mphantom> elements. The mathml2omml
+// converter maps those to <m:limUpp> (arrows rendered as limit-above
+// operators) and visible <m:phant> text. Strip the wrappers on the raw string
+// before conversion so arrows become plain <mo> operators and phantoms become
+// zero-width spacers. Scoped to mhchem formulas (data-tex starts with \ce{ or
+// \pu{); standard KaTeX math never emits these constructs.
+static QString cleanMhchemMathml(QString mathml)
+{
+    const QString arrowClass = QStringLiteral(
+        "\u2192|\u2190|\u2194|\u21D2|\u27F9|\u21CC|\u21CB|\u21F5|\u21A6|\u21AA"
+        "|\u27F6|\u27F5|\u27F7");   // → ← ↔ ⇒ ⟹ ⇌ ⇋ ⇵ ↦ ↪ ⟶ ⟵ ⟷
+
+    // <mover><mo>→</mo><none/></mover> → <mo>→</mo>
+    QRegularExpression moverArrow(QStringLiteral("<mover>\\s*<mo>(%1)</mo>\\s*"
+                                                  "<none/>\\s*</mover>")
+                                      .arg(arrowClass));
+    mathml.replace(moverArrow, QStringLiteral("<mo>\\1</mo>"));
+
+    // Same wrapper but with an empty <mrow/> in place of <none/>.
+    QRegularExpression moverArrowMrow(QStringLiteral("<mover>\\s*<mo>(%1)</mo>\\s*"
+                                                     "<mrow(?:/>|></mrow>)\\s*"
+                                                     "</mover>")
+                                          .arg(arrowClass));
+    mathml.replace(moverArrowMrow, QStringLiteral("<mo>\\1</mo>"));
+
+    // <mover><mphantom><mi>X</mi></mphantom><none/></mover> → zero-width spacer
+    // (the phantom exists only to lift the subscript baseline).
+    QRegularExpression phantomMover(QStringLiteral("<mover>\\s*<mphantom>\\s*"
+                                                   "<mi>[A-Za-z]</mi>\\s*"
+                                                   "</mphantom>\\s*<none/>\\s*"
+                                                   "</mover>"));
+    mathml.replace(phantomMover, QStringLiteral("<mspace width=\"0\"/>"));
+
+    // Same trick in its empty-<mi/>+period form: <mover><mi/>.<none/></mover>
+    // — without cleanup the stray "." leaks out as a visible text run.
+    QRegularExpression dotMover(QStringLiteral("<mover>\\s*<mi(?:/>|></mi>)\\s*"
+                                               "\\.\\s*<none/>\\s*</mover>"));
+    mathml.replace(dotMover, QStringLiteral("<mspace width=\"0\"/>"));
+
+    // "=>" split into separate = and > runs → ⇒
+    QRegularExpression yieldArrow(QStringLiteral("<mo>=</mo>\\s*<mo>(?:&gt;|>)</mo>"));
+    mathml.replace(yieldArrow, QStringLiteral("<mo>\u21D2</mo>"));
+
+    // "<->" split into <, - and > runs → ↔
+    QRegularExpression eqArrow(QStringLiteral("<mo>(?:&lt;|<)</mo>\\s*<mo>-</mo>\\s*"
+                                              "<mo>(?:&gt;|>)</mo>"));
+    mathml.replace(eqArrow, QStringLiteral("<mo>\u2194</mo>"));
+
+    return mathml;
+}
+
 // Write KaTeX math as OMML <m:oMath> using MathML from data-mathml attribute,
 // falling back to TeX text from data-tex attribute.
 static void writeKatexAsOmml(SimpleHtmlParser &parser, const QString &endTag,
@@ -293,7 +345,13 @@ static void writeKatexAsOmml(SimpleHtmlParser &parser, const QString &endTag,
         }
     }
 
+    const QString texTrimmed = texSource.trimmed();
+    const bool isMhchem = texTrimmed.startsWith(QStringLiteral("\\ce{"))
+                       || texTrimmed.startsWith(QStringLiteral("\\pu{"));
+
     QString mathml = mathmlSource.trimmed();
+    if (isMhchem)
+        mathml = cleanMhchemMathml(mathml);
     if (!mathml.isEmpty()) {
         QtOmmlSink sink{bodyWriter};
         if (MathmlToOmml::convert(mathml.toStdString(), sink))
