@@ -599,6 +599,12 @@ if(BUILD_TESTS)
         scriba_editor scriba_core scriba_spell scriba_resources)
     add_test(NAME test_editor_scrollbar COMMAND ${_TEST_PREFIX} ./test_editor_scrollbar)
 
+    add_executable(test_issue_summary tests/test_issue_summary.cpp)
+    target_include_directories(test_issue_summary PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_issue_summary PRIVATE
+        GTest::gtest scriba_editor scriba_core scriba_spell Qt6::Test scriba_resources)
+    add_test(NAME test_issue_summary COMMAND ${_TEST_PREFIX} ./test_issue_summary)
+
     add_executable(test_spell_check_dialog tests/test_spell_check_dialog.cpp
         src/spell/SpellCheckDialog.cpp)
     target_include_directories(test_spell_check_dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)

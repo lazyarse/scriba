@@ -195,6 +195,22 @@ public:
     // a block. Empty for blocks that are not part of a finding.
     QVector<GrammarHit> markdownHitsInBlock(int blockNumber) const;
 
+    // One pass over the live per-block hit caches — the same data the
+    // in-editor underlines are painted from. Spelling/links/markdown are
+    // refreshed on the debounced spell pass; grammar counts fill in when the
+    // async whole-document lint lands (onLintFinished() emits spellHitsChanged
+    // so consumers refresh). A category whose check is disabled reads 0.
+    struct IssueCounts {
+        int spelling = 0;
+        int grammar = 0;
+        int links = 0;
+        int markdown = 0;
+    };
+    IssueCounts counts() const;
+    bool grammarCheckingEnabled() const { return m_grammarEnabled; }
+    bool linkCheckingEnabled() const { return m_linkEnabled; }
+    bool markdownCheckingEnabled() const { return m_markdownEnabled; }
+
 signals:
     // The spell/link hit caches were refreshed (after a debounced or
     // word-boundary check). The Editor repaints its underline overlay on this.

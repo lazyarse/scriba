@@ -754,6 +754,7 @@ void SpellHighlighter::onLintFinished(quint64 generation, const QString &text,
         blockStart += blockLen + 1;
     }
     rehighlight();
+    emit spellHitsChanged(); // the grammar cache was refreshed
 }
 
 QVector<SpellHighlighter::GrammarHit> SpellHighlighter::grammarIssuesInBlock(int blockNumber) const
@@ -774,6 +775,20 @@ QVector<SpellHighlighter::GrammarHit> SpellHighlighter::linkIssuesInBlock(int bl
 QVector<SpellHighlighter::GrammarHit> SpellHighlighter::markdownHitsInBlock(int blockNumber) const
 {
     return m_markdownHits.value(blockNumber);
+}
+
+SpellHighlighter::IssueCounts SpellHighlighter::counts() const
+{
+    IssueCounts c;
+    for (auto it = m_spellHits.constBegin(); it != m_spellHits.constEnd(); ++it)
+        c.spelling += it.value().size();
+    for (auto it = m_grammarIssues.constBegin(); it != m_grammarIssues.constEnd(); ++it)
+        c.grammar += it.value().size();
+    for (auto it = m_linkHits.constBegin(); it != m_linkHits.constEnd(); ++it)
+        c.links += it.value().size();
+    for (auto it = m_markdownHits.constBegin(); it != m_markdownHits.constEnd(); ++it)
+        c.markdown += it.value().size();
+    return c;
 }
 
 SpellHighlighter::DocumentContext SpellHighlighter::collectDocumentContext() const
