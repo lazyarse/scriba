@@ -540,9 +540,16 @@ void Editor::positionIssueSummaryPane()
 
 bool Editor::isMarkdownFile() const
 {
-    return !m_currentFile.isEmpty()
-        && QFileInfo(m_currentFile).suffix().compare(QStringLiteral("md"),
-                                                     Qt::CaseInsensitive) == 0;
+    // Untitled tabs (empty path) are markdown by construction: new docs and
+    // corpus-embedded docs save with an .md extension. The suffix set matches
+    // the app's open filter (MainWindow_File.cpp kOpenMdFilter) — .md,
+    // .markdown and .txt all render as markdown.
+    if (m_currentFile.isEmpty())
+        return true;
+    const QString suffix = QFileInfo(m_currentFile).suffix().toLower();
+    return suffix == QStringLiteral("md")
+        || suffix == QStringLiteral("markdown")
+        || suffix == QStringLiteral("txt");
 }
 
 void Editor::setSpellCheckHighlight(int blockNumber, int start, int length)
