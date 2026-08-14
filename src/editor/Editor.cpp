@@ -154,6 +154,11 @@ Editor::Editor(QWidget *parent)
     connect(m_issueSummaryPane, &IssueSummaryPane::closeRequested, this, [this]() {
         m_issueSummaryDismissed = true; // don't re-show on every keystroke
     });
+    m_issueSummaryShowTimer = new QTimer(this);
+    m_issueSummaryShowTimer->setSingleShot(true);
+    m_issueSummaryShowTimer->setInterval(Debounce::IssueSummary);
+    connect(m_issueSummaryShowTimer, &QTimer::timeout,
+            this, &Editor::onIssueSummaryShow);
 
     connect(this, &Editor::cursorPositionChanged,
             this, &Editor::onCursorPositionChanged);
@@ -463,6 +468,8 @@ void Editor::setIssueSummaryOptions(const IssueSummaryOptions &options,
     m_issueSummaryPane->setTheme(themeBg, themeFg);
     if (!options.enabled) {
         m_issueSummaryPane->hide();
+        if (m_issueSummaryShowTimer)
+            m_issueSummaryShowTimer->stop();
         return;
     }
     m_issueSummaryDismissed = false;
@@ -482,6 +489,8 @@ void Editor::updateIssueSummary()
     if (!m_issueSummaryPane || !m_issueSummaryOptions.enabled || !isMarkdownFile()) {
         if (m_issueSummaryPane)
             m_issueSummaryPane->hide();
+        if (m_issueSummaryShowTimer)
+            m_issueSummaryShowTimer->stop();
         return;
     }
     if (!m_spellHighlighter)
@@ -510,16 +519,28 @@ void Editor::updateIssueSummary()
 
     if (rows.isEmpty()) {
         m_issueSummaryPane->hide();
+        m_issueSummaryShowTimer->stop();
         return;
     }
 
+    // Keep the row content current as the checkers land, but defer the show:
+    // the first pass may run before any check finished (all-zero counts), and
+    // showing inside the startup burst loses the initial paint. The debounce
+    // timer shows the pane once, in a settled event loop, with final counts.
     m_issueSummaryPane->setRows(rows);
+    m_issueSummaryShowTimer->stop();
+    m_issueSummaryShowTimer->start();
+}
+
+void Editor::onIssueSummaryShow()
+{
+    if (!m_issueSummaryPane || m_issueSummaryDismissed)
+        return;
     positionIssueSummaryPane();
-    if (!m_issueSummaryDismissed) {
-        const int timeoutMs = m_issueSummaryOptions.timeoutEnabled
-            ? m_issueSummaryOptions.timeoutSeconds * 1000 : 0;
-        m_issueSummaryPane->showWithTimeout(timeoutMs);
-    }
+    const int timeoutMs = m_issueSummaryOptions.timeoutEnabled
+        ? m_issueSummaryOptions.timeoutSeconds * 1000 : 0;
+    m_issueSummaryPane->showWithTimeout(timeoutMs);
+    m_issueSummaryPane->update();
 }
 
 void Editor::positionIssueSummaryPane()
@@ -528,6 +549,8 @@ void Editor::positionIssueSummaryPane()
         return;
     const int margin = 12;
     const QSize sh = m_issueSummaryPane->sizeHint();
+    if (sh.isEmpty())
+        return;
     m_issueSummaryPane->setGeometry(viewport()->width() - sh.width() - margin,
                                     margin, sh.width(), sh.height());
 }

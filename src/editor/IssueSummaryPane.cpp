@@ -120,7 +120,14 @@ void IssueSummaryPane::rebuild()
         lbl->setTextInteractionFlags(Qt::NoTextInteraction);
         m_rowsLayout->addWidget(lbl);
     }
+    if (auto *outer = layout())
+        outer->invalidate();
     adjustSize();
+    if (isVisible()) {
+        setGeometry(geometry().x(), geometry().y(), sizeHint().width(), sizeHint().height());
+    }
+    updateGeometry();
+    update();
 }
 
 void IssueSummaryPane::onTimeout()

@@ -145,6 +145,7 @@ namespace Debounce {
     constexpr int HeavyRender      = 1500; // JS heavy-render setTimeout in preview
     constexpr int TabSwitchRender  = 100;  // JS heavy-render delay after a tab switch
     constexpr int CorpusWatch      = 1000; // corpus external-change watcher debounce
+    constexpr int IssueSummary     = 400;  // IssueSummaryPane show debounce (checkers settle first)
 }
 
 // C++ non-debounce timing values that are not embedded in JS strings.

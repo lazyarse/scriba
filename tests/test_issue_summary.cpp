@@ -356,7 +356,7 @@ TEST_F(IssueSummaryEditorTest, TimeoutDismissesPane)
                                      QColor(QStringLiteral("#333333")));
     m_editor->setPlainText(QStringLiteral("helo world\n"));
     m_editor->showIssueSummary();
-    QTest::qWait(400);
+    QTest::qWait(700); // show debounce (400 ms) + spell pass
     IssueSummaryPane *pane = m_editor->issueSummaryPane();
     ASSERT_NE(pane, nullptr);
     ASSERT_TRUE(pane->isVisible());
@@ -372,7 +372,7 @@ TEST_F(IssueSummaryEditorTest, DismissedStaysHiddenUntilExplicitShow)
                                      QColor(QStringLiteral("#333333")));
     m_editor->setPlainText(QStringLiteral("helo world\n"));
     m_editor->showIssueSummary();
-    QTest::qWait(400);
+    QTest::qWait(700); // show debounce (400 ms) + spell pass
     IssueSummaryPane *pane = m_editor->issueSummaryPane();
     ASSERT_TRUE(pane->isVisible());
 
@@ -385,8 +385,10 @@ TEST_F(IssueSummaryEditorTest, DismissedStaysHiddenUntilExplicitShow)
     QTest::qWait(400);
     EXPECT_FALSE(pane->isVisible());
 
-    // An explicit trigger (tab switch / file open) re-shows it.
+    // An explicit trigger (tab switch / file open) re-shows it (after the
+    // 400 ms show debounce).
     m_editor->showIssueSummary();
+    QTest::qWait(700);
     EXPECT_TRUE(pane->isVisible());
 }
 

@@ -944,6 +944,15 @@ colors as the editor's underlines).
 - A row appears only when its category is selected in the Issue Summary prefs
   AND the corresponding in-editor check is enabled. This is deliberate: the
   pane reports exactly what the editor underlines, no more.
+- The pane's show is debounced (`Debounce::IssueSummary`, 400 ms):
+  `updateIssueSummary()` refreshes the row content on every `spellHitsChanged`
+  but only (re)arms the show timer; the actual show happens once, in a settled
+  event loop, after the checkers have landed. Showing during the startup burst
+  (file load, highlighter init, first window composition) loses the pane's
+  initial paint — the header renders but the row labels stay invisible until a
+  later repaint (scroll, tab-away-and-back). The debounce sidesteps that: by
+  the time it fires, the counts are final and the show paints correctly, so
+  the pane also never flashes all-zero counts.
 - The pane is shown for `.md` files only (suffix check in
   `Editor::isMarkdownFile()`); untitled tabs, corpus-embedded docs and
   generated report/TOC tabs never show it. Dismissing it (`[x]` or timeout)

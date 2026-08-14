@@ -32,6 +32,7 @@ class QFontMetrics;
 class QKeyEvent;
 class Gutter;
 class EditorScrollBar;
+class QTimer;
 class IssueSummaryPane;
 class SpellChecker;
 class GrammarChecker;
@@ -188,6 +189,7 @@ private:
 
     void applySpellSettings();
     void updateIssueSummary();
+    void onIssueSummaryShow();
     void positionIssueSummaryPane();
     bool isMarkdownFile() const;
     // Push an active corpus's dictionary (word sets, language, dialect and the
@@ -259,6 +261,7 @@ private:
     QColor m_issueSummaryThemeBg;
     QColor m_issueSummaryThemeFg;
     bool m_issueSummaryDismissed = false;
+    QTimer *m_issueSummaryShowTimer = nullptr;
     // True once a corpus dictionary has been applied; routes the "Add to
     // Dictionary" context action to the corpus word set instead of the global
     // user.dic. Sticky for the editor's lifetime (a corpus, once opened, stays
