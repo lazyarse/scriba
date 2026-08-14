@@ -460,6 +460,11 @@ if(BUILD_TESTS)
     target_link_libraries(test_md_lint_links PRIVATE scriba_core GTest::gtest_main scriba_spell)
     add_test(NAME test_md_lint_links COMMAND ${_TEST_PREFIX} ./test_md_lint_links)
 
+    add_executable(test_md_lint_tables tests/test_md_lint_tables.cpp)
+    target_include_directories(test_md_lint_tables PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_md_lint_tables PRIVATE scriba_core GTest::gtest_main scriba_spell)
+    add_test(NAME test_md_lint_tables COMMAND ${_TEST_PREFIX} ./test_md_lint_tables)
+
     add_executable(test_md_lint_config tests/test_md_lint_config.cpp)
     target_include_directories(test_md_lint_config PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_md_lint_config PRIVATE scriba_core GTest::gtest_main scriba_spell)

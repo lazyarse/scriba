@@ -124,6 +124,70 @@ int byteToCol(const Model &m, int byteOff)
     return QString::fromUtf8(lineUtf8.left(clamp)).size() + 1;
 }
 
+// Split a table row on unescaped pipes.
+QStringList splitTableRow(const QString &line)
+{
+    QStringList cells;
+    QString cur;
+    bool escaped = false;
+    for (const QChar ch : line) {
+        if (escaped) {
+            cur.append(ch);
+            escaped = false;
+            continue;
+        }
+        if (ch == QLatin1Char('\\')) {
+            escaped = true;
+            continue;
+        }
+        if (ch == QLatin1Char('|')) {
+            cells.append(cur);
+            cur.clear();
+            continue;
+        }
+        cur.append(ch);
+    }
+    cells.append(cur);
+    return cells;
+}
+
+// Number of cells in a raw table row, per markdownlint: pipe count, minus a
+// leading and a trailing pipe when present.
+int rawColumnCount(const QString &raw)
+{
+    const QString line = raw.trimmed();
+    int count = 1;
+    bool escaped = false;
+    for (const QChar ch : line) {
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        if (ch == QLatin1Char('\\')) {
+            escaped = true;
+            continue;
+        }
+        if (ch == QLatin1Char('|'))
+            ++count;
+    }
+    if (line.startsWith(QLatin1Char('|')))
+        --count;
+    if (line.endsWith(QLatin1Char('|')))
+        --count;
+    return count;
+}
+
+// Human description of a row's leading/trailing pipe presence.
+QString pipeStyleDesc(bool lead, bool trail)
+{
+    if (lead && trail)
+        return QStringLiteral("leading and trailing pipes");
+    if (!lead && !trail)
+        return QStringLiteral("no leading or trailing pipes");
+    return lead ? QStringLiteral("leading pipe only")
+                : QStringLiteral("trailing pipe only");
+}
+
 // Byte range of the full source of a span, expanding past its markers:
 // left marker run (chars in `markers`) adjacent to the first token, and the
 // matching right run. Returns (-1,-1) when the span has no text tokens.
@@ -173,6 +237,8 @@ struct Collector {
     int hDepth = 0;
     // Current list marks, one entry per depth level.
     QVector<QPair<QChar, QChar>> listMarks;   // (mark, olDelim)
+    // Stack index of the open MD_BLOCK_TABLE, -1 when none.
+    int m_tableBlockIdx = -1;
 
     void onText(MD_TEXTTYPE type, const MD_CHAR *text, MD_SIZE size)
     {
@@ -247,6 +313,14 @@ struct Collector {
                                 markerCol, c + 1});
         }
         blocks.append(b);
+        if (type == MD_BLOCK_TABLE)
+            m_tableBlockIdx = blocks.size() - 1;
+        else if ((type == MD_BLOCK_TH || type == MD_BLOCK_TD) && m_tableBlockIdx >= 0
+                 && !m.tables.isEmpty()) {
+            const int line = lineIndexOf(m, begByte) + 1;
+            if (!m.tables.last().rowLines.contains(line))
+                m.tables.last().rowLines.append(line);
+        }
     }
 
     void leaveBlock(MD_BLOCKTYPE type, void *detail)
@@ -259,6 +333,8 @@ struct Collector {
         } else if (type == MD_BLOCK_QUOTE) {
             if (hDepth > 0)
                 --hDepth;
+        } else if (type == MD_BLOCK_TABLE) {
+            m_tableBlockIdx = -1;
         }
 
         if (type == MD_BLOCK_H) {
@@ -1366,6 +1442,112 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
             if (t.endLine < c.m.lines.size() && !isBlank(c.m.lines.at(t.endLine)))
                 emitIssue(ctx, QStringLiteral("MD058"), t.endLine, 1, 0,
                      QStringLiteral("Expected: 1 blank line after; Actual: 0"));
+        }
+    }
+
+    // MD055 — table pipe style
+    if (config.enabled(QStringLiteral("MD055"))) {
+        const QString style = config
+                                  .param(QStringLiteral("MD055"), "style",
+                                         QStringLiteral("consistent"))
+                                  .toString();
+        for (const auto &t : c.m.tables) {
+            bool haveRef = false;
+            bool refLead = false, refTrail = false;
+            for (int i = t.begLine; i <= t.endLine && i <= c.m.lines.size(); ++i) {
+                const QString tr = c.m.lines.at(i - 1).trimmed();
+                if (tr.isEmpty())
+                    continue;
+                const bool lead = tr.startsWith(QLatin1Char('|'));
+                const bool trail = tr.endsWith(QLatin1Char('|'));
+                if (!haveRef) {
+                    haveRef = true;
+                    refLead = lead;
+                    refTrail = trail;
+                }
+                bool bad = false;
+                if (style == QLatin1String("leading_and_trailing"))
+                    bad = !(lead && trail);
+                else if (style == QLatin1String("no_leading_or_trailing"))
+                    bad = lead && trail;
+                else
+                    bad = lead != refLead || trail != refTrail;
+                if (bad)
+                    emitIssue(ctx, QStringLiteral("MD055"), i, 1, tr.size(),
+                         QStringLiteral("Expected: %1; Actual: %2")
+                             .arg(style == QLatin1String("leading_and_trailing")
+                                      ? QStringLiteral("leading and trailing pipes")
+                                      : style == QLatin1String("no_leading_or_trailing")
+                                            ? QStringLiteral("no leading or trailing pipes")
+                                            : pipeStyleDesc(refLead, refTrail),
+                                  pipeStyleDesc(lead, trail)));
+            }
+        }
+    }
+
+    // MD056 — table column count
+    if (config.enabled(QStringLiteral("MD056"))) {
+        for (const auto &t : c.m.tables) {
+            const int headerCount = rawColumnCount(c.m.lines.value(t.begLine - 1));
+            for (int i = t.begLine + 1; i <= t.endLine && i <= c.m.lines.size(); ++i) {
+                const QString &row = c.m.lines.at(i - 1);
+                const int n = rawColumnCount(row);
+                if (n != headerCount)
+                    emitIssue(ctx, QStringLiteral("MD056"), i, 1, row.size(),
+                         QStringLiteral("Expected: %1 columns; Actual: %2")
+                             .arg(headerCount)
+                             .arg(n));
+            }
+        }
+    }
+
+    // MD060 — table column style
+    if (config.enabled(QStringLiteral("MD060"))) {
+        const QString style = config
+                                  .param(QStringLiteral("MD060"), "style",
+                                         QStringLiteral("consistent"))
+                                  .toString();
+        for (const auto &t : c.m.tables) {
+            QVector<QPair<bool, bool>> ref;   // per column: (left pad, right pad)
+            for (int i = t.begLine; i <= t.endLine && i <= c.m.lines.size(); ++i) {
+                const QString tr = c.m.lines.at(i - 1).trimmed();
+                if (tr.isEmpty())
+                    continue;
+                QStringList cells = splitTableRow(tr);
+                if (!cells.isEmpty() && cells.first().isEmpty())
+                    cells.removeFirst();
+                if (!cells.isEmpty() && cells.last().isEmpty())
+                    cells.removeLast();
+                if (ref.isEmpty()) {
+                    for (const QString &cell : cells)
+                        ref.append({cell.startsWith(QLatin1Char(' ')),
+                                    cell.endsWith(QLatin1Char(' '))});
+                    continue;
+                }
+                for (int ci = 0; ci < ref.size() && ci < cells.size(); ++ci) {
+                    const bool l = cells.at(ci).startsWith(QLatin1Char(' '));
+                    const bool r = cells.at(ci).endsWith(QLatin1Char(' '));
+                    const bool wantL =
+                        style == QLatin1String("leading_and_trailing")
+                            ? true
+                            : style == QLatin1String("no_leading_or_trailing")
+                                  ? false
+                                  : ref.at(ci).first;
+                    const bool wantR =
+                        style == QLatin1String("leading_and_trailing")
+                            ? true
+                            : style == QLatin1String("no_leading_or_trailing")
+                                  ? false
+                                  : ref.at(ci).second;
+                    if (l != wantL || r != wantR) {
+                        emitIssue(ctx, QStringLiteral("MD060"), i, 1, tr.size(),
+                             QStringLiteral("Expected: %1; Actual: %2")
+                                 .arg(pipeStyleDesc(wantL, wantR),
+                                      pipeStyleDesc(l, r)));
+                        break;
+                    }
+                }
+            }
         }
     }
 
