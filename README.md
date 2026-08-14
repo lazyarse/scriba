@@ -1,4 +1,4 @@
-![Scriba Icon](resources/icons/scriba.svg#160x)
+![Scriba Icon](resources/icons/scriba.svg#120x)
 
 ![C++23 Badge](docs/images/badge-cpp23.svg)
 ![Qt6 Badge](docs/images/badge-qt6.svg)
@@ -18,7 +18,7 @@ Designed to *actually* do what you need quickly and without a plugin ecosystem. 
 - **Offline, in-editor spell and grammar checks** with various dialects. **Import custom `corpus`-specific word sets** with ease: legal, medical, technical, etc.
 - Print and PDF export use **print-specific CSS stylesheets** and adhere to common typesetting principles including **orphan, split quote / codeblock, and hanging-line prevention**
 - **Readability metrics in real-time** to keep your writing audience-focused including sentence / word / character / paragraph / syllable counts, estimated reading and speaking times, and more --- as you type. Choose what metrics are important to you
-- **In-editor underlining** for: typos, not-good grammar, markdown lint issues, malformed urls, and broken links to local files and navigation header sections
+- **In-editor underlining** for: typos, grammar, markdown lint issues, malformed urls, and broken links to local files and navigation header sections
 - **A validation report** to validate all documents in a `corpus` according to your needs
 - **Create _and_ edit charts and diagrams with ease** using two-way [chart assistants](docs/chart-assistants.md) for ECharts and [Mermaid](docs/mermaid.md) diagrams, manual or CSV-file (+ field mappings) data-entry; extra assistants for LaTeX, MChem, and creating tables
 - **"Find and Replace" with regex search _and_ replacement back-references**
