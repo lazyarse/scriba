@@ -22,7 +22,7 @@ The renderer preserves the source start number (`2024.` → `<ol start="2024">`)
 in the preview and HTML/PDF exports. **DOCX export does not yet map `start`**:
 Word needs a separate `w:num`/`w:abstractNum` instance per distinct start value,
 with each list paragraph's `w:numPr` pointing at the right one (`handleList` in
-`src/HtmlToOoxml.cpp` would allocate `w:numId`s). Status: **Partial** — next
+`src/src/io/HtmlToOoxml.cpp` would allocate `w:numId`s). Status: **Partial** — next
 phase.
 
 ### Ordered-list numbering — uppercase numerals
@@ -37,7 +37,7 @@ items, and a few renderer enum values. Status: **Not started**.
 
 The Chart Builder, Stock Chart Builder and Advanced Charts dialogs reverse-parse
 an existing ` ```ec ` block back into their table rows (see
-`src/EChartsParser.cpp`). The doc-driven corpus in `docs/echarts.md` (21 blocks)
+`src/src/charts/EChartsParser.cpp`). The doc-driven corpus in `docs/echarts.md` (21 blocks)
 is exercised by `tests/test_chartsource_docs.cpp` and must round-trip.
 
 | Series type | Dialog | Status |

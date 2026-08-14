@@ -20,7 +20,7 @@
 //     fontStyles: { <fontName>: { name, isMonospace, black, italic } } }
 // tx/ty are pdf.js transform[4]/[5] (PDF user space; y increases upward).
 // fontStyles resolve each internal fontName to the real PostScript face name
-// pulled from the page's commonObjs (see src/PdfImporter.cpp).
+// pulled from the page's commonObjs (see src/src/io/PdfImporter.cpp).
 //
 // The algorithm set is a port of pdf-to-markdown (github.com/iamarunbrahma/
 // pdf-to-markdown, MIT) from pdfplumber geometry onto pdf.js geometry.

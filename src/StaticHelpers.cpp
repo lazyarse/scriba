@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "StaticHelpers.h"
-#include "Preferences.h"
+#include "prefs/Preferences.h"
 #include <algorithm>
 #include <QRegularExpression>
 #include <QFile>

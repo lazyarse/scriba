@@ -1,7 +1,7 @@
 # md4c Parser Flags
 
 Scriba's Markdown parser is the vendored copy of md4c (`vendor/md4c/`). Its flag
-set is assembled in `MarkdownParser::toHtml()` (`src/MarkdownParser.cpp:116`),
+set is assembled in `MarkdownParser::toHtml()` (`src/src/preview/MarkdownParser.cpp:116`),
 and the `MD_FLAG_*` constants are defined at `vendor/md4c/src/md4c.h:372`. This
 is the reference for which flags Scriba enables and why the rest are left off —
 consult it when upgrading the vendored parser or adding a parsing feature.
@@ -32,7 +32,7 @@ These md4c flags are **not** enabled by Scriba. Keep this table in sync with
 | Flag | Bit | Description | Why not enabled / potential use |
 |------|-----|-------------|----------------------------------|
 | `MD_FLAG_COLLAPSEWHITESPACE` | 0x1 | Collapse runs of non-trivial whitespace in normal text to a single space | Fights Scriba's line-preserving `data-line` mapping and would change rendering in `<pre>`/code contexts; users expect their whitespace kept. |
-| `MD_FLAG_PERMISSIVEATXHEADERS` | 0x2 | Allow ATX headings without a space (`###header`) | Breaks the `MarkdownChecker` `HashNoSpace` rule (`src/MarkdownChecker.cpp`), which deliberately flags `#foo`; also diverges from CommonMark. |
+| `MD_FLAG_PERMISSIVEATXHEADERS` | 0x2 | Allow ATX headings without a space (`###header`) | Breaks the `MarkdownChecker` `HashNoSpace` rule (`src/src/validation/MarkdownChecker.cpp`), which deliberately flags `#foo`; also diverges from CommonMark. |
 | `MD_FLAG_NOINDENTEDCODEBLOCKS` | 0x10 | Disable 4-space indented code blocks (fenced only) | Indented blocks are a CommonMark staple; turning them off would surprise users who rely on them. |
 | `MD_FLAG_SPOILERS` | 0x10000 | `\|\|x\|\|` → `<span class="spoiler">` | Removed — no useful purpose for Scriba. |
 | `MD_FLAG_WIKILINKS` | 0x2000 | `[[target]]` wiki links (`MD_SPAN_WIKILINK`) | `[[…]]` is commonly used for non-link content (math, bracket notation); the checker/link-validator has no wiki-link rules, so links would be silently dead. |

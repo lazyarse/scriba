@@ -36,8 +36,8 @@ with much more vertical room than tight ones.
 
 If the extra spacing is unwanted, fix it in CSS (e.g. `li > p { margin: 0.25em 0; }`
 in `resources/preview-base.css`) — not in the parser. Don't "fix" this by
-splitting lists on blank lines in `src/Editor.cpp`'s fold logic or
-`src/MarkdownParser.cpp`; that would diverge from CommonMark.
+splitting lists on blank lines in `src/src/editor/Editor.cpp`'s fold logic or
+`src/src/preview/MarkdownParser.cpp`; that would diverge from CommonMark.
 
 ## Content column: when a "nested" item is actually a sibling
 
@@ -121,7 +121,7 @@ Behaviour to rely on when debugging:
 
 The Smart Typography "Arrows" option converts `-> <- <-> => <= >= != +-` to
 `→ ← ↔ ⇒ ≤ ≥ ≠ ±` **in the preview and exports only** — the Markdown source in
-the editor keeps the ASCII form (see `Typography::apply` in `src/Typography.cpp`).
+the editor keeps the ASCII form (see `Typography::apply` in `src/src/preview/Typography.cpp`).
 Putting this in Typography (rather than the Replacements autocorrect list) is
 deliberate: pairs like `<=`/`>=`/`=>`/`!=` contain `=`, which the replacements
 table can't store (`typo=replacement` splits on `=`, and the save path rejects
@@ -142,7 +142,7 @@ Behaviour to rely on when debugging:
 
 Clicking the pencil on a rendered ` ```ec ` chart re-opens it in the Chart
 Builder (`ChartDialog`) / Stock Chart dialog (see `MainWindow::editChartBlock`
-and the reverse parsers in `src/EChartsParser.cpp`). Only charts the helpers
+and the reverse parsers in `src/src/charts/EChartsParser.cpp`). Only charts the helpers
 themselves can produce round-trip faithfully. Hand-written variants that use
 features the builder doesn't expose *still parse* (the data is recovered into
 the table) but re-inserting them **rebuilds the chart in the dialog's canonical
@@ -169,7 +169,7 @@ which types parse-and-rebuild (`tests/test_chartsource_docs.cpp`).
 
 The Advanced Charts dialog (sankey, boxplot, parallel, themeRiver, graph,
 treemap, sunburst) reverses an existing ` ```ec ` block back into its table
-rows (see `ChartSource::parse{...}Spec` in `src/EChartsParser.cpp`). As with
+rows (see `ChartSource::parse{...}Spec` in `src/src/charts/EChartsParser.cpp`). As with
 the Chart Builder, only the tabular data plus title/animate are recovered;
 everything else about a hand-written chart is dropped when the block is
 re-inserted through `generatedSpec()`:
@@ -244,7 +244,7 @@ such rows in the table, so this is an md4c divergence. Borderless rows are the
 target (they have no leading pipe to anchor column zero); bordered rows start
 with `|` and are immune.
 
-The fix: `capTableRowIndent` in `src/MdTable.cpp` caps the leading whitespace of
+The fix: `capTableRowIndent` in `src/src/editor/MdTable.cpp` caps the leading whitespace of
 every no-leading-pipe row (`makeEmptyTableRow` and `formatMdTable`) at three
 spaces. The cost: a capped row's first pipe may sit one column left of its
 aligned neighbours (e.g. `   |    ` under `foo | bar`). Render-validity wins;
@@ -261,7 +261,7 @@ cap still applies to hand-typed borderless rows and to the empty rows
 
 ### Git Graph topology
 
-The Mermaid Git Graph panel (`src/GitGraphBuilder.cpp`, bundled libgit2) assigns
+The Mermaid Git Graph panel (`src/src/mermaid/GitGraphBuilder.cpp`, bundled libgit2) assigns
 each local branch the commits reachable from its tip, walking **first parents**:
 a commit `c` belongs to branch `b` iff `c` is on `b`'s first-parent chain.
 Consequences that look like bugs but are intended:
@@ -350,7 +350,7 @@ the script itself is synchronous. Scripts that `await` something therefore
 resolve asynchronously inside the page, and the C++ callback fires immediately
 with an empty/pre-resolution value.
 
-So a converter like `src/PdfImporter.cpp` that runs a long async pipeline
+So a converter like `src/src/io/PdfImporter.cpp` that runs a long async pipeline
 (`pdfjsLib.getDocument(...).promise` → `getPage` → text extraction) must not
 rely on the second `runJavaScript` round-trip reading the result back — it will
 race and observe an empty global. The pattern that works:
@@ -369,13 +369,13 @@ while dynamic `import(blobUrl)` succeeds. pdf.js's fake-worker fallback
 the bundled worker via `import()`, so pin the pdf.js worker through the built-in
 fake-worker path by pre-registering `globalThis.pdfjsWorker = await import(...)`
 (PDFWorker initializes interestingly after that). See the `getDocument` setup in
-`src/PdfImporter.cpp` for the exact incantation.
+`src/src/io/PdfImporter.cpp` for the exact incantation.
 
 ## In-source print directives (`<!-- keep -->` / `<!-- page-break -->`)
 
 The two directives that pin a block to one page or force a page break are parsed
-by `MarkdownParser::toHtml` (scanner in `src/MarkdownParser.cpp`, class
-attachment in `src/MdRenderer.cpp`) and must satisfy a strict contract:
+by `MarkdownParser::toHtml` (scanner in `src/src/preview/MarkdownParser.cpp`, class
+attachment in `src/src/preview/MdRenderer.cpp`) and must satisfy a strict contract:
 
 - **Flush-left and on their own line.** A directive indented inside a list item,
   or trailing after paragraph text, is not recognized (it stays an ordinary
@@ -484,7 +484,7 @@ code lines don't appear in `textContent`.
 ## Page-break mode only separates what must not flow
 
 "Show Page Breaks" (`Ctrl+Shift+B`, `Preferences::PreviewShowPageBreaks`)
-rebuilds the preview in print layout via `src/PreviewPagination.cpp`: the same
+rebuilds the preview in print layout via `src/src/preview/PreviewPagination.cpp`: the same
 merged print CSS + `PrintOptions` geometry as the PDF export (`PrintOptions::
 parsePageSize`/`parsePageMargins`, last `@page` wins — see above), a grey canvas
 with a white page in `#center-css`, and a paginator script (`window.
@@ -522,7 +522,7 @@ the full-build path so the new page box and paginator take effect.
 ## Relative images resolve against the shared preview page's base URL
 
 The live preview is **one `QWebEngine` page shared across all tabs**
-(`src/Preview.cpp`). Relative markdown images (`![img](pic.png)`) are never
+(`src/src/preview/Preview.cpp`). Relative markdown images (`![img](pic.png)`) are never
 rewritten in C++ — the browser resolves them against the page's base location,
 which is fixed at the last full `setHtml(html, baseUrl)` and then re-asserted
 per render by a `<base href>` element that `scribaUpdate` injects/updates.
@@ -693,7 +693,7 @@ common-ancestor logic is computed once across all of them.
   `a:extLst`/`a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"`/`asvg:svgBlip r:embed` → SVG
   extension (namespace `http://schemas.microsoft.com/office/drawing/2016/SVG/main`). Word 2016+
   renders the vector at print resolution; everything else shows the 300-DPI PNG fallback.
-- The fallback PNG density is `kSvgFallbackDpi` (300) in `src/HtmlToOoxml.cpp`. SVG-derived
+- The fallback PNG density is `kSvgFallbackDpi` (300) in `src/src/io/HtmlToOoxml.cpp`. SVG-derived
   extents are computed from CSS px at 96 DPI, so changing the fallback DPI never changes on-page
   size. KaTeX **image** mode rasterizes at `scale=3.125` (300/96) and sets HTML `width`/`height`
   (CSS px) so `handleImgTag` can size the drawing from CSS px.
@@ -728,7 +728,7 @@ runs, CI).
 
 `MainWindow::tryScrollPreviewToAnchor` must therefore re-arm on the **timer**, not the
 callback: fire the JS every tick regardless, and only use the callback to *stop* on
-success (`src/MainWindow_Preview.cpp`). Also note the heading ids a cross-doc jump targets
+success (`src/src/mainwindow/MainWindow_Preview.cpp`). Also note the heading ids a cross-doc jump targets
 only exist after the deferred heavy render pass (`generateHeadingIds()` runs in the
 `setTimeout(…, HeavyRender)` tail of `scribaUpdate`), so a fresh page must get its own
 retry budget once `loadFinished` fires — see the `scrollPreviewToAnchor` re-arm in

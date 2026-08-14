@@ -21,9 +21,9 @@
 #ifndef Q_OS_WIN
 #include <unistd.h>
 #endif
-#include "MainWindow.h"
-#include "LogWindow.h"
-#include "Preferences.h"
+#include "mainwindow/MainWindow.h"
+#include "dialogs/LogWindow.h"
+#include "prefs/Preferences.h"
 
 static void registerQrcScheme()
 {

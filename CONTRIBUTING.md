@@ -214,7 +214,7 @@ The vendored markdown parser at `vendor/md4c/` has local patches in `vendor/md4c
 
 ### Qt Widget Chrome
 
-The chrome CSS for Qt widgets (dialogs, buttons, inputs, spinboxes) is generated programmatically in `src/CssUtils.cpp:deriveChromeCss()` by extracting theme background/text colors. Styling `QSpinBox` requires explicit sub-control rules for `up-button`, `down-button`, `up-arrow`, and `down-arrow` — if you style the widget without them, Fusion stops rendering the arrow glyphs and they become invisible. Arrow images (`resources/arrow-up*.svg` / `arrow-down*.svg`) are manually created in light/dark color variants and conditionally loaded via per-theme-brightness variables (same pattern as `checkbox-checked*.svg`). Always mirror the existing spinbox rule when modifying chrome CSS.
+The chrome CSS for Qt widgets (dialogs, buttons, inputs, spinboxes) is generated programmatically in `src/src/css/CssUtils.cpp:deriveChromeCss()` by extracting theme background/text colors. Styling `QSpinBox` requires explicit sub-control rules for `up-button`, `down-button`, `up-arrow`, and `down-arrow` — if you style the widget without them, Fusion stops rendering the arrow glyphs and they become invisible. Arrow images (`resources/arrow-up*.svg` / `arrow-down*.svg`) are manually created in light/dark color variants and conditionally loaded via per-theme-brightness variables (same pattern as `checkbox-checked*.svg`). Always mirror the existing spinbox rule when modifying chrome CSS.
 
 ## Preview Link Handling
 
@@ -228,7 +228,7 @@ The preview page is loaded via `QWebEnginePage::setHtml()`, which creates an int
 
 The preview page loads `qrc:///qtwebchannel/qwebchannel.js` — a JS shim embedded in the Qt WebChannel library — plus a small init snippet in the preview HTML template (the `fullHtml` string in `MainWindow::updatePreview`). The snippet creates `new QWebChannel(qt.webChannelTransport, ...)` and stores the result's `objects.scriba` as `window.scribaBridge`.
 
-On the C++ side, `MainWindow` owns a `QWebChannel` and a `PreviewBridge` (`src/PreviewBridge.h/.cpp`), registered via `channel->registerObject("scriba", bridge)` and attached with `preview->page()->setWebChannel(channel)`. The bridge exposes `Q_INVOKABLE openLink(QString)` and `Q_INVOKABLE editChart(...)`, which re-emit the C++ signals `linkRequested` and `chartEditRequested`.
+On the C++ side, `MainWindow` owns a `QWebChannel` and a `PreviewBridge` (`src/src/preview/PreviewBridge.h/.cpp`), registered via `channel->registerObject("scriba", bridge)` and attached with `preview->page()->setWebChannel(channel)`. The bridge exposes `Q_INVOKABLE openLink(QString)` and `Q_INVOKABLE editChart(...)`, which re-emit the C++ signals `linkRequested` and `chartEditRequested`.
 
 ### Signal flow
 
@@ -249,8 +249,8 @@ User clicks link in preview
 
 ### Key files
 
-- `src/PreviewBridge.h/.cpp` — `Q_INVOKABLE` `openLink` / `editChart` slots re-emitting `linkRequested` / `chartEditRequested`
-- `src/MainWindow.cpp` — owns the `QWebChannel` + `PreviewBridge`; preview HTML template with the `qwebchannel.js` init snippet; link/chart signal handlers
+- `src/src/preview/PreviewBridge.h/.cpp` — `Q_INVOKABLE` `openLink` / `editChart` slots re-emitting `linkRequested` / `chartEditRequested`
+- `src/src/mainwindow/MainWindow.cpp` — owns the `QWebChannel` + `PreviewBridge`; preview HTML template with the `qwebchannel.js` init snippet; link/chart signal handlers
 
 ## Preview Rendering: Dual Debounce
 
@@ -315,7 +315,7 @@ Every test binary starts from `tests/TestConfig.h` (`setupTestConfig()`), which 
 
 Suites with their own `main()` call `setupTestConfig()` right after creating the `QApplication`; the config-focused suites (`test_css_loader`, `test_settings_migration`, `test_css_config`, `test_css_highlighter`) link the shared `scriba_test_main` static library instead of `GTest::gtest_main`. **Never write outside `~/.config/scribaTest/` from a test** — the real user config in `~/.config/scriba/` must stay untouched by test runs.
 
-Tests run in parallel under `ctest -jN`: `setupTestConfig()` keys each suite's config dir on its PID and gives each process a unique application name, so even WebEngine-spawning suites never collide — Qt WebEngine's disk-based data dirs (AppDataLocation/CacheLocation) are per-process and may run concurrently. Any test that spawns QtWebEngine (links `Qt6::WebEngineWidgets`, constructs a `QWebEngineView`/`QWebEnginePage`, or pulls in `src/Preview.cpp`/`MainWindow.cpp`/a dialog `.cpp` that creates one) must call `setupTestConfig()` (link `scriba_test_main`, or call it from a custom `main()`); no `RESOURCE_LOCK` is needed.
+Tests run in parallel under `ctest -jN`: `setupTestConfig()` keys each suite's config dir on its PID and gives each process a unique application name, so even WebEngine-spawning suites never collide — Qt WebEngine's disk-based data dirs (AppDataLocation/CacheLocation) are per-process and may run concurrently. Any test that spawns QtWebEngine (links `Qt6::WebEngineWidgets`, constructs a `QWebEngineView`/`QWebEnginePage`, or pulls in `src/src/preview/Preview.cpp`/`MainWindow.cpp`/a dialog `.cpp` that creates one) must call `setupTestConfig()` (link `scriba_test_main`, or call it from a custom `main()`); no `RESOURCE_LOCK` is needed.
 
 Running a single test binary directly (e.g. `build-dbg/test_editor_typing --gtest_filter=...`) bypasses ctest's `xvfb-run` auto-wrap. Optionally, the user can run it in the background on a virtual screen instead of the foreground/main display:
 

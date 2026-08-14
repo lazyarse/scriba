@@ -14,5 +14,5 @@ Cursor is placed in the first cell.
 ## Implementation
 
 - `src/StaticHelpers.cpp` — `handleTableReturn()` and `tableNavCell()`
-- `src/Editor.cpp` — `keyPressEvent()` Enter and Tab handlers
-- `src/TableDialog.cpp` — table insertion dialog
+- `src/src/editor/Editor.cpp` — `keyPressEvent()` Enter and Tab handlers
+- `src/src/dialogs/TableDialog.cpp` — table insertion dialog
