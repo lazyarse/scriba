@@ -20,6 +20,7 @@ consult it when upgrading the vendored parser or adding a parsing feature.
 | `MD_FLAG_SUBSCRIPTS` | 0x40000 | `~x~` → `<sub>` | always |
 | `MD_FLAG_FOOTNOTES` | 0x100000 | `[^n]` → footnotes section | always |
 | `MD_FLAG_LATEXMATHSPANS` | 0x1000 | `$…$` / `$$…$$` → `MD_SPAN_LATEXMATH` math spans | always — MdRenderer emits semantic `<span class="katex" data-tex=…>` nodes that `initKaTeX()` feeds to `katex.render()` (auto-render removed); also protects math bodies from superscript/subscript parsing |
+| `MD_FLAG_DEFINITIONLISTS` | 0x400000 | definition lists: `Term` + `: `/`~ ` lines → `<dl>/<dt>/<dd>` | always — requires the `definition-lists.patch` (Scriba ships with the flag on); see `docs/gotchas.md` for semantics and constraints |
 | `MD_FLAG_HARD_SOFT_BREAKS` | 0x8000 | single newline → `<br>` | `Preferences::HardSoftBreaks` (default off) |
 | `MD_FLAG_NOHTML` | 0x20\|0x40 | blocks raw HTML | `toHtml(…, noHtml)` path (preview/export "block raw HTML" prefs) |
 

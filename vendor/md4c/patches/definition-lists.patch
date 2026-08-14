@@ -1,0 +1,272 @@
+diff --git a/vendor/md4c/src/md4c-html.c b/vendor/md4c/src/md4c-html.c
+index 590078d..9588480 100644
+--- a/vendor/md4c/src/md4c-html.c
++++ b/vendor/md4c/src/md4c-html.c
+@@ -452,6 +452,9 @@ enter_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
+         case MD_BLOCK_FOOTNOTE_DEF_SECTION: RENDER_VERBATIM(r, "<section class=\"footnotes\">\n<ol>\n"); break;
+         case MD_BLOCK_FOOTNOTE_DEF: render_open_footnote_def_block(r, (MD_BLOCK_FOOTNOTE_DEF_DETAIL*)detail); break;
+         case MD_BLOCK_ADMONITION:   render_open_admonition_block(r, (const MD_BLOCK_ADMONITION_DETAIL*) detail); break;
++        case MD_BLOCK_DL:        RENDER_VERBATIM(r, "<dl>\n"); break;
++        case MD_BLOCK_DT:        RENDER_VERBATIM(r, "<dt>"); break;
++        case MD_BLOCK_DD:        RENDER_VERBATIM(r, "<dd>"); break;
+     }
+ 
+     return 0;
+@@ -483,6 +486,9 @@ leave_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
+         case MD_BLOCK_FOOTNOTE_DEF_SECTION: RENDER_VERBATIM(r, "</ol>\n</section>\n"); break;
+         case MD_BLOCK_FOOTNOTE_DEF: render_close_footnote_def_block(r, (MD_BLOCK_FOOTNOTE_DEF_DETAIL*)detail); break;
+         case MD_BLOCK_ADMONITION:   RENDER_VERBATIM(r, "</div>\n"); break;
++        case MD_BLOCK_DL:        RENDER_VERBATIM(r, "</dl>\n"); break;
++        case MD_BLOCK_DT:        RENDER_VERBATIM(r, "</dt>\n"); break;
++        case MD_BLOCK_DD:        RENDER_VERBATIM(r, "</dd>\n"); break;
+     }
+ 
+     return 0;
+diff --git a/vendor/md4c/src/md4c.c b/vendor/md4c/src/md4c.c
+index 7da1e8c..a94cdfc 100644
+--- a/vendor/md4c/src/md4c.c
++++ b/vendor/md4c/src/md4c.c
+@@ -301,7 +301,8 @@ enum MD_LINETYPE_tag {
+     MD_LINE_HTML,
+     MD_LINE_TEXT,
+     MD_LINE_TABLE,
+-    MD_LINE_TABLEUNDERLINE
++    MD_LINE_TABLEUNDERLINE,
++    MD_LINE_DEFINITION
+ };
+ typedef enum MD_LINETYPE_tag MD_LINETYPE;
+ 
+@@ -5278,6 +5279,7 @@ abort:
+ #define MD_BLOCK_CONTAINER          (MD_BLOCK_CONTAINER_OPENER | MD_BLOCK_CONTAINER_CLOSER)
+ #define MD_BLOCK_LOOSE_LIST         0x04
+ #define MD_BLOCK_SETEXT_HEADER      0x08
++#define MD_BLOCK_DEFINITION         0x10
+ 
+ struct MD_BLOCK_tag {
+     MD_BLOCKTYPE type  :  8;
+@@ -5549,6 +5551,43 @@ abort:
+ 
+ static const MD_CHAR* MD_ADMONITION_TAGS[] = { _T("note"), _T("tip"), _T("important"), _T("warning"), _T("caution") };
+ 
++/* Emit the held paragraph as one <dt> per source line. */
++static int
++md_process_def_term(MD_CTX* ctx, const MD_BLOCK* block)
++{
++    const MD_LINE* lines = (const MD_LINE*)(block + 1);
++    union { MD_OFFSET beg; } det;
++    int ret = 0;
++    MD_SIZE i;
++
++    for(i = 0; i < block->n_lines; i++) {
++        det.beg = lines[i].beg;
++        MD_ENTER_BLOCK(MD_BLOCK_DT, &det);
++        MD_CHECK(md_process_normal_block_contents(ctx, lines + i, 1));
++        MD_LEAVE_BLOCK(MD_BLOCK_DT, &det);
++    }
++
++abort:
++    return ret;
++}
++
++/* Emit a definition block as one <dd> (all lines incl. lazy continuation). */
++static int
++md_process_def_item(MD_CTX* ctx, const MD_BLOCK* block)
++{
++    const MD_LINE* lines = (const MD_LINE*)(block + 1);
++    union { MD_OFFSET beg; } det;
++    int ret = 0;
++
++    det.beg = block->beg;
++    MD_ENTER_BLOCK(MD_BLOCK_DD, &det);
++    MD_CHECK(md_process_normal_block_contents(ctx, lines, block->n_lines));
++    MD_LEAVE_BLOCK(MD_BLOCK_DD, &det);
++
++abort:
++    return ret;
++}
++
+ static int
+ md_process_all_blocks(MD_CTX* ctx)
+ {
+@@ -5556,6 +5595,8 @@ md_process_all_blocks(MD_CTX* ctx)
+     MD_OFFSET adm_substr_offsets[2];
+     int byte_off = 0;
+     int ret = 0;
++    MD_BLOCK* pending_term = NULL;   /* held paragraph awaiting "term vs <p>" decision */
++    int dl_open = FALSE;             /* a <dl> is currently open */
+ 
+     /* ctx->containers now is not needed for detection of lists and list items
+      * so we reuse it for tracking what lists are loose or tight. We rely
+@@ -5625,6 +5666,17 @@ md_process_all_blocks(MD_CTX* ctx)
+         }
+ 
+         if(block->flags & MD_BLOCK_CONTAINER) {
++            /* A container boundary breaks any pending definition-list
++             * grouping; flush held state before entering/leaving. */
++            if(dl_open) {
++                MD_LEAVE_BLOCK(MD_BLOCK_DL, NULL);
++                dl_open = FALSE;
++            }
++            if(pending_term != NULL) {
++                MD_CHECK(md_process_leaf_block(ctx, pending_term));
++                pending_term = NULL;
++            }
++
+             if(block->flags & MD_BLOCK_CONTAINER_CLOSER) {
+                 MD_LEAVE_BLOCK(block->type, &det);
+ 
+@@ -5648,7 +5700,40 @@ md_process_all_blocks(MD_CTX* ctx)
+                 }
+             }
+         } else {
+-            MD_CHECK(md_process_leaf_block(ctx, block));
++            if(block->type == MD_BLOCK_P  &&  (block->flags & MD_BLOCK_DEFINITION)) {
++                /* Definition: pair with the held term (open <dl>) or the
++                 * still-open <dl>. */
++                if(pending_term != NULL) {
++                    union { MD_OFFSET beg; } dt_det;
++                    dt_det.beg = pending_term->beg;
++                    MD_ENTER_BLOCK(MD_BLOCK_DL, &dt_det);
++                    MD_CHECK(md_process_def_term(ctx, pending_term));
++                    pending_term = NULL;
++                    dl_open = TRUE;
++                }
++                if(dl_open) {
++                    MD_CHECK(md_process_def_item(ctx, block));
++                } else {
++                    /* Stray definition with no term: literal. */
++                    MD_CHECK(md_process_leaf_block(ctx, block));
++                }
++            } else {
++                /* Any other leaf: close an open <dl>, flush a held term,
++                 * then either hold a new plain paragraph or emit directly. */
++                if(dl_open) {
++                    MD_LEAVE_BLOCK(MD_BLOCK_DL, NULL);
++                    dl_open = FALSE;
++                }
++                if(pending_term != NULL) {
++                    MD_CHECK(md_process_leaf_block(ctx, pending_term));
++                    pending_term = NULL;
++                }
++                if(block->type == MD_BLOCK_P) {
++                    pending_term = block;
++                } else {
++                    MD_CHECK(md_process_leaf_block(ctx, block));
++                }
++            }
+ 
+             if(block->type == MD_BLOCK_CODE || block->type == MD_BLOCK_HTML)
+                 byte_off += block->n_lines * sizeof(MD_VERBATIMLINE);
+@@ -5659,6 +5744,12 @@ md_process_all_blocks(MD_CTX* ctx)
+         byte_off += sizeof(MD_BLOCK);
+     }
+ 
++    /* Flush trailing held state at end of document. */
++    if(pending_term != NULL)
++        MD_CHECK(md_process_leaf_block(ctx, pending_term));
++    if(dl_open)
++        MD_LEAVE_BLOCK(MD_BLOCK_DL, NULL);
++
+     ctx->n_block_bytes = 0;
+ 
+ abort:
+@@ -5728,6 +5819,7 @@ md_start_new_block(MD_CTX* ctx, const MD_LINE_ANALYSIS* line)
+             break;
+ 
+         case MD_LINE_TEXT:
++        case MD_LINE_DEFINITION:
+             block->type = MD_BLOCK_P;
+             break;
+ 
+@@ -5744,6 +5836,8 @@ md_start_new_block(MD_CTX* ctx, const MD_LINE_ANALYSIS* line)
+     }
+ 
+     block->flags = 0;
++    if(line->type == MD_LINE_DEFINITION)
++        block->flags |= MD_BLOCK_DEFINITION;
+     block->data = line->data;
+     block->n_lines = 0;
+     block->beg = line->beg;
+@@ -5821,9 +5915,11 @@ md_end_current_block(MD_CTX* ctx)
+ 
+     /* Check whether there is a reference definition. (We do this here instead
+      * of in md_analyze_line() because reference definition can take multiple
+-     * lines.) */
+-    if(ctx->current_block->type == MD_BLOCK_P  ||
+-       (ctx->current_block->type == MD_BLOCK_H  &&  (ctx->current_block->flags & MD_BLOCK_SETEXT_HEADER)))
++     * lines.) Skip it for definition blocks: a definition whose content starts
++     * with '[' must not be eaten as a reference definition. */
++    if((ctx->current_block->flags & MD_BLOCK_DEFINITION) == 0  &&
++       (ctx->current_block->type == MD_BLOCK_P  ||
++       (ctx->current_block->type == MD_BLOCK_H  &&  (ctx->current_block->flags & MD_BLOCK_SETEXT_HEADER))))
+     {
+         MD_LINE* lines = (MD_LINE*) (ctx->current_block + 1);
+         if(lines[0].beg < ctx->size  &&  CH(lines[0].beg) == _T('[')) {
+@@ -6886,6 +6982,25 @@ md_analyze_line(MD_CTX* ctx, OFF beg, OFF* p_end,
+             }
+         }
+ 
++        /* Check for definition-list marker: a ':' or '~' at the current nesting
++         * depth, immediately following a plain text paragraph at the same depth,
++         * opens a definition item. The marker + up to 4 spaces are stripped. */
++        if((ctx->parser.flags & MD_FLAG_DEFINITIONLISTS)  &&
++           (pivot_line->type == MD_LINE_TEXT  ||  pivot_line->type == MD_LINE_DEFINITION)  &&
++           n_parents == ctx->n_containers  &&
++           ISANYOF2(off, _T(':'), _T('~'))  &&
++           (off + 1 == ctx->size  ||  ISBLANK(off + 1)))
++        {
++            OFF begin = off + 1;
++            line->type = MD_LINE_DEFINITION;
++            line->data = CH(off);
++            while(begin < ctx->size  &&  begin < off + 5  &&  ISBLANK(begin))
++                begin++;
++            line->beg = begin;
++            line->enforce_new_block = TRUE;
++            break;
++        }
++
+         /* By default, we are normal text line. */
+         line->type = MD_LINE_TEXT;
+         if(pivot_line->type == MD_LINE_TEXT  &&  n_brothers + n_children == 0) {
+@@ -7095,8 +7210,12 @@ md_process_line(MD_CTX* ctx, const MD_LINE_ANALYSIS** p_pivot_line, MD_LINE_ANAL
+         return 0;
+     }
+ 
+-    /* The current block also ends if the line has different type. */
+-    if(line->type != pivot_line->type)
++    /* The current block also ends if the line has different type.
++     * (A definition marker is a continuation of a paragraph for block-grouping
++     * purposes, so a lazy text line can merge into a definition block.) */
++    MD_LINETYPE line_group_type = (line->type == MD_LINE_DEFINITION) ? MD_LINE_TEXT : line->type;
++    MD_LINETYPE pivot_group_type = (pivot_line->type == MD_LINE_DEFINITION) ? MD_LINE_TEXT : pivot_line->type;
++    if(line_group_type != pivot_group_type)
+         MD_CHECK(md_end_current_block(ctx));
+ 
+     /* The current line may start a new block. */
+diff --git a/vendor/md4c/src/md4c.h b/vendor/md4c/src/md4c.h
+index c44ba0d..697432a 100644
+--- a/vendor/md4c/src/md4c.h
++++ b/vendor/md4c/src/md4c.h
+@@ -118,7 +118,13 @@ typedef enum MD_BLOCKTYPE {
+     /* Adminition extension.
+      * Detail MD_BLOCK_ADMONITION_DETAIL.
+      * Note: Recognized only when MD_FLAG_ADMONITIONS is enabled. */
+-    MD_BLOCK_ADMONITION
++    MD_BLOCK_ADMONITION,
++    
++    /* <dl>...</dl> with <dt>...</dt> terms and <dd>...</dd> definitions.
++     * Recognized only when MD_FLAG_DEFINITIONLISTS is enabled. */
++    MD_BLOCK_DL,
++    MD_BLOCK_DT,
++    MD_BLOCK_DD
+ } MD_BLOCKTYPE;
+ 
+ /* Span represents an in-line piece of a document which should be rendered with
+@@ -399,6 +405,7 @@ typedef struct MD_BLOCK_FOOTNOTE_DEF_DETAIL {
+ #define MD_FLAG_ADMONITIONS                 0x80000 /* Enable admonitions extension. */
+ #define MD_FLAG_FOOTNOTES                   0x100000 /* Enable [^label] footnote references. */
+ #define MD_FLAG_HIGHLIGHT                   0x200000 /* Enable ==highlight== spans. */
++#define MD_FLAG_DEFINITIONLISTS             0x400000 /* Enable definition lists (Term + ': '/ '~ ' lines). */
+ 
+ #define MD_FLAG_PERMISSIVEAUTOLINKS         (MD_FLAG_PERMISSIVEEMAILAUTOLINKS | MD_FLAG_PERMISSIVEURLAUTOLINKS | MD_FLAG_PERMISSIVEWWWAUTOLINKS)
+ #define MD_FLAG_NOHTML                      (MD_FLAG_NOHTMLBLOCKS | MD_FLAG_NOHTMLSPANS)
