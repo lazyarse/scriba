@@ -1061,3 +1061,25 @@ Severity convention: `error` = correctness, `warning` = style, per
 markdownlint. Both paint with the markdown underline color; only the hover
 tooltip and the issue-summary split ("Markdown" vs "Markdown warnings")
 distinguish them.
+
+## Stock chart engines: TradeX dropped (WASM via fetch is blocked)
+
+TradeX-chart was evaluated as a third stock-chart engine and **dropped**: its
+talib-web indicator WASM loads via `fetch()`, and QtWebEngine blocks
+`fetch()`/XHR against the `qrc` scheme — `TypeError: Failed to fetch` — even
+with `CorsEnabled`/`LocalAccessAllowed` registered before `QApplication`
+(`registerQrcScheme()` in `main.cpp`). `<script src="qrc:///...">` loads fine
+(that is how KaTeX/mermaid/echarts ship), but Chromium's fetch path cannot
+read qrc resources, so `talib.wasm` (198 KB, `resources/talib.wasm`) can never
+be instantiated. The spike test (`tests/test_stock_wasm_spike.cpp`) confirmed
+both `fetch('qrc:///talib.wasm')` and `fetch('qrc:///tradex-chart.js')`
+failing while the same files load as script tags. Since Scriba computes all
+indicator math in C++ anyway, TradeX's talib is only used by its built-in
+indicators — but the library's start path still touches the WASM loader, so
+the risk was not worth it. Keep LWC + KlineCharts; `resources/tradex-chart.js`
+and `resources/talib.wasm` are untracked/no longer in the qrc.
+
+TradeX notes if it is ever revisited: the UMD global is an exports object
+(`Chart`, `IndicatorClasses`, ...), not a constructor; the web component
+(`<tradex-chart>`) is the intended entry; talib.wasm is bundled from
+`talib-web@0.1.3` and resolved relative to the script URL.
