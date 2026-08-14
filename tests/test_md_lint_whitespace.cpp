@@ -287,4 +287,75 @@ TEST(MdLintWhitespace, Md047RequiresSingleTrailingNewline)
     EXPECT_EQ(1, countRule(MdLintEngine::lint(QStringLiteral("# A\n\n"), withRule("MD047")), "MD047"));
 }
 
+// ---- Inline config directives ----------------------------------------------
+
+TEST(MdLintDirectives, DisableAll)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("<!-- markdownlint-disable -->\n#oops\n#oops\n"),
+        withRule("MD018"));
+    EXPECT_EQ(0, countRule(issues, "MD018"));
+}
+
+TEST(MdLintDirectives, DisableLine)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("#oops\n#oops <!-- markdownlint-disable-line -->\n"),
+        withRule("MD018"));
+    ASSERT_EQ(1, countRule(issues, "MD018"));
+    EXPECT_EQ(1, issues.at(0).line);
+}
+
+TEST(MdLintDirectives, DisableNextLine)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("<!-- markdownlint-disable-next-line MD018 -->\n#oops\n#oops\n"),
+        withRule("MD018"));
+    ASSERT_EQ(1, countRule(issues, "MD018"));
+    EXPECT_EQ(3, issues.at(0).line);
+}
+
+TEST(MdLintDirectives, DisableEnableRegion)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("<!-- markdownlint-disable MD018 -->\n#oops\n#oops\n"
+                       "<!-- markdownlint-enable MD018 -->\n#oops\n"),
+        withRule("MD018"));
+    ASSERT_EQ(1, countRule(issues, "MD018"));
+    EXPECT_EQ(5, issues.at(0).line);
+}
+
+TEST(MdLintDirectives, CaptureRestore)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("<!-- markdownlint-capture -->\n<!-- markdownlint-disable -->\n"
+                       "#oops\n<!-- markdownlint-restore -->\n#oops\n"),
+        withRule("MD018"));
+    ASSERT_EQ(1, countRule(issues, "MD018"));
+    EXPECT_EQ(5, issues.at(0).line);
+}
+
+TEST(MdLintDirectives, DisableFile)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("<!-- markdownlint-disable-file -->\n#oops\n"), withRule("MD018"));
+    EXPECT_EQ(0, countRule(issues, "MD018"));
+}
+
+TEST(MdLintDirectives, ConfigureFile)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("<!-- markdownlint-configure-file {\"MD018\": false} -->\n#oops\n"),
+        withRule("MD018"));
+    EXPECT_EQ(0, countRule(issues, "MD018"));
+}
+
+TEST(MdLintDirectives, DisableByAlias)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("<!-- markdownlint-disable no-missing-space-atx -->\n#oops\n"),
+        withRule("MD018"));
+    EXPECT_EQ(0, countRule(issues, "MD018"));
+}
+
 } // namespace

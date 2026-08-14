@@ -20,8 +20,11 @@
 #include <md4c.h>
 
 #include <QHash>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <QSet>
+#include <QStack>
 #include <QStringList>
 
 #include <algorithm>
@@ -593,7 +596,7 @@ void emitIssue(RuleCtx &ctx, const QString &ruleId, int line /*1-based*/, int co
 
 } // namespace
 
-QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig &config)
+QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig &inConfig)
 {
     // ---- parse ------------------------------------------------------------
     const QString parsed = text.endsWith(QLatin1Char('\n')) ? text : text + QLatin1Char('\n');
@@ -658,6 +661,26 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
     }
     if (qBeg >= 0)
         c.m.quotes.append({qBeg, c.m.lines.size()});
+
+    // ---- inline config directives (configure-file) --------------------------
+    // `<!-- markdownlint-configure-file {...} -->` comments merge JSON over
+    // the base config (document order, later wins); the merged config drives
+    // every rule pass and emit() below.
+    MdLintConfig effective = inConfig;
+    {
+        static const QRegularExpression cfgFileRe(
+            QStringLiteral(R"(<!--\s*markdownlint-configure-file\s+(\{.*\})\s*-->)"));
+        for (const auto &line : c.m.lines) {
+            const auto cm = cfgFileRe.match(line);
+            if (cm.hasMatch()) {
+                const QJsonDocument doc =
+                    QJsonDocument::fromJson(cm.captured(1).toUtf8());
+                if (doc.isObject())
+                    effective.applyJson(doc.object());
+            }
+        }
+    }
+    const MdLintConfig &config = effective;
 
     // ---- rules ------------------------------------------------------------
     RuleCtx ctx{c.m, config, {}};
@@ -2121,6 +2144,113 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
                      byteToCol(c.m, s.beg), s.end - s.beg,
                      QStringLiteral("Link text is not descriptive"));
         }
+    }
+
+    // ---- inline config directives (post-filter) -------------------------------
+    // All other `<!-- markdownlint-* -->` directives filter the emitted issues.
+    // Rules never see them; this is a pure post-pass.
+    {
+        static const QRegularExpression directiveRe(
+            QStringLiteral(R"(<!--\s*markdownlint-(\w[\w-]*)((?:\s+[\w.-]+)*)\s*-->)"));
+        struct Directive {
+            int line;
+            QString kind;
+            QStringList rules;   // empty = all rules
+        };
+        QVector<Directive> directives;
+        for (int i = 0; i < c.m.lines.size(); ++i) {
+            auto mit = directiveRe.globalMatch(c.m.lines.at(i));
+            while (mit.hasNext()) {
+                const auto dm = mit.next();
+                const QString kind = dm.captured(1).toLower();
+                if (kind == QLatin1String("configure-file"))
+                    continue;   // handled above
+                QStringList rules;
+                const QString body = dm.captured(2);
+                if (!body.trimmed().isEmpty())
+                    rules = body.trimmed().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+                directives.append({i + 1, kind, rules});
+            }
+        }
+        auto resolveRules = [](const QStringList &names) {
+            QSet<QString> ids;
+            for (const QString &name : names)
+                if (const MdLintRule *r = MdLintRules::byKey(name))
+                    ids.insert(r->id);
+            return ids;
+        };
+        auto allRuleIds = [] {
+            QSet<QString> ids;
+            for (const auto &r : MdLintRules::all())
+                ids.insert(r.id);
+            return ids;
+        };
+        QSet<QString> enabledSet = allRuleIds();
+        auto applyRules = [&](const QStringList &names, bool enable) {
+            if (names.isEmpty()) {
+                enabledSet = enable ? allRuleIds() : QSet<QString>{};
+                return;
+            }
+            const QSet<QString> ids = resolveRules(names);
+            if (enable)
+                enabledSet.unite(ids);
+            else
+                enabledSet.subtract(ids);
+        };
+        // File-wide directives first, in document order.
+        for (const auto &d : directives) {
+            if (d.kind == QLatin1String("disable-file"))
+                applyRules(d.rules, false);
+            else if (d.kind == QLatin1String("enable-file"))
+                applyRules(d.rules, true);
+        }
+        // Per-line walk; directives take effect on their own line.
+        QVector<QPair<int, QSet<QString>>> states;
+        states.append({0, enabledSet});
+        QStack<QSet<QString>> snapshots;
+        QHash<int, QSet<QString>> lineDisables;     // disable-line: line -> rules
+        QHash<int, QSet<QString>> nextLineDisables; // disable-next-line: line -> rules
+        int di = 0;
+        for (int line = 1; line <= c.m.lines.size(); ++line) {
+            while (di < directives.size() && directives.at(di).line == line) {
+                const auto &d = directives.at(di);
+                if (d.kind == QLatin1String("disable"))
+                    applyRules(d.rules, false);
+                else if (d.kind == QLatin1String("enable"))
+                    applyRules(d.rules, true);
+                else if (d.kind == QLatin1String("capture"))
+                    snapshots.push(enabledSet);
+                else if (d.kind == QLatin1String("restore") && !snapshots.isEmpty())
+                    enabledSet = snapshots.pop();
+                else if (d.kind == QLatin1String("disable-line"))
+                    lineDisables.insert(line, resolveRules(d.rules));
+                else if (d.kind == QLatin1String("disable-next-line"))
+                    nextLineDisables.insert(line, resolveRules(d.rules));
+                ++di;
+            }
+            states.append({line, enabledSet});
+        }
+        // Filter issues against the per-line state and line-targeted directives.
+        QVector<MdLintIssue> kept;
+        kept.reserve(ctx.issues.size());
+        for (const auto &issue : ctx.issues) {
+            auto it = std::upper_bound(
+                states.begin(), states.end(), issue.line,
+                [](int l, const QPair<int, QSet<QString>> &s) { return l < s.first; });
+            --it;
+            if (!it->second.contains(issue.rule))
+                continue;
+            const auto ld = lineDisables.constFind(issue.line);
+            if (ld != lineDisables.constEnd()
+                && (ld->isEmpty() || ld->contains(issue.rule)))
+                continue;
+            const auto nd = nextLineDisables.constFind(issue.line - 1);
+            if (nd != nextLineDisables.constEnd()
+                && (nd->isEmpty() || nd->contains(issue.rule)))
+                continue;
+            kept.append(issue);
+        }
+        ctx.issues = std::move(kept);
     }
 
     std::sort(ctx.issues.begin(), ctx.issues.end(), [](const MdLintIssue &a, const MdLintIssue &b) {

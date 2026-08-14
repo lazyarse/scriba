@@ -149,6 +149,16 @@ QString MdLintConfig::toJson() const
     return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
+void MdLintConfig::applyJson(const QJsonObject &obj)
+{
+    const QJsonValue def = obj.value(QLatin1String("default"));
+    if (!def.isUndefined())
+        applyKey(QLatin1String("default"), def, true);
+    for (auto it = obj.begin(); it != obj.end(); ++it)
+        if (it.key().compare(QLatin1String("default"), Qt::CaseInsensitive) != 0)
+            applyKey(it.key(), it.value(), false);
+}
+
 MdLintConfig MdLintConfig::fromJson(const QString &json)
 {
     MdLintConfig cfg;

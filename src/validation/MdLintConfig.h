@@ -35,6 +35,9 @@ public:
 
     QString toJson() const;
     static MdLintConfig fromJson(const QString &json);
+    // Applies a JSON object over the current state (later keys win), same
+    // semantics as fromJson's key handling.
+    void applyJson(const QJsonObject &obj);
     static MdLintConfig defaults();    // the 7 scriba rules on, rest off
     static MdLintConfig allEnabled();  // every rule on with default params
     static MdLintConfig fromSettings();
