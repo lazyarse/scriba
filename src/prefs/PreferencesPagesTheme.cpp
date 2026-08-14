@@ -162,6 +162,21 @@ void PreferencesDialog::setupEditorPage()
         m_showLineNumbersCheck->setChecked(settings.value(Preferences::ShowLineNumbers, true).toBool());
         gutterLayout->addWidget(m_showLineNumbersCheck);
 
+        m_errorScrollbarCheck = new QCheckBox(
+            "Show error markers in the scrollbar");
+        m_errorScrollbarCheck->setChecked(
+            settings.value(Preferences::ErrorScrollbarEnabled, true).toBool());
+        m_errorScrollbarCheck->setToolTip(
+            "Draws a thin coloured line in the scrollbar at each block with a "
+            "spelling, grammar, broken-link or markdown-consistency error, in "
+            "the same colour as the editor's underline.");
+        gutterLayout->addWidget(m_errorScrollbarCheck);
+
+        connect(m_errorScrollbarCheck, &QCheckBox::toggled, this, [](bool checked) {
+            QSettings s;
+            s.setValue(Preferences::ErrorScrollbarEnabled, checked);
+        });
+
         auto emitGutterSettings = [this]() {
             QSettings s;
             s.setValue(Preferences::ShowLineNumbers, m_showLineNumbersCheck->isChecked());

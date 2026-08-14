@@ -103,7 +103,7 @@ set(SCRIBA_GUTTER_SOURCES src/editor/Gutter.cpp)
 
 set(SCRIBA_EDITOR_SOURCES src/editor/Editor.cpp
     src/editor/EditorTyping.cpp src/editor/EditorTable.cpp src/editor/EditorFolding.cpp
-    src/editor/EditorCompletions.cpp src/editor/EditorMenu.cpp
+    src/editor/EditorCompletions.cpp src/editor/EditorMenu.cpp src/editor/EditorScrollBar.cpp
     ${SCRIBA_GUTTER_SOURCES})
 
 set(SCRIBA_MAINWINDOW_SOURCES src/mainwindow/MainWindow.cpp
@@ -591,6 +591,13 @@ if(BUILD_TESTS)
     target_include_directories(test_underline_overlay PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_underline_overlay PRIVATE GTest::gtest scriba_editor scriba_core scriba_spell scriba_resources)
     add_test(NAME test_underline_overlay COMMAND ${_TEST_PREFIX} ./test_underline_overlay)
+
+    add_executable(test_editor_scrollbar tests/test_editor_scrollbar.cpp)
+    target_include_directories(test_editor_scrollbar PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_editor_scrollbar PRIVATE
+        GTest::gtest Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::Test
+        scriba_editor scriba_core scriba_spell scriba_resources)
+    add_test(NAME test_editor_scrollbar COMMAND ${_TEST_PREFIX} ./test_editor_scrollbar)
 
     add_executable(test_spell_check_dialog tests/test_spell_check_dialog.cpp
         src/spell/SpellCheckDialog.cpp)

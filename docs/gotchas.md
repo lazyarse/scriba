@@ -906,4 +906,28 @@ dialog from stale flags.
   resolve relative targets against the corpus root, and still fall back to CWD
   when no corpus is open.
 
+## Editor error-indicator scrollbar (`errorScrollbarEnabled`)
+
+`EditorScrollBar` (replaces the editor's vertical `QScrollBar` via
+`setVerticalScrollBar` in the `Editor` ctor) paints one 2 px horizontal line per
+error type — spelling, grammar, broken link, markdown consistency — at each
+flagged block's position, using `SpellHighlighter::*UnderlineColor()` (the same
+colors as the editor's underlines).
+
+- **Whole-document overview:** a marker's track position is
+  `blockBoundingRect(block).center().y() / documentSize().height() × trackHeight`
+  (ratio-based, so it is DPI-safe and independent of scroll offset), not
+  viewport-relative. Markers that would land under the thumb are skipped so the
+  handle stays readable.
+- **Per-block-per-type:** a block with a typo inside a broken link paints two
+  stacked lines (spell + link), offset 2 px apart; it is not per-word-instance.
+- **Staleness mirrors the underlines:** the index rebuilds on `spellHitsChanged`
+  and `contentsChanged` (lazily, on the next paint), so markers lag exactly as
+  long as the editor's underlines do (spell-check debounce / async grammar
+  lint). The grammar lint's `rehighlight()` emits `contentsChanged`, so grammar
+  markers refresh when the lint result lands without a dedicated signal.
+- **Theme:** the track/handle stay themed by the app-wide QSS
+  (`QScrollBar:vertical` rules in `CssUtils::buildQss`); only the marker colors
+  come from the underline-color settings.
+
 

@@ -140,6 +140,7 @@ namespace Preferences {
     constexpr const char *GutterColorOverride = "gutterColorOverride";
     constexpr const char *GutterBgColor = "gutterBgColor";
     constexpr const char *GutterTextColor = "gutterTextColor";
+    constexpr const char *ErrorScrollbarEnabled = "errorScrollbarEnabled";
 
     constexpr const char *PdfShowHeader = "pdfShowHeader";
 

@@ -29,6 +29,7 @@ class QContextMenuEvent;
 class QFontMetrics;
 class QKeyEvent;
 class Gutter;
+class EditorScrollBar;
 class SpellChecker;
 class GrammarChecker;
 struct CorpusDictionary;
@@ -224,6 +225,7 @@ private:
     std::shared_ptr<GrammarChecker> m_grammarChecker;
     SpellHighlighter *m_spellHighlighter = nullptr;
     QWidget *m_underlineOverlay = nullptr;
+    EditorScrollBar *m_errorScrollBar = nullptr;
     // True once a corpus dictionary has been applied; routes the "Add to
     // Dictionary" context action to the corpus word set instead of the global
     // user.dic. Sticky for the editor's lifetime (a corpus, once opened, stays

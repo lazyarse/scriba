@@ -16,6 +16,7 @@
 #include "corpus/Corpus.h"
 #include "spell/GrammarChecker.h"
 #include "Gutter.h"
+#include "EditorScrollBar.h"
 #include "validation/MarkdownChecker.h"
 #include "prefs/Preferences.h"
 #include "spell/SpellChecker.h"
@@ -97,6 +98,9 @@ Editor::Editor(QWidget *parent)
 
     setupGutter();
 
+    m_errorScrollBar = new EditorScrollBar(this);
+    setVerticalScrollBar(m_errorScrollBar);
+
     auto *foldTimer = new QTimer(this);
     foldTimer->setSingleShot(true);
     foldTimer->setInterval(Debounce::FoldScan);
@@ -111,6 +115,7 @@ Editor::Editor(QWidget *parent)
     m_spellHighlighter = new SpellHighlighter(document(), this);
     m_spellHighlighter->setChecker(m_spellChecker.get());
     m_spellHighlighter->setGrammarChecker(m_grammarChecker);
+    m_errorScrollBar->setHighlighter(m_spellHighlighter);
     applySpellSettings();
     applyLineWrap();
 
@@ -131,6 +136,12 @@ Editor::Editor(QWidget *parent)
     // the overlay when a check completes.
     connect(m_spellHighlighter, &SpellHighlighter::spellHitsChanged,
             m_underlineOverlay, QOverload<>::of(&QWidget::update));
+    connect(m_spellHighlighter, &SpellHighlighter::spellHitsChanged,
+            m_errorScrollBar, &EditorScrollBar::invalidate);
+    connect(document(), &QTextDocument::contentsChanged,
+            m_errorScrollBar, &EditorScrollBar::invalidate);
+    connect(document()->documentLayout(), &QAbstractTextDocumentLayout::documentSizeChanged,
+            m_errorScrollBar, &EditorScrollBar::invalidate);
 
     connect(this, &Editor::cursorPositionChanged,
             this, &Editor::onCursorPositionChanged);
@@ -368,6 +379,8 @@ void Editor::applySpellSettings()
         stoppard->setDialect(dialect);
 
     m_spellHighlighter->refresh();
+    if (m_errorScrollBar)
+        m_errorScrollBar->applySettings();
 }
 
 void Editor::recheckSpelling()
@@ -419,6 +432,8 @@ void Editor::applyCorpusDictionary(const CorpusDictionary &dict, bool merge)
 void Editor::refreshUnderlines()
 {
     SpellHighlighter::reloadUnderlineColors();
+    if (m_errorScrollBar)
+        m_errorScrollBar->applySettings();
     if (m_underlineOverlay)
         m_underlineOverlay->update();
 }
