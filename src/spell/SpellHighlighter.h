@@ -149,6 +149,10 @@ public:
     // directory (an empty path resolves against the current working
     // directory). Triggers a re-check so underlines follow the new base.
     void setCurrentFile(const QString &path);
+    // Base dir for relative link targets when the document has no file (an
+    // untitled tab). Used only when m_currentFile is empty; the CWD fallback
+    // remains for the no-corpus case.
+    void setFallbackLinkBaseDir(const QString &dir);
     // Runs checks synchronously to completion even on large documents (the
     // normal large-document behaviour defers spell scanning into chunks and
     // skips the grammar lint). Used by scanLinkIssues()/validation, which must
@@ -260,6 +264,8 @@ private:
     QSet<MarkdownChecker::Check> m_markdownChecks = MarkdownChecker::defaultChecks();
     // The document's file path, for resolving relative link targets.
     QString m_currentFile;
+    // Base dir for relative link targets in untitled tabs (corpus root).
+    QString m_fallbackLinkBaseDir;
     // Cached heading indexes of other documents, keyed by absolute path and
     // invalidated when the file's mtime/size changes.
     struct AnchorCache {

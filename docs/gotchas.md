@@ -886,4 +886,24 @@ scan in `closeEvent`, and the flags are recomputed afterwards — otherwise a pr
 pass that saves the only dirty tabs would still raise the "Unsaved Changes"
 dialog from stale flags.
 
+## Corpus Table of Contents (toc.md)
+
+- Scriba owns the region between `<!--toc:start-->` and `<!--toc:end-->`; user text
+  outside is preserved. The block is rewritten on "Open Table of Contents" and on
+  corpus document rename/delete. If the user removes the start marker, the file is
+  left alone (the markers are the contract — no markers, no managed block).
+- The toc file is a sidecar: excluded from `m_corpus.documents`, so it is never
+  serialized into the `.scriba`, never watched by the corpus watcher, and never
+  listed in its own TOC. The exclusion is by absolute path (`isCorpusTocPath`),
+  so the configured file name can be changed in Preferences (default `toc.md`).
+- The Preferences template is a seed only; each corpus's `toc.md` is its own
+  template once created. Reopening the TOC refreshes the managed block of the
+  existing file rather than regenerating from the template.
+- Unbacked tabs used to resolve relative links against the process CWD in the
+  validation report and the editor's link underlines while the preview used the
+  corpus root. They now agree via `DocumentSource::baseDir` /
+  `SpellHighlighter::setFallbackLinkBaseDir`: untitled tabs in an open corpus
+  resolve relative targets against the corpus root, and still fall back to CWD
+  when no corpus is open.
+
 

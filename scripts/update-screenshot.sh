@@ -34,7 +34,7 @@ declare -A TARGETS=(
     [mermaid-gitgraph]="shot_mermaid_gitgraph|Mermaid Git Graph helper (loads the scriba repo)"
     [check-spelling]="shot_check_spelling|Check Spelling dialog"
     [validation-report]="shot_validation_report|Validation Report options"
-    [toc]="shot_toc|Table of Contents tab with a fixture corpus open"
+    [toc]="shot_toc|Editable Table of Contents file (toc.md) with a fixture corpus open"
     [corpus-files]="shot_corpus_files|Corpus Files sidecar panel with a fixture corpus open"
     [print-pdf-dialog]="shot_print_pdf_dialog|Print / Export PDF dialog"
 )
@@ -472,11 +472,12 @@ shot_print_pdf_dialog() {
     capture "Print / Export PDF" "$OUT_DIR/print-pdf-dialog.png" 20
 }
 
-# --- Table of Contents (Corpus → View Table of Contents / Ctrl+Shift+T) ---
+# --- Table of Contents (Corpus → Open Table of Contents / Ctrl+Shift+T) ---
 # Build a small fixture corpus (in-root docs + one out-of-root doc), open it
 # via File → Corpus → Open Corpus… (alt+f, Down to the Corpus submenu, Right,
-# then the 'o' mnemonic), then Ctrl+Shift+T. The capture shows the read-only
-# TOC tab active, with the rendered TOC in the preview pane.
+# then the 'o' mnemonic), then Ctrl+Shift+T. The capture shows the editable
+# toc.md tab active (created in the corpus folder), with the rendered TOC in
+# the preview pane.
 shot_toc() {
     local demo=/tmp/scriba-toc-demo
     rm -rf "$demo"

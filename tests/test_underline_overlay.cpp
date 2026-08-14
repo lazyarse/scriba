@@ -284,6 +284,34 @@ TEST_F(UnderlineOverlayTest, ExplanationShownForBrokenLink)
         << "the adjacent valid link must stay clean";
 }
 
+TEST_F(UnderlineOverlayTest, UntitledLinkResolvesAgainstFallbackBaseDir)
+{
+    QSettings().setValue(Preferences::SpellCheckEnabled, false);
+    m_editor->recheckSpelling();
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    QFile exists(dir.filePath(QStringLiteral("exists.md")));
+    ASSERT_TRUE(exists.open(QIODevice::WriteOnly));
+    exists.write("# Sub\n");
+    exists.close();
+
+    // Untitled editor: no current file, but a fallback base dir set.
+    m_editor->setCurrentFile(QString());
+    m_editor->setFallbackLinkBaseDir(dir.path());
+    m_editor->setPlainText(QStringLiteral("see [text](exists.md)"));
+    m_editor->spellHighlighter()->refresh();
+    auto *hl = m_editor->findChild<SpellHighlighter *>();
+    ASSERT_NE(hl, nullptr);
+    EXPECT_TRUE(hl->linkIssuesInBlock(0).isEmpty())
+        << "the link must resolve against the fallback base dir";
+
+    // Clearing the fallback restores the no-corpus CWD behaviour.
+    m_editor->setFallbackLinkBaseDir(QString());
+    m_editor->spellHighlighter()->refresh();
+    EXPECT_FALSE(hl->linkIssuesInBlock(0).isEmpty())
+        << "without a fallback base dir the link must be flagged (CWD fallback)";
+}
+
 TEST_F(UnderlineOverlayTest, ExplanationShowsMisspelledWord)
 {
     setDocAndHighlight(4, 60);

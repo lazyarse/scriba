@@ -8,9 +8,9 @@
 
 ## Table of Contents
 
-Auto-generated table of contents
+Auto-generated `toc.md` file in the corpus folder
 
-[![Read-only Table of Contents tab generated from the open corpus (Ctrl+Shift+T)](images/toc.png)](images/toc.png)
+[![Editable Table of Contents file (toc.md) in the corpus folder, with a Scriba-managed region between the markers (Ctrl+Shift+T)](images/toc.png)](images/toc.png)
 
 ## Corpus Files
 

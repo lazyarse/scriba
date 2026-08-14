@@ -334,6 +334,15 @@ void SpellHighlighter::setCurrentFile(const QString &path)
         runSpellCheck(); // relative targets resolve against a new base dir now
 }
 
+void SpellHighlighter::setFallbackLinkBaseDir(const QString &dir)
+{
+    if (m_fallbackLinkBaseDir == dir)
+        return;
+    m_fallbackLinkBaseDir = dir;
+    if (m_linkEnabled)
+        runSpellCheck(); // relative targets resolve against the new base now
+}
+
 void SpellHighlighter::setForceSyncChecks(bool force)
 {
     m_forceSyncChecks = force;
@@ -874,8 +883,9 @@ SpellHighlighter::scanLinkHits(const QString &line, const QSet<QString> &refDefs
     static const QRegularExpression skipRe(
         "`[^`\\n]*`|\\$\\$[^\\n]*|\\$[^$\\n]*\\$|:[\\w+_-]+:|<[^>\\n]*>|\\[\\^[^\\]\\n]+\\]");
 
-    const QString baseDir = m_currentFile.isEmpty()
-        ? QString() : QFileInfo(m_currentFile).absolutePath();
+    const QString baseDir = !m_currentFile.isEmpty()
+        ? QFileInfo(m_currentFile).absolutePath()
+        : m_fallbackLinkBaseDir;
 
     QVector<GrammarHit> hits;
     auto classify = [&](const QString &target) {
@@ -984,7 +994,9 @@ SpellHighlighter::scanLinkHits(const QString &line, const QSet<QString> &refDefs
         if (resolved.startsWith(QLatin1Char('~'))) {
             resolved = QDir::homePath() + resolved.mid(1);
         } else if (!QFileInfo(filePart).isAbsolute()) {
-            const QString dir = baseDir.isEmpty() ? QDir::currentPath() : baseDir;
+            const QString dir = !baseDir.isEmpty() ? baseDir
+                                : !m_fallbackLinkBaseDir.isEmpty() ? m_fallbackLinkBaseDir
+                                                                   : QDir::currentPath();
             resolved = QDir(dir).absoluteFilePath(resolved);
         }
         const QString message = headingMessage(frag, resolved);

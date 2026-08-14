@@ -219,4 +219,99 @@ TEST(CorpusIndexTest, RenderTocSkipsEmbeddedAndUnmappedDocuments)
     EXPECT_FALSE(toc.contains(QStringLiteral("External documents")));
 }
 
+TEST(CorpusIndexTest, RenderTocLinksOmitsHeaderAndName)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    ASSERT_TRUE(writeFile(dir.path() + "/a.md", "# Alpha\n\n## Sub A\n"));
+    const QString extAbs = dir.path() + "/ext.md";
+    ASSERT_TRUE(writeFile(extAbs, "# Ext\n"));
+
+    Corpus corpus;
+    corpus.filePath = dir.path() + "/my.scriba";
+    corpus.name = QStringLiteral("My Corpus");
+    corpus.documents = {
+        CorpusDocument{ .path = QStringLiteral("a.md") },
+        CorpusDocument{ .path = extAbs },
+    };
+
+    QHash<QString, QString> pageLinkByAbs;
+    pageLinkByAbs.insert(Corpus::absolutePath(dir.path(), QStringLiteral("a.md")),
+                         QStringLiteral("a.md"));
+    pageLinkByAbs.insert(extAbs, QUrl::fromLocalFile(extAbs).toString());
+
+    const QString links = CorpusIndex::renderTocLinks(corpus, pageLinkByAbs);
+
+    EXPECT_FALSE(links.contains(QStringLiteral("# Table of Contents")));
+    EXPECT_FALSE(links.contains(QStringLiteral("Corpus:")));
+    EXPECT_TRUE(links.contains(QStringLiteral("- [a.md](a.md)")));
+    EXPECT_TRUE(links.contains(QStringLiteral("  - [Alpha](a.md#alpha)")));
+    EXPECT_TRUE(links.contains(QStringLiteral("   - [Sub A](a.md#sub-a)")));
+    EXPECT_TRUE(links.contains(QStringLiteral("## External documents")));
+    EXPECT_TRUE(links.contains(QStringLiteral("- [ext.md](") + QUrl::fromLocalFile(extAbs).toString()
+                                 + QStringLiteral(")")));
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockBothMarkersPreservesSurroundingText)
+{
+    QString withMarkers = QStringLiteral("# T\n\nIntro\n\n%1\nold links\n%2\n\nNotes\n")
+                              .arg(CorpusIndex::tocStartMarker(), CorpusIndex::tocEndMarker());
+    const QString after = CorpusIndex::replaceTocBlock(
+        withMarkers, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_TRUE(after.contains(QStringLiteral("Intro")));
+    EXPECT_TRUE(after.contains(QStringLiteral("Notes")));
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+    EXPECT_FALSE(after.contains(QStringLiteral("old links")));
+    EXPECT_TRUE(after.indexOf(CorpusIndex::tocStartMarker())
+                < after.indexOf(QStringLiteral("- [x](x.md)")));
+    EXPECT_TRUE(after.indexOf(QStringLiteral("- [x](x.md)"))
+                < after.indexOf(CorpusIndex::tocEndMarker()));
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockStartOnlyAppendsEndMarker)
+{
+    const QString withStart = QStringLiteral("# T\n\n%1\nstale\n")
+                                  .arg(CorpusIndex::tocStartMarker());
+    const QString after = CorpusIndex::replaceTocBlock(
+        withStart, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_TRUE(after.contains(CorpusIndex::tocEndMarker()));
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+    EXPECT_FALSE(after.contains(QStringLiteral("stale")));
+    EXPECT_TRUE(after.startsWith(QStringLiteral("# T\n\n")));
+    EXPECT_TRUE(after.endsWith(CorpusIndex::tocEndMarker() + QLatin1Char('\n')));
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockNoMarkersAppendsBlock)
+{
+    const QString before = QStringLiteral("# T\n\nSome intro.\n");
+    const QString after = CorpusIndex::replaceTocBlock(
+        before, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_TRUE(after.startsWith(before));
+    EXPECT_TRUE(after.contains(CorpusIndex::tocStartMarker()));
+    EXPECT_TRUE(after.contains(CorpusIndex::tocEndMarker()));
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockIdenticalReturnsSame)
+{
+    const QString start = CorpusIndex::tocStartMarker();
+    const QString end = CorpusIndex::tocEndMarker();
+    const QString original = QStringLiteral("# T\n\n") + start + QLatin1Char('\n')
+        + QStringLiteral("- [x](x.md)\n") + end + QLatin1Char('\n');
+    const QString result = CorpusIndex::replaceTocBlock(original, QStringLiteral("- [x](x.md)\n"));
+    EXPECT_EQ(result, original);
+}
+
+TEST(CorpusIndexTest, DefaultTocTemplateHasBothMarkers)
+{
+    const QString t = CorpusIndex::defaultTocTemplate();
+    EXPECT_TRUE(t.contains(CorpusIndex::tocStartMarker()));
+    EXPECT_TRUE(t.contains(CorpusIndex::tocEndMarker()));
+    EXPECT_TRUE(t.indexOf(CorpusIndex::tocStartMarker())
+                < t.indexOf(CorpusIndex::tocEndMarker()));
+}
+
 } // namespace

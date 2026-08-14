@@ -78,11 +78,18 @@ QString CorpusIndex::renderToc(const Corpus &corpus,
     if (!name.isEmpty())
         md += QStringLiteral("Corpus: **") + name + QStringLiteral("**\n\n");
 
-    const QString root = corpus.rootDir();
+    md += renderTocLinks(corpus, pageLinkByAbs);
+    return md;
+}
 
+QString CorpusIndex::renderTocLinks(const Corpus &corpus,
+                                    const QHash<QString, QString> &pageLinkByAbs)
+{
+    QString md;
+    const QString root = corpus.rootDir();
     for (const CorpusDocument &d : corpus.documents) {
         if (d.path.isEmpty() || QFileInfo(d.path).isAbsolute())
-            continue;   // embedded docs have no file; out-of-root docs go to the external section
+            continue;
         const QString abs = Corpus::absolutePath(root, d.path);
         const QString linkBase = pageLinkByAbs.value(abs);
         if (linkBase.isEmpty())
@@ -95,7 +102,6 @@ QString CorpusIndex::renderToc(const Corpus &corpus,
                            escapeMd(h.title), linkBase, LinkValidator::headingSlug(h.title));
         }
     }
-
     QString extSection;
     for (const CorpusDocument &d : corpus.documents) {
         if (d.path.isEmpty() || !QFileInfo(d.path).isAbsolute())
@@ -109,6 +115,54 @@ QString CorpusIndex::renderToc(const Corpus &corpus,
     }
     if (!extSection.isEmpty())
         md += QStringLiteral("\n## External documents\n\n") + extSection;
-
     return md;
+}
+
+QString CorpusIndex::tocStartMarker()
+{
+    return QStringLiteral("<!--toc:start-->");
+}
+
+QString CorpusIndex::tocEndMarker()
+{
+    return QStringLiteral("<!--toc:end-->");
+}
+
+QString CorpusIndex::defaultTocTemplate()
+{
+    return QStringLiteral("# Table of Contents\n\n<!--toc:start-->\n<!--toc:end-->\n");
+}
+
+QString CorpusIndex::replaceTocBlock(const QString &fullText, const QString &linksMd)
+{
+    const QString start = tocStartMarker();
+    const QString end = tocEndMarker();
+    const int startLine = fullText.indexOf(start);
+    const int endLine = fullText.indexOf(end);
+
+    QString block = start + QLatin1Char('\n') + linksMd;
+    if (!linksMd.endsWith(QLatin1Char('\n')))
+        block += QLatin1Char('\n');
+    block += end;
+
+    if (startLine < 0 && endLine < 0)
+        return fullText.endsWith(QLatin1Char('\n'))
+            ? fullText + block + QLatin1Char('\n')
+            : fullText + QLatin1Char('\n') + block + QLatin1Char('\n');
+
+    // Region runs from the start-marker line through the end-marker line.
+    const int regionBegin = startLine >= 0 ? fullText.lastIndexOf(QLatin1Char('\n'), startLine) + 1
+                                           : 0;
+    const int regionEnd = endLine >= 0 ? fullText.indexOf(QLatin1Char('\n'), endLine) : fullText.size();
+    const int endPos = (endLine >= 0 && regionEnd >= 0) ? regionEnd : fullText.size();
+    const int beginPos = startLine >= 0 ? regionBegin : fullText.size();
+
+    QString out = fullText.left(beginPos) + block;
+    if (endLine >= 0 && endPos < fullText.size())
+        out += fullText.mid(endPos);   // preserve text after the end marker
+    else if (startLine >= 0 && endLine < 0)
+        out += QLatin1Char('\n');       // start-only: block ends the file
+    if (out == fullText)
+        return fullText;
+    return out;
 }

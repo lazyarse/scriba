@@ -40,6 +40,7 @@
 #include "editor/Editor.h"
 #include "corpus/Corpus.h"
 #include "corpus/CorpusFilesPanel.h"
+#include "corpus/CorpusIndex.h"
 #include "prefs/Preferences.h"
 #include "TestConfig.h"
 
@@ -172,8 +173,9 @@ protected:
         auto *tabs = m_window->findChild<QTabBar *>();
         if (!tabs)
             return -1;
+        const QString tocPath = m_root + QStringLiteral("/toc.md");
         for (int i = 0; i < tabs->count(); ++i) {
-            if (tabs->tabText(i).contains(QStringLiteral("Table of Contents")))
+            if (tabs->tabToolTip(i) == tocPath)
                 return i;
         }
         return -1;
@@ -498,70 +500,79 @@ TEST_F(CorpusWatcherIntegrationTest, DefaultRewritePolicyIsAskFirst)
               QStringLiteral("prompt"));
 }
 
-TEST_F(CorpusWatcherIntegrationTest, ViewTocCreatesReadOnlyTocTabWithRootRelativeLinks)
+TEST_F(CorpusWatcherIntegrationTest, OpenTocCreatesTocMdWithManagedBlock)
 {
     writeFile(m_root + "/doc.md", "# Alpha\n\n## Sub\n");
     makeCorpus({"doc.md"});
     openCorpus();
 
-    triggerAction(m_window, QStringLiteral("View Table of Contents"));
+    triggerAction(m_window, QStringLiteral("Open Table of Contents"));
     QApplication::processEvents();
 
+    const QString tocPath = m_root + QStringLiteral("/toc.md");
+    ASSERT_TRUE(QFileInfo::exists(tocPath)) << "toc.md must be created in the corpus folder";
+    const QString text = readFile(tocPath);
+    EXPECT_TRUE(text.contains(CorpusIndex::tocStartMarker()));
+    EXPECT_TRUE(text.contains(QStringLiteral("- [doc.md](doc.md)")));
+    EXPECT_TRUE(text.contains(QStringLiteral("[Alpha](doc.md#alpha)")));
+    EXPECT_TRUE(text.contains(CorpusIndex::tocEndMarker()));
+
+    // A normal, editable tab is open on the file.
     const int toc = tocTabIndex();
     ASSERT_GE(toc, 0);
     Editor *ed = stackEditor(toc);
     ASSERT_NE(ed, nullptr);
-    EXPECT_TRUE(ed->isReadOnly());
-    const QString text = ed->toPlainText();
-    EXPECT_TRUE(text.contains(QStringLiteral("# Table of Contents")));
-    EXPECT_TRUE(text.contains(QStringLiteral("- [doc.md](doc.md)")));
-    EXPECT_TRUE(text.contains(QStringLiteral("[Alpha](doc.md#alpha)")));
-    EXPECT_FALSE(text.contains(QStringLiteral("External documents")));
+    EXPECT_FALSE(ed->isReadOnly());
+    EXPECT_EQ(ed->toPlainText(), text);
 }
 
-TEST_F(CorpusWatcherIntegrationTest, TocTabExcludedFromSavedCorpus)
+TEST_F(CorpusWatcherIntegrationTest, TocMdExcludedFromSavedCorpus)
 {
     writeFile(m_root + "/doc.md", "# Alpha\n");
     makeCorpus({"doc.md"});
     openCorpus();
 
-    triggerAction(m_window, QStringLiteral("View Table of Contents"));
+    triggerAction(m_window, QStringLiteral("Open Table of Contents"));
     QApplication::processEvents();
     triggerAction(m_window, QStringLiteral("Save Corpus"));
     QApplication::processEvents();
 
     const QString json = readFile(m_corpusPath);
     EXPECT_TRUE(json.contains(QStringLiteral("doc.md")));
+    EXPECT_FALSE(json.contains(QStringLiteral("toc.md")));
     EXPECT_FALSE(json.contains(QStringLiteral("Table of Contents")));
 }
 
-TEST_F(CorpusWatcherIntegrationTest, TocTabRefreshesOnExternalRename)
+TEST_F(CorpusWatcherIntegrationTest, TocMdRefreshesOnExternalRename)
 {
     QSettings().setValue(Preferences::CorpusLinkRewritePolicy, QStringLiteral("ignore"));
     writeFile(m_root + "/doc.md", "# Alpha\n");
     makeCorpus({"doc.md"});
     openCorpus();
-    triggerAction(m_window, QStringLiteral("View Table of Contents"));
+    triggerAction(m_window, QStringLiteral("Open Table of Contents"));
     QApplication::processEvents();
-    ASSERT_GE(tocTabIndex(), 0);
+    const QString tocPath = m_root + QStringLiteral("/toc.md");
+    ASSERT_TRUE(QFileInfo::exists(tocPath));
 
     ASSERT_TRUE(QFile::rename(m_root + "/doc.md", m_root + "/renamed.md"));
 
     EXPECT_TRUE(waitFor([&] {
-        Editor *ed = stackEditor(tocTabIndex());
-        return ed && ed->toPlainText().contains(QStringLiteral("renamed.md"))
-                 && !ed->toPlainText().contains(QStringLiteral("[doc.md]"));
+        const QString text = readFile(tocPath);
+        return text.contains(QStringLiteral("renamed.md"))
+                 && !text.contains(QStringLiteral("[doc.md]"));
     }));
 }
 
-TEST_F(CorpusWatcherIntegrationTest, TocTabClosedWhenCorpusReopened)
+TEST_F(CorpusWatcherIntegrationTest, TocMdNotRestoredOrRelistedOnReopen)
 {
     writeFile(m_root + "/doc.md", "# Alpha\n");
     makeCorpus({"doc.md"});
     openCorpus();
-    triggerAction(m_window, QStringLiteral("View Table of Contents"));
+    triggerAction(m_window, QStringLiteral("Open Table of Contents"));
     QApplication::processEvents();
     ASSERT_GE(tocTabIndex(), 0);
+    const QString tocPath = m_root + QStringLiteral("/toc.md");
+    ASSERT_TRUE(QFileInfo::exists(tocPath));
 
     writeFile(m_root + "/doc2.md", "# Beta\n");
     Corpus c2;
@@ -574,10 +585,18 @@ TEST_F(CorpusWatcherIntegrationTest, TocTabClosedWhenCorpusReopened)
     m_window->openCorpusFile(c2.filePath, /*skipPrompt=*/true);
     QApplication::processEvents();
 
+    // The toc tab is not restored on reopen...
     EXPECT_EQ(tocTabIndex(), -1);
     auto *tabs = m_window->findChild<QTabBar *>();
     ASSERT_NE(tabs, nullptr);
     EXPECT_EQ(tabs->count(), 1); // placeholder gone; only doc2.md
+
+    // ...and the new corpus's generated block does not list toc.md.
+    triggerAction(m_window, QStringLiteral("Open Table of Contents"));
+    QApplication::processEvents();
+    const QString text = readFile(m_root + QStringLiteral("/toc.md"));
+    EXPECT_TRUE(text.contains(QStringLiteral("- [doc2.md](doc2.md)")));
+    EXPECT_FALSE(text.contains(QStringLiteral("toc.md")));
 }
 
 TEST_F(CorpusWatcherIntegrationTest, ClosingWindowResavesCorpus)

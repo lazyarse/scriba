@@ -166,13 +166,6 @@ void MainWindow::removeTab(int index)
         shifted.insert(key > index ? key - 1 : key, it.value());
     }
     m_reportTitles = shifted;
-    m_tocTabs.remove(index);
-    QHash<int, QString> tocShifted;
-    for (auto it = m_tocTabs.constBegin(); it != m_tocTabs.constEnd(); ++it) {
-        const int key = it.key();
-        tocShifted.insert(key > index ? key - 1 : key, it.value());
-    }
-    m_tocTabs = tocShifted;
 
     updateTabBarVisibility();
 }
@@ -197,11 +190,6 @@ void MainWindow::onTabMoved(int from, int to)
     for (int i = 0; i < m_tabs.size(); ++i) {
         if (m_reportTitles.contains(i))
             oldReportTitles.insert(m_tabs[i].editor, m_reportTitles.value(i));
-    }
-    QHash<Editor *, QString> oldTocTitles;
-    for (int i = 0; i < m_tabs.size(); ++i) {
-        if (m_tocTabs.contains(i))
-            oldTocTitles.insert(m_tabs[i].editor, m_tocTabs.value(i));
     }
 
     QVector<TabInfo> reordered;
@@ -239,14 +227,6 @@ void MainWindow::onTabMoved(int from, int to)
         if (auto it = oldReportTitles.constFind(m_tabs[i].editor);
             it != oldReportTitles.constEnd()) {
             m_reportTitles.insert(i, it.value());
-        }
-    }
-
-    m_tocTabs.clear();
-    for (int i = 0; i < m_tabs.size(); ++i) {
-        if (auto it = oldTocTitles.constFind(m_tabs[i].editor);
-            it != oldTocTitles.constEnd()) {
-            m_tocTabs.insert(i, it.value());
         }
     }
 
@@ -336,8 +316,6 @@ void MainWindow::updateTabLabel(int index)
     QString name;
     if (m_reportTitles.contains(index))
         name = m_reportTitles.value(index);
-    else if (m_tocTabs.contains(index))
-        name = m_tocTabs.value(index);
     else
         name = info.filePath.isEmpty() ? QStringLiteral("Untitled")
                                        : QFileInfo(info.filePath).fileName();
@@ -502,9 +480,8 @@ void MainWindow::closeAllTabs()
         m_tabs[0].filePath.clear();
         m_tabBar->setTabToolTip(0, QString());
         setTabSaved(0);
-        // A virtual TOC/report tab left as the sole tab is blanked into an
+        // A virtual report tab left as the sole tab is blanked into an
         // Untitled placeholder; drop its mapping so it can't haunt the next corpus.
-        m_tocTabs.remove(idx);
         m_reportTitles.remove(idx);
     }
 }

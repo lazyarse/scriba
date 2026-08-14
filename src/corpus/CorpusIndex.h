@@ -33,4 +33,22 @@ public:
     // name during export). Out-of-root docs map to an absolute file:/// URL.
     static QString renderToc(const Corpus &corpus,
                              const QHash<QString, QString> &pageLinkByAbs);
+    // The two Scriba-managed markers. Everything between the start and end
+    // marker lines is Scriba-owned and regenerated; text outside is the user's.
+    static QString tocStartMarker();
+    static QString tocEndMarker();
+    // The marker region filled with the rendered links (no "# Table of
+    // Contents" heading / "Corpus:" line — the user owns those). `fullText`
+    // is the current toc.md content; if both markers are present the region
+    // between them is replaced (text before/after preserved), if only the
+    // start marker is present it is replaced through end-of-file and the end
+    // marker appended, and if neither is present a fresh block is appended at
+    // EOF. Returns the input unchanged when the result would be identical.
+    static QString replaceTocBlock(const QString &fullText, const QString &linksMd);
+    // Built-in template used when the user's preference template is empty.
+    static QString defaultTocTemplate();
+    // The links-only markdown (bullets + optional "## External documents"
+    // section) that lives inside the marker region.
+    static QString renderTocLinks(const Corpus &corpus,
+                                  const QHash<QString, QString> &pageLinkByAbs);
 };

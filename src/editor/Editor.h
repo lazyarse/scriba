@@ -41,6 +41,8 @@ public:
     explicit Editor(QWidget *parent = nullptr);
     ~Editor() override;
     void setCurrentFile(const QString &path);
+    // Base dir for relative link targets in untitled tabs (see SpellHighlighter).
+    void setFallbackLinkBaseDir(const QString &dir);
     void setCenterContent(bool enabled, int width);
     // Reads the EditorWrap* settings and applies the editor's line wrap mode
     // (no-wrap / window width / fixed column count). Also re-computes the

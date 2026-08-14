@@ -62,7 +62,7 @@ protected:
     {
         ValidationReport report;
         const QVector<ValidationReport::DocumentReport> docs =
-            report.scan({{m_docPath, text}}, m_checker.get());
+            report.scan({{m_docPath, {}, text}}, m_checker.get());
         ValidationReport::DocumentReport doc = docs.value(0);
         doc.issues[ValidationReport::Category::Grammar] =
             ValidationReport::grammarIssuesToLineIssues(text, m_grammar->check(text));
@@ -176,13 +176,43 @@ TEST_F(ValidationReportTest, ScanHonoursSelectedCategories)
     ValidationReport::ValidationOptions opts;
     opts.categories = {ValidationReport::Category::Links};
     const QVector<ValidationReport::DocumentReport> docs =
-        report.scan({{m_docPath,
-                      QStringLiteral("recieve\n[bad](missing.md)\n#nope\n\n\n\n")}},
+        report.scan({{m_docPath, {},
+                       QStringLiteral("recieve\n[bad](missing.md)\n#nope\n\n\n\n")}},
                     m_checker.get(), opts);
     const auto &doc = docs.first();
     EXPECT_TRUE(doc.issues.value(ValidationReport::Category::Spelling).isEmpty());
     EXPECT_TRUE(doc.issues.value(ValidationReport::Category::Markdown).isEmpty());
     EXPECT_FALSE(doc.issues.value(ValidationReport::Category::Links).isEmpty());
+}
+
+TEST_F(ValidationReportTest, ScanResolvesLinksAgainstFilePath)
+{
+    ValidationReport report;
+    ValidationReport::ValidationOptions opts;
+    opts.categories = {ValidationReport::Category::Links};
+    const QVector<ValidationReport::DocumentReport> docs = report.scan(
+        {{m_dir.filePath(QStringLiteral("toc.md")), {},
+          QStringLiteral("- [exists.md](exists.md)\n")}},
+        m_checker.get(), opts);
+    EXPECT_TRUE(docs.first().issues.value(ValidationReport::Category::Links).isEmpty());
+}
+
+TEST_F(ValidationReportTest, ScanResolvesUntitledLinksAgainstBaseDir)
+{
+    ValidationReport report;
+    ValidationReport::ValidationOptions opts;
+    opts.categories = {ValidationReport::Category::Links};
+    const QString text = QStringLiteral("- [exists.md](exists.md)\n");
+
+    // Untitled source with a baseDir override resolves relative links there.
+    const QVector<ValidationReport::DocumentReport> withBase = report.scan(
+        {{QString(), m_dir.path(), text}}, m_checker.get(), opts);
+    EXPECT_TRUE(withBase.first().issues.value(ValidationReport::Category::Links).isEmpty());
+
+    // No baseDir on an untitled source keeps the no-corpus CWD behaviour.
+    const QVector<ValidationReport::DocumentReport> noBase = report.scan(
+        {{QString(), {}, text}}, m_checker.get(), opts);
+    EXPECT_FALSE(noBase.first().issues.value(ValidationReport::Category::Links).isEmpty());
 }
 
 TEST_F(ValidationReportTest, ScanMarkdownHonoursSelectedSubChecks)
@@ -293,7 +323,7 @@ TEST_F(ValidationReportTest, UntitledTabIsLabelledUntitled)
 {
     ValidationReport report;
     const QVector<ValidationReport::DocumentReport> docs =
-        report.scan({{QString(), QStringLiteral("# Only a heading\n")}}, nullptr);
+        report.scan({{QString(), {}, QStringLiteral("# Only a heading\n")}}, nullptr);
     ASSERT_EQ(1, docs.size());
     EXPECT_EQ(QStringLiteral("(Untitled)"), docs.first().label);
 }
@@ -305,7 +335,7 @@ TEST_F(ValidationReportTest, RenderMarkdownDeepLinksToFindings)
     // the same slug/dedup the preview's generateHeadingIds() produces.
     ValidationReport report;
     const QVector<ValidationReport::DocumentReport> docs =
-        report.scan({{m_docPath, QStringLiteral("A typo recieve here.\n")}}, m_checker.get());
+        report.scan({{m_docPath, {}, QStringLiteral("A typo recieve here.\n")}}, m_checker.get());
     const QString out = ValidationReport::renderMarkdown(
         {docs.value(0)}, QStringLiteral("2026-08-05T12:00:00"));
 

@@ -383,11 +383,6 @@ QUrl MainWindow::computePreviewBaseUrl(const TabInfo *info) const
     if (!docPath.isEmpty()) {
         baseUrl = QUrl::fromLocalFile(QFileInfo(docPath).absolutePath() + "/");
     }
-    // A Table-of-Contents tab is unbacked, but its relative links resolve
-    // against the corpus root; mirror the per-file base for it.
-    const int curIdx = m_tabBar->currentIndex();
-    if (m_tocTabs.contains(curIdx))
-        baseUrl = QUrl::fromLocalFile(m_corpus.rootDir() + "/");
     // Untitled documents in an open corpus default to the corpus root as their
     // base dir (relative images resolve against the corpus). Saving the document
     // moves the base to the saved file's directory (see saveFile's re-render).
@@ -509,18 +504,6 @@ void MainWindow::tryScrollPreviewToAnchor()
         return;
     }
     m_anchorTimer->start();
-}
-
-void MainWindow::refreshPreviewForTocTab(int index, const QString &rootDir)
-{
-    Q_UNUSED(rootDir);
-    if (index < 0 || index >= m_tabs.size())
-        return;
-    // Force a re-parse so the (unchanged) cached previewHtml can't serve
-    // stale link resolution; updatePreview derives the <base> from m_tocTabs.
-    m_tabs[index].previewHtmlValid = false;
-    if (m_tabBar->currentIndex() == index)
-        updatePreview(true);
 }
 
 void MainWindow::syncCssWatcher()

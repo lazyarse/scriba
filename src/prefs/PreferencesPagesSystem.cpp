@@ -15,6 +15,7 @@
 #include "PreferencesDialog.h"
 #include "Preferences.h"
 #include "StaticHelpers.h"
+#include "corpus/CorpusIndex.h"
 #include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -166,6 +167,39 @@ void PreferencesDialog::setupCorpusPage()
         unsavedLayout->addLayout(unsavedRow);
 
         layout->addWidget(unsavedGroup);
+
+        QGroupBox *tocGroup = new QGroupBox("Table of Contents");
+        QVBoxLayout *tocLayout = new QVBoxLayout(tocGroup);
+        tocLayout->addSpacing(8);
+
+        QHBoxLayout *fileRow = new QHBoxLayout();
+        auto *fileLabel = new QLabel(tr("File name (in the corpus folder):"));
+        fileRow->addWidget(fileLabel);
+        m_corpusTocFileEdit = new QLineEdit;
+        m_corpusTocFileEdit->setObjectName("corpus-toc-file");
+        m_corpusTocFileEdit->setText(settings.value(
+            Preferences::CorpusTocFileName, QStringLiteral("toc.md")).toString());
+        fileRow->addWidget(m_corpusTocFileEdit, 1);
+        tocLayout->addLayout(fileRow);
+
+        auto *templateLabel = new QLabel(tr("New-corpus template (the <!--toc:start--> / <!--toc:end--> markers are replaced with the links):"));
+        templateLabel->setWordWrap(true);
+        tocLayout->addWidget(templateLabel);
+        m_corpusTocTemplateEdit = new QPlainTextEdit;
+        m_corpusTocTemplateEdit->setObjectName("corpus-toc-template");
+        m_corpusTocTemplateEdit->setPlainText(settings.value(
+            Preferences::CorpusTocTemplate).toString());
+        m_corpusTocTemplateEdit->setMinimumHeight(120);
+        tocLayout->addWidget(m_corpusTocTemplateEdit);
+
+        auto *resetTocBtn = new QPushButton(tr("&Reset to default"));
+        stripButtonIcon(resetTocBtn);
+        connect(resetTocBtn, &QPushButton::clicked, this, [this]() {
+            m_corpusTocTemplateEdit->setPlainText(CorpusIndex::defaultTocTemplate());
+        });
+        tocLayout->addWidget(resetTocBtn, 0, Qt::AlignRight);
+
+        layout->addWidget(tocGroup);
 
         QGroupBox *externalGroup = new QGroupBox("External Documents");
         QVBoxLayout *externalLayout = new QVBoxLayout(externalGroup);

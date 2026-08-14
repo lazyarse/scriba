@@ -107,7 +107,12 @@ void MainWindow::generateValidationReport()
         Editor *ed = m_tabs[i].editor;
         if (!ed)
             continue;
-        m_reportSources.append({m_tabs[i].filePath, ed->toPlainText()});
+        ValidationReport::DocumentSource src;
+        src.filePath = m_tabs[i].filePath;
+        src.baseDir = m_tabs[i].filePath.isEmpty() && !m_corpus.filePath.isEmpty()
+            ? m_corpus.rootDir() : QString();
+        src.text = ed->toPlainText();
+        m_reportSources.append(src);
     }
 
     QSettings settings;
@@ -197,40 +202,46 @@ void MainWindow::openValidationReport()
     m_tabBar->setTabToolTip(idx, tr("Validation report (regenerate with Ctrl+Shift+F7)"));
 }
 
-void MainWindow::viewTableOfContents()
+void MainWindow::openCorpusToc()
 {
     if (m_corpus.documents.isEmpty()) {
         showCenteredWarning(tr("No Corpus"), tr("No corpus is open."), QString());
         return;
     }
-    const QString md = renderTocMarkdown();
-
-    // Refresh an existing TOC tab in place and bring it to the front.
-    if (!m_tocTabs.isEmpty()) {
-        refreshOpenToc();
-        for (auto it = m_tocTabs.begin(); it != m_tocTabs.end(); ++it) {
-            if (it.key() < m_tabs.size() && m_tabs[it.key()].editor) {
-                m_tabBar->setCurrentIndex(it.key());
-                break;
-            }
-        }
+    if (m_corpus.filePath.isEmpty()) {
+        showCenteredWarning(tr("Unsaved Corpus"),
+            tr("Save the corpus first — its Table of Contents is a file in the corpus folder."),
+            QString());
         return;
     }
 
-    const int idx = addTab(QString());
-    if (idx < 0 || idx >= m_tabs.size())
-        return;
-    Editor *ed = m_tabs[idx].editor;
-    ed->setReadOnly(true);
-    ed->setPlainText(md);
-    setTabSaved(idx);
-    m_tocTabs.insert(idx, QStringLiteral("📑 Table of Contents"));
-    updateTabLabel(idx);
-    m_tabBar->setCurrentIndex(idx);
-    refreshPreviewForTocTab(idx, m_corpus.rootDir());
+    const QString tocPath = corpusTocPath();
+    if (!QFileInfo::exists(tocPath)) {
+        QString links = CorpusIndex::renderTocLinks(m_corpus, tocLinks());
+        QString templateText = QSettings().value(Preferences::CorpusTocTemplate).toString();
+        if (templateText.trimmed().isEmpty())
+            templateText = CorpusIndex::defaultTocTemplate();
+        QString content = CorpusIndex::replaceTocBlock(templateText, links);
+        QFile out(tocPath);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            showCenteredWarning(tr("Table of Contents Failed"),
+                tr("Could not create %1").arg(tocPath), QString());
+            return;
+        }
+        out.write(content.toUtf8());
+        out.close();
+    }
+
+    const int existing = findTabByPath(tocPath);
+    if (existing >= 0) {
+        m_tabBar->setCurrentIndex(existing);
+    } else {
+        loadFile(tocPath);   // opens a normal, editable tab
+    }
+    refreshCorpusToc();
 }
 
-QString MainWindow::renderTocMarkdown() const
+QHash<QString, QString> MainWindow::tocLinks() const
 {
     QHash<QString, QString> links;
     for (const CorpusDocument &d : m_corpus.documents) {
@@ -238,24 +249,62 @@ QString MainWindow::renderTocMarkdown() const
             continue;
         const QString abs = Corpus::absolutePath(m_corpus.rootDir(), d.path);
         if (QFileInfo(d.path).isAbsolute())
-            links.insert(abs, QUrl::fromLocalFile(abs).toString());   // out-of-root: absolute URL
+            links.insert(abs, QUrl::fromLocalFile(abs).toString());
         else
-            links.insert(abs, d.path);                                 // in-root: relative to the corpus root
+            links.insert(abs, d.path);
     }
-    return CorpusIndex::renderToc(m_corpus, links);
+    return links;
 }
 
-void MainWindow::refreshOpenToc()
+void MainWindow::refreshCorpusToc()
 {
-    const QString md = renderTocMarkdown();
-    for (auto it = m_tocTabs.begin(); it != m_tocTabs.end(); ++it) {
-        if (it.key() >= m_tabs.size() || m_tabs[it.key()].editor == nullptr)
-            continue;
-        m_tabs[it.key()].editor->setPlainText(md);
-        setTabSaved(it.key());
-        if (m_tabBar->currentIndex() == it.key())
-            refreshPreviewForTocTab(it.key(), m_corpus.rootDir());
+    const QString tocPath = corpusTocPath();
+    if (tocPath.isEmpty() || !QFileInfo::exists(tocPath))
+        return;
+
+    QFile in(tocPath);
+    if (!in.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+    const QString before = QString::fromUtf8(in.readAll());
+    in.close();
+    if (before.isEmpty() || !before.contains(CorpusIndex::tocStartMarker()))
+        return; // user removed the markers: leave the file alone
+
+    const QString after = CorpusIndex::replaceTocBlock(before, CorpusIndex::renderTocLinks(m_corpus, tocLinks()));
+    if (after == before)
+        return;
+
+    QFile out(tocPath);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+    out.write(after.toUtf8());
+    out.close();
+
+    // Sync any open tab: replace only the marker region, preserving user text
+    // above/below and the dirty flag.
+    const int idx = findTabByPath(tocPath);
+    if (idx < 0 || !m_tabs[idx].editor)
+        return;
+    QTextCursor c(m_tabs[idx].editor->document());
+    c.beginEditBlock();
+    QTextCursor startCursor = c.document()->find(CorpusIndex::tocStartMarker(), c);
+    if (!startCursor.isNull()) {
+        // Select from the start-marker to just past the end-marker line.
+        QTextCursor region = startCursor;
+        region.setPosition(startCursor.selectionEnd(), QTextCursor::MoveAnchor);
+        QTextCursor endCursor = region.document()->find(CorpusIndex::tocEndMarker(), region);
+        if (!endCursor.isNull()) {
+            region.setPosition(endCursor.selectionEnd(), QTextCursor::MoveAnchor);
+            region.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
+            const QString newBlock = CorpusIndex::tocStartMarker() + QLatin1Char('\n')
+                + CorpusIndex::renderTocLinks(m_corpus, tocLinks())
+                + QLatin1Char('\n') + CorpusIndex::tocEndMarker();
+            region.insertText(newBlock);
+        }
     }
+    c.endEditBlock();
+    if (!m_tabs[idx].dirty)
+        setTabSaved(idx);
 }
 
 void MainWindow::stopValidationReport()

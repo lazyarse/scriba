@@ -154,6 +154,12 @@ void Editor::setCurrentFile(const QString &path)
         m_spellHighlighter->setCurrentFile(path);
 }
 
+void Editor::setFallbackLinkBaseDir(const QString &dir)
+{
+    if (m_spellHighlighter)
+        m_spellHighlighter->setFallbackLinkBaseDir(dir);
+}
+
 void Editor::keyPressEvent(QKeyEvent *event)
 {
     // Escape: dismiss the completer popup.

@@ -599,12 +599,10 @@ if(BUILD_TESTS)
         GTest::gtest scriba_editor scriba_core scriba_spell Qt6::Test Qt6::Widgets scriba_resources)
     add_test(NAME test_spell_check_dialog COMMAND ${_TEST_PREFIX} ./test_spell_check_dialog)
 
-    add_executable(test_preferences_search tests/test_preferences_search.cpp
-        src/css/CssEditorDialog.cpp src/css/CssHighlighter.cpp
-        src/css/CssConfig.cpp src/css/CssLoader.cpp)
+    add_executable(test_preferences_search tests/test_preferences_search.cpp)
     target_include_directories(test_preferences_search PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(test_preferences_search PRIVATE
-        scriba_editor scriba_prefs scriba_core scriba_spell scriba_test_main Qt6::Test scriba_resources)
+        scriba_editor scriba_prefs scriba_core scriba_spell scriba_app scriba_test_main Qt6::Test scriba_resources)
     add_test(NAME test_preferences_search COMMAND ${_TEST_PREFIX} ./test_preferences_search)
 
     add_executable(test_scroll_sync tests/test_scroll_sync.cpp)

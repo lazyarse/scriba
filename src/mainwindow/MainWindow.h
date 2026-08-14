@@ -296,13 +296,19 @@ private:
     void handleExternalRename(const QString &from, const QString &to);
     void handleExternalDelete(const QString &path);
     void rewriteLinksForFile(const QString &oldAbs, const QString &newAbs);
-    void viewTableOfContents();
-    QString renderTocMarkdown() const;
+    void openCorpusToc();
+    void refreshCorpusToc();
+    // Absolute path of the configured corpus TOC file, or "" if the corpus is
+    // unsaved. Used for sidecar exclusion (never a corpus document).
+    QString corpusTocPath() const;
+    bool isCorpusTocPath(const QString &absPath) const;
+    QHash<QString, QString> tocLinks() const;
     void exportCorpus();
     void renderDocumentHtml(const QString &markdown, const QString &baseDir,
                             bool omml, QString *body);
-    void refreshOpenToc();
-    void refreshPreviewForTocTab(int index, const QString &rootDir);
+    // Untitled tabs in an open corpus resolve relative links against the
+    // corpus root (matching the preview); clear on corpus close / new corpus.
+    void applyUntitledLinkBaseDir();
 
     // Validation Report (Tools → Validation Report…): snapshots the open
     // documents, scans spelling/links/markdown synchronously, runs the
@@ -370,9 +376,6 @@ private:
     bool m_reportInFlight = false;
     QThread *m_reportThread = nullptr;
     QHash<int, QString> m_reportTitles;
-    // Table-of-Contents tabs: index -> fixed tab title. Like m_reportTitles,
-    // these are generated, unbacked virtual documents excluded from the corpus.
-    QHash<int, QString> m_tocTabs;
     QVector<ValidationReport::DocumentSource> m_reportSources;
     QVector<ValidationReport::DocumentReport> m_reportDocs;
     ValidationReport::ValidationOptions m_reportOptions;

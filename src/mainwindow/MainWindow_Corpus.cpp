@@ -92,7 +92,7 @@ void MainWindow::exportCorpus()
     QHash<QString, QString> untitledByLabel;   // live text of open untitled tabs
     for (int i = 0; i < m_tabs.size(); ++i) {
         const TabInfo &ti = m_tabs[i];
-        if (ti.filePath.isEmpty() && !m_reportTitles.contains(i) && !m_tocTabs.contains(i))
+        if (ti.filePath.isEmpty() && !m_reportTitles.contains(i))
             untitledByLabel.insert(tabTitleForEmbedded(i), ti.editor->toPlainText());
     }
     int untitled = 0;
@@ -320,8 +320,10 @@ void MainWindow::refreshCorpusFromTabs()
     int activeIndex = -1;
     for (int i = 0; i < m_tabs.size(); ++i) {
         const TabInfo &info = m_tabs[i];
-        if (m_reportTitles.contains(i) || m_tocTabs.contains(i))
-            continue;   // generated report/TOC tabs are not part of the corpus
+        if (m_reportTitles.contains(i))
+            continue;   // generated report tabs are not part of the corpus
+        if (!info.filePath.isEmpty() && isCorpusTocPath(info.filePath))
+            continue;   // the corpus TOC sidecar is never a corpus document
 
         CorpusDocument d;
         if (!info.filePath.isEmpty())
@@ -350,7 +352,7 @@ bool MainWindow::promptSaveUnsavedCorpusDocs()
         return true;
 
     for (int i = 0; i < m_tabs.size(); ++i) {
-        if (m_reportTitles.contains(i) || m_tocTabs.contains(i))
+        if (m_reportTitles.contains(i))
             continue;
         TabInfo &info = m_tabs[i];
         if (!info.filePath.isEmpty())
@@ -395,8 +397,6 @@ QString MainWindow::tabTitleForEmbedded(int index) const
         return QString();
     if (m_reportTitles.contains(index))
         return m_reportTitles.value(index);
-    if (m_tocTabs.contains(index))
-        return m_tocTabs.value(index);
     return m_tabs[index].filePath.isEmpty() ? QStringLiteral("Untitled")
                                             : QFileInfo(m_tabs[index].filePath).fileName();
 }
@@ -570,6 +570,7 @@ void MainWindow::newCorpusAction()
     updateTabBarVisibility();
     updateRecentCorporaMenu();
     startCorpusWatcher();
+    applyUntitledLinkBaseDir();
     statusBar()->showMessage(tr("New corpus created: %1").arg(QFileInfo(m_corpus.filePath).fileName()), 3000);
 }
 
@@ -631,6 +632,7 @@ void MainWindow::openCorpusFile(const QString &path, bool skipPrompt)
 
     applyCorpusDictionary();
     startCorpusWatcher();
+    applyUntitledLinkBaseDir();
 
     addRecentCorpus(m_corpus.filePath);
     QSettings().setValue(Preferences::LastCorpusPath, m_corpus.filePath);
@@ -786,6 +788,32 @@ void MainWindow::updateCorpusFilesPanel()
         QSettings().value(Preferences::ShowCorpusFilesPanel, true).toBool());
 }
 
+void MainWindow::applyUntitledLinkBaseDir()
+{
+    const QString dir = m_corpus.filePath.isEmpty() ? QString()
+                                                    : m_corpus.rootDir();
+    for (TabInfo &info : m_tabs) {
+        if (info.filePath.isEmpty() && info.editor)
+            info.editor->setFallbackLinkBaseDir(dir);
+    }
+}
+
+QString MainWindow::corpusTocPath() const
+{
+    if (m_corpus.filePath.isEmpty())
+        return QString();
+    const QString fileName = QSettings().value(
+        Preferences::CorpusTocFileName, QStringLiteral("toc.md")).toString();
+    return QDir(m_corpus.rootDir()).filePath(fileName);
+}
+
+bool MainWindow::isCorpusTocPath(const QString &absPath) const
+{
+    const QString toc = corpusTocPath();
+    return !toc.isEmpty()
+        && QFileInfo(toc).absoluteFilePath() == QFileInfo(absPath).absoluteFilePath();
+}
+
 void MainWindow::onCorpusFileActivated(const QString &absPath)
 {
     // Mirrors the preview link-click dispatch (MainWindow.cpp:140-165).
@@ -877,8 +905,7 @@ void MainWindow::handleExternalRename(const QString &from, const QString &to)
     // Re-extract the monitored set from the corpus docs + their link targets so
     // the renamed path (and any links the rewrite just changed) are tracked.
     startCorpusWatcher();
-    if (!m_tocTabs.isEmpty())
-        refreshOpenToc();
+    refreshCorpusToc();
 }
 
 void MainWindow::handleExternalDelete(const QString &path)
@@ -887,8 +914,7 @@ void MainWindow::handleExternalDelete(const QString &path)
     if (idx < 0)
         return;
     statusBar()->showMessage(tr("%1 was deleted on disk").arg(QFileInfo(path).fileName()), 4000);
-    if (!m_tocTabs.isEmpty())
-        refreshOpenToc();
+    refreshCorpusToc();
 }
 
 void MainWindow::rewriteLinksForFile(const QString &oldAbs, const QString &newAbs)

@@ -97,9 +97,9 @@ void MainWindow::buildFileMenu(QMenuBar *bar)
     connect(saveCorpusAsAct, &QAction::triggered, this, &MainWindow::saveCorpusAsAction);
     QAction *openCorpusAct = corpusMenu->addAction(tr("&Open Corpus…"));
     connect(openCorpusAct, &QAction::triggered, this, &MainWindow::openCorpusAction);
-    QAction *tocAction = corpusMenu->addAction(tr("&View Table of Contents"));
+    QAction *tocAction = corpusMenu->addAction(tr("&Open Table of Contents"));
     tocAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
-    connect(tocAction, &QAction::triggered, this, &MainWindow::viewTableOfContents);
+    connect(tocAction, &QAction::triggered, this, &MainWindow::openCorpusToc);
     corpusMenu->addSeparator();
     m_recentCorpusMenu = corpusMenu->addMenu(tr("Recent C&orpus"));
     updateRecentCorporaMenu();

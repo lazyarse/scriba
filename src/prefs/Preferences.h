@@ -41,6 +41,11 @@ namespace Preferences {
     // Corpus Files sidecar panel (View menu). Whether the dock is shown when a
     // corpus is open; the dock hides itself when no corpus is open.
     constexpr const char *ShowCorpusFilesPanel = "showCorpusFilesPanel";
+    // File-based corpus Table of Contents. The template is a seed used only
+    // when creating a corpus's toc.md; each corpus's own toc.md is its saved
+    // template, so changing the preference never rewrites existing files.
+    constexpr const char *CorpusTocFileName = "corpusTocFileName";
+    constexpr const char *CorpusTocTemplate = "corpusTocTemplate";
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *LastCursorBlock = "lastCursorBlock";

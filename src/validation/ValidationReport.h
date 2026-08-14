@@ -45,6 +45,7 @@ class ValidationReport
 public:
     struct DocumentSource {
         QString filePath; // empty for untitled tabs
+        QString baseDir;  // link base dir; empty = derive from filePath, else CWD
         QString text;
     };
 

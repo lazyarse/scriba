@@ -30,6 +30,7 @@
 #include <QComboBox>
 #include <QTableWidget>
 #include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QVector>
 #include <QStringList>
 #include <utility>
@@ -233,6 +234,8 @@ private:
     QComboBox *m_linkRewritePolicyCombo = nullptr;
     QComboBox *m_linkRewriteScopeCombo = nullptr;
     QComboBox *m_corpusUnsavedCombo = nullptr;
+    QLineEdit *m_corpusTocFileEdit = nullptr;
+    QPlainTextEdit *m_corpusTocTemplateEdit = nullptr;
     QComboBox *m_externalExportCombo = nullptr;
     QLineEdit *m_externalExportDirEdit = nullptr;
     QRadioButton *m_corpusDictOverride = nullptr;

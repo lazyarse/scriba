@@ -166,8 +166,11 @@ ValidationReport::scan(const QVector<DocumentSource> &sources,
             }
         }
 
-        const QString baseDir = source.filePath.isEmpty()
-            ? QString() : QFileInfo(source.filePath).absolutePath();
+        const QString baseDir = source.baseDir.isEmpty()
+            ? (source.filePath.isEmpty()
+                   ? QString()
+                   : QFileInfo(source.filePath).absolutePath())
+            : source.baseDir;
         if (options.categories.contains(Category::Links)) {
             const auto linkHits = SpellHighlighter::scanLinkIssues(source.text, baseDir);
             for (const auto &lh : linkHits)
