@@ -740,6 +740,13 @@ void Editor::scrollContentsBy(int dx, int dy)
         m_underlineOverlay->update();
     }
     positionIssueSummaryPane();
+    // The gutter paints line numbers/fold arrows from a cursorRect-derived
+    // document offset, so it must repaint whenever the content scrolls. Hook
+    // the canonical "content scrolled" callback rather than the scrollbar's
+    // valueChanged: the ctor swaps in EditorScrollBar after setupGutter(),
+    // and setVerticalScrollBar() deletes the bar any earlier connect bound to.
+    if (m_gutter)
+        m_gutter->update();
 }
 
 void Editor::updateViewportMargins()

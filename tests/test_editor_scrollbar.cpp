@@ -31,6 +31,7 @@
 
 #include "editor/Editor.h"
 #include "editor/EditorScrollBar.h"
+#include "editor/Gutter.h"
 #include "prefs/Preferences.h"
 #include "spell/SpellChecker.h"
 #include "TestConfig.h"
@@ -91,6 +92,21 @@ bool colorNear(const QImage &img, int y, std::function<bool(const QColor &)> pre
     }
     return false;
 }
+
+// Counts paint events delivered through the normal event loop. QWidget::grab()
+// / render() repaint unconditionally, so a missing update() is invisible to
+// pixel-based assertions — only event delivery proves the gutter repaints.
+class PaintCounter : public QObject
+{
+public:
+    int paints = 0;
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (event->type() == QEvent::Paint)
+            ++paints;
+        return QObject::eventFilter(watched, event);
+    }
+};
 
 class EditorScrollbarTest : public ::testing::Test
 {
@@ -293,6 +309,30 @@ TEST_F(EditorScrollbarTest, BrokenLinkMarkerUsesAmber)
     const QImage img = sb->grab().toImage();
     EXPECT_TRUE(colorNear(img, expectedY, isAmber))
         << "a broken link must paint an amber marker";
+}
+
+TEST_F(EditorScrollbarTest, GutterRepaintsWhenScrolling)
+{
+    QStringList lines;
+    const int total = 200;
+    for (int i = 0; i < total; ++i)
+        lines << QStringLiteral("line %1").arg(i);
+    setDoc(lines.join(QLatin1Char('\n')));
+
+    auto *sb = scrollbarOf(m_editor);
+    ASSERT_GT(sb->maximum(), 0) << "document must be scrollable";
+
+    PaintCounter counter;
+    m_editor->gutter()->installEventFilter(&counter);
+    QApplication::processEvents(); // flush any pending paints
+    counter.paints = 0;
+
+    sb->setValue(sb->maximum() / 2);
+    QApplication::processEvents(); // deliver the scroll-triggered paint
+
+    EXPECT_GT(counter.paints, 0)
+        << "the gutter must repaint when the editor scrolls, or line "
+           "numbers/fold arrows freeze";
 }
 
 int main(int argc, char **argv)

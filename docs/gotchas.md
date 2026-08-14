@@ -933,6 +933,20 @@ colors as the editor's underlines).
   to 16px via a scoped `#scriba-editor` rule (same buildQss string); all other
   scrollbars stay 12px. Both the editor handle and the preview's
   `::-webkit-scrollbar-thumb` use a 2px border-radius (squarer look).
+- **`setVerticalScrollBar()` deletes the old bar:** the `Editor` ctor installs
+  `EditorScrollBar` via `setVerticalScrollBar()` *after* `setupGutter()`, and
+  `QAbstractScrollAreaPrivate::replaceScrollBar` ends with `delete oldBar`. Any
+  `valueChanged` connection made to the original bar (e.g. the gutter's old
+  repaint hook) dies silently with it — a regression where the gutter froze
+  while the content scrolled was shipped exactly this way. Gutter repaint on
+  scroll now lives in `Editor::scrollContentsBy()`, which is immune to
+  scrollbar replacement.
+- **`grab()`/`render()` repaint unconditionally:** pixel tests that call
+  `QWidget::grab()` can never catch a missing `update()` — render() paints the
+  widget regardless of dirty state. Scroll-sync regressions (widget paints
+  scroll-aware content but is never told to repaint) must be tested by counting
+  `QEvent::Paint` delivered through the normal event loop (see
+  `PaintCounter` in `tests/test_editor_scrollbar.cpp`).
 
 ## Issue Summary pane
 

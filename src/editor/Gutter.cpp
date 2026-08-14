@@ -38,8 +38,11 @@ Gutter::Gutter(Editor *editor)
     setCursor(Qt::ArrowCursor);
     setMouseTracking(true);
     updateWidth();
-    connect(m_editor->verticalScrollBar(), &QScrollBar::valueChanged,
-            this, [this]() { update(); });
+    // NOTE: no scrollbar valueChanged connect here. The Editor ctor replaces
+    // the vertical scrollbar (EditorScrollBar) AFTER setupGutter(), and
+    // QAbstractScrollArea::setVerticalScrollBar() deletes the old bar — a
+    // connect made before the swap binds to a scrollbar that is destroyed.
+    // Repaint-on-scroll lives in Editor::scrollContentsBy() instead.
 }
 
 void Gutter::setLineNumbersVisible(bool visible)
