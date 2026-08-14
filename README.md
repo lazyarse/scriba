@@ -1,3 +1,4 @@
+
 ![Scriba Icon](resources/icons/scriba.svg#120x)
 
 ![C++23 Badge](docs/images/badge-cpp23.svg)
@@ -24,8 +25,9 @@ Designed to *actually* do what you need quickly and without a plugin ecosystem. 
 - **"Find and Replace" with regex search _and_ replacement back-references**
 - **Export**: PDF, DOCX, and HTML; **Import**: PDF, DOCX, and HTML
 - **Export single files or the whole corpus**
-- **Painless tables** --- after you create a header-row, Scriba will: create a separator-row, blank rows for data, and cell-padding to keep your source looking like an aligned table instead of mangled text and pipes
+- **Painless tables** --- after you create a header-row, Scriba will: create a separator-row, blank rows for data, and insert cell-padding to keep your source looking like an aligned table instead of mangled text and pipes
 - **Searchable settings** to help you modify Scriba quickly.
+- **Directory Monitoring** - any external changes to documents like filename changes can be automatically updated in your source to prevent broken links
 - **Fuzzy auto-complete suggestions** for links to local filenames, and even emojis; 
 - **Fold headers, fenced-code blocks, tables, and lists** to reduce vertical space
 - **Source auto-correct for commonly mis-spelt words** like "_hte_" -> "_the_", "_nad_" -> "_and_" and add your own
