@@ -8,11 +8,11 @@ A theme CSS file targets three parts of the app:
 
 | Selector | Target | Purpose |
 |---|---|---|
-| `#editor` | Text editor widget | `background-color`, `color` |
+| `#editor` | Text editor widget | `background-color`, `color` (optional — falls back to `body`) |
 | `body`, `h1`, `code`, etc. | Preview HTML | Rendered Markdown |
 | `.hljs-*` | Code blocks | Syntax highlighting colors |
 
-App chrome (menus, scrollbars, splitter) is auto-derived from the `#editor` colors — themes only need to set `#editor { background-color; color; }`.
+App chrome (menus, scrollbars, splitter) is auto-derived from the `#editor` colors — themes only need to set `#editor { background-color; color; }`. The `#editor` rule is optional: if a theme omits it, the editor and chrome colors fall back to the preview's `body` `background-color`/`color`.
 
 Example:
 
@@ -103,8 +103,8 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 
 | Slot | Selector(s) | Purpose |
 |---|---|---|
-| Background | `#editor`, `body` `background-color` | Editor + preview background |
-| Text | `#editor`, `body` `color` | Editor + preview text |
+| Background | `#editor` (optional), `body` `background-color` | Editor + preview background |
+| Text | `#editor` (optional), `body` `color` | Editor + preview text |
 | Heading | `h1`…`h6` `color` | Heading text |
 | Inline code background | `code` `background-color` | Inline code highlight |
 | Inline code text | `code` `color` | Inline code text |
@@ -143,8 +143,8 @@ These are the selectors a theme file defines. Dark and light themes pick differe
 | `%4` | `thumb` | button backgrounds, borders, scrollbar handle | `bg` × 220% | `bg` × 80% |
 | `%5` | `hover` | hover/selected item background | `bg` × 250% | `bg` × 70% |
 | `%6` | `selTxt` | selected-item text | `#ffffff` | `#000000` |
-| `%7` | `bg` | editor background | theme `#editor` | theme `#editor` |
-| `%8` | `txtStr` | editor text | theme `#editor` | theme `#editor` |
+| `%7` | `bg` | editor background | theme `#editor` (`body` if absent) | theme `#editor` (`body` if absent) |
+| `%8` | `txtStr` | editor text | theme `#editor` (`body` if absent) | theme `#editor` (`body` if absent) |
 | `%9` | `dim` | disabled/dim text | `#999999` | `#777777` |
 | `%10` | `sideBg` | sidebar background, preferences stylesheet-list background | `bg` × 130% | `bg` |
 | `%11` | `chkImg` | checkbox tick image | light image | dark image |

@@ -1,4 +1,4 @@
-![Scriba Icon](resources/icons/scriba.svg#120x)
+![Scriba Icon](resources/icons/scriba.svg#160x)
 
 ![C++23 Badge](docs/images/badge-cpp23.svg)
 ![Qt6 Badge](docs/images/badge-qt6.svg)
@@ -25,15 +25,14 @@ Designed to *actually* do what you need quickly and without a plugin ecosystem. 
 - **Export**: PDF, DOCX, and HTML; **Import**: PDF, DOCX, and HTML
 - **Export single files or the whole corpus**
 - **Painless tables** --- after you create a header-row, Scriba will: create a separator-row, blank rows for data, and cell-padding to keep your source looking like an aligned table instead of mangled text and pipes
+- **Searchable settings** to help you modify Scriba quickly.
 - **Fuzzy auto-complete suggestions** for links to local filenames, and even emojis; 
 - **Fold headers, fenced-code blocks, tables, and lists** to reduce vertical space
 - **Source auto-correct for commonly mis-spelt words** like "_hte_" -> "_the_", "_nad_" -> "_and_" and add your own
 - **Auto-save**, - **[Themes](docs/themes.md)** (Fair warning: Qt can't style application or dialog title bars differently to the system theme), and crash recovery of the last corpus.
 - **Keyboard shortcuts to make you more productive**: [keyboard shortcuts](docs/shortcuts.md) for amost everything; a [kitchensink.md](docs/kitchensink.md) with full feature examples that isn't a Markdown 101; an internal cache of page renders to prevent preview regeneration when switching tabs; and, jump up and down the document from header to header with a simple keyboard shortcut
-- **Accessibility support** to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview and chrome all styled from one file whilst the editor's colours stay in sync.
-- **Override the editor's font family, size, and line-height, change the caret width to improve visibility, and more**
+- **Accessibility support** to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview, editor, and chrome all styled from one file whilst the editor's colours stay in sync. **Override font family, size, line-height, and change the caret width to improve visibility, and more**
 - [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and other injection vectors to protect you and your audience.
-- **Searchable settings** to help you modify Scriba quickly.
 
 ### Standing on the Shoulders of Giants:
 
