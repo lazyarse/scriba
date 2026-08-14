@@ -215,6 +215,27 @@ TEST_F(DocxExportTest, BlockquoteAfterTaskList)
         << "Blockquote after task list must survive";
 }
 
+TEST_F(DocxExportTest, DefinitionListExport)
+{
+    QString html =
+        "<dl>"
+        "<dt data-line=\"1\">Apple</dt>"
+        "<dd data-line=\"2\">A fruit.</dd>"
+        "</dl>"
+        "<p>After</p>";
+
+    OoxmlResult result = convert(html);
+
+    EXPECT_TRUE(result.bodyXml.contains("Apple"))
+        << "Term text must be present in OOXML output";
+    EXPECT_TRUE(result.bodyXml.contains("A fruit."))
+        << "Definition text must be present in OOXML output";
+    EXPECT_TRUE(result.bodyXml.contains("w:left=\"360\""))
+        << "Definition should be indented via w:ind";
+    EXPECT_TRUE(result.bodyXml.contains("After"))
+        << "Content after the definition list must survive";
+}
+
 TEST_F(DocxExportTest, CodeBlockPreservesNewlines)
 {
     // Code blocks contain newlines that must be preserved as <w:br/> in OOXML

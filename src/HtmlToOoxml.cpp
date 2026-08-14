@@ -1251,6 +1251,31 @@ static void handleList(SimpleHtmlParser &parser, bool ordered, int depth)
     }
 }
 
+static void handleDefinitionList(SimpleHtmlParser &parser)
+{
+    while (!parser.atEnd()) {
+        parser.readNext();
+        const auto &tok = parser.current();
+
+        if (tok.type == HtmlToken::TagClose && tok.name == QStringLiteral("dl"))
+            return;
+
+        if (tok.type != HtmlToken::TagOpen)
+            continue;
+
+        const QString &n = tok.name;
+        if (n == "dt") {
+            handleParagraph("Normal", parser, QStringLiteral("dt"), FormatState{});
+        } else if (n == "dd") {
+            Margins indented;
+            indented.left = 360;
+            writeParaStart("Normal", indented);
+            processInlineChildren(parser, QStringLiteral("dd"), FormatState{});
+            writeParaEnd();
+        }
+    }
+}
+
 // ── block-level dispatcher ───────────────────────────────────────────────────
 
 static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag,
@@ -1286,6 +1311,8 @@ static void processBlockChildren(SimpleHtmlParser &parser, const QString &endTag
             handleList(parser, false, 0);
         } else if (tag == "ol") {
             handleList(parser, true, 0);
+        } else if (tag == "dl") {
+            handleDefinitionList(parser);
         } else if (tag == "table") {
             handleTable(parser, tok.attrs);
         } else if (tag == "div") {
