@@ -205,6 +205,51 @@ TEST(HtmlToMarkdown, DefinitionListRoundTripThroughParser)
     EXPECT_EQ(md, "Apple\n: A fruit.\n\nCar\n: A vehicle.");
 }
 
+TEST(HtmlToMarkdown, ImageStyleSizeBecomesSuffix)
+{
+    const QString md = convert(
+        "<p><img src=\"pic.png\" alt=\"diagram\" "
+        "style=\"width:150px;height:120px\"></p>");
+    EXPECT_EQ(norm(md), "![diagram](pic.png#150x120)");
+}
+
+TEST(HtmlToMarkdown, ImageAttributeSizeBecomesSuffix)
+{
+    const QString md = convert(
+        "<p><img src=\"pic.png\" alt=\"diagram\" "
+        "width=\"150\" height=\"120\"></p>");
+    EXPECT_EQ(norm(md), "![diagram](pic.png#150x120)");
+}
+
+TEST(HtmlToMarkdown, ImageSingleDimensionBecomesSuffix)
+{
+    EXPECT_EQ(norm(convert(
+                  "<p><img src=\"a.png\" alt=\"a\" style=\"width:400px\"></p>")),
+              "![a](a.png#400x)");
+    EXPECT_EQ(norm(convert(
+                  "<p><img src=\"b.png\" alt=\"b\" style=\"height:300px\"></p>")),
+              "![b](b.png#x300)");
+}
+
+TEST(HtmlToMarkdown, ImageNonPixelSizeUnchanged)
+{
+    const QString md = convert(
+        "<p><img src=\"pic.png\" alt=\"diagram\" "
+        "style=\"width:50%;height:auto\"></p>");
+    EXPECT_EQ(norm(md), "![diagram](pic.png)");
+}
+
+TEST(HtmlToMarkdown, ImageRoundTripPreservesSize)
+{
+    // The renderer emits inline style sizes from the #WxH suffix — exact
+    // width/height for SVG, max-width/max-height caps for raster — and the
+    // import must restore the suffix.
+    const QString rendered = MarkdownParser::toHtml(
+        QStringLiteral("![a](a.png#150x120) ![b](b.svg#400x300)"));
+    const QString md = convert(rendered);
+    EXPECT_EQ(norm(md), "![a](a.png#150x120) ![b](b.svg#400x300)");
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

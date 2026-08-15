@@ -118,3 +118,73 @@ TEST(MdLintTables, Md060FlagsUnpaddedHeader)
     ASSERT_EQ(1, countRule(issues, "MD060"));
     EXPECT_EQ(2, firstIssue(issues, "MD060").line);
 }
+
+// ---- MD009: table rows exempt from trailing-space checks -------------------
+
+TEST(MdLintTables, Md009IgnoresBorderlessAlignmentPadding)
+{
+    // A borderless table as the auto-align formatter writes it: the last
+    // cell of the short row carries right-padding spaces (end-of-line).
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("a | bb\n- | --\nc | d \n"), withRule("MD009"));
+    EXPECT_EQ(0, countRule(issues, "MD009"));
+}
+
+TEST(MdLintTables, Md009IgnoresEmptyBorderlessRowPadding)
+{
+    // makeEmptyTableRow's borderless empty row ends in 2*padding spaces.
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("a | bb\n- | --\n  |  \n"), withRule("MD009"));
+    EXPECT_EQ(0, countRule(issues, "MD009"));
+}
+
+TEST(MdLintTables, Md009FlagsWhitespaceAfterTrailingPipe)
+{
+    // Whitespace *after* the row's final border pipe is genuine sloppiness.
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("| a | b | \n| --- | --- |\n| c | d |\n"),
+        withRuleAndParams("MD009", QStringLiteral(R"({"br_spaces": 0})")));
+    ASSERT_EQ(1, countRule(issues, "MD009"));
+    EXPECT_EQ(1, issues.at(0).line);
+}
+
+TEST(MdLintTables, Md009IgnoresInteriorCellPadding)
+{
+    // Padding inside the last cell (before the border pipe) is formatter
+    // output; only whitespace after the pipe flags.
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("| a | b  |\n| --- | --- |\n| c | d |\n"),
+        withRuleAndParams("MD009", QStringLiteral(R"({"br_spaces": 0})")));
+    EXPECT_EQ(0, countRule(issues, "MD009"));
+}
+
+TEST(MdLintTables, Md009IgnoresEscapedTrailingPipe)
+{
+    // An escaped pipe (`\|`) is cell content, not a border: the trailing
+    // whitespace is interior padding.
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("| a | b \\| \n| --- | --- |\n| c | d |\n"),
+        withRuleAndParams("MD009", QStringLiteral(R"({"br_spaces": 0})")));
+    EXPECT_EQ(0, countRule(issues, "MD009"));
+}
+
+TEST(MdLintTables, Md009StillFlagsNonTableLines)
+{
+    // The exemption is scoped to table rows only. The table needs its own
+    // paragraph (a paragraph can't span into a table), so a blank line
+    // separates the flagged text line from the table.
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("plain text  \n\n| a | b\n| --- | ---\n| c | d \n"),
+        withRuleAndParams("MD009", QStringLiteral(R"({"br_spaces": 0})")));
+    ASSERT_EQ(1, countRule(issues, "MD009"));
+    EXPECT_EQ(1, issues.at(0).line);
+}
+
+TEST(MdLintTables, Md009TablesParamReenablesStrictChecking)
+{
+    const auto issues = MdLintEngine::lint(
+        QStringLiteral("a | bb\n- | --\nc | d \n"),
+        withRuleAndParams("MD009", QStringLiteral(R"({"br_spaces": 0, "tables": true})")));
+    ASSERT_EQ(1, countRule(issues, "MD009"));
+    EXPECT_EQ(3, issues.at(0).line);
+}

@@ -336,6 +336,50 @@ TEST_F(BrokenLinksTest, AnchorInReferenceDefinitionTarget)
     EXPECT_TRUE(hitsInBlock(1).isEmpty());
 }
 
+TEST_F(BrokenLinksTest, ImageWithSizeSuffixIsNotFlaggedAsMissingHeading)
+{
+    QFile svg(m_dir.filePath(QStringLiteral("image.svg")));
+    ASSERT_TRUE(svg.open(QIODevice::WriteOnly));
+    svg.close();
+    m_editor->setPlainText(
+        QStringLiteral("![alt](image.svg#150x120) and ![alt](image.svg#400x)"));
+    EXPECT_TRUE(hitsInLine0().isEmpty());
+}
+
+TEST_F(BrokenLinksTest, ImageWithSizeSuffixStillChecksTheFile)
+{
+    m_editor->setPlainText(QStringLiteral("![alt](missing.svg#150x120)"));
+    const auto hits = hitsInLine0();
+    ASSERT_EQ(1, hits.size());
+    EXPECT_EQ(QStringLiteral("File not found: missing.svg"), hits[0].message);
+    EXPECT_EQ(7, hits[0].start);
+    EXPECT_EQ(19, hits[0].length);
+}
+
+TEST_F(BrokenLinksTest, BareSizeSuffixIsNotFlagged)
+{
+    m_editor->setPlainText(QStringLiteral("# Intro\n![alt](#150x120)"));
+    EXPECT_TRUE(hitsInBlock(0).isEmpty());
+    EXPECT_TRUE(hitsInBlock(1).isEmpty());
+}
+
+TEST_F(BrokenLinksTest, DimensionShapedFragmentIsNotHeadingChecked)
+{
+    m_editor->setPlainText(QStringLiteral("# Intro\n[text](#150x120)"));
+    EXPECT_TRUE(hitsInBlock(0).isEmpty());
+    EXPECT_TRUE(hitsInBlock(1).isEmpty());
+}
+
+TEST_F(BrokenLinksTest, CrossDocSizeSuffixIsNotHeadingChecked)
+{
+    QFile f(m_dir.filePath(QStringLiteral("exists.md")));
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    f.write("## Sub\n\nSome content.\n");
+    f.close();
+    m_editor->setPlainText(QStringLiteral("[text](exists.md#150x120)"));
+    EXPECT_TRUE(hitsInLine0().isEmpty());
+}
+
 } // namespace
 
 int main(int argc, char **argv)

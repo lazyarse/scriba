@@ -155,6 +155,25 @@ QStringList splitTableRow(const QString &line)
     return cells;
 }
 
+// True when `line` (a table row with its trailing whitespace run already
+// stripped) ends in an unescaped `|` in a fully bordered row (`|...|`) —
+// i.e. the whitespace sat *after* the row's final border pipe, not inside
+// its last cell. A borderless row never starts with a pipe, so its final
+// `|` is a column separator and the trailing whitespace is the last cell's
+// interior padding; an escaped border pipe (`\|`) is cell content. Such rows
+// return false.
+bool endsWithBorderPipe(const QString &line)
+{
+    if (line.isEmpty() || line.front() != QLatin1Char('|'))
+        return false;
+    if (line.back() != QLatin1Char('|'))
+        return false;
+    int backslashes = 0;
+    for (int i = line.size() - 2; i >= 0 && line.at(i) == QLatin1Char('\\'); --i)
+        ++backslashes;
+    return backslashes % 2 == 0;
+}
+
 // Number of cells in a raw table row, per markdownlint: pipe count, minus a
 // leading and a trailing pipe when present.
 int rawColumnCount(const QString &raw)
@@ -779,13 +798,25 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
                 --ws;
             }
             if (ws < raw.size()) {
-                const int n = raw.size() - ws;
-                // br_spaces: allow up to N trailing spaces (non-strict).
-                const bool strict = config.param(QStringLiteral("MD009"), "strict", false).toBool();
-                const int brSpaces = config.param(QStringLiteral("MD009"), "br_spaces", 2).toInt();
-                if (strict || n > brSpaces)
-                    emitIssue(ctx, QStringLiteral("MD009"), line, ws + 1, n,
-                         QStringLiteral("Trailing spaces: %1").arg(n));
+                // Table rows: the auto-align formatter writes end-of-row
+                // padding (borderless tables) that the next realign pass
+                // re-inserts — flagging it is a self-inflicted, unfixable
+                // warning. Exempt everything except whitespace that sits
+                // after the row's final border pipe; the `tables` param
+                // re-enables strict checking.
+                if (isTableLine(c.m, line)
+                    && !config.param(QStringLiteral("MD009"), "tables", false).toBool()
+                    && !endsWithBorderPipe(raw.left(ws)))
+                    ws = raw.size();
+                if (ws < raw.size()) {
+                    const int n = raw.size() - ws;
+                    // br_spaces: allow up to N trailing spaces (non-strict).
+                    const bool strict = config.param(QStringLiteral("MD009"), "strict", false).toBool();
+                    const int brSpaces = config.param(QStringLiteral("MD009"), "br_spaces", 2).toInt();
+                    if (strict || n > brSpaces)
+                        emitIssue(ctx, QStringLiteral("MD009"), line, ws + 1, n,
+                             QStringLiteral("Trailing spaces: %1").arg(n));
+                }
             }
         }
 

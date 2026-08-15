@@ -852,6 +852,10 @@ SpellHighlighter::scanLinkHits(const QString &line, const QSet<QString> &refDefs
                                const QSet<QString> &currentSlugs)
 {
     static const QRegularExpression targetRe(R"(\]\(([^()\s\n]+)\))"); // [t](target)
+    // `#WxH` image size suffix (MdRenderer::parseDimensions): `150x120`,
+    // `400x`, `x300`. A fragment of this shape is a size directive, never a
+    // heading anchor.
+    static const QRegularExpression dimRe(QStringLiteral(R"(^\d*x\d*$)"));
     static const QRegularExpression refUsageRe(R"(\]\[([^\]\n]+)\])"); // [t][ref]
     static const QRegularExpression urlRe(
         R"((?:https?|ftp)://[^\s<>\\)\]]+|www\.[^\s<>\\)\]]+)"); // raw URLs
@@ -925,6 +929,11 @@ SpellHighlighter::scanLinkHits(const QString &line, const QSet<QString> &refDefs
     // absolute path for cross-document anchors; empty for same-document ones
     // (checked against the current document's headings).
     auto headingMessage = [&](const QString &frag, const QString &absFile) {
+        // `#WxH` (MdRenderer::parseDimensions) is an image size directive —
+        // `![alt](image.svg#150x120)` — never a heading anchor. A non-empty
+        // file part still gets the file-existence check at the call site.
+        if (dimRe.match(frag).hasMatch())
+            return QString();
         const QString slug = slugReference(frag);
         const QSet<QString> pool = absFile.isEmpty() ? currentSlugs : crossDocSlugs(absFile);
         if (slug.isEmpty() || !pool.contains(slug))
