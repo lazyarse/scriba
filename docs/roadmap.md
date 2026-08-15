@@ -31,6 +31,73 @@ Uppercase variants (`A.` / `I.`) are not offered in the preference yet. Trivial
 to add: two `@counter-style`/`list-style-type` rules in the base CSS, two combo
 items, and a few renderer enum values. Status: **Not started**.
 
+### Per-sentence sentence-length heatmap (writing analysis)
+
+A visual scan of sentence lengths in the Writing Analysis dock: each sentence of
+the current document becomes a colored cell whose colour encodes word count
+(green → short, through amber/orange to red → long), so overlong sentences are
+visible at a glance. Follows the Writing Analysis panel
+(`docs/superpowers/plans/2026-08-15-scriba-tone-readability-panel.md`), which is
+its host. Status: **Not started** — next after that plan lands.
+
+**Data pipeline (all reuse, no new threading):**
+- **Sentence spans.** `Readability::countSentences` (`src/preview/Readability.cpp:20`)
+  uses `QTextBoundaryFinder::Sentence` but returns only a count — no spans.
+  Extend `Readability` with a span-returning splitter (`QVector<QPair<int,int>>`
+  sentenceSpans built from the same boundary finder). Do **not** reach into
+  `vendor/stoppard/src/tokenizer.h`'s `splitSentences` — it is internal to the
+  vendored lib, not public API.
+- **Word count per sentence.** Reuse the `[^A-Za-z0-9']+` split already used by
+  `WritingAnalysisWorker::analyze` (`src/writing/WritingAnalysisWorker.cpp`),
+  intersected with each sentence span.
+- **Markdown awareness.** Sentences inside fenced code, inline code, URLs, math
+  and HTML tags are not prose and must be excised *before* splitting — reuse
+  `SpellHighlighter::protectedRanges(line)` (`src/spell/SpellHighlighter.cpp`),
+  the same scanner the spell/grammar passes use.
+- **Threading.** Extend `WritingAnalysisResult` with
+  `QVector<SentenceStat>{ int start; int length; int wordCount; }`, filled in
+  `WritingAnalysisWorker::analyze` and delivered through the existing
+  generation-tagged `onResult` — no new worker.
+
+**Thresholds / bucket table (decision anchor for the plan):** map `wordCount` →
+colour using the genre profile's `maxSentenceWords` where available (read
+`Preferences::GrammarGenre`; the table lives in
+`vendor/stoppard/src/rules_style.cpp`'s `genreProfileFor`). Recommended buckets:
+green ≤ 0.75×max, amber ≤ max, orange ≤ 1.25×max, red > 1.25×max — so Business's
+24-word cap is stricter than General's 32. Pin the exact table in the plan.
+
+**Rendering:** a plain `QPainter` strip widget (`src/writing/SentenceHeatmap.{h,cpp}`)
+— a row of cells sized to fit the dock, no WebEngine. Derive cell colours from
+the palette (not hardcoded) so dark themes stay legible.
+
+**Interaction:** hover → `QToolTip` with the sentence text (truncated) + word
+count; click → map the span to an editor cursor and scroll to it, reusing the
+same span→cursor mapping the validation report / scroll-to-issue logic uses.
+
+**Open questions the plan must decide up front:**
+1. Strip-of-cells in the dock (recommended v1 — non-invasive, no editor painting
+   changes) vs inline underlines via the existing Editor overlay (stretch goal).
+2. Show every sentence coloured by bucket (recommended — shows the length
+   distribution) vs only over-threshold sentences.
+3. Cell layout at narrow dock widths: fixed-width cells with horizontal scroll
+   vs shrink-to-fit.
+4. Genre-aware scale (recommended, ties this to the genre-profiles plan) vs a
+   static scale.
+
+**Files (expected):** `src/writing/SentenceHeatmap.{h,cpp}` (new, added to
+`SCRIBA_APP_WEBENGINE_SOURCES`), extend `src/writing/WritingAnalysisWorker.{h,cpp}`
+(result struct + `analyze`), extend `src/writing/WritingAnalysisDock.cpp`,
+extend `src/preview/Readability.{h,cpp}` (`sentenceSpans`), extend
+`tests/test_writing_analysis.cpp`. Keep the bucket mapping a pure function so it
+is unit-testable without a widget.
+
+**Gotchas to carry into the plan:** the boundary finder splits oddly around
+abbreviations/parentheticals (document any surprising splits); excise protected
+ranges *first*; guard empty / single-sentence / very long documents (cap the
+strip or let it scroll); the dock's existing debounce already covers re-analysis
+after edits. After the UI change, regenerate the affected screenshot gallery
+targets per `AGENTS.md`.
+
 ---
 
 ## ECharts helper roadmap
