@@ -13,6 +13,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QSettings>
 #include <QStringList>
 
@@ -126,4 +129,51 @@ TEST_F(SettingsMigrationTest, PreviewUpdateDelayDefaultsToDebounceConstant)
     EXPECT_EQ(settings.value(Preferences::PreviewUpdateDelay,
               Preferences::DefaultPreviewUpdateDelay).toInt(),
               Debounce::LightRender);
+}
+
+TEST_F(SettingsMigrationTest, LegacyLintConfigGetsWarningSeverities)
+{
+    QSettings settings;
+    settings.setValue(Preferences::ConfigVersion, 3);
+    settings.setValue(Preferences::MarkdownLintConfig,
+        QStringLiteral(R"({"MD001":true,"MD009":true,"MD012":true,"MD013":true,"MD018":true,"MD024":true,"MD900":true})"));
+
+    Preferences::migrateSettings(settings);
+
+    const QJsonObject obj = QJsonDocument::fromJson(
+        settings.value(Preferences::MarkdownLintConfig).toString().toUtf8()).object();
+    for (const char *id : {"MD009", "MD012", "MD013", "MD024"})
+        EXPECT_EQ(QJsonValue(QStringLiteral("warning")), obj.value(QLatin1String(id))) << id;
+    for (const char *id : {"MD001", "MD018", "MD900"})
+        EXPECT_EQ(QJsonValue(true), obj.value(QLatin1String(id))) << id;
+    EXPECT_EQ(settings.value(Preferences::ConfigVersion).toInt(), 4);
+}
+
+TEST_F(SettingsMigrationTest, ExplicitAndUnknownLintEntriesUntouched)
+{
+    QSettings settings;
+    settings.setValue(Preferences::ConfigVersion, 3);
+    const QString blob = QStringLiteral(
+        R"({"MD013": "warning", "MD001": {"enabled": true, "params": {"style": "consistent"}}, "MD007": false, "CUSTOM_KEY": true})");
+    settings.setValue(Preferences::MarkdownLintConfig, blob);
+
+    Preferences::migrateSettings(settings);
+
+    // None of these entries is a bare-`true` Warning-by-default rule, so the
+    // blob must survive byte-identical (explicit strings/objects, `false`,
+    // and unknown keys all pass through).
+    EXPECT_EQ(blob, settings.value(Preferences::MarkdownLintConfig).toString());
+}
+
+TEST_F(SettingsMigrationTest, CurrentVersionConfigUnchanged)
+{
+    QSettings settings;
+    settings.setValue(Preferences::ConfigVersion, Preferences::CurrentConfigVersion);
+    settings.setValue(Preferences::MarkdownLintConfig,
+        QStringLiteral(R"({"MD001":true,"MD009":true,"MD012":true,"MD013":true,"MD018":true,"MD024":true,"MD900":true})"));
+
+    Preferences::migrateSettings(settings);
+
+    EXPECT_EQ(QStringLiteral(R"({"MD001":true,"MD009":true,"MD012":true,"MD013":true,"MD018":true,"MD024":true,"MD900":true})"),
+              settings.value(Preferences::MarkdownLintConfig).toString());
 }

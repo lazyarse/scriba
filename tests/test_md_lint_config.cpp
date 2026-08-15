@@ -14,10 +14,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 
+#include <QSettings>
+#include <QString>
+
+#include "TestConfig.h"
+#include "prefs/Preferences.h"
 #include "validation/MdLintRules.h"
 #include "validation/MdLintConfig.h"
-
-#include <QString>
 
 TEST(MdLintRules, RegistryHasExpectedShape)
 {
@@ -118,4 +121,24 @@ TEST(MdLintConfig, EmptyJsonMeansDefaults)
     EXPECT_TRUE(cfg.enabled(QStringLiteral("MD001")));
     EXPECT_TRUE(cfg.enabled(QStringLiteral("MD013")));
     EXPECT_EQ(120, cfg.param(QStringLiteral("MD013"), "line_length", 80).toInt());
+}
+
+TEST(MdLintConfig, LegacyStoredBlobMigratesToWarningSeverity)
+{
+    setupTestConfig();
+    QSettings settings;
+    settings.clear();
+    settings.setValue(Preferences::ConfigVersion, 3);
+    settings.setValue(Preferences::MarkdownCheckEnabled, true);
+    settings.setValue(Preferences::MarkdownLintConfig,
+        QStringLiteral(R"({"MD001":true,"MD009":true,"MD012":true,"MD013":true,"MD018":true,"MD024":true,"MD900":true})"));
+
+    Preferences::migrateSettings(settings);
+
+    const auto cfg = MdLintConfig::fromSettings();
+    for (const char *id : {"MD009", "MD012", "MD013", "MD024"})
+        EXPECT_EQ(Severity::Warning, cfg.severity(QLatin1String(id))) << id;
+    EXPECT_EQ(Severity::Error, cfg.severity(QStringLiteral("MD001")));
+    EXPECT_EQ(Severity::Error, cfg.severity(QStringLiteral("MD018")));
+    EXPECT_EQ(Severity::Error, cfg.severity(QStringLiteral("MD900")));
 }

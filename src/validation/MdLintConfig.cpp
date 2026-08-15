@@ -230,6 +230,33 @@ MdLintConfig MdLintConfig::fromSettings()
     return fromJson(settings.value(Preferences::MarkdownLintConfig).toString());
 }
 
+void MdLintConfig::upgradeLegacySeverities(QSettings &settings)
+{
+    const QString stored = settings.value(Preferences::MarkdownLintConfig).toString();
+    if (stored.isEmpty())
+        return;
+    const QJsonDocument doc = QJsonDocument::fromJson(stored.toUtf8());
+    if (!doc.isObject())
+        return;
+    QJsonObject root = doc.object();
+    const auto defs = defaults();   // Warning-by-default rule set
+    bool changed = false;
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        if (!it.value().isBool() || !it.value().toBool())
+            continue;               // only bare `true` entries are legacy
+        const auto *rule = MdLintRules::byKey(it.key());
+        if (!rule)
+            continue;               // unknown keys pass through untouched
+        if (defs.severity(rule->id) == Severity::Warning) {
+            it.value() = QJsonValue(QStringLiteral("warning"));
+            changed = true;
+        }
+    }
+    if (changed)
+        settings.setValue(Preferences::MarkdownLintConfig,
+            QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact)));
+}
+
 bool MdLintConfig::operator==(const MdLintConfig &o) const
 {
     if (m_entries.size() != o.m_entries.size())

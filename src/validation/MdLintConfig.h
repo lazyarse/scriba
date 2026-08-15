@@ -16,6 +16,7 @@
 
 #include <QHash>
 #include <QJsonObject>
+#include <QSettings>
 #include <QString>
 #include <QVariant>
 
@@ -35,6 +36,12 @@ public:
 
     QString toJson() const;
     static MdLintConfig fromJson(const QString &json);
+    // One-time migration: pre-severity stored configs encoded every enabled
+    // rule as a bare `true`, which loads as Error and silently defeats the
+    // issue summary's warning split. Rewrites bare-`true` entries of rules
+    // that default to Warning into the "warning" form. Idempotent; call from
+    // Preferences::migrateSettings for ConfigVersion < 4 only.
+    static void upgradeLegacySeverities(QSettings &settings);
     // Applies a JSON object over the current state (later keys win), same
     // semantics as fromJson's key handling.
     void applyJson(const QJsonObject &obj);
