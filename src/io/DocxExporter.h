@@ -29,12 +29,21 @@ struct DocxExportOptions {
     double marginLeftCm = 2.54;
     double marginRightCm = 2.54;
     bool pageNumbers = false;
+    // Optional user .docx template. When set, the template owns ALL styling and
+    // page setup (styles.xml, theme, headers/footers, sectPr); landscape/margins/
+    // pageNumbers below are ignored. When empty, Scriba's fixed default styles
+    // are used (see kDefaultTemplateCss).
+    QString templatePath;
 };
 
 class DocxExporter
 {
 public:
     static bool exportToDocx(const QString &html, const QString &outputPath,
-                             const QString &css = QString(),
                              const DocxExportOptions &options = {});
+    // Write a .docx template whose styles.xml is generated from themeCss (hex
+    // colors are captured; rgb()/hsl()/CSS vars fall back to defaults) with an
+    // empty body — a starting point users open in Word, customize, and reuse
+    // via DocxExportOptions::templatePath.
+    static bool saveAsTemplate(const QString &outputPath, const QString &themeCss);
 };

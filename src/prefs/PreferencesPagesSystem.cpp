@@ -206,6 +206,30 @@ void PreferencesDialog::setupCorpusPage()
         });
         tocLayout->addWidget(resetTocBtn, 0, Qt::AlignRight);
 
+        QHBoxLayout *descRow = new QHBoxLayout();
+        auto *descLabel = new QLabel(tr("Description under each filename:"));
+        descRow->addWidget(descLabel);
+        m_corpusTocDescriptionCombo = new QComboBox;
+        m_corpusTocDescriptionCombo->setObjectName("corpus-toc-description-format");
+        m_corpusTocDescriptionCombo->addItem(tr("Em-dash (doc.md \u2014 description)"),
+                                             QStringLiteral("emDash"));
+        m_corpusTocDescriptionCombo->addItem(tr("Colon (doc.md: description)"),
+                                             QStringLiteral("colon"));
+        m_corpusTocDescriptionCombo->addItem(tr("Indented line below"),
+                                             QStringLiteral("indented"));
+        const QString descFormat = settings.value(
+            Preferences::CorpusTocDescriptionFormat, QStringLiteral("emDash")).toString();
+        const int descIdx = m_corpusTocDescriptionCombo->findData(descFormat);
+        m_corpusTocDescriptionCombo->setCurrentIndex(descIdx < 0 ? 0 : descIdx);
+        descRow->addWidget(m_corpusTocDescriptionCombo, 1);
+        tocLayout->addLayout(descRow);
+
+        auto *descHint = new QLabel(tr(
+            "Add a description under each filename with a YAML frontmatter "
+            "block: toc-description: Some text"));
+        descHint->setWordWrap(true);
+        tocLayout->addWidget(descHint);
+
         layout->addWidget(tocGroup);
 
         QGroupBox *externalGroup = new QGroupBox("External Documents");

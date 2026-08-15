@@ -19,6 +19,7 @@
 #include <QStringList>
 
 #include "StaticHelpers.h"
+#include "validation/MdLintConfig.h"
 
 namespace Preferences {
     constexpr const char *CssFiles = "cssFiles";
@@ -50,6 +51,10 @@ namespace Preferences {
     // template, so changing the preference never rewrites existing files.
     constexpr const char *CorpusTocFileName = "corpusTocFileName";
     constexpr const char *CorpusTocTemplate = "corpusTocTemplate";
+    // How a document's `toc-description:` frontmatter is rendered under its
+    // filename in the corpus Table of Contents: "emDash" (default), "colon"
+    // or "indented".
+    constexpr const char *CorpusTocDescriptionFormat = "corpusTocDescriptionFormat";
     constexpr const char *SyncScroll = "syncScroll";
     constexpr const char *LastOpenedFile = "lastOpenedFile";
     constexpr const char *LastCursorBlock = "lastCursorBlock";
@@ -110,7 +115,7 @@ namespace Preferences {
     constexpr const char *ImportImageDir = "importImageDir";
 
     constexpr const char *ConfigVersion = "configVersion";
-    constexpr int CurrentConfigVersion = 3;
+    constexpr int CurrentConfigVersion = 4;
 
     constexpr const char *EditorFontFamily = "editorFontFamily";
     constexpr const char *EditorFontSize = "editorFontSize";
@@ -305,7 +310,8 @@ namespace Preferences {
     // were never known to Scriba are left untouched.
     inline void migrateSettings(QSettings &settings)
     {
-        if (settings.value(ConfigVersion, 0).toInt() >= CurrentConfigVersion)
+        const int version = settings.value(ConfigVersion, 0).toInt();
+        if (version >= CurrentConfigVersion)
             return;
 
         if (!settings.contains(ReopenLastCorpus) && settings.contains("reopenLastFile"))
@@ -341,6 +347,12 @@ namespace Preferences {
         };
         for (const QString &key : removedKeys)
             settings.remove(key);
+
+        // v3 → v4: pre-severity lint configs stored every enabled rule as a bare
+        // `true` (loads as Error). Re-seed the Warning-by-default rules so the
+        // issue summary's "Markdown warnings" row appears out of the box.
+        if (version < 4)
+            MdLintConfig::upgradeLegacySeverities(settings);
 
         settings.setValue(ConfigVersion, CurrentConfigVersion);
     }

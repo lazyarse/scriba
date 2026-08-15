@@ -332,6 +332,8 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
                 ? QStringLiteral("toc.md") : m_corpusTocFileEdit->text().trimmed());
         settings.setValue(Preferences::CorpusTocTemplate,
             m_corpusTocTemplateEdit->toPlainText());
+        settings.setValue(Preferences::CorpusTocDescriptionFormat,
+            m_corpusTocDescriptionCombo->currentData().toString());
         const bool exportExternal =
             m_externalExportCombo->currentData().toString() == QLatin1String("subfolder");
         settings.setValue(Preferences::CorpusExternalExportDirName,

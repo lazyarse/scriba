@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "MarkdownParser.h"
+#include "FrontMatterParser.h"
 #include "MdRenderer.h"
 #include "prefs/Preferences.h"
 #include "Typography.h"
@@ -111,7 +112,10 @@ QString MarkdownParser::substituteDirectives(const QString &markdown)
 
 QString MarkdownParser::toHtml(const QString &markdown, bool noHtml)
 {
-    QByteArray utf8 = substituteDirectives(markdown).toUtf8();
+    // Blank out any leading YAML frontmatter before md4c sees it: blank lines
+    // emit no HTML and keep per-line data-line alignment, so the frontmatter
+    // renders neither as an HR nor as raw YAML text.
+    QByteArray utf8 = substituteDirectives(FrontMatterParser::blankOut(markdown)).toUtf8();
 
     unsigned long parserFlags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH
                               | MD_FLAG_TASKLISTS | MD_FLAG_PERMISSIVEAUTOLINKS

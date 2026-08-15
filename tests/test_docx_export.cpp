@@ -14,14 +14,19 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 #include <QApplication>
+#include <QDataStream>
+#include <QFile>
+#include <QPair>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QVector>
 #include "io/HtmlToOoxml.h"
 #include "io/DocxExporter.h"
 #include "prefs/Preferences.h"
 #include "io/ZipReader.h"
 #include "TestConfig.h"
+#include "miniz.h"
 
 // Extract the first <wp:extent cx=".." cy=".."> from OOXML body XML.
 static QPair<int, int> firstExtent(const QString &bodyXml)
@@ -31,6 +36,69 @@ static QPair<int, int> firstExtent(const QString &bodyXml)
     if (m.hasMatch())
         return {m.captured(1).toInt(), m.captured(2).toInt()};
     return {0, 0};
+}
+
+// Minimal STORE-only zip writer for handcrafting test templates. ZipReader
+// verifies CRC-32, so real CRCs are required; no DEFLATE is needed.
+static void writeTestZip(const QString &path, const QVector<QPair<QString, QByteArray>> &files)
+{
+    QFile out(path);
+    ASSERT_TRUE(out.open(QIODevice::WriteOnly));
+    auto u16 = [&out](quint16 v) {
+        out.write(reinterpret_cast<const char *>(&v), 2);
+    };
+    auto u32 = [&out](quint32 v) {
+        out.write(reinterpret_cast<const char *>(&v), 4);
+    };
+    auto u16raw = [](QByteArray &ba, quint16 v) {
+        ba.append(char(v & 0xFF));
+        ba.append(char((v >> 8) & 0xFF));
+    };
+    auto u32raw = [](QByteArray &ba, quint32 v) {
+        ba.append(char(v & 0xFF));
+        ba.append(char((v >> 8) & 0xFF));
+        ba.append(char((v >> 16) & 0xFF));
+        ba.append(char((v >> 24) & 0xFF));
+    };
+    QByteArray centralDir;
+    quint32 localOffset = 0; // accumulating offset of each entry's local header
+    for (const auto &f : files) {
+        const QByteArray name = f.first.toUtf8();
+        const quint32 crc = mz_crc32(MZ_CRC32_INIT,
+                                     reinterpret_cast<const unsigned char *>(f.second.constData()),
+                                     size_t(f.second.size()));
+        // local file header (30 bytes fixed + name)
+        u32(0x04034b50);
+        u16(20); u16(0); u16(0); u16(0); u16(0);
+        u32(crc);
+        u32(quint32(f.second.size())); // compressed size (STORE)
+        u32(quint32(f.second.size())); // uncompressed size
+        u16(quint16(name.size())); u16(0);
+        out.write(name);
+        out.write(f.second);
+
+        // central directory entry (46 bytes fixed + name)
+        QByteArray cd;
+        u32raw(cd, 0x02014b50);
+        u16raw(cd, 20); u16raw(cd, 20); u16raw(cd, 0); u16raw(cd, 0);
+        u16raw(cd, 0); u16raw(cd, 0);
+        u32raw(cd, crc);
+        u32raw(cd, quint32(f.second.size()));
+        u32raw(cd, quint32(f.second.size()));
+        u16raw(cd, quint16(name.size())); u16raw(cd, 0); u16raw(cd, 0);
+        u16raw(cd, 0); u16raw(cd, 0); u32raw(cd, 0);
+        u32raw(cd, localOffset); // this entry's data start
+        cd.append(name);
+        centralDir.append(cd);
+
+        localOffset += 30 + name.size() + f.second.size();
+    }
+    const quint32 centralOffset = quint32(out.pos());
+    out.write(centralDir);
+    u32(0x06054b50); u16(0); u16(0);
+    u16(quint16(files.size())); u16(quint16(files.size()));
+    u32(quint32(centralDir.size())); u32(centralOffset);
+    u16(0);
 }
 
 class DocxExportTest : public testing::Test
@@ -643,7 +711,7 @@ TEST_F(DocxExportTest, ZipEntriesAreDeflateCompressedAndRoundTrip)
     ASSERT_TRUE(dir.isValid());
     const QString outPath = dir.path() + QLatin1String("/roundtrip.docx");
 
-    ASSERT_TRUE(DocxExporter::exportToDocx(html, outPath, QString(), DocxExportOptions()))
+    ASSERT_TRUE(DocxExporter::exportToDocx(html, outPath, DocxExportOptions()))
         << "exportToDocx must succeed";
 
     ZipReader zip(outPath);
@@ -823,7 +891,7 @@ TEST_F(DocxExportTest, SvgDocumentPackageContainsSvgAndPng)
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"100\" "
         "viewBox=\"0 0 200 100\"><rect width=\"200\" height=\"100\" fill=\"#3366cc\"/></svg>");
 
-    ASSERT_TRUE(DocxExporter::exportToDocx(html, outPath, QString(), DocxExportOptions()));
+    ASSERT_TRUE(DocxExporter::exportToDocx(html, outPath, DocxExportOptions()));
 
     ZipReader zip(outPath);
     QString error;
@@ -907,7 +975,7 @@ TEST_F(DocxExportTest, RasterOnlyDocumentHasNoSvgContentType)
     QString html = QStringLiteral(
         "<p><img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\"></p>");
 
-    ASSERT_TRUE(DocxExporter::exportToDocx(html, outPath, QString(), DocxExportOptions()));
+    ASSERT_TRUE(DocxExporter::exportToDocx(html, outPath, DocxExportOptions()));
 
     ZipReader zip(outPath);
     QString error;
@@ -929,6 +997,73 @@ TEST_F(DocxExportTest, RasterOnlyDocumentHasNoSvgContentType)
     // Sanity: the raster PNG part itself must still be present
     EXPECT_TRUE(names.contains(QLatin1String("word/media/image1.png")))
         << "Raster PNG media part must still be present";
+}
+
+TEST_F(DocxExportTest, DefaultExportUsesFixedStyles)
+{
+    // With no user template, styles.xml must come from the fixed default CSS —
+    // deterministic hex colors, independent of any (absent) theme CSS input.
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString outPath = dir.path() + QLatin1String("/fixed.docx");
+
+    ASSERT_TRUE(DocxExporter::exportToDocx(QStringLiteral("<h1>Title</h1>"), outPath,
+                                           DocxExportOptions()))
+        << "exportToDocx must succeed";
+
+    ZipReader zip(outPath);
+    QString error;
+    ASSERT_TRUE(zip.open(&error)) << qPrintable(error);
+    QByteArray styles = zip.readEntry(QStringLiteral("word/styles.xml"));
+    EXPECT_TRUE(styles.contains("1F3864"))
+        << "h1 must use the fixed default color (1F3864)";
+    EXPECT_TRUE(styles.contains("F2F2F2"))
+        << "code block shading must stay fixed (F2F2F2)";
+}
+
+TEST_F(DocxExportTest, SaveAsTemplateProducesValidPackage)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString tpl = dir.path() + QLatin1String("/tpl.docx");
+
+    ASSERT_TRUE(DocxExporter::saveAsTemplate(tpl, QString()))
+        << "saveAsTemplate must succeed";
+
+    ZipReader zip(tpl);
+    QString error;
+    ASSERT_TRUE(zip.open(&error)) << qPrintable(error);
+    const QStringList names = zip.entryNames();
+    EXPECT_TRUE(names.contains(QStringLiteral("word/styles.xml")));
+    EXPECT_TRUE(names.contains(QStringLiteral("word/numbering.xml")));
+    EXPECT_TRUE(names.contains(QStringLiteral("word/fontTable.xml")));
+
+    QByteArray styles = zip.readEntry(QStringLiteral("word/styles.xml"));
+    EXPECT_TRUE(styles.contains("Heading1"))
+        << "template styles must include heading styles";
+    EXPECT_TRUE(styles.contains("AdmonitionTitlenote"))
+        << "template styles must include admonition styles";
+
+    QByteArray doc = zip.readEntry(QStringLiteral("word/document.xml"));
+    EXPECT_TRUE(doc.contains("<w:body>")) << "template body must exist";
+    EXPECT_TRUE(doc.contains("<w:sectPr")) << "template must carry page setup";
+    EXPECT_FALSE(doc.contains("<w:p ")) << "template body must be empty";
+}
+
+TEST_F(DocxExportTest, SaveAsTemplateCapturesThemeHeadingColor)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString tpl = dir.path() + QLatin1String("/tpl.docx");
+
+    ASSERT_TRUE(DocxExporter::saveAsTemplate(tpl, QStringLiteral("h1 { color: #123456; }")));
+
+    ZipReader zip(tpl);
+    QString error;
+    ASSERT_TRUE(zip.open(&error)) << qPrintable(error);
+    QByteArray styles = zip.readEntry(QStringLiteral("word/styles.xml"));
+    EXPECT_TRUE(styles.contains("123456"))
+        << "theme heading color must reach the template's styles.xml";
 }
 
 TEST_F(DocxExportTest, ListItemsHavePerLevelIndent)
@@ -1041,6 +1176,180 @@ TEST_F(DocxExportTest, SourceCodeParagraphKeepsPadding)
         << "SourceCode paragraph spacing must be bumped";
     EXPECT_TRUE(src.contains("w:left=\"480\""))
         << "SourceCode left/right indent must be widened";
+}
+
+// A template with parts Scriba never generates: custom XML, its own media,
+// a footer referenced from sectPr, and a distinct styles.xml marker.
+static void writeHandcraftedTemplate(const QString &path)
+{
+    const QByteArray mimetype =
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const QByteArray ctypes =
+        "<?xml version=\"1.0\"?>\n"
+        "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+        "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+        "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>"
+        "<Override PartName=\"/word/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"/>"
+        "<Override PartName=\"/word/footer1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml\"/>"
+        "<Default Extension=\"png\" ContentType=\"image/png\"/>"
+        "</Types>";
+    const QByteArray pkgRels =
+        "<?xml version=\"1.0\"?>\n"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/>"
+        "</Relationships>";
+    const QByteArray documentXml =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+        "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\""
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+        "<w:body>"
+        "<w:p><w:r><w:t>template paragraph</w:t></w:r></w:p>"
+        "<w:sectPr>"
+        "<w:footerReference w:type=\"default\" r:id=\"rId7\"/>"
+        "<w:pgSz w:w=\"11906\" w:h=\"16838\"/>"
+        "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>"
+        "</w:sectPr>"
+        "</w:body>"
+        "</w:document>";
+    const QByteArray docRels =
+        "<?xml version=\"1.0\"?>\n"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>"
+        "<Relationship Id=\"rId5\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering\" Target=\"numbering.xml\"/>"
+        "<Relationship Id=\"rId6\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"media/image1.png\"/>"
+        "<Relationship Id=\"rId7\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer\" Target=\"footer1.xml\"/>"
+        "</Relationships>";
+    const QByteArray stylesXml =
+        "<?xml version=\"1.0\"?>\n"
+        "<w:styles xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+        "<w:style w:type=\"paragraph\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+        "</w:styles>";
+    const QByteArray footerXml =
+        "<?xml version=\"1.0\"?>\n"
+        "<w:ftr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+        "<w:p><w:r><w:t>FOOTER-MARKER</w:t></w:r></w:p>"
+        "</w:ftr>";
+
+    writeTestZip(path, {
+        {"mimetype", mimetype},
+        {"[Content_Types].xml", ctypes},
+        {"_rels/.rels", pkgRels},
+        {"word/document.xml", documentXml},
+        {"word/_rels/document.xml.rels", docRels},
+        {"word/styles.xml", stylesXml},
+        {"word/footer1.xml", footerXml},
+        {"word/media/image1.png", QByteArray("TEMPLATE-PNG-DATA")},
+        {"customXml/extra.xml", QByteArray("EXTRA-PART-MARKER")},
+    });
+}
+
+TEST_F(DocxExportTest, TemplateExportPreservesTemplatePartsAndMergesMedia)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString tpl = dir.path() + QLatin1String("/tpl.docx");
+    writeHandcraftedTemplate(tpl);
+
+    const QString png = QStringLiteral(
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+    const QString html = QStringLiteral("<h1>Hi</h1><p><img src=\"%1\"></p>").arg(png);
+    const QString outPath = dir.path() + QLatin1String("/out.docx");
+    DocxExportOptions opts;
+    opts.templatePath = tpl;
+    ASSERT_TRUE(DocxExporter::exportToDocx(html, outPath, opts));
+
+    ZipReader zip(outPath);
+    QString error;
+    ASSERT_TRUE(zip.open(&error)) << qPrintable(error);
+    const QStringList names = zip.entryNames();
+
+    // Template-owned parts survive byte-identical.
+    EXPECT_EQ(zip.readEntry("customXml/extra.xml"), QByteArray("EXTRA-PART-MARKER"));
+    EXPECT_EQ(zip.readEntry("word/media/image1.png"), QByteArray("TEMPLATE-PNG-DATA"));
+    EXPECT_TRUE(zip.readEntry("word/footer1.xml").contains("FOOTER-MARKER"));
+
+    // Scriba's image lands in a non-colliding media slot.
+    EXPECT_TRUE(names.contains("word/media/image2.png"));
+
+    // Rels merged: template's footer/image rels intact, scriba's appended.
+    QByteArray rels = zip.readEntry("word/_rels/document.xml.rels");
+    EXPECT_TRUE(rels.contains("Id=\"rId7\""));
+    EXPECT_TRUE(rels.contains("footer1.xml"));
+    EXPECT_TRUE(rels.contains("Id=\"rId6\""));
+    EXPECT_TRUE(rels.contains("media/image1.png"));
+    EXPECT_TRUE(rels.contains("rIdImg1"));
+    EXPECT_TRUE(rels.contains("media/image2.png"));
+
+    // Body: content present, image drawing references the rel id (not the
+    // filename), template sectPr + footer reference preserved.
+    QByteArray doc = zip.readEntry("word/document.xml");
+    EXPECT_TRUE(doc.contains("Hi"));
+    EXPECT_TRUE(doc.contains("r:embed=\"rIdImg1\""));
+    EXPECT_TRUE(doc.contains("<w:sectPr"));
+    EXPECT_TRUE(doc.contains("footerReference"));
+    EXPECT_TRUE(doc.contains("r:id=\"rId7\""));
+
+    // Content types keep the png default.
+    QByteArray ct = zip.readEntry("[Content_Types].xml");
+    EXPECT_TRUE(ct.contains("Extension=\"png\""));
+}
+
+TEST_F(DocxExportTest, TemplateOwnsPageSetup)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString tpl = dir.path() + QLatin1String("/tpl.docx");
+    ASSERT_TRUE(DocxExporter::saveAsTemplate(tpl, QString()));
+
+    DocxExportOptions opts;
+    opts.templatePath = tpl;
+    opts.landscape = true;     // must be ignored: the template owns page setup
+    opts.marginTopCm = 0.5;    // ditto
+    opts.pageNumbers = true;   // ditto — no scriba footer may be added
+
+    const QString outPath = dir.path() + QLatin1String("/out.docx");
+    ASSERT_TRUE(DocxExporter::exportToDocx(QStringLiteral("<h1>X</h1>"), outPath, opts));
+
+    ZipReader zip(outPath);
+    QString error;
+    ASSERT_TRUE(zip.open(&error)) << qPrintable(error);
+    QByteArray doc = zip.readEntry("word/document.xml");
+    EXPECT_TRUE(doc.contains("w:w=\"11906\" w:h=\"16838\""))
+        << "template's portrait sectPr must win over the landscape option";
+    EXPECT_FALSE(zip.entryNames().contains("word/footer1.xml"))
+        << "scriba must not add its own footer when a template is used";
+}
+
+TEST_F(DocxExportTest, TemplateRoundTripKeepsThemeStyles)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString tpl = dir.path() + QLatin1String("/tpl.docx");
+    ASSERT_TRUE(DocxExporter::saveAsTemplate(tpl, QStringLiteral("h1 { color: #123456; }")));
+
+    DocxExportOptions opts;
+    opts.templatePath = tpl;
+    const QString outPath = dir.path() + QLatin1String("/out.docx");
+    ASSERT_TRUE(DocxExporter::exportToDocx(QStringLiteral("<h1>Hello</h1>"), outPath, opts));
+
+    ZipReader zip(outPath);
+    QString error;
+    ASSERT_TRUE(zip.open(&error)) << qPrintable(error);
+    QByteArray styles = zip.readEntry("word/styles.xml");
+    EXPECT_TRUE(styles.contains("123456"))
+        << "template's theme-derived heading color must survive export";
+    EXPECT_TRUE(styles.contains("AdmonitionTitlenote"))
+        << "template's admonition styles must survive export";
+}
+
+TEST_F(DocxExportTest, TemplateExportMissingTemplateReturnsFalse)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    DocxExportOptions opts;
+    opts.templatePath = dir.path() + QLatin1String("/nope.docx");
+    EXPECT_FALSE(DocxExporter::exportToDocx(
+        QStringLiteral("<p>x</p>"), dir.path() + QLatin1String("/out.docx"), opts));
 }
 
 int main(int argc, char **argv)

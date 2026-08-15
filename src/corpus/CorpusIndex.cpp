@@ -15,12 +15,15 @@
 #include "CorpusIndex.h"
 
 #include "Corpus.h"
+#include "FrontMatterParser.h"
+#include "prefs/Preferences.h"
 #include "validation/LinkValidator.h"
 
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QSettings>
 #include <QUrl>
 
 namespace {
@@ -48,9 +51,16 @@ QList<CorpusIndex::Heading> CorpusIndex::extractHeadings(const QString &markdown
     const QStringList lines = markdown.split(QLatin1Char('\n'));
     static const QRegularExpression atx(R"(^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$)");
 
+    // Skip a leading YAML frontmatter block — a YAML `# comment` line would
+    // otherwise surface as a spurious TOC heading.
+    const QPair<int, int> fm = FrontMatterParser::lineRange(markdown);
+
     QList<Heading> headings;
     bool inFence = false;
-    for (const QString &line : lines) {
+    for (int i = 0; i < lines.size(); ++i) {
+        if (i >= fm.first && i <= fm.second)
+            continue;
+        const QString &line = lines[i];
         if (line.startsWith(QLatin1String("```"))
             || line.startsWith(QLatin1String("~~~"))) {
             inFence = !inFence;
@@ -85,6 +95,20 @@ QString CorpusIndex::renderToc(const Corpus &corpus,
 QString CorpusIndex::renderTocLinks(const Corpus &corpus,
                                     const QHash<QString, QString> &pageLinkByAbs)
 {
+    // Description format for the per-file toc-description line.
+    const QString descFormat = QSettings().value(
+        Preferences::CorpusTocDescriptionFormat, QStringLiteral("emDash")).toString();
+    // Appends the description (if any) to the filename line per the format.
+    auto withDesc = [&descFormat](QString line, const QString &desc) {
+        if (desc.isEmpty())
+            return line;
+        if (descFormat == QLatin1String("colon"))
+            return line + QStringLiteral(": ") + desc;
+        if (descFormat == QLatin1String("indented"))
+            return line + QLatin1Char('\n') + QStringLiteral("  ") + desc;
+        return line + QStringLiteral(" \u2014 ") + desc;   // em-dash (default)
+    };
+
     QString md;
     const QString root = corpus.rootDir();
     for (const CorpusDocument &d : corpus.documents) {
@@ -95,8 +119,11 @@ QString CorpusIndex::renderTocLinks(const Corpus &corpus,
         if (linkBase.isEmpty())
             continue;
         const QString label = QFileInfo(d.path).fileName();
-        md += QStringLiteral("- [%1](%2)\n").arg(label, linkBase);
-        for (const Heading &h : extractHeadings(readDocSource(abs))) {
+        const QString source = readDocSource(abs);
+        const FrontMatterParser::TocInfo info = FrontMatterParser::tocInfo(source);
+        md += withDesc(QStringLiteral("- [%1](%2)").arg(label, linkBase),
+                       info.description) + QLatin1Char('\n');
+        for (const Heading &h : extractHeadings(source)) {
             md += QStringLiteral("  %1- [%2](%3#%4)\n")
                       .arg(QString(h.level > 1 ? (h.level - 1) : 0, QLatin1Char(' ')),
                            escapeMd(h.title), linkBase, LinkValidator::headingSlug(h.title));
@@ -110,8 +137,11 @@ QString CorpusIndex::renderTocLinks(const Corpus &corpus,
         const QString linkBase = pageLinkByAbs.value(abs);
         if (linkBase.isEmpty())
             continue;
-        extSection += QStringLiteral("- [%1](%2)\n")
-                          .arg(QFileInfo(d.path).fileName(), linkBase);
+        const QString label = QFileInfo(d.path).fileName();
+        const FrontMatterParser::TocInfo info =
+            FrontMatterParser::tocInfo(readDocSource(abs));
+        extSection += withDesc(QStringLiteral("- [%1](%2)").arg(label, linkBase),
+                               info.description) + QLatin1Char('\n');
     }
     if (!extSection.isEmpty())
         md += QStringLiteral("\n## External documents\n\n") + extSection;
@@ -138,7 +168,11 @@ QString CorpusIndex::replaceTocBlock(const QString &fullText, const QString &lin
     const QString start = tocStartMarker();
     const QString end = tocEndMarker();
     const int startLine = fullText.indexOf(start);
-    const int endLine = fullText.indexOf(end);
+    // Scan to the LAST end marker so doubled/corrupt files (start…end
+    // start…end, or a lone trailing end) collapse to a single Scriba-owned
+    // block on the next refresh; user text after the last end marker is
+    // preserved.
+    const int endLine = fullText.lastIndexOf(end);
 
     QString block = start + QLatin1Char('\n') + linksMd;
     if (!linksMd.endsWith(QLatin1Char('\n')))

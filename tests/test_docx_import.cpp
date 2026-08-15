@@ -48,7 +48,7 @@ static QString buildDocx(const QTemporaryDir &dir)
         "<p><img src=\"data:image/png;base64,%1\" alt=\"pixel\"></p>")
         .arg(QString::fromLatin1(tinyPng().toBase64()));
     const QString out = dir.path() + QStringLiteral("/test.docx");
-    if (!DocxExporter::exportToDocx(html, out, QString(), DocxExportOptions()))
+    if (!DocxExporter::exportToDocx(html, out, DocxExportOptions()))
         return {};
     return out;
 }

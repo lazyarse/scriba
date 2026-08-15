@@ -160,6 +160,7 @@ void MainWindow::loadFile(const QString &filePath, bool forceReload)
     if (!m_corpus.filePath.isEmpty()) {
         refreshCorpusFromTabs();
         startCorpusWatcher();
+        refreshCorpusToc();   // keep the TOC listing the live doc set
     }
 }
 
@@ -458,7 +459,7 @@ void MainWindow::exportDocx()
     TabInfo *info = pre.info;
 
     // Show export dialog to get math mode preference
-    ExportDocxDialog dlg(this);
+    ExportDocxDialog dlg(m_cssLoader->themeCss(), this);
     if (dlg.exec() != QDialog::Accepted)
         return;
 
@@ -471,6 +472,7 @@ void MainWindow::exportDocx()
     opts.marginLeftCm = dlg.marginLeft();
     opts.marginRightCm = dlg.marginRight();
     opts.pageNumbers = dlg.hasPageNumbers();
+    opts.templatePath = dlg.templatePath();
 
     QSettings prefs;
     QString html = pre.html;
@@ -516,12 +518,6 @@ void MainWindow::exportDocx()
     renderedHtml = JsRenderEngine::embedImages(renderedHtml, baseUrl);
     renderedHtml = JsRenderEngine::embedResources(renderedHtml, ScriptHandling::Strip);
 
-    // Include KaTeX CSS so HtmlToOoxml can resolve font metrics for math spans
-    QString katexCss = JsRenderEngine::katexCss();
-    QString docxCss = css;
-    if (!katexCss.isEmpty())
-        docxCss += QStringLiteral("\n") + katexCss;
-
     QString defaultName = info->filePath.isEmpty()
         ? "document.docx"
         : QFileInfo(info->filePath).completeBaseName() + ".docx";
@@ -530,7 +526,7 @@ void MainWindow::exportDocx()
         this, "Export as Word (DOCX)", defaultName, "Word Documents (*.docx)");
     if (path.isEmpty()) return;
 
-    if (!DocxExporter::exportToDocx(renderedHtml, path, docxCss, opts)) {
+    if (!DocxExporter::exportToDocx(renderedHtml, path, opts)) {
         showCenteredWarning("Export Failed",
             "Could not export the document as DOCX.",
             "Check that the file is not open in another application and that the path is writable.");

@@ -258,6 +258,7 @@ private:
     QComboBox *m_corpusUnsavedCombo = nullptr;
     QLineEdit *m_corpusTocFileEdit = nullptr;
     QPlainTextEdit *m_corpusTocTemplateEdit = nullptr;
+    QComboBox *m_corpusTocDescriptionCombo = nullptr;
     QComboBox *m_externalExportCombo = nullptr;
     QLineEdit *m_externalExportDirEdit = nullptr;
     QRadioButton *m_corpusDictOverride = nullptr;

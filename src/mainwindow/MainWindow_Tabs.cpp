@@ -19,6 +19,7 @@
 #include "preview/Preview.h"
 #include "prefs/Preferences.h"
 #include "spell/SpellCheckDialog.h"
+#include "StaticHelpers.h"
 #include <QCloseEvent>
 #include <QCryptographicHash>
 #include <QFileDialog>
@@ -388,6 +389,7 @@ void MainWindow::onTabCloseRequested(int index)
             m_previewInitialized = false;
             updatePreview();
         }
+        refreshCorpusToc();   // a file doc was removed from the doc set
         return;
     }
 
@@ -402,6 +404,7 @@ void MainWindow::showSaveDiscardDialog(int index)
     TabInfo &info = m_tabs[index];
     if (!info.dirty) {
         removeTab(index);
+        refreshCorpusToc();
         return;
     }
 
@@ -416,6 +419,8 @@ void MainWindow::showSaveDiscardDialog(int index)
     auto *discardBtn = msgBox.addButton(tr("&Discard"), QMessageBox::DestructiveRole);
     msgBox.setDefaultButton(QMessageBox::Save);
     msgBox.setEscapeButton(QMessageBox::Cancel);
+    for (auto *btn : msgBox.buttons())
+        stripButtonIcon(btn);
 
     int ret = msgBox.exec();
     if (ret == QMessageBox::Save) {
@@ -428,8 +433,10 @@ void MainWindow::showSaveDiscardDialog(int index)
         }
         saveFile(info.filePath);
         removeTab(index);
+        refreshCorpusToc();
     } else if (msgBox.clickedButton() == discardBtn) {
         removeTab(index);
+        refreshCorpusToc();
     }
 }
 
@@ -496,6 +503,8 @@ MainWindow::ClosePromptResult MainWindow::promptUnsavedChanges(bool hasUntitledD
     auto *discardBtn = msgBox.addButton(tr("&Discard"), QMessageBox::DestructiveRole);
     msgBox.setDefaultButton(QMessageBox::Save);
     msgBox.setEscapeButton(QMessageBox::Cancel);
+    for (auto *btn : msgBox.buttons())
+        stripButtonIcon(btn);
     auto ret = msgBox.exec();
 
     if (ret == QMessageBox::Cancel)

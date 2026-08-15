@@ -293,6 +293,22 @@ TEST(MarkdownParserTest, HorizontalRule) {
     EXPECT_TRUE(html.contains("data-line="));
 }
 
+TEST(MarkdownParserTest, FrontmatterStrippedFromHtml) {
+    QString html = MarkdownParser::toHtml("---\ntitle: x\n---\n# H1");
+    EXPECT_FALSE(html.contains("<hr"));
+    EXPECT_FALSE(html.contains("title:"));
+    EXPECT_TRUE(html.contains("<h1"));
+}
+
+TEST(MarkdownParserTest, FrontmatterKeepsDataLineAlignment) {
+    // A 3-line frontmatter block is blanked, so the heading after it still
+    // lands on data-line="4" (editor line 4).
+    QString html = MarkdownParser::toHtml("---\ntitle: x\n---\n# H1");
+    EXPECT_TRUE(html.contains("data-line=\"4\""));
+    EXPECT_FALSE(html.contains("data-line=\"0\""));
+    EXPECT_FALSE(html.contains("data-line=\"1\""));
+}
+
 TEST(MarkdownParserTest, ParagraphDataLine) {
     QString md = "line1\n\nline2";
     QString html = MarkdownParser::toHtml(md);

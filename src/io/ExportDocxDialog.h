@@ -20,13 +20,15 @@
 #include "DocxExporter.h"
 
 class QRadioButton;
+class QLineEdit;
+class QPushButton;
 
 class ExportDocxDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit ExportDocxDialog(QWidget *parent = nullptr);
+    explicit ExportDocxDialog(const QString &themeCss, QWidget *parent = nullptr);
 
     DocxMathMode selectedMathMode() const;
     bool isLandscape() const;
@@ -35,13 +37,19 @@ public:
     double marginLeft() const;
     double marginRight() const;
     bool hasPageNumbers() const;
+    // Empty when "Use Word template" is unchecked; otherwise the selected
+    // .docx path. The template owns styling and page setup.
+    QString templatePath() const;
 
-protected:
     void accept() override;
 
 private:
     void setupUi();
+    void updateTemplateState();
+    void browseTemplate();
+    void saveThemeTemplate();
 
+    QString m_themeCss;
     QRadioButton *m_imagesRadio = nullptr;
     QRadioButton *m_ommlRadio = nullptr;
     QCheckBox *m_landscapeCheck = nullptr;
@@ -50,4 +58,8 @@ private:
     QDoubleSpinBox *m_marginLeftSpin = nullptr;
     QDoubleSpinBox *m_marginRightSpin = nullptr;
     QCheckBox *m_pageNumbersCheck = nullptr;
+    QCheckBox *m_useTemplateCheck = nullptr;
+    QLineEdit *m_templatePathEdit = nullptr;
+    QPushButton *m_templateBrowseButton = nullptr;
+    QPushButton *m_saveTemplateButton = nullptr;
 };

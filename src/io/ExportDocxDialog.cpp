@@ -25,14 +25,18 @@
 #include <QDialogButtonBox>
 #include <QSettings>
 #include <QPushButton>
+#include <QFileDialog>
+#include <QLineEdit>
+#include <QMessageBox>
 
 static const QString kMathModeKey = QStringLiteral("DocxExport/MathMode");
 
-ExportDocxDialog::ExportDocxDialog(QWidget *parent)
+ExportDocxDialog::ExportDocxDialog(const QString &themeCss, QWidget *parent)
     : QDialog(parent)
+    , m_themeCss(themeCss)
 {
     setWindowTitle("Export as Word (DOCX)");
-    resize(400, 350);
+    resize(400, 480);
     setupUi();
 }
 
@@ -50,6 +54,54 @@ double ExportDocxDialog::marginLeft() const { return m_marginLeftSpin->value(); 
 double ExportDocxDialog::marginRight() const { return m_marginRightSpin->value(); }
 bool ExportDocxDialog::hasPageNumbers() const { return m_pageNumbersCheck->isChecked(); }
 
+QString ExportDocxDialog::templatePath() const
+{
+    if (!m_useTemplateCheck || !m_useTemplateCheck->isChecked())
+        return QString();
+    return m_templatePathEdit ? m_templatePathEdit->text() : QString();
+}
+
+void ExportDocxDialog::updateTemplateState()
+{
+    const bool useTpl = m_useTemplateCheck && m_useTemplateCheck->isChecked();
+    if (m_templatePathEdit)
+        m_templatePathEdit->setEnabled(useTpl);
+    if (m_templateBrowseButton)
+        m_templateBrowseButton->setEnabled(useTpl);
+    // The template owns page setup (its sectPr incl. headers/footers).
+    if (m_landscapeCheck)      m_landscapeCheck->setEnabled(!useTpl);
+    if (m_marginTopSpin)       m_marginTopSpin->setEnabled(!useTpl);
+    if (m_marginBottomSpin)    m_marginBottomSpin->setEnabled(!useTpl);
+    if (m_marginLeftSpin)      m_marginLeftSpin->setEnabled(!useTpl);
+    if (m_marginRightSpin)     m_marginRightSpin->setEnabled(!useTpl);
+    if (m_pageNumbersCheck)    m_pageNumbersCheck->setEnabled(!useTpl);
+}
+
+void ExportDocxDialog::browseTemplate()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Select Word Template"), QString(), tr("Word Documents (*.docx)"));
+    if (path.isEmpty())
+        return;
+    m_templatePathEdit->setText(path);
+}
+
+void ExportDocxDialog::saveThemeTemplate()
+{
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Save Current Theme as Word Template"), QString(),
+        tr("Word Documents (*.docx)"));
+    if (path.isEmpty())
+        return;
+    if (!DocxExporter::saveAsTemplate(path, m_themeCss)) {
+        QMessageBox::warning(this, tr("Export Failed"),
+            tr("Could not write the template. Check that the path is writable."));
+        return;
+    }
+    m_templatePathEdit->setText(path);
+    m_useTemplateCheck->setChecked(true);
+}
+
 static QDoubleSpinBox *createMarginSpin(QWidget *parent)
 {
     auto *spin = new QDoubleSpinBox(parent);
@@ -64,6 +116,7 @@ static QDoubleSpinBox *createMarginSpin(QWidget *parent)
 void ExportDocxDialog::setupUi()
 {
     auto *layout = new QVBoxLayout(this);
+    QSettings s;
 
     auto *mathGroup = new QGroupBox(tr("Math equations"), this);
     auto *mathVbox = new QVBoxLayout(mathGroup);
@@ -83,8 +136,54 @@ void ExportDocxDialog::setupUi()
 
     layout->addWidget(mathGroup);
 
+    // Style template group box
+    auto *tplGroup = new QGroupBox(tr("Style template"), this);
+    auto *tplVbox = new QVBoxLayout(tplGroup);
+
+    auto *tplDesc = new QLabel(
+        tr("Optionally style the document from a Word (.docx) template: its "
+           "styles, theme, headers, footers and page setup are used as-is. "
+           "Use \u201cSave current theme as template\u201d to start from the "
+           "current theme and customize it in Word."), tplGroup);
+    tplDesc->setWordWrap(true);
+    tplVbox->addWidget(tplDesc);
+
+    m_useTemplateCheck = new QCheckBox(tr("Use &Word template"), tplGroup);
+    m_useTemplateCheck->setObjectName("useTemplateCheck");
+    m_useTemplateCheck->setChecked(s.value("DocxExport/UseTemplate", false).toBool());
+    tplVbox->addWidget(m_useTemplateCheck);
+
+    auto *tplRow = new QHBoxLayout();
+    m_templatePathEdit = new QLineEdit(s.value("DocxExport/Template").toString(), tplGroup);
+    m_templatePathEdit->setObjectName("templatePathEdit");
+    m_templatePathEdit->setReadOnly(true);
+    m_templatePathEdit->setPlaceholderText(tr("No template selected"));
+    tplRow->addWidget(m_templatePathEdit, 1);
+    m_templateBrowseButton = new QPushButton(tr("&Browse..."), tplGroup);
+    m_templateBrowseButton->setObjectName("templateBrowseButton");
+    m_templateBrowseButton->setIcon(QIcon());
+    tplRow->addWidget(m_templateBrowseButton);
+    tplVbox->addLayout(tplRow);
+
+    m_saveTemplateButton = new QPushButton(
+        tr("Save Current Theme as &Template..."), tplGroup);
+    m_saveTemplateButton->setObjectName("saveTemplateButton");
+    m_saveTemplateButton->setIcon(QIcon());
+    m_saveTemplateButton->setToolTip(tr(
+        "Write a template with the current theme's heading and admonition "
+        "colors, for customization in Word."));
+    tplVbox->addWidget(m_saveTemplateButton);
+
+    layout->addWidget(tplGroup);
+
+    connect(m_useTemplateCheck, &QCheckBox::toggled,
+            this, &ExportDocxDialog::updateTemplateState);
+    connect(m_templateBrowseButton, &QPushButton::clicked,
+            this, &ExportDocxDialog::browseTemplate);
+    connect(m_saveTemplateButton, &QPushButton::clicked,
+            this, &ExportDocxDialog::saveThemeTemplate);
+
     // Restore last used mode
-    QSettings s;
     int lastMode = s.value(kMathModeKey, 0).toInt();
     if (lastMode == 1)
         m_ommlRadio->setChecked(true);
@@ -161,5 +260,7 @@ void ExportDocxDialog::accept()
     s.setValue("DocxExport/MarginLeft", m_marginLeftSpin->value());
     s.setValue("DocxExport/MarginRight", m_marginRightSpin->value());
     s.setValue("DocxExport/PageNumbers", m_pageNumbersCheck->isChecked());
+    s.setValue("DocxExport/UseTemplate", m_useTemplateCheck->isChecked());
+    s.setValue("DocxExport/Template", templatePath());
     QDialog::accept();
 }

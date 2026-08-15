@@ -221,9 +221,7 @@ void MainWindow::exportCorpus()
         case ExportCorpusDialog::Format::Docx: {
             DocxExportOptions opts;
             opts.mathMode = DocxMathMode::Omml;
-            const QString docxCss = m_cssLoader->previewBaseCss() + "\n" + themeCss
-                + "\n" + JsRenderEngine::katexCss();
-            ok = DocxExporter::exportToDocx(body, finalPath, docxCss, opts);
+            ok = DocxExporter::exportToDocx(body, finalPath, opts);
             break;
         }
         case ExportCorpusDialog::Format::Pdf: {
@@ -281,9 +279,7 @@ void MainWindow::exportCorpus()
             if (format == ExportCorpusDialog::Format::Docx) {
                 DocxExportOptions opts;
                 opts.mathMode = DocxMathMode::Omml;
-                const QString docxCss = m_cssLoader->previewBaseCss() + "\n" + themeCss
-                    + "\n" + JsRenderEngine::katexCss();
-                DocxExporter::exportToDocx(body, indexPath, docxCss, opts);
+                DocxExporter::exportToDocx(body, indexPath, opts);
             } else {
                 PdfRenderer::render(buildHtmlPage(body),
                                     QUrl::fromLocalFile(dir + "/").toString(),
@@ -499,6 +495,7 @@ void MainWindow::saveCorpusAction()
             tr("Check that the file is not open in another application and that the path is writable."));
         return;
     }
+    refreshCorpusToc();   // untitled docs promoted to files (promptSaveUnsavedCorpusDocs) change the doc set
     addRecentCorpus(m_corpus.filePath);
     QSettings().setValue(Preferences::LastCorpusPath, m_corpus.filePath);
     updateWindowTitle();
@@ -528,6 +525,7 @@ void MainWindow::saveCorpusAsAction()
             tr("Check that the file is not open in another application and that the path is writable."));
         return;
     }
+    refreshCorpusToc();   // untitled docs promoted to files (promptSaveUnsavedCorpusDocs) change the doc set
     addRecentCorpus(m_corpus.filePath);
     QSettings().setValue(Preferences::LastCorpusPath, m_corpus.filePath);
     updateWindowTitle();
@@ -1005,6 +1003,7 @@ void MainWindow::openCorpusToc()
     }
 
     const QString tocPath = corpusTocPath();
+    refreshCorpusFromTabs();   // links must reflect the live tab set
     if (!QFileInfo::exists(tocPath)) {
         QString links = CorpusIndex::renderTocLinks(m_corpus, tocLinks());
         QString templateText = QSettings().value(Preferences::CorpusTocTemplate).toString();
@@ -1051,6 +1050,8 @@ void MainWindow::refreshCorpusToc()
     if (tocPath.isEmpty() || !QFileInfo::exists(tocPath))
         return;
 
+    refreshCorpusFromTabs();   // links always reflect the live tab set
+
     QFile in(tocPath);
     if (!in.open(QIODevice::ReadOnly | QIODevice::Text))
         return;
@@ -1059,18 +1060,22 @@ void MainWindow::refreshCorpusToc()
     if (before.isEmpty() || !before.contains(CorpusIndex::tocStartMarker()))
         return; // user removed the markers: leave the file alone
 
-    const QString after = CorpusIndex::replaceTocBlock(before, CorpusIndex::renderTocLinks(m_corpus, tocLinks()));
-    if (after == before)
-        return;
-
-    QFile out(tocPath);
-    if (!out.open(QIODevice::WriteOnly | QIODevice::Text))
-        return;
-    out.write(after.toUtf8());
-    out.close();
+    const QString links = CorpusIndex::renderTocLinks(m_corpus, tocLinks());
+    const QString after = CorpusIndex::replaceTocBlock(before, links);
+    if (after != before) {
+        QFile out(tocPath);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Text))
+            return;
+        out.write(after.toUtf8());
+        out.close();
+    }
 
     // Sync any open tab: replace only the marker region, preserving user text
-    // above/below and the dirty flag.
+    // above/below and the dirty flag. Runs even when the disk was unchanged —
+    // an already-correct file may still have a corrupted open tab. The region
+    // is selected from the start-marker start through the LAST end-marker line
+    // so doubled/corrupt tabs heal to a single block. All setPosition calls
+    // that extend the selection pass KeepAnchor.
     const int idx = findTabByPath(tocPath);
     if (idx < 0 || !m_tabs[idx].editor)
         return;
@@ -1078,18 +1083,23 @@ void MainWindow::refreshCorpusToc()
     c.beginEditBlock();
     QTextCursor startCursor = c.document()->find(CorpusIndex::tocStartMarker(), c);
     if (!startCursor.isNull()) {
-        // Select from the start-marker to just past the end-marker line.
-        QTextCursor region = startCursor;
-        region.setPosition(startCursor.selectionEnd(), QTextCursor::MoveAnchor);
-        QTextCursor endCursor = region.document()->find(CorpusIndex::tocEndMarker(), region);
-        if (!endCursor.isNull()) {
-            region.setPosition(endCursor.selectionEnd(), QTextCursor::MoveAnchor);
-            region.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
-            const QString newBlock = CorpusIndex::tocStartMarker() + QLatin1Char('\n')
-                + CorpusIndex::renderTocLinks(m_corpus, tocLinks())
-                + QLatin1Char('\n') + CorpusIndex::tocEndMarker();
-            region.insertText(newBlock);
-        }
+        QTextCursor endCursor = startCursor;
+        QTextCursor next;
+        while (!(next = c.document()->find(CorpusIndex::tocEndMarker(), endCursor)).isNull())
+            endCursor = next;
+        // find() returns a cursor with the match selected (anchor = match
+        // start); collapse it to a plain position cursor or the KeepAnchor
+        // below anchors the region at the marker start and leaves the old end
+        // marker in place.
+        endCursor.clearSelection();
+        endCursor.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
+        QTextCursor region = endCursor;
+        region.setPosition(startCursor.selectionStart(), QTextCursor::KeepAnchor);
+        const QString newBlock = CorpusIndex::tocStartMarker() + QLatin1Char('\n')
+            + links
+            + (links.endsWith(QLatin1Char('\n')) ? QString() : QStringLiteral("\n"))
+            + CorpusIndex::tocEndMarker();
+        region.insertText(newBlock);
     }
     c.endEditBlock();
     if (!m_tabs[idx].dirty)

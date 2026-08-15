@@ -563,6 +563,91 @@ TEST_F(CorpusWatcherIntegrationTest, TocMdRefreshesOnExternalRename)
     }));
 }
 
+TEST_F(CorpusWatcherIntegrationTest, TocUpdatesWhenDocAddedWithTabOpen)
+{
+    writeFile(m_root + "/doc.md", "# Alpha\n");
+    makeCorpus({"doc.md"});
+    openCorpus();
+    triggerAction(m_window, QStringLiteral("Open Table of Contents"));
+    QApplication::processEvents();
+    ASSERT_GE(tocTabIndex(), 0);
+
+    writeFile(m_root + "/doc2.md", "# Beta\n");
+    m_window->loadFile(m_root + "/doc2.md");
+    QApplication::processEvents();
+
+    const QString tocPath = m_root + QStringLiteral("/toc.md");
+    EXPECT_TRUE(waitFor([&] {
+        return readFile(tocPath).contains(QStringLiteral("doc2.md"));
+    })) << "loading a new doc must refresh the on-disk TOC";
+
+    const QString diskText = readFile(tocPath);
+    const QString tabText = stackEditor(tocTabIndex())->toPlainText();
+    EXPECT_EQ(tabText, diskText) << "the open TOC tab must mirror the disk file";
+    EXPECT_EQ(diskText.count(CorpusIndex::tocStartMarker()), 1)
+        << "the TOC must have exactly one start marker";
+    EXPECT_EQ(diskText.count(CorpusIndex::tocEndMarker()), 1)
+        << "the TOC must have exactly one end marker";
+    EXPECT_EQ(tabText.count(CorpusIndex::tocStartMarker()), 1);
+    EXPECT_EQ(tabText.count(CorpusIndex::tocEndMarker()), 1);
+}
+
+TEST_F(CorpusWatcherIntegrationTest, TocRendersDescriptionFromDocFrontmatter)
+{
+    QSettings().setValue(Preferences::CorpusTocDescriptionFormat, QStringLiteral("emDash"));
+    writeFile(m_root + "/doc.md",
+              "---\ntoc-description: \"A short description\"\n---\n# Alpha\n");
+    makeCorpus({"doc.md"});
+    openCorpus();
+    triggerAction(m_window, QStringLiteral("Open Table of Contents"));
+    QApplication::processEvents();
+    ASSERT_GE(tocTabIndex(), 0);
+
+    const QString tocPath = m_root + QStringLiteral("/toc.md");
+    const QString text = readFile(tocPath);
+    EXPECT_TRUE(text.contains(QStringLiteral("- [doc.md](doc.md) \u2014 A short description")));
+    EXPECT_EQ(text.count(CorpusIndex::tocStartMarker()), 1)
+        << "the TOC must have exactly one start marker";
+    EXPECT_EQ(text.count(CorpusIndex::tocEndMarker()), 1)
+        << "the TOC must have exactly one end marker";
+    EXPECT_EQ(stackEditor(tocTabIndex())->toPlainText(), text)
+        << "the open TOC tab must mirror the disk file";
+}
+
+TEST_F(CorpusWatcherIntegrationTest, TocHealsExistingDoubledFile)
+{
+    writeFile(m_root + "/doc.md", "# Alpha\n");
+    makeCorpus({"doc.md"});
+
+    // Pre-seed a corrupted toc.md: two marker blocks plus an orphan end.
+    const QString start = CorpusIndex::tocStartMarker();
+    const QString end = CorpusIndex::tocEndMarker();
+    writeFile(m_root + "/toc.md", QStringLiteral("# T\n\n%1\n- [doc.md](doc.md)\n%2\n\n%1\n- [doc.md](doc.md)\n%2\n\n%2\n")
+        .arg(start, end));
+
+    openCorpus();
+    triggerAction(m_window, QStringLiteral("Open Table of Contents"));
+    QApplication::processEvents();
+    ASSERT_GE(tocTabIndex(), 0);
+
+    writeFile(m_root + "/doc2.md", "# Beta\n");
+    m_window->loadFile(m_root + "/doc2.md");
+    QApplication::processEvents();
+
+    const QString tocPath = m_root + QStringLiteral("/toc.md");
+    EXPECT_TRUE(waitFor([&] {
+        return readFile(tocPath).contains(QStringLiteral("doc2.md"));
+    })) << "loading a new doc must refresh the on-disk TOC";
+
+    const QString diskText = readFile(tocPath);
+    const QString tabText = stackEditor(tocTabIndex())->toPlainText();
+    EXPECT_EQ(tabText, diskText);
+    EXPECT_EQ(diskText.count(start), 1) << "the healed file must have one start marker";
+    EXPECT_EQ(diskText.count(end), 1) << "the healed file must have one end marker";
+    EXPECT_EQ(tabText.count(start), 1);
+    EXPECT_EQ(tabText.count(end), 1);
+}
+
 TEST_F(CorpusWatcherIntegrationTest, TocMdNotRestoredOrRelistedOnReopen)
 {
     writeFile(m_root + "/doc.md", "# Alpha\n");

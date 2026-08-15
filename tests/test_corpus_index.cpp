@@ -17,6 +17,7 @@
 #include <QDir>
 #include <QFile>
 #include <QHash>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <QStringList>
 #include <QUrl>
@@ -25,6 +26,7 @@
 
 #include "corpus/Corpus.h"
 #include "corpus/CorpusIndex.h"
+#include "prefs/Preferences.h"
 #include "validation/LinkValidator.h"
 
 namespace {
@@ -74,6 +76,25 @@ TEST(CorpusIndexTest, ExtractHeadingsSkipsTildeFence)
     EXPECT_EQ(headings[0].title, QStringLiteral("Tilde"));
     EXPECT_EQ(headings[1].level, 2);
     EXPECT_EQ(headings[1].title, QStringLiteral("Visible"));
+}
+
+TEST(CorpusIndexTest, ExtractHeadingsSkipsFrontmatter)
+{
+    const QString markdown = QStringLiteral(
+        "---\n"
+        "title: My Doc\n"
+        "# not a heading\n"
+        "toc-description: desc\n"
+        "---\n"
+        "# Real\n"
+        "## After\n");
+    const QList<CorpusIndex::Heading> headings = CorpusIndex::extractHeadings(markdown);
+
+    ASSERT_EQ(headings.size(), 2);
+    EXPECT_EQ(headings[0].level, 1);
+    EXPECT_EQ(headings[0].title, QStringLiteral("Real"));
+    EXPECT_EQ(headings[1].level, 2);
+    EXPECT_EQ(headings[1].title, QStringLiteral("After"));
 }
 
 TEST(CorpusIndexTest, ExtractHeadingsIgnoresNoSpaceHash)
@@ -305,6 +326,60 @@ TEST(CorpusIndexTest, ReplaceTocBlockIdenticalReturnsSame)
     EXPECT_EQ(result, original);
 }
 
+TEST(CorpusIndexTest, ReplaceTocBlockDoubledBlocksCollapsesToSingleBlock)
+{
+    const QString start = CorpusIndex::tocStartMarker();
+    const QString end = CorpusIndex::tocEndMarker();
+    const QString input = QStringLiteral("# T\n\n%1\nfirst links\n%2\n\n%1\nsecond links\n%2\n\nNotes\n")
+                              .arg(start, end);
+    const QString after = CorpusIndex::replaceTocBlock(
+        input, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_EQ(after.count(start), 1) << "doubled files must collapse to one block";
+    EXPECT_EQ(after.count(end), 1);
+    EXPECT_FALSE(after.contains(QStringLiteral("first links")));
+    EXPECT_FALSE(after.contains(QStringLiteral("second links")));
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+    EXPECT_TRUE(after.contains(QStringLiteral("Notes")))
+        << "user text after the last end marker must be preserved";
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockOrphanTrailingEndMarkerRemoved)
+{
+    const QString start = CorpusIndex::tocStartMarker();
+    const QString end = CorpusIndex::tocEndMarker();
+    const QString input = QStringLiteral("# T\n\n%1\nvalid links\n%2\nstale links\n%2")
+                              .arg(start, end);
+    const QString after = CorpusIndex::replaceTocBlock(
+        input, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_EQ(after.count(start), 1);
+    EXPECT_EQ(after.count(end), 1);
+    EXPECT_FALSE(after.contains(QStringLiteral("valid links")));
+    EXPECT_FALSE(after.contains(QStringLiteral("stale links")));
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+    EXPECT_TRUE(after.endsWith(end)) << "the orphan trailing end must not survive";
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockMultipleEndsPreservesTextAfterLastEnd)
+{
+    const QString start = CorpusIndex::tocStartMarker();
+    const QString end = CorpusIndex::tocEndMarker();
+    const QString input = QStringLiteral("# T\n\n%1\nlink A\n%2\nmid text\n%2\n%2\n\nNotes\n")
+                              .arg(start, end);
+    const QString after = CorpusIndex::replaceTocBlock(
+        input, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_EQ(after.count(start), 1);
+    EXPECT_EQ(after.count(end), 1);
+    EXPECT_FALSE(after.contains(QStringLiteral("link A")));
+    EXPECT_FALSE(after.contains(QStringLiteral("mid text")));
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+    EXPECT_TRUE(after.contains(QStringLiteral("Notes")))
+        << "text after the last end-marker line must be preserved";
+    EXPECT_TRUE(after.indexOf(QStringLiteral("Notes")) > after.lastIndexOf(end));
+}
+
 TEST(CorpusIndexTest, DefaultTocTemplateHasBothMarkers)
 {
     const QString t = CorpusIndex::defaultTocTemplate();
@@ -312,6 +387,91 @@ TEST(CorpusIndexTest, DefaultTocTemplateHasBothMarkers)
     EXPECT_TRUE(t.contains(CorpusIndex::tocEndMarker()));
     EXPECT_TRUE(t.indexOf(CorpusIndex::tocStartMarker())
                 < t.indexOf(CorpusIndex::tocEndMarker()));
+}
+
+namespace {
+
+// Builds a single-document corpus whose doc contains `content` and renders
+// just its links (no header), for description-format assertions.
+QString renderSingleDocLinks(const QString &content)
+{
+    QTemporaryDir dir;
+    if (!dir.isValid())
+        return QString();
+    if (!QDir(dir.path()).mkpath("docs"))
+        return QString();
+    if (!writeFile(dir.path() + "/docs/a.md", content.toUtf8()))
+        return QString();
+
+    Corpus corpus;
+    corpus.filePath = dir.path() + "/my.scriba";
+    corpus.name = QStringLiteral("My Corpus");
+    corpus.documents = { CorpusDocument{ .path = QStringLiteral("docs/a.md") } };
+
+    QHash<QString, QString> pageLinkByAbs;
+    pageLinkByAbs.insert(Corpus::absolutePath(dir.path(), QStringLiteral("docs/a.md")),
+                         QStringLiteral("docs/a.md"));
+    return CorpusIndex::renderTocLinks(corpus, pageLinkByAbs);
+}
+
+} // namespace
+
+TEST(CorpusIndexTest, RenderTocIncludesDescriptionEmDash)
+{
+    QSettings().setValue(Preferences::CorpusTocDescriptionFormat, QStringLiteral("emDash"));
+    const QString toc = renderSingleDocLinks(QStringLiteral(
+        "---\ntoc-description: \"A short description\"\n---\n# Alpha\n"));
+    EXPECT_TRUE(toc.contains(QStringLiteral("- [a.md](docs/a.md) \u2014 A short description")));
+    EXPECT_TRUE(toc.contains(QStringLiteral("- [Alpha](docs/a.md#alpha)")));
+}
+
+TEST(CorpusIndexTest, RenderTocIncludesDescriptionColon)
+{
+    QSettings().setValue(Preferences::CorpusTocDescriptionFormat, QStringLiteral("colon"));
+    const QString toc = renderSingleDocLinks(QStringLiteral(
+        "---\ntoc-description: \"A short description\"\n---\n# Alpha\n"));
+    EXPECT_TRUE(toc.contains(QStringLiteral("- [a.md](docs/a.md): A short description")));
+}
+
+TEST(CorpusIndexTest, RenderTocIncludesDescriptionIndented)
+{
+    QSettings().setValue(Preferences::CorpusTocDescriptionFormat, QStringLiteral("indented"));
+    const QString toc = renderSingleDocLinks(QStringLiteral(
+        "---\ntoc-description: \"A short description\"\n---\n# Alpha\n"));
+    EXPECT_TRUE(toc.contains(QStringLiteral("- [a.md](docs/a.md)\n  A short description")));
+}
+
+TEST(CorpusIndexTest, RenderTocDefaultFormatIsEmDash)
+{
+    QSettings().remove(Preferences::CorpusTocDescriptionFormat);
+    const QString toc = renderSingleDocLinks(QStringLiteral(
+        "---\ntoc-description: \"A short description\"\n---\n# Alpha\n"));
+    EXPECT_TRUE(toc.contains(QStringLiteral("- [a.md](docs/a.md) \u2014 A short description")));
+}
+
+TEST(CorpusIndexTest, RenderTocExternalSectionIncludesDescription)
+{
+    QSettings().setValue(Preferences::CorpusTocDescriptionFormat, QStringLiteral("emDash"));
+    QTemporaryDir dir;
+    QTemporaryDir ext;
+    ASSERT_TRUE(dir.isValid());
+    ASSERT_TRUE(ext.isValid());
+    const QString extAbs = ext.path() + "/ext.md";
+    ASSERT_TRUE(writeFile(extAbs, "---\ntoc-description: External desc\n---\n# Ext\n"));
+
+    Corpus corpus;
+    corpus.filePath = dir.path() + "/my.scriba";
+    corpus.name = QStringLiteral("My Corpus");
+    corpus.documents = { CorpusDocument{ .path = extAbs } };
+
+    QHash<QString, QString> pageLinkByAbs;
+    pageLinkByAbs.insert(extAbs, QUrl::fromLocalFile(extAbs).toString());
+
+    const QString toc = CorpusIndex::renderTocLinks(corpus, pageLinkByAbs);
+
+    EXPECT_TRUE(toc.contains(QStringLiteral("## External documents")));
+    EXPECT_TRUE(toc.contains(QStringLiteral("- [ext.md](") + QUrl::fromLocalFile(extAbs).toString()
+                                 + QStringLiteral(") \u2014 External desc")));
 }
 
 } // namespace
