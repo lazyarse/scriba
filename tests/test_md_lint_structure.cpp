@@ -295,4 +295,48 @@ TEST(MdLintStructure, Md058BlanksAroundTables)
                            "MD058"));
 }
 
+// ---- MD901 ----------------------------------------------------------------
+
+TEST(MdLintStructure, Md901TightListPasses)
+{
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("- a\n- b\n- c\n"), withRule("MD901")), "MD901"));
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("1. a\n2. b\n"), withRule("MD901")), "MD901"));
+}
+
+TEST(MdLintStructure, Md901LooseListFlaggedAtFirstLine)
+{
+    // "warning" severity form — the intended default when enabled (MD901 is
+    // off by default but warningByDefault, see the config fallback test).
+    const auto cfg = MdLintConfig::fromJson(QStringLiteral(R"({"MD901": "warning"})"));
+    const auto issues = lint(QStringLiteral("- a\n\n- b\n"), cfg);
+    ASSERT_EQ(1, countRule(issues, "MD901"));
+    EXPECT_EQ(1, issues.at(0).line);
+    EXPECT_EQ(Severity::Warning, issues.at(0).severity);
+}
+
+TEST(MdLintStructure, Md901TwoParagraphItemMakesListLoose)
+{
+    // A blank line inside a single item's paragraphs loosens the whole list.
+    const auto issues = lint(QStringLiteral("- para one\n\n  para two\n- next\n"), withRule("MD901"));
+    ASSERT_EQ(1, countRule(issues, "MD901"));
+    EXPECT_EQ(1, issues.at(0).line);
+}
+
+TEST(MdLintStructure, Md901OrderedLooseList)
+{
+    const auto issues = lint(QStringLiteral("1. a\n2. b\n\n3. c\n"), withRule("MD901"));
+    ASSERT_EQ(1, countRule(issues, "MD901"));
+    EXPECT_EQ(1, issues.at(0).line);
+}
+
+TEST(MdLintStructure, Md901OffByDefaultButWarningSeverity)
+{
+    const auto cfg = MdLintConfig::defaults();
+    EXPECT_FALSE(cfg.enabled(QStringLiteral("MD901"))) << "aggressive rule: off in defaults";
+    EXPECT_EQ(Severity::Warning, cfg.severity(QStringLiteral("MD901")))
+        << "warningByDefault fallback";
+    // Off by default: the plain defaults config flags nothing.
+    EXPECT_EQ(0, countRule(lint(QStringLiteral("- a\n\n- b\n")), "MD901"));
+}
+
 } // namespace

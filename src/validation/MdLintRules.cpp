@@ -25,6 +25,7 @@ struct Def {
     const char *description;
     std::initializer_list<const char *> tags;
     bool aggressive;
+    bool warningByDefault = false;
 };
 
 const Def kRules[] = {
@@ -104,6 +105,8 @@ const Def kRules[] = {
     {"MD060", "table-column-style", "Table column style", {"table"}, true},
     // Custom scriba rule (out-of-band id: no collision with upstream MD061+)
     {"MD900", "unmatched-footnote", "Unmatched footnote references", {"footnotes"}, false},
+    {"MD901", "no-loose-lists", "List items should not be separated by blank lines (keeps the list tight)",
+     {"bullet", "ol", "ul"}, true /*aggressive → off in defaults()*/, true /*warningByDefault*/},
 };
 
 } // namespace
@@ -123,7 +126,7 @@ const QVector<MdLintRule> &all()
                                 tags << QLatin1String(t);
                             return tags;
                         }(),
-                        d.aggressive});
+                        d.aggressive, d.warningByDefault});
         return out;
     }();
     return rules;

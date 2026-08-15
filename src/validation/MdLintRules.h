@@ -25,6 +25,7 @@ struct MdLintRule {
     QString description;
     QStringList tags;
     bool aggressive = false; // true = disabled in MdLintConfig::defaults()
+    bool warningByDefault = false; // severity fallback for rules with no config entry
 };
 
 struct MdLintParam { const char *name; QVariant def; };

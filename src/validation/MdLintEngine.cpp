@@ -90,6 +90,7 @@ struct Model {
     QVector<ListItem> listItems;
     QVector<Table> tables;
     QVector<int> hrLines;        // 1-based (raw scan, see collectHrs)
+    QVector<int> looseListStarts; // 1-based start line of each loose list block
     QVector<QPair<int, int>> quotes;   // (begLine, endLine) 1-based (raw scan)
     QVector<QPair<int, int>> htmlBlocks; // (begLine, endLine) 1-based
     QVector<QPair<int, int>> paragraphs; // (begByte, lastEndByte)
@@ -279,12 +280,16 @@ struct Collector {
         OpenBlock b{type, detail ? begByte : -1, detail ? begByte : -1, {}};
         if (type == MD_BLOCK_UL) {
             auto *d = static_cast<MD_BLOCK_UL_DETAIL *>(detail);
+            if (!d->is_tight)
+                m.looseListStarts.append(lineIndexOf(m, begByte) + 1);
             listMarks.resize(listDepth + 1);
             listMarks[listDepth] = {QChar(d->mark), QChar()};
             ++listDepth;
             ++hDepth;
         } else if (type == MD_BLOCK_OL) {
             auto *d = static_cast<MD_BLOCK_OL_DETAIL *>(detail);
+            if (!d->is_tight)
+                m.looseListStarts.append(lineIndexOf(m, begByte) + 1);
             listMarks.resize(listDepth + 1);
             listMarks[listDepth] = {QChar(), QChar(d->mark_delimiter)};
             ++listDepth;
@@ -1268,6 +1273,14 @@ QVector<MdLintIssue> MdLintEngine::lint(const QString &text, const MdLintConfig 
                      QStringLiteral("Expected: 1 blank line after; Actual: 0"));
             g = gEnd + 1;
         }
+    }
+
+    // MD901 — loose lists: a blank line between items flips the whole list
+    // loose (see docs/gotchas.md "Tight vs Loose Lists").
+    if (config.enabled(QStringLiteral("MD901"))) {
+        for (const int line : c.m.looseListStarts)
+            emitIssue(ctx, QStringLiteral("MD901"), line, 1, 0,
+                 QStringLiteral("List is loose (blank line between items); remove the blank line to keep it tight"));
     }
 
     // MD035 — horizontal rule marker consistency

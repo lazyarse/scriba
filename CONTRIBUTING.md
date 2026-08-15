@@ -61,6 +61,17 @@ Application source lives in `src/`, grouped into per-concern subdirectories
 `mermaid/`, `corpus/`, `spell/`, `validation/`, `prefs/`) plus the
 `src/main.cpp` entry point and `src/StaticHelpers.cpp` at the root.
 
+## Custom lint rules (MD9xx)
+
+The markdown linter implements markdownlint's MD001–MD060 catalog plus Scriba
+extensions in the MD9xx range: **MD900** `unmatched-footnote`, **MD901**
+`no-loose-lists`. Custom rules must use MD9xx ids (no collision with future
+upstream rules) and follow the `MdLintRules` registration pattern in
+`src/validation/MdLintRules.cpp` (a `Def` row in `kRules`); rules flagged
+`aggressive = true` stay out of `MdLintConfig::defaults()`, and a rule can
+declare `warningByDefault = true` so its severity shows as Warning even while
+disabled.
+
 - **New source files go in the matching subdirectory** — pick the closest
   existing group; only genuinely cross-cutting utilities belong at `src/` root.
 - **Includes carry the subdirectory**: project headers are included as

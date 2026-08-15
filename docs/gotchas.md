@@ -39,6 +39,11 @@ in `resources/preview-base.css`) — not in the parser. Don't "fix" this by
 splitting lists on blank lines in `src/src/editor/Editor.cpp`'s fold logic or
 `src/src/preview/MarkdownParser.cpp`; that would diverge from CommonMark.
 
+The lint rule **MD901 `no-loose-lists`** (Scriba custom rule, off by default,
+warning severity) flags loose lists at their first line — enabling it is the
+canonical way to surface these blank-line separations while keeping the parser
+CommonMark-correct.
+
 ## Content column: when a "nested" item is actually a sibling
 
 A nested list item must be indented at least to the **content column** of its
@@ -803,8 +808,7 @@ sync if it ever changes:
   after `setPlainText` returns. Documents *under* the threshold keep the fully
   synchronous behavior, which existing tests depend on.
 - **Grammar lint** (`SpellHighlighter::runGrammarLint`): skipped entirely for large
-  documents — the whole-document grammar check is the Validation Report's job, so a big
-  doc never triggers the lint worker.
+  documents — a big doc never triggers the lint worker.
 - **Preview render** (`MainWindow`/`PreviewRenderWorker`): `updatePreview` snapshots the
   editor text on the GUI thread and hands it to a background `PreviewRenderWorker`
   (thread lazily created on first large-doc request). `MarkdownParser::toHtml` and
@@ -900,7 +904,7 @@ dialog from stale flags.
   template once created. Reopening the TOC refreshes the managed block of the
   existing file rather than regenerating from the template.
 - Unbacked tabs used to resolve relative links against the process CWD in the
-  validation report and the editor's link underlines while the preview used the
+  editor's link underlines while the preview used the
   corpus root. They now agree via `DocumentSource::baseDir` /
   `SpellHighlighter::setFallbackLinkBaseDir`: untitled tabs in an open corpus
   resolve relative targets against the corpus root, and still fall back to CWD
