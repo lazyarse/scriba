@@ -44,6 +44,31 @@ bool Editor::cursorHasImagePathSelection() const
     return imgRe.match(selected).hasMatch();
 }
 
+void Editor::insertTypesettingDirective(const QString &word)
+{
+    // The directive must be a flush-left comment on its own line and must form
+    // its own block: one on the line immediately after paragraph text is
+    // merged into that paragraph by md4c and pins the wrong block (see
+    // docs/gotchas.md "In-source print directives"). Insert at the start of
+    // the current line — flush-left by construction — and prepend a blank line
+    // when the line above is non-blank so the comment can't merge with it.
+    QTextCursor cursor = textCursor();
+    const int insertPos = cursor.block().position();
+    QString prefix;
+    if (insertPos > 0) {
+        const QTextBlock above = cursor.block().previous();
+        if (!above.text().trimmed().isEmpty())
+            prefix = QLatin1Char('\n');
+    }
+    const QString directive = QStringLiteral("<!-- %1 -->\n").arg(word);
+    cursor.beginEditBlock();
+    cursor.setPosition(insertPos);
+    cursor.insertText(prefix + directive);
+    cursor.setPosition(insertPos + prefix.size() + directive.size());
+    cursor.endEditBlock();
+    setTextCursor(cursor);
+}
+
 void Editor::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
@@ -263,6 +288,20 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
             cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, path.size() + 4);
             setTextCursor(cursor);
         });
+    }
+
+    menu.addSeparator();
+    QAction *pageBreak = menu.addAction("Insert Page Break");
+    connect(pageBreak, &QAction::triggered, this,
+            [this]() { insertTypesettingDirective(QStringLiteral("new-page")); });
+    QAction *keep = menu.addAction("Keep Together");
+    connect(keep, &QAction::triggered, this,
+            [this]() { insertTypesettingDirective(QStringLiteral("keep")); });
+    if (isCursorInFencedCodeBlock()) {
+        // A directive inside a code fence is literal code text, never a
+        // directive (MarkdownParser's scanner skips fenced content).
+        pageBreak->setEnabled(false);
+        keep->setEnabled(false);
     }
 
     if (!menu.isEmpty())

@@ -543,6 +543,31 @@ TEST_F(EditorTestHarness, EnterMidCellInTableDataRowCreatesEmptyRow)
     assertCursor(3, 2);
 }
 
+TEST_F(EditorTestHarness, InsertPageBreakIntoEmptyDocument)
+{
+    editor->insertTypesettingDirective(QStringLiteral("new-page"));
+    EXPECT_EQ(text(), "<!-- new-page -->\n");
+    assertCursor(1, 0);
+}
+
+TEST_F(EditorTestHarness, InsertKeepMidParagraphAddsSeparatingBlankLine)
+{
+    setContent("para one\npara two");
+    placeCursor(1, 3);
+    editor->insertTypesettingDirective(QStringLiteral("keep"));
+    EXPECT_EQ(text(), "para one\n\n<!-- keep -->\npara two");
+    assertCursor(3, 0);
+}
+
+TEST_F(EditorTestHarness, InsertKeepWithBlankLineAboveAddsNoBlank)
+{
+    setContent("para one\n\npara two");
+    placeCursor(1, 3);
+    editor->insertTypesettingDirective(QStringLiteral("keep"));
+    EXPECT_EQ(text(), "para one\n\n<!-- keep -->\npara two");
+    assertCursor(3, 0);
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

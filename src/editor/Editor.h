@@ -141,6 +141,14 @@ public:
     // effects) so it is unit-testable.
     QString explanationAt(int blockNumber, int positionInBlock);
 
+    // Inserts a print-directive comment (`<!-- keep -->` / `<!-- new-page -->`)
+    // at the start of the current line. A blank line is prepended when the
+    // line above is non-blank, so the directive always forms its own block and
+    // pins the block under the caret (see docs/gotchas.md "In-source print
+    // directives"). Leaves the caret at the start of the original line. Public
+    // so the context menu and tests share one code path.
+    void insertTypesettingDirective(const QString &word);
+
     static constexpr int kUnderlineDropPx = 2;     // extra px below fm.underlinePos()
     static constexpr int kUnderlinePenWidthPx = 3; // thickness of painted underlines
 
@@ -192,6 +200,7 @@ private:
     void applySpellSettings();
     void updateIssueSummary();
     void onIssueSummaryShow();
+    void onIssueSummaryHide();
     void positionIssueSummaryPane();
     bool isMarkdownFile() const;
     // Push an active corpus's dictionary (word sets, language, dialect and the
@@ -264,14 +273,23 @@ private:
     QColor m_issueSummaryThemeFg;
     bool m_issueSummaryDismissed = false;
     QTimer *m_issueSummaryShowTimer = nullptr;
+    // Deferred-hide grace for the issue-summary pane: while the pane is
+    // visible, an empty-rows update restarts this single-shot timer instead of
+    // hiding immediately, so transient zero counts during typing don't flicker
+    // the pane. Firing hides without emitting closeRequested(), so
+    // m_issueSummaryDismissed stays false and new issues re-show the pane.
+    QTimer *m_issueSummaryHideTimer = nullptr;
     // True once a corpus dictionary has been applied; routes the "Add to
     // Dictionary" context action to the corpus word set instead of the global
     // user.dic. Sticky for the editor's lifetime (a corpus, once opened, stays
     // active until the app closes or another corpus supersedes it).
     bool m_corpusActive = false;
-    // The explanation currently shown in the hover tooltip, so identical
-    // hovers do not re-trigger QToolTip::showText on every mouse move.
+    // The explanation and mouse position of the hover tooltip currently
+    // shown: identical explanations do not re-trigger QToolTip::showText on
+    // every mouse move, but an identical explanation at a new position still
+    // moves the tooltip to follow the cursor.
     QString m_activeTooltip;
+    QPoint m_lastTooltipPos;
 
     // Gutter + folding
     Gutter *m_gutter = nullptr;

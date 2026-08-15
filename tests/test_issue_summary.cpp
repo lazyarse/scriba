@@ -275,6 +275,72 @@ TEST_F(IssueSummaryPaneTest, BackgroundRendersSemiTransparent)
     EXPECT_LT(px.alpha(), 240) << "the background must not be fully opaque";
 }
 
+TEST_F(IssueSummaryPaneTest, LabelsReusedForCountOnlyUpdates)
+{
+    QVector<IssueSummaryPane::Row> rows = {
+        {IssueSummaryPane::Kind::Typos, QStringLiteral("Typos"), 3,
+         QColor(QStringLiteral("#d64050"))},
+        {IssueSummaryPane::Kind::Links, QStringLiteral("Broken links"), 1,
+         QColor(QStringLiteral("#f09000"))},
+    };
+    m_pane->setRows(rows);
+    QApplication::processEvents();
+
+    const auto firstLabels = m_pane->findChildren<QLabel *>();
+    ASSERT_GE(firstLabels.size(), 2);
+
+    QVector<IssueSummaryPane::Row> updated = rows;
+    updated[0].count = 7;
+    updated[1].count = 4;
+    m_pane->setRows(updated);
+    QApplication::processEvents();
+
+    const auto secondLabels = m_pane->findChildren<QLabel *>();
+    ASSERT_EQ(firstLabels.size(), secondLabels.size());
+    for (QLabel *lbl : firstLabels)
+        EXPECT_TRUE(secondLabels.contains(lbl))
+            << "a count-only update must reuse the same QLabel instances";
+    QString allText;
+    for (QLabel *lbl : secondLabels)
+        allText += lbl->text();
+    EXPECT_TRUE(allText.contains(QStringLiteral("7")));
+    EXPECT_TRUE(allText.contains(QStringLiteral("4")));
+}
+
+TEST_F(IssueSummaryPaneTest, RowsRebuiltWhenStructureChanges)
+{
+    QVector<IssueSummaryPane::Row> rows = {
+        {IssueSummaryPane::Kind::Typos, QStringLiteral("Typos"), 3,
+         QColor(QStringLiteral("#d64050"))},
+    };
+    m_pane->setRows(rows);
+    QApplication::processEvents();
+
+    const auto firstLabels = m_pane->findChildren<QLabel *>();
+    ASSERT_FALSE(firstLabels.isEmpty());
+
+    QVector<IssueSummaryPane::Row> more = rows;
+    more.append({IssueSummaryPane::Kind::Links, QStringLiteral("Broken links"), 2,
+                 QColor(QStringLiteral("#f09000"))});
+    // Snapshot texts first: the rebuild deletes the old labels, so the
+    // pointers are dangling afterwards and must not be dereferenced.
+    QStringList firstTexts;
+    for (QLabel *lbl : firstLabels)
+        firstTexts << lbl->text();
+    m_pane->setRows(more);
+    QApplication::processEvents();
+
+    const auto secondLabels = m_pane->findChildren<QLabel *>();
+    for (int i = 0; i < firstLabels.size(); ++i) {
+        // Row labels are recreated on a structural change; only the "Issues"
+        // title label survives the rebuild.
+        if (firstTexts.at(i).contains(QStringLiteral("Issues")))
+            continue;
+        EXPECT_FALSE(secondLabels.contains(firstLabels.at(i)))
+            << "adding a row must rebuild the row labels";
+    }
+}
+
 class IssueSummaryEditorTest : public ::testing::Test
 {
 protected:
@@ -430,6 +496,42 @@ TEST_F(IssueSummaryEditorTest, DismissedStaysHiddenUntilExplicitShow)
     m_editor->showIssueSummary();
     QTest::qWait(700);
     EXPECT_TRUE(pane->isVisible());
+}
+
+TEST_F(IssueSummaryEditorTest, PaneStaysVisibleThroughTransientZeroCounts)
+{
+    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("notes.md")));
+    m_editor->setIssueSummaryOptions(options(), QColor(QStringLiteral("#ffffff")),
+                                     QColor(QStringLiteral("#333333")));
+    m_editor->setPlainText(QStringLiteral("helo world\n"));
+    m_editor->showIssueSummary();
+    QTest::qWait(700); // show debounce (400 ms) + spell pass
+    IssueSummaryPane *pane = m_editor->issueSummaryPane();
+    ASSERT_NE(pane, nullptr);
+    ASSERT_TRUE(pane->isVisible());
+
+    // Drive the row set to empty (every checker engine off — the transient
+    // zero state a spell re-scan or pending grammar lint produces while
+    // typing): the pane must not vanish immediately, only after the ~500 ms
+    // hide grace elapses.
+    QSettings().setValue(Preferences::SpellCheckEnabled, false);
+    QSettings().setValue(Preferences::LinkCheckEnabled, false);
+    QSettings().setValue(Preferences::MarkdownCheckEnabled, false);
+    m_editor->recheckSpelling();
+    QTest::qWait(150);
+    EXPECT_TRUE(pane->isVisible()) << "the pane must survive transient zero counts";
+
+    QTest::qWait(600);
+    EXPECT_FALSE(pane->isVisible()) << "the grace hide must fire once the doc is clean";
+
+    // The grace hide must not mark the pane dismissed: new issues re-show it.
+    QSettings().setValue(Preferences::SpellCheckEnabled, true);
+    QSettings().setValue(Preferences::LinkCheckEnabled, true);
+    QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
+    m_editor->setPlainText(QStringLiteral("helo world\n"));
+    m_editor->recheckSpelling();
+    QTest::qWait(700);
+    EXPECT_TRUE(pane->isVisible()) << "new issues must re-show the pane after a grace hide";
 }
 
 TEST(IssueSummaryPrefsTest, SettingsKeysRoundTrip)

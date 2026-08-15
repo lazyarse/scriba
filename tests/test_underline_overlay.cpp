@@ -316,6 +316,77 @@ TEST_F(UnderlineOverlayTest, ExplanationShowsMisspelledWord)
         << "a correctly-spelled line must have no explanation";
 }
 
+TEST_F(UnderlineOverlayTest, WordLevelFindingWinsOverLineLevelMarkdownIssue)
+{
+    QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
+    QSettings().setValue(Preferences::MarkdownLintConfig,
+                         QStringLiteral(R"({"default": false, "MD024": true})"));
+    m_editor->recheckSpelling();
+
+    // Both headings are duplicates (zero-length finding at column 1, emitted
+    // only on the second block) and both contain the same misspelled word.
+    m_editor->setPlainText(QStringLiteral("# Ttle\n# Ttle"));
+    m_editor->spellHighlighter()->refresh();
+
+    auto *hl = m_editor->findChild<SpellHighlighter *>();
+    ASSERT_NE(hl, nullptr);
+    ASSERT_FALSE(hl->spellHitsInBlock(1).isEmpty())
+        << "the typo must be flagged before probing the tooltip";
+    ASSERT_FALSE(hl->markdownHitsInBlock(1).isEmpty())
+        << "the duplicate heading must be flagged before probing the tooltip";
+
+    // "Ttle" sits at [2,6) in "# Ttle". The md finding is zero-length at
+    // column 1 and its message ("Duplicate heading: Ttle") also contains the
+    // word, so the discriminating assertion is the exact message equality.
+    EXPECT_EQ(QStringLiteral("Misspelled word: Ttle"),
+              m_editor->explanationAt(1, 3))
+        << "hovering the misspelled word must name the word, not the line-level finding";
+    EXPECT_TRUE(m_editor->explanationAt(1, 1).contains(QStringLiteral("Duplicate heading")))
+        << "hovering the line's non-word area must still surface the line-level finding";
+}
+
+TEST_F(UnderlineOverlayTest, NarrowestOverlappingFindingWins)
+{
+    QSettings().setValue(Preferences::SpellCheckEnabled, false);
+    m_editor->recheckSpelling();
+    QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
+    // MD013 flags the whole over-long tail; MD009 (trailing spaces) flags the
+    // last 3 columns. Both cover the hover point at the end of the line and
+    // the narrower finding must win there. (Line length is set explicitly so
+    // the span math below is exact: 133 chars, MD013 span [120,133),
+    // MD009 span [130,133).)
+    QSettings().setValue(Preferences::MarkdownLintConfig,
+                         QStringLiteral(R"({"default": false, "MD013": {"params": {"strict": true, "line_length": 120}}, "MD009": true})"));
+    m_editor->recheckSpelling();
+    m_editor->setPlainText(QString(130, QLatin1Char('x')) + QStringLiteral("   "));
+    m_editor->spellHighlighter()->refresh();
+
+    auto *hl = m_editor->findChild<SpellHighlighter *>();
+    ASSERT_NE(hl, nullptr);
+    const auto hits = hl->markdownHitsInBlock(0);
+    ASSERT_EQ(2, hits.size()) << "both MD013 and MD009 must flag the line";
+
+    EXPECT_EQ(QStringLiteral("Trailing spaces: 3"), m_editor->explanationAt(0, 131))
+        << "the trailing-space finding is the narrowest span covering the hover";
+    EXPECT_EQ(QStringLiteral("Line length: 133"), m_editor->explanationAt(0, 125))
+        << "outside the trailing-space span only the line-length finding covers";
+}
+
+TEST_F(UnderlineOverlayTest, TwoMisspelledWordsHoverIndependently)
+{
+    // Identical tip text from two different words: hovering each word must
+    // report that word (the selection is positional, not text-based).
+    m_editor->setPlainText(QStringLiteral("helo helo"));
+    m_editor->spellHighlighter()->refresh();
+
+    auto *hl = m_editor->findChild<SpellHighlighter *>();
+    ASSERT_NE(hl, nullptr);
+    ASSERT_EQ(2, hl->spellHitsInBlock(0).size());
+
+    EXPECT_EQ(QStringLiteral("Misspelled word: helo"), m_editor->explanationAt(0, 1));
+    EXPECT_EQ(QStringLiteral("Misspelled word: helo"), m_editor->explanationAt(0, 6));
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

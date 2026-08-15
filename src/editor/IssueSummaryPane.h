@@ -64,6 +64,7 @@ protected:
 
 private:
     void rebuild();
+    void relayout();
     void onTimeout();
 
     QVector<Row> m_rows;
@@ -71,4 +72,8 @@ private:
     QToolButton *m_closeBtn = nullptr;
     QTimer *m_timer = nullptr;
     QVBoxLayout *m_rowsLayout = nullptr;
+    // Row labels in layout order, owned by m_rowsLayout. Reused in place on
+    // count-only updates so the pane doesn't tear down and recreate every row
+    // widget on each checker update.
+    QVector<QLabel *> m_rowLabels;
 };

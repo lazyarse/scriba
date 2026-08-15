@@ -140,6 +140,11 @@ Editor::Editor(QWidget *parent)
     m_issueSummaryShowTimer->setInterval(Debounce::IssueSummary);
     connect(m_issueSummaryShowTimer, &QTimer::timeout,
             this, &Editor::onIssueSummaryShow);
+    m_issueSummaryHideTimer = new QTimer(this);
+    m_issueSummaryHideTimer->setSingleShot(true);
+    m_issueSummaryHideTimer->setInterval(Debounce::IssueSummaryHide);
+    connect(m_issueSummaryHideTimer, &QTimer::timeout,
+            this, &Editor::onIssueSummaryHide);
 
     connect(this, &Editor::cursorPositionChanged,
             this, &Editor::onCursorPositionChanged);
@@ -448,6 +453,9 @@ void Editor::setIssueSummaryOptions(const IssueSummaryOptions &options,
     m_issueSummaryThemeFg = themeFg;
     if (!m_issueSummaryPane)
         return;
+    // A pending grace must not hide a freshly shown pane.
+    if (m_issueSummaryHideTimer)
+        m_issueSummaryHideTimer->stop();
     m_issueSummaryPane->setTheme(themeBg, themeFg);
     if (!options.enabled) {
         m_issueSummaryPane->hide();
@@ -463,6 +471,9 @@ void Editor::showIssueSummary()
 {
     if (!m_issueSummaryOptions.enabled)
         return;
+    // A pending grace must not hide a freshly shown pane.
+    if (m_issueSummaryHideTimer)
+        m_issueSummaryHideTimer->stop();
     m_issueSummaryDismissed = false;
     updateIssueSummary();
 }
@@ -474,6 +485,8 @@ void Editor::updateIssueSummary()
             m_issueSummaryPane->hide();
         if (m_issueSummaryShowTimer)
             m_issueSummaryShowTimer->stop();
+        if (m_issueSummaryHideTimer)
+            m_issueSummaryHideTimer->stop();
         return;
     }
     if (!m_spellHighlighter)
@@ -504,8 +517,17 @@ void Editor::updateIssueSummary()
            SpellHighlighter::linkUnderlineColor(), m_spellHighlighter->linkCheckingEnabled());
 
     if (rows.isEmpty()) {
-        m_issueSummaryPane->hide();
-        m_issueSummaryShowTimer->stop();
+        // Transient zero counts during typing (a spell re-scan clears its
+        // caches, the grammar lint is async-pending, the markdown re-lint
+        // clears then refills) must not flicker the pane: defer the hide with
+        // a short grace timer. When the doc is genuinely clean (user paused),
+        // the timer fires and hides without emitting closeRequested(), so
+        // m_issueSummaryDismissed stays false and new issues re-show the pane.
+        if (m_issueSummaryPane->isVisible()) {
+            m_issueSummaryHideTimer->start();
+            return;
+        }
+        m_issueSummaryHideTimer->stop();
         return;
     }
 
@@ -513,9 +535,21 @@ void Editor::updateIssueSummary()
     // the first pass may run before any check finished (all-zero counts), and
     // showing inside the startup burst loses the initial paint. The debounce
     // timer shows the pane once, in a settled event loop, with final counts.
+    if (m_issueSummaryHideTimer)
+        m_issueSummaryHideTimer->stop();
     m_issueSummaryPane->setRows(rows);
     m_issueSummaryShowTimer->stop();
     m_issueSummaryShowTimer->start();
+}
+
+void Editor::onIssueSummaryHide()
+{
+    if (!m_issueSummaryPane)
+        return;
+    m_issueSummaryHideTimer->stop();
+    // Grace-hide: no closeRequested() here, so m_issueSummaryDismissed stays
+    // false and future issues re-show the pane.
+    m_issueSummaryPane->hide();
 }
 
 void Editor::onIssueSummaryShow()
@@ -600,39 +634,73 @@ QString Editor::explanationAt(int blockNumber, int positionInBlock)
         return {};
 
     // A finding's span covers [start, start + length]. Zero-length findings
-    // (e.g. the consecutive-blank-lines check) are treated as covering the
-    // whole line so the message shows wherever the line is hovered.
-    const auto hitAt = [positionInBlock](const QVector<SpellHighlighter::GrammarHit> &hits)
-        -> const SpellHighlighter::GrammarHit * {
-        for (const SpellHighlighter::GrammarHit &hit : hits) {
-            const bool covers = hit.length == 0
-                || (positionInBlock >= hit.start
-                    && positionInBlock <= hit.start + hit.length);
-            if (covers)
-                return &hit;
-        }
-        return nullptr;
+    // (e.g. the duplicate-heading check) are line-level: they never shadow a
+    // per-word finding under the cursor, and only surface when no span covers
+    // the position — then the one nearest the hover wins.
+    enum class Kind { Markdown, Grammar, Link, Spell };
+    struct Candidate {
+        const SpellHighlighter::GrammarHit *hit = nullptr;
+        Kind kind = Kind::Markdown;
     };
+    QVector<Candidate> candidates;
+    const auto appendCandidates =
+        [&candidates](const QVector<SpellHighlighter::GrammarHit> &hits, Kind kind) {
+            for (const SpellHighlighter::GrammarHit &hit : hits)
+                candidates.append({&hit, kind});
+        };
+    appendCandidates(m_spellHighlighter->markdownHitsInBlock(blockNumber), Kind::Markdown);
+    appendCandidates(m_spellHighlighter->grammarIssuesInBlock(blockNumber), Kind::Grammar);
+    appendCandidates(m_spellHighlighter->linkIssuesInBlock(blockNumber), Kind::Link);
+    appendCandidates(m_spellHighlighter->spellHitsInBlock(blockNumber), Kind::Spell);
 
-    if (const SpellHighlighter::GrammarHit *hit
-        = hitAt(m_spellHighlighter->markdownHitsInBlock(blockNumber)))
-        return hit->message;
-    if (const SpellHighlighter::GrammarHit *hit
-        = hitAt(m_spellHighlighter->grammarIssuesInBlock(blockNumber)))
-        return hit->message;
-    if (const SpellHighlighter::GrammarHit *hit
-        = hitAt(m_spellHighlighter->linkIssuesInBlock(blockNumber)))
-        return QStringLiteral("Broken link: %1").arg(hit->message);
-    if (const SpellHighlighter::GrammarHit *hit
-        = hitAt(m_spellHighlighter->spellHitsInBlock(blockNumber))) {
+    // Pass 1: the most specific span containing the position (smallest span
+    // wins; equal spans break by category order so behaviour stays stable).
+    const Candidate *best = nullptr;
+    int bestSpan = 0;
+    for (const Candidate &c : candidates) {
+        if (c.hit->length == 0)
+            continue;
+        if (positionInBlock < c.hit->start
+            || positionInBlock > c.hit->start + c.hit->length)
+            continue;
+        if (!best || c.hit->length < bestSpan
+            || (c.hit->length == bestSpan && c.kind < best->kind)) {
+            best = &c;
+            bestSpan = c.hit->length;
+        }
+    }
+
+    // Pass 2: no span covers the position — fall back to the zero-length
+    // finding nearest the cursor (line-level findings stay hoverable
+    // anywhere on their line, but never shadow per-word squiggles).
+    if (!best) {
+        int bestDist = 0;
+        for (const Candidate &c : candidates) {
+            if (c.hit->length != 0)
+                continue;
+            const int dist = qAbs(positionInBlock - c.hit->start);
+            if (!best || dist < bestDist
+                || (dist == bestDist && c.kind < best->kind)) {
+                best = &c;
+                bestDist = dist;
+            }
+        }
+    }
+
+    if (!best)
+        return {};
+    if (best->kind == Kind::Link)
+        return QStringLiteral("Broken link: %1").arg(best->hit->message);
+    if (best->kind == Kind::Spell) {
         const QTextBlock block = document()->findBlockByNumber(blockNumber);
         if (block.isValid()) {
-            const QString word = block.text().mid(hit->start, hit->length);
+            const QString word = block.text().mid(best->hit->start, best->hit->length);
             if (!word.isEmpty())
                 return QStringLiteral("Misspelled word: %1").arg(word);
         }
+        return {};
     }
-    return {};
+    return best->hit->message;
 }
 
 void Editor::mouseMoveEvent(QMouseEvent *event)
@@ -640,8 +708,9 @@ void Editor::mouseMoveEvent(QMouseEvent *event)
     const QTextCursor cursor = cursorForPosition(event->pos());
     const QString tip = explanationAt(cursor.block().blockNumber(),
                                       cursor.positionInBlock());
-    if (tip != m_activeTooltip) {
+    if (tip != m_activeTooltip || event->pos() != m_lastTooltipPos) {
         m_activeTooltip = tip;
+        m_lastTooltipPos = event->pos();
         if (tip.isEmpty())
             QToolTip::hideText();
         else
@@ -653,6 +722,7 @@ void Editor::mouseMoveEvent(QMouseEvent *event)
 void Editor::leaveEvent(QEvent *event)
 {
     m_activeTooltip.clear();
+    m_lastTooltipPos = QPoint();
     QToolTip::hideText();
     QTextEdit::leaveEvent(event);
 }

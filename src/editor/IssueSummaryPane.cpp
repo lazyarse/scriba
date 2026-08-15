@@ -22,6 +22,17 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+namespace {
+
+QString rowText(const IssueSummaryPane::Row &row)
+{
+    return QStringLiteral("<span style=\"color:%1;\">\u25cf</span> %2: <b>%3</b>")
+        .arg(row.color.name(), row.label.toHtmlEscaped())
+        .arg(row.count);
+}
+
+} // namespace
+
 IssueSummaryPane::IssueSummaryPane(QWidget *parent)
     : QWidget(parent)
 {
@@ -86,6 +97,26 @@ void IssueSummaryPane::paintEvent(QPaintEvent *)
 
 void IssueSummaryPane::setRows(const QVector<Row> &rows)
 {
+    // Structural identity: same row count with the same kinds and labels in
+    // order. Counts don't affect structure, so a count-only update reuses the
+    // existing QLabels in place instead of deleting and recreating every row.
+    bool sameStructure = rows.size() == m_rows.size();
+    if (sameStructure) {
+        for (int i = 0; i < rows.size(); ++i) {
+            if (rows.at(i).kind != m_rows.at(i).kind
+                || rows.at(i).label != m_rows.at(i).label) {
+                sameStructure = false;
+                break;
+            }
+        }
+    }
+    if (sameStructure) {
+        for (int i = 0; i < m_rowLabels.size(); ++i)
+            m_rowLabels.at(i)->setText(rowText(rows.at(i)));
+        m_rows = rows;
+        relayout();
+        return;
+    }
     m_rows = rows;
     rebuild();
 }
@@ -109,17 +140,22 @@ void IssueSummaryPane::rebuild()
 {
     while (QLayoutItem *item = m_rowsLayout->takeAt(0)) {
         if (QWidget *w = item->widget())
-            w->deleteLater();
+            delete w;
         delete item;
     }
+    m_rowLabels.clear();
     for (const Row &row : m_rows) {
         auto *lbl = new QLabel;
-        lbl->setText(QStringLiteral("<span style=\"color:%1;\">\u25cf</span> %2: <b>%3</b>")
-                         .arg(row.color.name(), row.label.toHtmlEscaped())
-                         .arg(row.count));
+        lbl->setText(rowText(row));
         lbl->setTextInteractionFlags(Qt::NoTextInteraction);
         m_rowsLayout->addWidget(lbl);
+        m_rowLabels.append(lbl);
     }
+    relayout();
+}
+
+void IssueSummaryPane::relayout()
+{
     if (auto *outer = layout())
         outer->invalidate();
     adjustSize();
