@@ -180,6 +180,14 @@ void PreferencesDialog::setupLintPage()
                 });
                 row->addWidget(btn);
             }
+            auto *sev = new QComboBox;
+            sev->setObjectName("mdlint-" + id + "-severity");
+            sev->addItems({tr("Error"), tr("Warning")});
+            sev->setCurrentIndex(cfg.severity(id) == Severity::Warning ? 1 : 0);
+            sev->setEnabled(check->isChecked());
+            connect(check, &QCheckBox::toggled, sev, &QComboBox::setEnabled);
+            row->addWidget(sev);
+            m_lintSeverityCombos.append({id, sev});
             row->addStretch();
             gl->addLayout(row);
         }
@@ -203,6 +211,8 @@ void PreferencesDialog::setupLintPage()
         const auto defs = MdLintConfig::defaults();
         for (auto &pair : m_lintRuleChecks)
             pair.second->setChecked(defs.enabled(pair.first));
+        for (auto &pair : m_lintSeverityCombos)
+            pair.second->setCurrentIndex(defs.severity(pair.first) == Severity::Warning ? 1 : 0);
         m_lintParams = QJsonObject();
     });
 }
@@ -214,12 +224,20 @@ QString PreferencesDialog::buildLintConfigJson() const
         const QString &id = pair.first;
         if (!pair.second->isChecked())
             continue;
+        const auto *sev = findChild<QComboBox *>("mdlint-" + id + "-severity");
+        const bool warning = sev && sev->currentIndex() == 1;
         const QJsonObject params = m_lintParams.value(id).toObject();
-        if (params.isEmpty())
-            root.insert(id, true);
-        else
-            root.insert(id, QJsonObject{{QStringLiteral("enabled"), true},
-                                        {QStringLiteral("params"), params}});
+        if (params.isEmpty()) {
+            root.insert(id, warning ? QJsonValue(QStringLiteral("warning"))
+                                    : QJsonValue(true));
+        } else {
+            QJsonObject obj;
+            obj.insert(QStringLiteral("enabled"), true);
+            if (warning)
+                obj.insert(QStringLiteral("severity"), QStringLiteral("warning"));
+            obj.insert(QStringLiteral("params"), params);
+            root.insert(id, obj);
+        }
     }
     return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }

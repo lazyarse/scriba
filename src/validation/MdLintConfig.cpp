@@ -96,6 +96,12 @@ Severity MdLintConfig::severity(const QString &ruleKey) const
         if (it != m_entries.constEnd())
             return it->sev;
     }
+    // No config entry (rule not enabled): fall back to the rule's declared
+    // default so disabled rules still show their intended severity in the
+    // preferences page.
+    const auto *rule = MdLintRules::byKey(ruleKey);
+    if (rule && rule->warningByDefault)
+        return Severity::Warning;
     return Severity::Error;
 }
 
@@ -194,6 +200,12 @@ MdLintConfig MdLintConfig::defaults()
     // (maximum 2), where markdownlint's own defaults are 2 and 1.
     cfg.m_entries[QLatin1String("MD009")].params.insert(QLatin1String("br_spaces"), 0);
     cfg.m_entries[QLatin1String("MD012")].params.insert(QLatin1String("maximum"), 2);
+    // Style-level rules default to Warning so the issue summary's "Markdown
+    // warnings" row is populated out of the box; the rendering/structural
+    // ones (MD001 heading skip, MD018 `#heading` without space, MD900
+    // unmatched footnote) stay Error.
+    for (const char *id : {"MD009", "MD012", "MD013", "MD024"})
+        cfg.m_entries[QLatin1String(id)].sev = Severity::Warning;
     return cfg;
 }
 

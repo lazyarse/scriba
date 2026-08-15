@@ -23,9 +23,9 @@ TEST(MdLintRules, RegistryHasExpectedShape)
 {
     const auto &rules = MdLintRules::all();
     // MD002, MD006, MD008, MD015, MD016, MD017, MD057 were never implemented
-    // upstream (removed/deprecated); 53 upstream rules + 1 custom footnote
-    // rule.
-    ASSERT_EQ(54, rules.size());
+    // upstream (removed/deprecated); 53 upstream rules + 2 custom rules
+    // (MD900 unmatched-footnote, MD901 no-loose-lists).
+    ASSERT_EQ(55, rules.size());
     const auto *md013 = MdLintRules::byKey(QStringLiteral("MD013"));
     ASSERT_NE(nullptr, md013);
     EXPECT_EQ(QStringLiteral("line-length"), md013->alias);
@@ -56,7 +56,7 @@ TEST(MdLintConfig, DefaultsEnableOnlyScribaCoreSet)
     EXPECT_TRUE(cfg.enabled(QStringLiteral("MD013")));
     EXPECT_FALSE(cfg.enabled(QStringLiteral("MD003")));
     EXPECT_FALSE(cfg.enabled(QStringLiteral("MD033")));
-    EXPECT_EQ(Severity::Error, cfg.severity(QStringLiteral("MD013")));
+    EXPECT_EQ(Severity::Warning, cfg.severity(QStringLiteral("MD013")));
     // scriba line-length default is 120, overriding markdownlint's 80
     EXPECT_EQ(120, cfg.param(QStringLiteral("MD013"), "line_length", 80).toInt());
     // tag lookups resolve to member rules
@@ -66,6 +66,24 @@ TEST(MdLintConfig, DefaultsEnableOnlyScribaCoreSet)
     const MdLintConfig empty;
     EXPECT_FALSE(empty.enabled(QStringLiteral("MD001")));
     EXPECT_FALSE(empty.enabled(QStringLiteral("MD013")));
+}
+
+TEST(MdLintConfig, DefaultSeverityLevels)
+{
+    // Style-level rules default to Warning (populating the issue summary's
+    // "Markdown warnings" row out of the box); the rendering/structural ones
+    // stay Error.
+    const auto cfg = MdLintConfig::defaults();
+    for (const char *id : {"MD009", "MD012", "MD013", "MD024"})
+        EXPECT_EQ(Severity::Warning, cfg.severity(QLatin1String(id))) << id;
+    for (const char *id : {"MD001", "MD018", "MD900"})
+        EXPECT_EQ(Severity::Error, cfg.severity(QLatin1String(id))) << id;
+    // MD901 is aggressive (off in defaults) but declares a Warning default.
+    EXPECT_FALSE(cfg.enabled(QStringLiteral("MD901")));
+    EXPECT_EQ(Severity::Warning, cfg.severity(QStringLiteral("MD901")));
+    // An explicit stored config overrides the default severity.
+    const auto stored = MdLintConfig::fromJson(QStringLiteral(R"({"MD013": true})"));
+    EXPECT_EQ(Severity::Error, stored.severity(QStringLiteral("MD013")));
 }
 
 TEST(MdLintConfig, JsonRoundTrip)

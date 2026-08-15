@@ -404,6 +404,71 @@ TEST_F(PreferencesSearchTest, MarkdownLintPageWidgetsExist)
     ASSERT_NE(nullptr, tagGroup);
 }
 
+TEST_F(PreferencesSearchTest, LintSeverityComboDefaultsAndPersists)
+{
+    auto *md013 = m_dialog->findChild<QCheckBox *>(QStringLiteral("mdlint-MD013"));
+    auto *sev = m_dialog->findChild<QComboBox *>(QStringLiteral("mdlint-MD013-severity"));
+    ASSERT_NE(nullptr, md013);
+    ASSERT_NE(nullptr, sev);
+    EXPECT_TRUE(md013->isChecked());
+    EXPECT_EQ(sev->currentIndex(), 1) << "MD013 is a style rule: defaults to Warning";
+    EXPECT_TRUE(sev->isEnabled()) << "severity combo enabled while the rule is on";
+
+    sev->setCurrentIndex(0); // Error
+    auto *box = m_dialog->findChild<QDialogButtonBox *>();
+    ASSERT_NE(box, nullptr);
+    box->button(QDialogButtonBox::Ok)->click();
+    QApplication::processEvents();
+
+    const QString saved = QSettings().value(Preferences::MarkdownLintConfig).toString();
+    EXPECT_TRUE(saved.contains(QStringLiteral("\"MD013\":true")))
+        << "Error severity serializes as a plain true: " << saved.toStdString();
+
+    // A rule switched to Warning serializes with an explicit severity.
+    auto *d2 = new PreferencesDialog(m_config, m_loader, nullptr,
+        QStringLiteral("#ffffff"), QStringLiteral("#000000"));
+    d2->show();
+    auto *sev2 = d2->findChild<QComboBox *>(QStringLiteral("mdlint-MD013-severity"));
+    ASSERT_NE(nullptr, sev2);
+    sev2->setCurrentIndex(1);
+    auto *box2 = d2->findChild<QDialogButtonBox *>();
+    ASSERT_NE(box2, nullptr);
+    box2->button(QDialogButtonBox::Ok)->click();
+    QApplication::processEvents();
+    const QString saved2 = QSettings().value(Preferences::MarkdownLintConfig).toString();
+    EXPECT_TRUE(saved2.contains(QStringLiteral("\"MD013\":\"warning\"")))
+        << "Warning severity serializes as \"warning\": " << saved2.toStdString();
+    delete d2;
+}
+
+TEST_F(PreferencesSearchTest, LintSeverityComboFollowsRuleAndRestore)
+{
+    auto *md003 = m_dialog->findChild<QCheckBox *>(QStringLiteral("mdlint-MD003"));
+    auto *sev = m_dialog->findChild<QComboBox *>(QStringLiteral("mdlint-MD003-severity"));
+    ASSERT_NE(nullptr, md003);
+    ASSERT_NE(nullptr, sev);
+    EXPECT_FALSE(md003->isChecked());
+    EXPECT_FALSE(sev->isEnabled()) << "severity combo greyed out while the rule is off";
+
+    md003->setChecked(true);
+    EXPECT_TRUE(sev->isEnabled());
+    md003->setChecked(false);
+    EXPECT_FALSE(sev->isEnabled());
+
+    // Restore defaults resets the combos to the default severities.
+    auto *restore = m_dialog->findChild<QPushButton *>(QStringLiteral("markdown-lint-restore"));
+    ASSERT_NE(nullptr, restore);
+    sev->setCurrentIndex(0);
+    restore->click();
+    EXPECT_EQ(sev->currentIndex(), 0) << "restore resets MD003's combo to its default (Error)";
+    auto *md009 = m_dialog->findChild<QComboBox *>(QStringLiteral("mdlint-MD009-severity"));
+    ASSERT_NE(nullptr, md009);
+    EXPECT_EQ(md009->currentIndex(), 1) << "MD009 defaults to Warning";
+    auto *md001 = m_dialog->findChild<QComboBox *>(QStringLiteral("mdlint-MD001-severity"));
+    ASSERT_NE(nullptr, md001);
+    EXPECT_EQ(md001->currentIndex(), 0) << "MD001 defaults to Error";
+}
+
 } // namespace
 
 int main(int argc, char **argv)
