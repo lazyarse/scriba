@@ -123,6 +123,24 @@ def hello():
     print("Hello, Scriba!")
 ```
 
+## Frontmatter
+
+A YAML block at the very top of a document is stripped from the preview and exports. Use it to give the Table of Contents a description line for this document:
+
+```yaml
+---
+toc-description: "Kitchen sink demo: every renderer on one page"
+---
+```
+
+With **Preferences → Corpus → Description under each filename** set to Em-dash (the default), a corpus's Table of Contents shows:
+
+```markdown
+- [kitchensink.md](kitchensink.md) — Kitchen sink demo: every renderer on one page
+```
+
+(Colon and indented-line formats are available too.) Without the frontmatter, the TOC shows just the filename. The `toc-description` key is ignored in the preview — the block is removed entirely.
+
 ## Markdown Extensions
 
 ### Footnotes
