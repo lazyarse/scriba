@@ -119,8 +119,9 @@ protected:
             "(function(){"
             "var wraps=document.querySelectorAll('.scriba-chart-wrap');"
             "if(!wraps.length)return false;"
-            "return document.querySelectorAll('.scriba-chart-wrap canvas').length>0;"
-            "})()", 25000)) << "stock chart canvases never appeared in the preview";
+            "return document.querySelectorAll('.scriba-chart-wrap canvas').length>0"
+            "&&document.querySelectorAll('.scriba-chart-wrap .scriba-edit-btn').length>0;"
+            "})()", 25000)) << "stock chart canvases/anchors never appeared in the preview";
     }
 
     bool waitForStableJs(const QString &probe, int timeoutMs = 15000)

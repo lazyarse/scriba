@@ -530,6 +530,16 @@ void MainWindow::editChartBlock(Editor *ed, int blockNumber)
             ed->replaceBlockRange(range.first, range.second, replacement);
         return;
     }
+    if (lang == QLatin1String("lc") || lang == QLatin1String("kc")
+        || lang == QLatin1String("tx")) {
+        StockChartDialog dlg(body, this);
+        if (dlg.exec() != QDialog::Accepted)
+            return;
+        QString replacement = dlg.generatedSpec().trimmed();
+        if (!replacement.isEmpty())
+            ed->replaceBlockRange(range.first, range.second, replacement);
+        return;
+    }
     if (lang == QLatin1String("ec")) {
         const QByteArray json = body.toUtf8();
         switch (ChartSource::detectEcType(json)) {
@@ -585,7 +595,9 @@ void MainWindow::handleChartEdit(const QString &kind, int line, int index, const
     if (!ed)
         return;
 
-    if (kind == QLatin1String("mermaid") || kind == QLatin1String("ec")) {
+    if (kind == QLatin1String("mermaid") || kind == QLatin1String("ec")
+        || kind == QLatin1String("lightweight") || kind == QLatin1String("klinecharts")
+        || kind == QLatin1String("tradex")) {
         // The preview's line numbers are only approximate; the anchor carries
         // the fenced block's body, so match on that (the line only breaks
         // ties between identical charts).
