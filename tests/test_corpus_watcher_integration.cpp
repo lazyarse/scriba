@@ -795,6 +795,26 @@ TEST_F(CorpusWatcherIntegrationTest, DockCloseUnchecksViewMenuAction)
     EXPECT_TRUE(QSettings().value(Preferences::ShowCorpusFilesPanel, false).toBool());
 }
 
+TEST_F(CorpusWatcherIntegrationTest, ActionUncheckedWhenNoCorpusAtStartup)
+{
+    m_window = new MainWindow(nullptr, /*skipCorpusRestore=*/true);
+    QApplication::processEvents();
+
+    QAction *action = nullptr;
+    for (QAction *a : m_window->findChildren<QAction *>())
+        if (a->text() == QStringLiteral("Show Corpus &Files"))
+            action = a;
+    ASSERT_NE(action, nullptr);
+    EXPECT_FALSE(action->isChecked()) << "no corpus: dock hidden, action must be unticked";
+    EXPECT_TRUE(filesDock()->isHidden());
+
+    // Round-trip: toggling the action still shows the (empty) panel.
+    action->trigger();
+    QApplication::processEvents();
+    EXPECT_FALSE(filesDock()->isHidden());
+    EXPECT_TRUE(action->isChecked());
+}
+
 } // namespace
 
 int main(int argc, char **argv)

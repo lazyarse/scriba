@@ -779,12 +779,18 @@ void MainWindow::updateCorpusFilesPanel()
     if (m_corpus.filePath.isEmpty()) {
         m_corpusFilesPanel->clear();
         m_corpusFilesDock->setVisible(false);
+        // Re-sync the View menu action: the dock was hidden explicitly, so
+        // the action must not stay checked (the persisted pref still governs
+        // what happens when a corpus opens). isHidden() tracks the explicit
+        // hide state even while the main window itself is not yet shown.
+        m_showCorpusFilesAction->setChecked(!m_corpusFilesDock->isHidden());
         return;
     }
     m_corpusFilesPanel->setRootDir(m_corpus.rootDir());
     m_corpusFilesPanel->setExcludedPath(m_corpus.filePath);
     m_corpusFilesDock->setVisible(
         QSettings().value(Preferences::ShowCorpusFilesPanel, true).toBool());
+    m_showCorpusFilesAction->setChecked(!m_corpusFilesDock->isHidden());
 }
 
 void MainWindow::applyUntitledLinkBaseDir()

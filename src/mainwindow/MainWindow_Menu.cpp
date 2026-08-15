@@ -306,8 +306,6 @@ void MainWindow::buildViewMenu(QMenuBar *bar)
     m_showCorpusFilesAction = viewMenu->addAction("Show Corpus &Files");
     m_showCorpusFilesAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F));
     m_showCorpusFilesAction->setCheckable(true);
-    m_showCorpusFilesAction->setChecked(
-        QSettings().value(Preferences::ShowCorpusFilesPanel, true).toBool());
     connect(m_showCorpusFilesAction, &QAction::toggled, this, [this](bool checked) {
         QSettings().setValue(Preferences::ShowCorpusFilesPanel, checked);
         m_corpusFilesDock->setVisible(checked);
