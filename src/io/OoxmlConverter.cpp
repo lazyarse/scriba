@@ -675,9 +675,13 @@ QString Converter::image(QXmlStreamReader &r)
         images << img;
     }
     QString size;
-    if (cx > 0 && cy > 0)
-        size = QStringLiteral(" width=\"%1\" height=\"%2\"")
-                   .arg(qRound(cx / 9525.0)).arg(qRound(cy / 9525.0));
+    // EMUs at 96 DPI (9525/px). The exporter writes raster extents at 192 DPI
+    // (4762.5 EMU/px), so a 1px image lands at 4762 EMU = 0.5px here — round
+    // and drop the degenerate 0: a zero size attribute is never meaningful.
+    const int w = qRound(cx / 9525.0);
+    const int h = qRound(cy / 9525.0);
+    if (w > 0 && h > 0)
+        size = QStringLiteral(" width=\"%1\" height=\"%2\"").arg(w).arg(h);
     return QStringLiteral("<img src=\"docximg://%1\"%2 alt=\"\">").arg(rId, size);
 }
 

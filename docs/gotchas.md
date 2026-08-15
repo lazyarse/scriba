@@ -399,6 +399,12 @@ attachment in `src/src/preview/MdRenderer.cpp`) and must satisfy a strict contra
   exactly. A directive written as plain text (without `<!-- -->`) is just prose
   and has no effect. Because it *is* a comment, it disappears from both the
   preview and the exported PDF — that invisibility is the acceptance test.
+- **Context-menu insertion.** The editor's "Insert Page Break" / "Keep
+  Together" context actions (`Editor::insertTypesettingDirective`) insert the
+  comment at the start of the current line and prepend a blank line when the
+  line above is non-blank, so the directive always forms its own block and
+  pins the block under the caret. The items are disabled inside fenced code
+  blocks, where the comment would be literal code text.
 
 **Why tokens instead of line numbers?** `MdRenderer::m_currentLine` is advanced
 only by `\n` in `MD_TEXT` callbacks; md4c does not emit a trailing softbreak for
@@ -1136,8 +1142,126 @@ date count (serialized as JSON `null`). `StockChartDialog::movingAverage` is
 gone — `Indicators::sma` is its exact replacement (parity pinned by
 test_indicators.cpp `SmaParityWithOldMovingAverage`).
 
-Future upgrade: TA-Lib (BSD-3-Clause) can replace the six functions with a
-one-file swap in `Indicators.cpp`. TA-Lib reports output via
-`outBegIdx`/`outNbElement` offsets rather than aligned NaN-prefixed arrays, so
-a small re-alignment adapter is needed; the public API and payload format stay
-unchanged.
+## Stock charts: indicators come from the vendored TA-Lib
+
+`Indicators.cpp` computes sma/ema/macd/rsi/boll via the vendored TA-Lib C
+library (`vendor/ta-lib/`, v0.7.1, BSD-3-Clause); KDJ is NOT a TA-Lib function
+(TA_STOCH smooths RSV with a finite SMA window — no 50-seed recursion, no J
+line), so `Indicators::kdj` wraps TA_STOCH for K/D and computes
+`J = 3K − 2D` locally. TA-Lib reports output via
+`outBegIdx`/`outNbElement` offsets rather than aligned NaN-prefixed arrays,
+so every call goes through a small adapter that re-aligns into the
+NaN-prefixed `inputSize` payload the engines expect (serialized as JSON
+`null`).
+
+Conventions adopted from TA-Lib (differ from the old hand-rolled math): MACD
+histogram = `macd − signal` with the DEA seeded from an SMA of the first
+`signal` MACD values; RSI returns 0.0 on a perfectly flat series; KDJ aligns
+from index 12 for the 9/3/3 params (RSV SMA lookback), MACD from index
+`(slow−1)+(signal−1)` = 33 for 12/26/9.
+
+This C TA-Lib is unrelated to the old `talib.wasm` (a JS engine, see the
+TradeX section above).
+
+## DOCX export styling (templates)
+
+- Without a user template, DOCX export's `styles.xml` comes from a fixed
+  default CSS constant (`kDefaultTemplateCss` in `DocxExporter.cpp`), NOT the
+  active theme — theme colors no longer reach DOCX styling by default. To get
+  theme colors into a DOCX, use Export→Word… → "Save current theme as
+  template", then export with that template. That bridge's color extraction
+  (`HtmlToOoxml::buildStylesXml`) is hex-only: themes using `rgb()`/`hsl()`/CSS
+  variables fall back to the hardcoded defaults in the generated template.
+- Template contract: the exported body references styleIds `Normal`,
+  `Heading1`..`Heading6`, `Quote`, `SourceCode`, `AdmonitionTitle{note,tip,
+  important,warning,caution}` and `AdmonitionText{...}`. Word's built-in latent
+  styles cover Heading/Quote even in templates that lack them, but SourceCode
+  and admonition styles render as Normal unless the template defines them —
+  Scriba-generated templates (save-as-template) always contain the full set.
+- The template owns page setup: when a template is selected the export dialog
+  disables landscape/margins/page-numbers, and the export keeps the template's
+  `<w:sectPr>` (page size, margins, header/footer references) verbatim —
+  headers, footers, backgrounds and title pages survive untouched.
+- Template merging: only `word/document.xml` body content and
+  `word/_rels/document.xml.rels` are touched; every other part (styles, theme,
+  settings, media, custom XML) is copied byte-identical. Scriba's media files
+  are remapped to non-colliding `word/media/imageN` names and its `rIdImageN`/
+  `rIdSvgN`/`rIdLinkN` rel ids are offset past any the template already
+  declares.
+
+## markdownLintConfig severity migration
+
+Config blobs written at `CurrentConfigVersion` 3 store boolean rule toggles
+with no per-rule severities; version 4 adds severities
+(`error`/`warning`/`off`). On startup the migration heals a v3 blob by
+re-deriving severities from the defaults. A deliberate-Error choice stored as
+bare `true` at version 3 is indistinguishable and resets to Warning once —
+the version bump means it can never happen again.
+
+## MD009 vs. table auto-alignment padding
+
+The auto-align formatter (`MdTable::formatMdTable`) writes end-of-row padding
+spaces in **borderless** tables (no trailing pipe): the last cell of a short
+row is right-padded to the column width, and empty rows end in `2*padding`
+spaces. The editor re-aligns on cursor-leave, so the spaces are re-inserted
+the moment the user removes them — flagging them (MD009, `br_spaces: 0` in
+the scriba preset) would be an unfixable, self-inflicted warning.
+
+MD009 therefore exempts interior trailing whitespace in table rows: only
+whitespace that sits *after* the row's final border pipe (`| a | b | `)
+flags. Borderless rows, padding before the pipe, and padding before an
+escaped pipe (`\|`) never flag. Set the MD009 `tables` param to `true` to
+restore strict table checking (markdownlint's own behavior; its default
+`br_spaces: 2` usually swallows single padding spaces anyway).
+
+## Link checker: `#WxH` image size suffixes are not heading anchors
+
+The `#WxH` suffix (`![alt](image.svg#150x120)`, also `#400x`/`#x300`) is an
+image size directive, not an anchor — `MdRenderer::parseDimensions` strips
+it from image srcs. The broken-link checker (`SpellHighlighter::
+scanLinkHits`) would otherwise report "Heading not found: #150x120", because
+the file exists and only the fragment fails the heading-slug match.
+
+The anchor check (`headingMessage`) therefore skips any fragment matching
+`^\d*x\d*$` — on images *and* text links alike, since the two are
+indistinguishable at the regex level (and a heading literally named
+`150x120` is a corner case worth accepting). The file-existence check still
+runs: `![alt](missing.svg#150x120)` reports "File not found". Uppercase
+`150X120` is not exempt, matching the renderer's lowercase-`x` syntax.
+
+Imports restore the sizes too: the turndown `image` rule override
+(`HtmlToMarkdown::convert`) reads explicit sizes — inline `style`
+(`width`/`height` for SVG, `max-width`/`max-height` caps for raster) or
+`width`/`height` attributes (DOCX imports) — and re-emits the
+`#WxH`/`#Wx`/`#xH` suffix, so exporting a sized image and importing the
+HTML back keeps its size. Only integer px are honored; percentages,
+`auto` and fractional values import unsized.
+
+## YAML frontmatter: detection, stripping, and the `toc-description` key
+
+Scriba treats a **leading `--- … ---` block** (YAML-only) as frontmatter,
+detected by `FrontMatterParser::lineRange` (`src/FrontMatterParser.cpp`): the
+first non-empty line must start with `---`, and a later line starting with
+`---` closes the block. Detection is **line-based and content-agnostic** —
+`---\n---` (an empty block) IS frontmatter, while a **lone `---`** (no closer)
+is NOT and stays an HR, matching CommonMark. Blank lines before the opener are
+skipped, but once document text precedes the opener it is not frontmatter.
+
+The preview/export pipeline strips frontmatter via **blank-line padding**
+(`FrontMatterParser::blankOut`): the block's lines are replaced with empty
+strings, not deleted, so the line count is preserved and md4c still emits
+per-line `data-line` attributes that keep scroll-sync and click-navigation
+aligned with the editor (blank lines emit no HTML). A doc whose frontmatter is
+`3` lines long therefore renders its first heading on `data-line="4"`.
+
+`FrontMatterParser::tocInfo` reads the scalar-only `toc-description:` key
+(matching surrounding single/double quotes stripped; `|`/`>` block scalars are
+out of scope). `CorpusIndex::extractHeadings` skips the frontmatter range — a
+YAML `# comment` would otherwise surface as a spurious TOC heading.
+
+Three deliberately separate frontmatter implementations coexist:
+`MdLintEngine::frontMatterRange` also detects TOML (`+++`) and JSON
+(`{...}`) and is lint-specific; `MermaidParser::stripFrontmatter` handles
+diagram fences; `FrontMatterParser` is the YAML-only shared parser for
+preview stripping and corpus TOC descriptions. Do not merge them casually —
+their detection conventions differ.
