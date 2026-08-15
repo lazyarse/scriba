@@ -79,7 +79,6 @@ protected:
         m_checker->loadLanguage(QStringLiteral("en_US"));
         m_hl->setChecker(m_checker.get());
         m_hl->setGrammarChecker(m_grammar);
-        m_hl->setForceSyncChecks(true);
     }
 
     void TearDown() override
@@ -102,7 +101,8 @@ protected:
 
 TEST_F(IssueSummaryCountsTest, CountsSumLiveCaches)
 {
-    // One typo, one broken link, one trailing-whitespace markdown issue,
+    // One typo, one broken link, one trailing-whitespace markdown issue
+    // (MD009 is a style rule: warning severity by default),
     // grammar off (0).
     m_doc->setPlainText(QStringLiteral(
         "helo world\n"
@@ -119,7 +119,8 @@ TEST_F(IssueSummaryCountsTest, CountsSumLiveCaches)
     const auto counts = m_hl->counts();
     EXPECT_EQ(counts.spelling, 1);
     EXPECT_EQ(counts.links, 1);
-    EXPECT_EQ(counts.markdown, 1);
+    EXPECT_EQ(counts.markdown, 0);
+    EXPECT_EQ(counts.markdownWarnings, 1);
     EXPECT_EQ(counts.grammar, 0);
 }
 

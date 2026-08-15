@@ -447,7 +447,7 @@ TEST_F(SpellHighlighterSpellDebounceTest, CheckCompletionEmitsSignal)
 // thread while opening: the eager per-block spell check inside the paint pass
 // is skipped (blocks are marked stale instead) and the scan runs in chunks on
 // 0 ms timers, with underlines appearing progressively. The whole-document
-// grammar lint is skipped entirely — it is a Validation Report job.
+// grammar lint is skipped entirely.
 class SpellHighlighterLargeDocTest : public ::testing::Test
 {
 protected:

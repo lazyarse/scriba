@@ -347,11 +347,6 @@ void SpellHighlighter::setFallbackLinkBaseDir(const QString &dir)
         runSpellCheck(); // relative targets resolve against the new base now
 }
 
-void SpellHighlighter::setForceSyncChecks(bool force)
-{
-    m_forceSyncChecks = force;
-}
-
 bool SpellHighlighter::largeDocument() const
 {
     return document() && document()->blockCount() > kLargeDocBlocks;
@@ -485,12 +480,11 @@ void SpellHighlighter::runSpellCheck()
 
     // Start (or restart) the per-block pass. On large documents the walk is
     // deferred into chunks on a 0 ms timer so the UI thread never blocks on
-    // one monolithic pass; validation scans (setForceSyncChecks) keep it
-    // synchronous.
+    // one monolithic pass.
     m_scanState = 0;
     m_scanAny = m_linkEnabled || m_markdownEnabled; // these recompute wholesale each pass
     m_scanBlockNumber = 0;
-    m_scanChunked = !m_forceSyncChecks && largeDocument();
+    m_scanChunked = largeDocument();
     continueSpellScan();
 }
 
@@ -601,49 +595,6 @@ QList<SpellHighlighter::WordHit> SpellHighlighter::scanWords(const QString &line
     return hits;
 }
 
-QVector<SpellHighlighter::SpellIssue>
-SpellHighlighter::scanDocument(QTextDocument *document, SpellChecker *checker)
-{
-    QVector<SpellIssue> issues;
-    if (!document || !checker || !checker->isLoaded())
-        return issues;
-
-    int state = 0;
-    for (QTextBlock block = document->firstBlock(); block.isValid(); block = block.next()) {
-        const BlockContext ctx = blockContext(block.blockNumber(), block.text(), state);
-        state = ctx.state;
-        if (!ctx.checkable)
-            continue;
-        for (const WordHit &word : scanWords(block.text())) {
-            if (!checker->checkWord(word.text))
-                issues.append({block.blockNumber(), word.start, word.length, word.text});
-        }
-    }
-    return issues;
-}
-
-QVector<SpellHighlighter::LinkHit>
-SpellHighlighter::scanLinkIssues(const QString &text, const QString &baseDir)
-{
-    QTextDocument doc;
-    doc.setPlainText(text);
-    // Attaching a highlighter and setting the current file runs the same full
-    // link pass the underlines use (setCurrentFile triggers runSpellCheck(),
-    // whose link half needs no spell checker). Relative targets resolve
-    // against baseDir via the synthetic file path.
-    SpellHighlighter hl(&doc);
-    hl.setForceSyncChecks(true); // validation must read finished caches immediately
-    hl.setCurrentFile(baseDir.isEmpty() ? QString()
-                                        : QDir(baseDir).filePath(QStringLiteral("__validation__.md")));
-    QVector<LinkHit> hits;
-    for (int i = 0; i < doc.blockCount(); ++i) {
-        const QVector<GrammarHit> blockHits = hl.linkIssuesInBlock(i);
-        for (const auto &h : blockHits)
-            hits.append({i + 1, h.start + 1, h.length, h.message});
-    }
-    return hits;
-}
-
 void SpellHighlighter::highlightBlock(const QString &text)
 {
     const int blockNumber = currentBlock().blockNumber();
@@ -726,7 +677,7 @@ void SpellHighlighter::runGrammarLint()
     // Large documents skip the whole-document lint entirely: the check is
     // O(n) per line and even on a background thread a 2 MB file would take
     // seconds, with underlines stale long before they ever paint. Grammar
-    // checking on multi-thousand-block files is a Validation Report job.
+    // checking on multi-thousand-block files is skipped entirely.
     if (largeDocument())
         return;
 

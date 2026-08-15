@@ -92,7 +92,7 @@ public:
         int length = 0;
     };
 
-    // One misspelled word in the document, as found by scanDocument().
+    // One misspelled word (block, line-relative offsets, word text).
     struct SpellIssue {
         int blockNumber = 0;
         int start = 0; // offset within the block
@@ -105,15 +105,6 @@ public:
         int length = 0;
         QString message;
         QVector<GrammarChecker::Issue::Suggestion> suggestions;
-    };
-
-    // One broken-link hit in a whole document, as found by scanLinkIssues().
-    // line and col are 1-based within the document.
-    struct LinkHit {
-        int line = 0;
-        int col = 0;
-        int length = 0;
-        QString message;
     };
 
     // Squiggle colors, shared with Editor's custom underline painting.
@@ -153,12 +144,6 @@ public:
     // untitled tab). Used only when m_currentFile is empty; the CWD fallback
     // remains for the no-corpus case.
     void setFallbackLinkBaseDir(const QString &dir);
-    // Runs checks synchronously to completion even on large documents (the
-    // normal large-document behaviour defers spell scanning into chunks and
-    // skips the grammar lint). Used by scanLinkIssues()/validation, which must
-    // read the finished caches immediately after setting the file.
-    void setForceSyncChecks(bool force);
-
     // Re-runs the pending grammar lint and re-applies underlines. Call after
     // dictionary changes (add/ignore word, language switch).
     void refresh();
@@ -166,20 +151,6 @@ public:
     // Markdown-aware word scan: returns the words of `line` that are eligible
     // for spell checking (outside code, URLs, tags, emoji, etc.).
     static QList<WordHit> scanWords(const QString &line);
-
-    // Whole-document misspelled-word scan for the Check Spelling dialog: walks
-    // every block with the same fence/front-matter state machine and word
-    // scanner the underlines use, so the dialog reports exactly what the
-    // editor flags. Returns issues in document order.
-    static QVector<SpellIssue> scanDocument(QTextDocument *document,
-                                            SpellChecker *checker);
-
-    // Whole-document broken-link scan (file targets, URLs, reference usages,
-    // heading anchors) using the same pass the underlines use. `baseDir`
-    // resolves relative targets; empty uses the current working directory.
-    // Returns hits with 1-based line/col. Used by the Validation Report.
-    static QVector<LinkHit> scanLinkIssues(const QString &text,
-                                           const QString &baseDir);
 
     // Grammar issues (start offset + length within the block) for a block.
     QVector<GrammarHit> grammarIssuesInBlock(int blockNumber) const;
@@ -276,7 +247,6 @@ private:
     bool m_grammarEnabled = false;
     bool m_linkEnabled = true;
     bool m_markdownEnabled = false;
-    bool m_forceSyncChecks = false;
     // The markdown-lint rule configuration (from preferences; the default-
     // constructed config underlines nothing). Changing it re-runs the scan so
     // underlines follow immediately.

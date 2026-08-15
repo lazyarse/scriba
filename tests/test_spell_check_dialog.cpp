@@ -13,11 +13,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
-// Check Spelling (M10): SpellHighlighter::scanDocument() reports exactly the
-// words the underlines flag (same state machine + word scanner), the
-// "ignored always" list is persisted separately from the custom dictionary
-// and matched case-insensitively, and the dialog drives next/prev, change,
-// ignore-once, ignore-always and add-to-dictionary against a real Editor.
+// Check Spelling (M10): the "ignored always" list is persisted separately
+// from the custom dictionary and matched case-insensitively, and the dialog
+// drives next/prev, change, ignore-once, ignore-always and add-to-dictionary
+// against a real Editor.
 #include <gtest/gtest.h>
 #include "editor/Editor.h"
 #include "spell/SpellCheckDialog.h"
@@ -43,7 +42,7 @@ QStringList issueWords(const QVector<SpellHighlighter::SpellIssue> &issues)
     return words;
 }
 
-class SpellScanTest : public ::testing::Test
+class SpellCheckerTest : public ::testing::Test
 {
 protected:
     void SetUp() override
@@ -58,66 +57,10 @@ protected:
         QSettings().clear();
     }
 
-    QVector<SpellHighlighter::SpellIssue> scan(const QString &text)
-    {
-        QTextDocument doc;
-        doc.setPlainText(text);
-        return SpellHighlighter::scanDocument(&doc, &m_checker);
-    }
-
     SpellChecker m_checker;
 };
 
-TEST_F(SpellScanTest, FindsMisspellingsInDocumentOrder)
-{
-    const auto issues = scan(QStringLiteral("helo hello\nxx speling\n"));
-    ASSERT_EQ(issues.size(), 2);
-    EXPECT_EQ(issues.at(0).blockNumber, 0);
-    EXPECT_EQ(issues.at(0).start, 0);
-    EXPECT_EQ(issues.at(0).length, 4);
-    EXPECT_EQ(issues.at(0).word, "helo");
-    EXPECT_EQ(issues.at(1).blockNumber, 1);
-    EXPECT_EQ(issues.at(1).start, 3);
-    EXPECT_EQ(issues.at(1).word, "speling");
-}
-
-TEST_F(SpellScanTest, FencedCodeBlocksSkipped)
-{
-    const auto issues = scan(QStringLiteral("```\nhelo\n```\nspeling\n"));
-    ASSERT_EQ(issues.size(), 1);
-    EXPECT_EQ(issues.at(0).word, "speling");
-}
-
-TEST_F(SpellScanTest, InlineCodeAndUrlsSkipped)
-{
-    const auto issues = scan(QStringLiteral("`helo` helo https://helo.com\n"));
-    ASSERT_EQ(issues.size(), 1);
-    EXPECT_EQ(issues.at(0).word, "helo");
-    EXPECT_EQ(issues.at(0).start, 7);
-}
-
-TEST_F(SpellScanTest, FrontMatterSkipped)
-{
-    const auto issues = scan(QStringLiteral("---\nhelo\n---\nspeling\n"));
-    ASSERT_EQ(issues.size(), 1);
-    EXPECT_EQ(issues.at(0).word, "speling");
-}
-
-TEST_F(SpellScanTest, CleanDocumentHasNoIssues)
-{
-    EXPECT_TRUE(scan(QStringLiteral("hello world\nsecond line\n")).isEmpty());
-    EXPECT_TRUE(scan(QString()).isEmpty());
-}
-
-TEST_F(SpellScanTest, UnloadedCheckerYieldsNothing)
-{
-    SpellChecker unloaded;
-    QTextDocument doc;
-    doc.setPlainText(QStringLiteral("helo\n"));
-    EXPECT_TRUE(SpellHighlighter::scanDocument(&doc, &unloaded).isEmpty());
-}
-
-TEST_F(SpellScanTest, IgnoredWordStopsFlaggingAndPersists)
+TEST_F(SpellCheckerTest, IgnoredWordStopsFlaggingAndPersists)
 {
     EXPECT_FALSE(m_checker.checkWord("helo"));
     m_checker.addToIgnored("helo");
@@ -125,7 +68,6 @@ TEST_F(SpellScanTest, IgnoredWordStopsFlaggingAndPersists)
     EXPECT_TRUE(m_checker.ignoredWords().contains("helo"));
     // Not merged into the custom dictionary.
     EXPECT_FALSE(m_checker.userWords().contains("helo"));
-    EXPECT_TRUE(scan(QStringLiteral("helo speling\n")).size() == 1);
 
     // A fresh instance picks the ignored list up too.
     SpellChecker fresh;
@@ -139,13 +81,15 @@ TEST_F(SpellScanTest, IgnoredWordStopsFlaggingAndPersists)
     EXPECT_FALSE(fresh2.checkWord("helo"));
 }
 
-TEST_F(SpellScanTest, IgnoredMatchingIsCaseInsensitive)
+TEST_F(SpellCheckerTest, IgnoredMatchingIsCaseInsensitive)
 {
     m_checker.addToIgnored("helo");
-    EXPECT_TRUE(scan(QStringLiteral("Helo HELO helo\n")).isEmpty());
+    EXPECT_TRUE(m_checker.checkWord("Helo"));
+    EXPECT_TRUE(m_checker.checkWord("HELO"));
+    EXPECT_TRUE(m_checker.checkWord("helo"));
 }
 
-TEST_F(SpellScanTest, IgnoredWordsFileRoundTrip)
+TEST_F(SpellCheckerTest, IgnoredWordsFileRoundTrip)
 {
     QFile::remove(SpellChecker::configDictDir() + "/ignored.dic");
     EXPECT_TRUE(SpellChecker::readIgnoredWords().isEmpty());

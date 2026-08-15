@@ -72,6 +72,7 @@ namespace Preferences {
     constexpr const char *FileCompletionLimit = "fileCompletionLimit";
     constexpr const char *FileAutoComplete = "fileAutoComplete";
     constexpr const char *LanguageAutoComplete = "languageAutoComplete";
+    constexpr const char *CommentAutoComplete = "commentAutoComplete";
     constexpr const char *AutoCorrectEnabled = "autoCorrectEnabled";
     constexpr const char *AutoCorrectPairs = "autoCorrectPairs";
 
@@ -152,8 +153,8 @@ namespace Preferences {
     // Only meaningful while MarkdownCheckEnabled is on.
     constexpr const char *MarkdownLintConfig = "markdownLintConfig";
     // Per-check toggles for the real-time (in-editor) markdown-consistency
-    // underlines. Independent of the Validation Report dialog's own selection.
-    // Each defaults to enabled; only meaningful while MarkdownCheckEnabled is on.
+    // underlines. Each defaults to enabled; only meaningful while
+    // MarkdownCheckEnabled is on.
     constexpr const char *MarkdownCheckHeadingLevelSkip = "mdRealHeadingLevelSkip";
     constexpr const char *MarkdownCheckDuplicateHeading = "mdRealDuplicateHeading";
     constexpr const char *MarkdownCheckTrailingWhitespace = "mdRealTrailingWhitespace";
