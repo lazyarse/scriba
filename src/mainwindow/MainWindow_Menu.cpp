@@ -256,6 +256,21 @@ void MainWindow::buildViewMenu(QMenuBar *bar)
 
     viewMenu->addSeparator();
 
+    m_showPageBreaksAction = viewMenu->addAction("Show Page &Breaks");
+    m_showPageBreaksAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
+    m_showPageBreaksAction->setCheckable(true);
+    m_showPageBreaksAction->setChecked(m_printLayoutMode);
+    connect(m_showPageBreaksAction, &QAction::toggled, this, [this](bool on) {
+        QSettings().setValue(Preferences::PreviewShowPageBreaks, on);
+        m_printLayoutMode = on;
+        if (!on)
+            m_printLayoutFp.clear();
+        // Force the full rebuild path so the page picks up the print/classic
+        // base CSS, theme, page box and paginator (or the absence of them).
+        m_previewInitialized = false;
+        updatePreview();
+    });
+
     QAction *lineNumbersAction = viewMenu->addAction("Show &Line Numbers");
     lineNumbersAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
     lineNumbersAction->setCheckable(true);
@@ -330,21 +345,6 @@ void MainWindow::buildViewMenu(QMenuBar *bar)
         } else {
             showNormal();
         }
-    });
-
-    m_showPageBreaksAction = viewMenu->addAction("Show Page &Breaks");
-    m_showPageBreaksAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
-    m_showPageBreaksAction->setCheckable(true);
-    m_showPageBreaksAction->setChecked(m_printLayoutMode);
-    connect(m_showPageBreaksAction, &QAction::toggled, this, [this](bool on) {
-        QSettings().setValue(Preferences::PreviewShowPageBreaks, on);
-        m_printLayoutMode = on;
-        if (!on)
-            m_printLayoutFp.clear();
-        // Force the full rebuild path so the page picks up the print/classic
-        // base CSS, theme, page box and paginator (or the absence of them).
-        m_previewInitialized = false;
-        updatePreview();
     });
 
     for (int i = 1; i <= 10; ++i) {
