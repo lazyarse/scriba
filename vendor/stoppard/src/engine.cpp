@@ -27,26 +27,26 @@ Engine::Engine(Dialect dialect)
 {
 }
 
-Dialect Engine::dialect() const { return m_config.load()->dialect; }
+Dialect Engine::dialect() const { return config()->dialect; }
 
 void Engine::setDialect(Dialect d)
 {
-    auto cfg = m_config.load();
-    m_config.store(std::make_shared<const Config>(
+    auto cfg = config();
+    setConfig(std::make_shared<const Config>(
         Config{d, cfg->language, cfg->grammar, cfg->userWords}));
 }
 
 void Engine::setLanguage(Language l)
 {
-    auto cfg = m_config.load();
-    m_config.store(std::make_shared<const Config>(
+    auto cfg = config();
+    setConfig(std::make_shared<const Config>(
         Config{cfg->dialect, l, cfg->grammar, cfg->userWords}));
 }
 
 void Engine::setGrammar(bool on)
 {
-    auto cfg = m_config.load();
-    m_config.store(std::make_shared<const Config>(
+    auto cfg = config();
+    setConfig(std::make_shared<const Config>(
         Config{cfg->dialect, cfg->language, on, cfg->userWords}));
 }
 
@@ -57,23 +57,23 @@ void Engine::setUserWords(std::vector<std::u16string> words)
     // ("Scriba" in the dict must satisfy the folded "scriba" lookup).
     for (auto &w : words)
         w = foldWord(w);
-    auto cfg = m_config.load();
-    m_config.store(std::make_shared<const Config>(
+    auto cfg = config();
+    setConfig(std::make_shared<const Config>(
         Config{cfg->dialect, cfg->language, cfg->grammar, std::move(words)}));
 }
 
 void Engine::setDictionaryPaths(std::string enUSPath, std::string enGBPath,
                                 std::string maoriPath, std::string canadianPath)
 {
-    m_spellData.store(SpellData::load(enUSPath, enGBPath, maoriPath, canadianPath));
+    setSpellData(SpellData::load(enUSPath, enGBPath, maoriPath, canadianPath));
 }
 
 bool Engine::isMisspelled(std::u16string_view word) const
 {
-    auto cfg = m_config.load();
+    auto cfg = config();
     if (cfg->language == Language::None)
         return false;
-    auto data = m_spellData.load();
+    auto data = spellData();
     if (!data)
         return false;
     std::unordered_set<std::u16string> userSet(cfg->userWords.begin(), cfg->userWords.end());
@@ -82,10 +82,10 @@ bool Engine::isMisspelled(std::u16string_view word) const
 
 std::vector<std::u16string> Engine::spellSuggestions(std::u16string_view word) const
 {
-    auto cfg = m_config.load();
+    auto cfg = config();
     if (cfg->language == Language::None)
         return {};
-    auto data = m_spellData.load();
+    auto data = spellData();
     if (!data)
         return {};
     std::unordered_set<std::u16string> userSet(cfg->userWords.begin(), cfg->userWords.end());
@@ -101,12 +101,12 @@ std::vector<std::u16string> Engine::spellSuggestions(std::u16string_view word) c
 std::vector<Issue> Engine::check(std::u16string_view text) const
 {
     // Snapshot the config once; grammar and spelling then see one
-    // consistent view, so the no-mutex thread-safety contract holds.
-    auto cfg = m_config.load();
+    // consistent view, so the thread-safety contract holds.
+    auto cfg = config();
     auto issues = cfg->grammar ? runAll(text, cfg->dialect)
                                : std::vector<Issue>{};
     if (cfg->language != Language::None) {
-        auto data = m_spellData.load();
+        auto data = spellData();
         if (data) {
             auto spelling = runSpelling(text, cfg->dialect, cfg->language,
                                         cfg->userWords, *data);

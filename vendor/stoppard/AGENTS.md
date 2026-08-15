@@ -82,6 +82,18 @@ Spelling variants (color/colour, -ise/-ize) are explicitly out — Hunspell owns
   Tracked at `../stoppard/docs/bug-case-insensitive-user-dictionary.md` (bug report + the
   `git apply` patch).
 
+- [ ] **Remove once upstream fixes it:** `include/stoppard/stoppard.h` replaces
+  `std::atomic<std::shared_ptr<const Config/SpellData>>` with mutex-guarded
+  `std::shared_ptr` snapshots (`config()`/`setConfig()`/`spellData()`/`setSpellData()`
+  private accessors). P0718R2 (`atomic<shared_ptr>`) is not implemented in libc++, so the
+  atomic form fails to compile on macOS (AppleClang/libc++); GCC's libstdc++ accepts it
+  unconditionally, so Linux builds hide the bug. Re-apply the header + `src/engine.cpp`
+  changes after every sync.
+
+- [ ] **Remove once upstream fixes it:** `CMakeLists.txt` guards
+  `target_compile_options(stoppard PRIVATE -Wall -Wextra -Wpedantic)` with
+  `if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")` — MSVC rejects `/Wextra` (D8021).
+
 ## Gotchas
 
 - `tests/` compile with `TESTS_DATA_DIR` pointing at the source `tests/data/` — never run tests

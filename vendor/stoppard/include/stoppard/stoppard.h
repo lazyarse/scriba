@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -82,8 +83,32 @@ private:
         bool grammar = true;
         std::vector<std::u16string> userWords;
     };
-    std::atomic<std::shared_ptr<const Config>> m_config;
-    std::atomic<std::shared_ptr<const SpellData>> m_spellData;
+    // Snapshot pointers, guarded by a mutex: std::atomic<std::shared_ptr>
+    // (P0718R2) is not implemented in libc++, so it fails on macOS.
+    std::shared_ptr<const Config> m_config;
+    std::shared_ptr<const SpellData> m_spellData;
+    mutable std::mutex m_configMutex;
+    mutable std::mutex m_spellDataMutex;
+    std::shared_ptr<const Config> config() const
+    {
+        std::lock_guard<std::mutex> lk(m_configMutex);
+        return m_config;
+    }
+    void setConfig(std::shared_ptr<const Config> cfg)
+    {
+        std::lock_guard<std::mutex> lk(m_configMutex);
+        m_config = std::move(cfg);
+    }
+    std::shared_ptr<const SpellData> spellData() const
+    {
+        std::lock_guard<std::mutex> lk(m_spellDataMutex);
+        return m_spellData;
+    }
+    void setSpellData(std::shared_ptr<const SpellData> data)
+    {
+        std::lock_guard<std::mutex> lk(m_spellDataMutex);
+        m_spellData = std::move(data);
+    }
 };
 
 } // namespace stoppard

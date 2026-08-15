@@ -28,7 +28,9 @@ add_library(stoppard STATIC
     src/engine.cpp
 )
 target_include_directories(stoppard PUBLIC include)
-target_compile_options(stoppard PRIVATE -Wall -Wextra -Wpedantic)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(stoppard PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 option(STOPPARD_BUILD_TESTS "Build stoppard tests" ON)
 
