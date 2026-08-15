@@ -46,7 +46,8 @@ QString buildExportShell(const QString &snippets, const QString &domContentInit,
 
 QString commonExportSnippets()
 {
-    return chartEditJs + mermaidInitJs + headingIdJs + katexInitJs + echartsInitJs;
+    return chartEditJs + mermaidInitJs + headingIdJs + katexInitJs + echartsInitJs
+        + stockChartsInitJs;
 }
 
 // The shared DOMContentLoaded init for the plain (html/pdf) and docx-image
@@ -57,7 +58,7 @@ QString documentInitBody(const QString &mermaidTheme, const QString &emojiMode,
                          const QString &mathTail)
 {
     return "{mermaid.initialize({startOnLoad:false,theme:'" + mermaidTheme + "'});"
-        "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();scribaRenderMath();document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.echartsReady=initECharts();"
+        "window.mermaidReady=initMermaid();hljs.registerAliases('ec',{languageName:'json'});hljs.highlightAll();generateHeadingIds();scribaRenderMath();document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});window.echartsReady=initECharts();window.stockReady=initStockCharts().then(function(){window._scribaStockDone=true;});"
         + mathTail
         + "replaceEmoji(document.body);twemojiParse('" + emojiMode + "');}";
 }
@@ -75,7 +76,7 @@ QString JsRenderEngine::buildFullHtmlForDocx(const QString &bodyHtml, const QStr
                                               const QString &emojiMode, const QString &mermaidTheme)
 {
     const QString init = documentInitBody(mermaidTheme, emojiMode,
-        "window.katexReady=convertKatexToImages();");
+        "window.katexReady=convertKatexToImages();window.stockReady=initStockCharts().then(function(){return convertStockChartsToImages();}).then(function(){window._scribaStockDone=true;});");
     return buildExportShell(commonExportSnippets() + katexToImageJs, init, css, bodyHtml);
 }
 
@@ -98,6 +99,7 @@ QString JsRenderEngine::buildFullHtmlForDocxOmml(const QString &bodyHtml, const 
         "document.querySelectorAll('.katex-mathml').forEach(function(el){el.remove()});"
         "document.querySelectorAll('.katex-html').forEach(function(el){el.remove()});"
         "window.echartsReady=initECharts();window.katexReady=Promise.resolve();"
+        "window.stockReady=initStockCharts().then(function(){return convertStockChartsToImages();}).then(function(){window._scribaStockDone=true;});"
         "replaceEmoji(document.body);twemojiParse('" + emojiMode + "');"
         "}catch(e){}}";
     return buildExportShell(commonExportSnippets(), init, css, bodyHtml);
@@ -137,11 +139,67 @@ QString JsRenderEngine::renderSync(const QString &fullHtml, const QString &baseU
         bool timeout = false;
     };
     auto ctx = std::make_shared<Ctx>();
-
     auto page = new QWebEnginePage();
 
+    // runJavaScript does not await promises on this Qt build, so the
+    // echarts/mermaid/katex promise-all below fires immediately; the stock
+    // canvas render is gated by polling the `_scribaStockDone` flag the page
+    // sets once initStockCharts() (and any docx bake) has finished.
+    auto pollDone = std::make_shared<bool>(false);
+    std::function<void(int)> pollStock;
+    pollStock = [ctx, page, &pollStock, pollDone](int attempt) {
+        if (ctx->timeout) {
+            ctx->loop.quit();
+            return;
+        }
+        page->runJavaScript(
+            QStringLiteral("window._scribaStockDone===true"),
+            [ctx, page, &pollStock, pollDone, attempt](const QVariant &ok) {
+                if (ctx->timeout) {
+                    ctx->loop.quit();
+                    return;
+                }
+                if (ok.toBool() || attempt >= 50) {
+                    *pollDone = true;
+                    page->runJavaScript(
+                        QStringLiteral(
+                            "(function(){"
+                            "document.querySelectorAll('*').forEach(function(el){"
+                            "var cs=getComputedStyle(el);"
+                            "var parts=[];"
+                            "var td=cs.getPropertyValue('text-decoration-line');"
+                            "if(td&&td!=='none')parts.push('text-decoration-line:'+td);"
+                            "var tds=cs.getPropertyValue('text-decoration-style');"
+                            "if(tds&&tds!=='solid')parts.push('text-decoration-style:'+tds);"
+                            "var tdc=cs.getPropertyValue('text-decoration-color');"
+                            "if(tdc)parts.push('text-decoration-color:'+tdc);"
+                            "var ts=cs.getPropertyValue('text-shadow');"
+                            "if(ts&&ts!=='none')parts.push('text-shadow:'+ts);"
+                            "var ff=cs.getPropertyValue('font-family');"
+                            "if(ff)parts.push('font-family:'+ff);"
+                            "if(parts.length)el.style.cssText=(el.style.cssText?el.style.cssText+';':'')+parts.join(';');"
+                            "});"
+                            "return document.body.innerHTML;"
+                            "})()"
+                        ),
+                        [ctx](const QVariant &html) {
+                            ctx->result = html.toString();
+                            ctx->loop.quit();
+                        }
+                    );
+                } else {
+                    QTimer::singleShot(100, [ctx, &pollStock, pollDone, attempt]() {
+                        if (*pollDone || ctx->timeout)
+                            return;
+                        pollStock(attempt + 1);
+                    });
+                }
+            }
+        );
+    };
+
     QObject::connect(page, &QWebEnginePage::loadFinished, page,
-            [ctx, page](bool ok) {
+            [ctx, page, &pollStock](bool ok) {
         if (ctx->timeout) return;
         if (!ok) {
             ctx->loop.quit();
@@ -149,33 +207,8 @@ QString JsRenderEngine::renderSync(const QString &fullHtml, const QString &baseU
         }
         page->runJavaScript(
             QStringLiteral("Promise.all([window.echartsReady||Promise.resolve(),window.mermaidReady||Promise.resolve(),window.katexReady||Promise.resolve()]).then(function(){return true;})"),
-            [ctx, page](const QVariant &) {
-                page->runJavaScript(
-                    QStringLiteral(
-                        "(function(){"
-                        "document.querySelectorAll('*').forEach(function(el){"
-                        "var cs=getComputedStyle(el);"
-                        "var parts=[];"
-                        "var td=cs.getPropertyValue('text-decoration-line');"
-                        "if(td&&td!=='none')parts.push('text-decoration-line:'+td);"
-                        "var tds=cs.getPropertyValue('text-decoration-style');"
-                        "if(tds&&tds!=='solid')parts.push('text-decoration-style:'+tds);"
-                        "var tdc=cs.getPropertyValue('text-decoration-color');"
-                        "if(tdc)parts.push('text-decoration-color:'+tdc);"
-                        "var ts=cs.getPropertyValue('text-shadow');"
-                        "if(ts&&ts!=='none')parts.push('text-shadow:'+ts);"
-                        "var ff=cs.getPropertyValue('font-family');"
-                        "if(ff)parts.push('font-family:'+ff);"
-                        "if(parts.length)el.style.cssText=(el.style.cssText?el.style.cssText+';':'')+parts.join(';');"
-                        "});"
-                        "return document.body.innerHTML;"
-                        "})()"
-                    ),
-                    [ctx](const QVariant &html) {
-                        ctx->result = html.toString();
-                        ctx->loop.quit();
-                    }
-                );
+            [ctx, page, &pollStock](const QVariant &) {
+                pollStock(0);
             }
         );
     });

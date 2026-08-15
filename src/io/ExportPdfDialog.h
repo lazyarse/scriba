@@ -18,6 +18,7 @@
 #include <QByteArray>
 #include <QScopedPointer>
 #include <QProcess>
+#include <functional>
 
 #include "preview/PrintOptions.h"
 
@@ -67,6 +68,12 @@ private:
     QString buildHeaderFooterCss() const;
     QString loadCustomCss() const;
     void generatePdfViaChromium(const QString &printCss);
+    void extractPdfBodyForChromium(int genId, const QString &printCss);
+    // Polls a JS boolean flag on the hidden page (promises can't be awaited
+    // through runJavaScript) and runs `continuation` when it reads true or
+    // the poll budget is exhausted.
+    void pollForStockFlag(const QString &probe, std::function<void()> continuation);
+    void pollStockStep();
     void accept() override;
     void syncPrintOptionsFromUi();
     void applyPrintOptionsToUi(const PrintOptions::Options &o);
@@ -109,5 +116,9 @@ private:
     QString m_pdfUrl;
     int m_generationId = 0;
     PrintOptions::Options m_printOptions;
+    QTimer *m_stockPollTimer = nullptr;
+    int m_stockPollAttempt = 0;
+    QString m_stockPollProbe;
+    std::function<void()> m_stockPollContinuation;
 };
 

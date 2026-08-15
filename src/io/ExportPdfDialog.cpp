@@ -616,12 +616,19 @@ void ExportPdfDialog::onPageLoaded(bool ok)
     // Wait for async ECharts rendering (echarts.init + setOption stores a
     // Promise on window.echartsReady).  If there are no ec charts the promise
     // resolves immediately so this is a no-op for documents without charts.
+    // Note: runJavaScript does not await promises on this Qt build (the
+    // callback fires immediately), so the stock-chart render is additionally
+    // gated by polling the `_scribaStockDone` flag the page sets once
+    // initStockCharts() has run (see pollForStockFlag).
     m_hiddenEngine->page()->runJavaScript(
         QStringLiteral("Promise.all([window.echartsReady||Promise.resolve(),window.mermaidReady||Promise.resolve()]).then(function(){return true;})"),
         [this, genId, css, passJs](const QVariant &) {
             if (genId != m_generationId) return;
-            m_hiddenEngine->page()->runJavaScript(passJs, [this, genId, css](const QVariant &) {
-                if (genId != m_generationId) return;
+            pollForStockFlag(QStringLiteral("window._scribaStockDone===true"),
+                [this, genId, css, passJs]() {
+                    if (genId != m_generationId) return;
+                    m_hiddenEngine->page()->runJavaScript(passJs, [this, genId, css](const QVariant &) {
+                        if (genId != m_generationId) return;
 
                 if (m_chromiumBinary.isEmpty()) {
                     qCDebug(lcPdf, "no chromium binary found, using Qt printToPdf (headers cannot be suppressed)");
@@ -647,13 +654,60 @@ void ExportPdfDialog::onPageLoaded(bool ok)
                     generatePdfViaChromium(css);
                 }
             });
-        }
-    );
+        });
+    });
+}
+
+void ExportPdfDialog::pollForStockFlag(const QString &probe,
+                                       std::function<void()> continuation)
+{
+    m_stockPollProbe = probe;
+    m_stockPollContinuation = std::move(continuation);
+    m_stockPollAttempt = 0;
+    if (!m_stockPollTimer) {
+        m_stockPollTimer = new QTimer(this);
+        m_stockPollTimer->setInterval(100);
+        connect(m_stockPollTimer, &QTimer::timeout, this,
+                &ExportPdfDialog::pollStockStep);
+    }
+    m_stockPollTimer->start();
+    pollStockStep();
+}
+
+void ExportPdfDialog::pollStockStep()
+{
+    m_hiddenEngine->page()->runJavaScript(m_stockPollProbe,
+        [this](const QVariant &ok) {
+            if (ok.toBool() || ++m_stockPollAttempt >= 50) {
+                m_stockPollTimer->stop();
+                auto cont = std::move(m_stockPollContinuation);
+                m_stockPollContinuation = nullptr;
+                if (cont)
+                    cont();
+            }
+        });
 }
 
 void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
 {
     int genId = m_generationId;
+    // Canvas stock charts are rasterized to PNG data-URLs before extraction:
+    // promises can't be awaited through runJavaScript, so kick the bake and
+    // poll a flag the conversion sets when done.
+    m_hiddenEngine->page()->runJavaScript(
+        QStringLiteral("if(typeof convertStockChartsToImages==='function'){"
+                       "convertStockChartsToImages().then(function(){window._scribaStockBaked=true;});"
+                       "}else{window._scribaStockBaked=true;}"),
+        [this, genId, printCss](const QVariant &) {
+            if (genId != m_generationId) return;
+            pollForStockFlag(QStringLiteral("window._scribaStockBaked===true"),
+                [this, genId, printCss]() { extractPdfBodyForChromium(genId, printCss); });
+        });
+}
+
+void ExportPdfDialog::extractPdfBodyForChromium(int genId, const QString &printCss)
+{
+    if (genId != m_generationId) return;
 
     // Fix ECharts SVGs: bake explicit pixel dimensions from viewBox before
     // extraction.  The viewBox always carries intrinsic dimensions and
