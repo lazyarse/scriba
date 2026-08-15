@@ -18,8 +18,13 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QGroupBox>
+#include <QTableWidget>
 #include <cmath>
 #include "charts/StockChartDialog.h"
+#include "charts/Indicators.h"
+#include "charts/ChartSource.h"
 
 static int g_argc = 1;
 static char g_arg0[] = "test_stock_chart_dialog";
@@ -146,9 +151,11 @@ TEST_F(StockChartDialogTest, UncheckMaRemovesSeries) {
     }
 }
 
-TEST_F(StockChartDialogTest, MovingAveragePureFunction) {
+TEST_F(StockChartDialogTest, MovingAverageSemanticsPinnedInIndicatorsSuite) {
+    // StockChartDialog::movingAverage was removed in favor of Indicators::sma;
+    // the value contract is locked by test_indicators.cpp SmaParityWithOldMovingAverage.
     QList<double> values = {1, 2, 3, 4, 5, 6};
-    QList<double> ma3 = StockChartDialog::movingAverage(values, 3);
+    QList<double> ma3 = Indicators::sma(values, 3);
     ASSERT_EQ(ma3.size(), 6);
     EXPECT_TRUE(std::isnan(ma3[0]));
     EXPECT_TRUE(std::isnan(ma3[1]));
@@ -159,9 +166,157 @@ TEST_F(StockChartDialogTest, MovingAveragePureFunction) {
 }
 
 TEST_F(StockChartDialogTest, PreviewHtmlDefersInitUntilContainerHasWidth) {
-    QString html = StockChartDialog::previewPageHtml("{}");
+    QString html = StockChartDialog::previewPageHtml("{}", "echarts");
     int guardPos = html.indexOf(QStringLiteral("vis.clientWidth>0"));
     int initPos = html.indexOf(QStringLiteral("echarts.init(vis,"));
     EXPECT_GT(guardPos, 0);
     EXPECT_GT(initPos, guardPos);
+}
+
+TEST_F(StockChartDialogTest, EngineSwitchToKlinechartsEmitsKcFence) {
+    auto *engine = dlg.findChild<QComboBox *>("stockEngineCombo");
+    ASSERT_NE(engine, nullptr);
+    engine->setCurrentIndex(engine->findData(
+        static_cast<int>(ChartSource::StockEngine::KlineCharts)));
+    QString spec = dlg.generatedSpec();
+    EXPECT_TRUE(spec.startsWith("\n```kc\n"));
+    EXPECT_TRUE(spec.contains(QStringLiteral("scribaStockChart(\"klinecharts\",")));
+}
+
+TEST_F(StockChartDialogTest, LightweightFenceCarriesTypeAndPayload) {
+    auto *engine = dlg.findChild<QComboBox *>("stockEngineCombo");
+    auto *type = dlg.findChild<QComboBox *>("stockTypeCombo");
+    ASSERT_NE(engine, nullptr);
+    ASSERT_NE(type, nullptr);
+    engine->setCurrentIndex(engine->findData(
+        static_cast<int>(ChartSource::StockEngine::Lightweight)));
+    type->setCurrentIndex(type->findData(
+        static_cast<int>(ChartSource::StockChartType::Area)));
+    QString spec = dlg.generatedSpec();
+    EXPECT_TRUE(spec.startsWith("\n```lc\n"));
+    int start = spec.indexOf(QStringLiteral("scribaStockChart("));
+    int brace = spec.indexOf('{', start);
+    int end = spec.lastIndexOf('}');
+    QJsonParseError err;
+    QJsonDocument doc = QJsonDocument::fromJson(
+        spec.mid(brace, end - brace + 1).toUtf8(), &err);
+    ASSERT_EQ(err.error, QJsonParseError::NoError);
+    QJsonObject payload = doc.object();
+    EXPECT_EQ(payload["type"].toString(), "area");
+    EXPECT_TRUE(payload["ohlc"].toArray().size() > 0);
+    EXPECT_TRUE(payload["dates"].toArray().size() > 0);
+    EXPECT_TRUE(payload["volumes"].toArray().size() > 0);
+    EXPECT_TRUE(payload["ma"].toArray().contains(5));
+    EXPECT_TRUE(payload["ma"].toArray().contains(20));
+    EXPECT_TRUE(payload.contains("zoom"));
+}
+
+TEST_F(StockChartDialogTest, IndicatorCheckboxesEmitComputedSeries) {
+    auto *engine = dlg.findChild<QComboBox *>("stockEngineCombo");
+    ASSERT_NE(engine, nullptr);
+    engine->setCurrentIndex(engine->findData(
+        static_cast<int>(ChartSource::StockEngine::KlineCharts)));
+
+    for (QCheckBox *check : dlg.findChildren<QCheckBox *>()) {
+        if (check->text() == "RSI") check->setChecked(true);
+        if (check->text() == "MACD") check->setChecked(true);
+    }
+
+    QString spec = dlg.generatedSpec();
+    int brace = spec.indexOf('{');
+    int end = spec.lastIndexOf('}');
+    QJsonParseError err;
+    QJsonDocument doc = QJsonDocument::fromJson(
+        spec.mid(brace, end - brace + 1).toUtf8(), &err);
+    ASSERT_EQ(err.error, QJsonParseError::NoError);
+    QJsonObject payload = doc.object();
+    QJsonObject indicators = payload["indicators"].toObject();
+    ASSERT_FALSE(indicators.isEmpty());
+
+    QJsonArray closes;
+    for (const QJsonValue &v : payload["ohlc"].toArray())
+        closes.append(v.toArray()[1].toDouble());
+    ASSERT_TRUE(closes.size() > 0);
+
+    QJsonArray rsi = indicators["rsi"].toArray();
+    ASSERT_EQ(rsi.size(), closes.size());
+    for (int i = 0; i < rsi.size(); ++i) {
+        if (i < 14)
+            EXPECT_TRUE(rsi[i].isNull()) << "rsi[" << i << "] must be null";
+        else
+            EXPECT_FALSE(rsi[i].isNull()) << "rsi[" << i << "] must be a value";
+    }
+
+    QJsonObject macd = indicators["macd"].toObject();
+    EXPECT_TRUE(macd.contains("diff"));
+    EXPECT_TRUE(macd.contains("dea"));
+    EXPECT_TRUE(macd.contains("hist"));
+    EXPECT_EQ(macd["diff"].toArray().size(), closes.size());
+}
+
+TEST_F(StockChartDialogTest, EChartsEngineDisablesIndicatorGroup) {
+    auto *engine = dlg.findChild<QComboBox *>("stockEngineCombo");
+    auto *group = dlg.findChild<QGroupBox *>("stockIndicatorGroup");
+    ASSERT_NE(engine, nullptr);
+    ASSERT_NE(group, nullptr);
+    engine->setCurrentIndex(engine->findData(
+        static_cast<int>(ChartSource::StockEngine::KlineCharts)));
+    EXPECT_TRUE(group->isEnabled());
+    engine->setCurrentIndex(engine->findData(
+        static_cast<int>(ChartSource::StockEngine::ECharts)));
+    EXPECT_FALSE(group->isEnabled());
+    for (QCheckBox *check : group->findChildren<QCheckBox *>())
+        EXPECT_FALSE(check->isChecked());
+}
+
+TEST_F(StockChartDialogTest, PrefillFromKcLineRestoresEngineTypeAndIndicators) {
+    auto *engine = dlg.findChild<QComboBox *>("stockEngineCombo");
+    auto *type = dlg.findChild<QComboBox *>("stockTypeCombo");
+    auto *table = dlg.findChild<QTableWidget *>();
+    ASSERT_NE(engine, nullptr);
+    ASSERT_NE(type, nullptr);
+    ASSERT_NE(table, nullptr);
+    int originalRows = table->rowCount();
+    engine->setCurrentIndex(engine->findData(
+        static_cast<int>(ChartSource::StockEngine::KlineCharts)));
+    type->setCurrentIndex(type->findData(
+        static_cast<int>(ChartSource::StockChartType::Line)));
+    for (QCheckBox *check : dlg.findChildren<QCheckBox *>())
+        if (check->text() == "RSI") check->setChecked(true);
+    QString generated = dlg.generatedSpec();
+    int fence = generated.indexOf(QStringLiteral("```kc\n")) + 5;
+    QString body = generated.mid(fence,
+        generated.indexOf(QStringLiteral("\n```"), fence) - fence);
+
+    StockChartDialog reopened(body);
+    auto *rEngine = reopened.findChild<QComboBox *>("stockEngineCombo");
+    auto *rType = reopened.findChild<QComboBox *>("stockTypeCombo");
+    auto *rTable = reopened.findChild<QTableWidget *>();
+    ASSERT_NE(rEngine, nullptr);
+    ASSERT_NE(rType, nullptr);
+    ASSERT_NE(rTable, nullptr);
+    EXPECT_EQ(static_cast<ChartSource::StockEngine>(rEngine->currentData().toInt()),
+              ChartSource::StockEngine::KlineCharts);
+    EXPECT_EQ(static_cast<ChartSource::StockChartType>(rType->currentData().toInt()),
+              ChartSource::StockChartType::Line);
+    EXPECT_EQ(rTable->rowCount(), originalRows);
+    bool rsi = false;
+    for (QCheckBox *check : reopened.findChildren<QCheckBox *>())
+        if (check->text() == "RSI") rsi = check->isChecked();
+    EXPECT_TRUE(rsi);
+}
+
+TEST_F(StockChartDialogTest, TypeChangeDrivesEChartsSeriesType) {
+    auto *type = dlg.findChild<QComboBox *>("stockTypeCombo");
+    ASSERT_NE(type, nullptr);
+    type->setCurrentIndex(type->findData(
+        static_cast<int>(ChartSource::StockChartType::Line)));
+    QJsonObject obj = specFromGenerated(dlg.generatedSpec());
+    QJsonArray series = obj["series"].toArray();
+    ASSERT_FALSE(series.isEmpty());
+    EXPECT_EQ(series[0].toObject()["type"].toString(), "line");
+    QJsonArray data = series[0].toObject()["data"].toArray();
+    ASSERT_FALSE(data.isEmpty());
+    EXPECT_EQ(data[0].type(), QJsonValue::Double) << "line series carries closes only";
+    EXPECT_DOUBLE_EQ(data[0].toDouble(), 153.9);
 }

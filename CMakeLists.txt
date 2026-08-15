@@ -528,6 +528,7 @@ if(BUILD_TESTS)
     add_executable(test_stock_chart_dialog
         tests/test_stock_chart_dialog.cpp
         src/charts/StockChartDialog.cpp
+        src/charts/Indicators.cpp
         src/preview/Preview.cpp)
     target_link_libraries(test_stock_chart_dialog
         PRIVATE scriba_core GTest::gtest_main Qt6::Widgets Qt6::WebEngineWidgets)

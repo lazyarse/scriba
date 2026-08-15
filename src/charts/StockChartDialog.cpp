@@ -16,6 +16,8 @@
 #include "StaticHelpers.h"
 #include "io/CsvReader.h"
 #include "preview/Preview.h"
+#include "preview/JsSnippets.h"
+#include "charts/Indicators.h"
 #include "ChartSource.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -25,6 +27,7 @@
 #include <QGroupBox>
 #include <QLineEdit>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QPushButton>
 #include <QDialogButtonBox>
 #include <QLabel>
@@ -100,8 +103,36 @@ StockChartDialog::StockChartDialog(const QString &existingSpecJson, QWidget *par
 void StockChartDialog::prefillFromSpec(const QString &specJson)
 {
     ChartSource::StockSpecData data;
-    if (!ChartSource::parseStockSpec(specJson.toUtf8(), data))
+    ChartSource::StockEngine engine = ChartSource::detectStockEngine(specJson.toUtf8());
+    bool parsed = false;
+    switch (engine) {
+    case ChartSource::StockEngine::ECharts:
+        parsed = ChartSource::parseStockSpec(specJson.toUtf8(), data);
+        break;
+    case ChartSource::StockEngine::Lightweight:
+        parsed = ChartSource::parseLightweightSpec(specJson.toUtf8(), data);
+        break;
+    case ChartSource::StockEngine::KlineCharts:
+        parsed = ChartSource::parseKlinechartsSpec(specJson.toUtf8(), data);
+        break;
+    case ChartSource::StockEngine::TradeX:
+        parsed = ChartSource::parseTradexSpec(specJson.toUtf8(), data);
+        break;
+    case ChartSource::StockEngine::Unknown:
+        parsed = ChartSource::parseStockSpec(specJson.toUtf8(), data);
+        break;
+    }
+    if (!parsed)
         return;
+
+    if (engine != ChartSource::StockEngine::Unknown) {
+        const int engineIdx = m_engineCombo->findData(static_cast<int>(engine));
+        if (engineIdx >= 0)
+            m_engineCombo->setCurrentIndex(engineIdx);
+        const int typeIdx = m_typeCombo->findData(static_cast<int>(data.chartType));
+        if (typeIdx >= 0)
+            m_typeCombo->setCurrentIndex(typeIdx);
+    }
 
     QList<QStringList> rows;
     rows.reserve(data.dates.size());
@@ -129,6 +160,10 @@ void StockChartDialog::prefillFromSpec(const QString &specJson)
     m_ma10Check->setChecked(data.ma10);
     m_ma20Check->setChecked(data.ma20);
     m_ma50Check->setChecked(data.ma50);
+    m_macdCheck->setChecked(data.macd);
+    m_rsiCheck->setChecked(data.rsi);
+    m_bollCheck->setChecked(data.boll);
+    m_kdjCheck->setChecked(data.kdj);
 }
 
 void StockChartDialog::setupUi()
@@ -218,6 +253,45 @@ void StockChartDialog::setupLeftPanel(QWidget *panel)
     maLayout->addWidget(m_ma50Check);
     maLayout->addStretch();
     optLayout->addLayout(maLayout, 5, 0, 1, 2);
+
+    optLayout->addWidget(new QLabel("Engine:", optGroup), 6, 0);
+    m_engineCombo = new QComboBox(optGroup);
+    m_engineCombo->setObjectName(QStringLiteral("stockEngineCombo"));
+    m_engineCombo->addItem("ECharts",
+        static_cast<int>(ChartSource::StockEngine::ECharts));
+    m_engineCombo->addItem("Lightweight Charts",
+        static_cast<int>(ChartSource::StockEngine::Lightweight));
+    m_engineCombo->addItem("KlineCharts",
+        static_cast<int>(ChartSource::StockEngine::KlineCharts));
+    optLayout->addWidget(m_engineCombo, 6, 1);
+
+    optLayout->addWidget(new QLabel("Chart type:", optGroup), 7, 0);
+    m_typeCombo = new QComboBox(optGroup);
+    m_typeCombo->setObjectName(QStringLiteral("stockTypeCombo"));
+    m_typeCombo->addItem("Candlestick",
+        static_cast<int>(ChartSource::StockChartType::Candlestick));
+    m_typeCombo->addItem("Bar",
+        static_cast<int>(ChartSource::StockChartType::Bar));
+    m_typeCombo->addItem("Line",
+        static_cast<int>(ChartSource::StockChartType::Line));
+    m_typeCombo->addItem("Area",
+        static_cast<int>(ChartSource::StockChartType::Area));
+    optLayout->addWidget(m_typeCombo, 7, 1);
+
+    m_indicatorGroup = new QGroupBox("Indicators", optGroup);
+    m_indicatorGroup->setObjectName(QStringLiteral("stockIndicatorGroup"));
+    QHBoxLayout *indLayout = new QHBoxLayout(m_indicatorGroup);
+    m_macdCheck = new QCheckBox("MACD", m_indicatorGroup);
+    m_rsiCheck = new QCheckBox("RSI", m_indicatorGroup);
+    m_bollCheck = new QCheckBox("BOLL", m_indicatorGroup);
+    m_kdjCheck = new QCheckBox("KDJ", m_indicatorGroup);
+    indLayout->addWidget(m_macdCheck);
+    indLayout->addWidget(m_rsiCheck);
+    indLayout->addWidget(m_bollCheck);
+    indLayout->addWidget(m_kdjCheck);
+    indLayout->addStretch();
+    optLayout->addWidget(m_indicatorGroup, 8, 0, 1, 2);
+    m_indicatorGroup->setEnabled(false);
     optLayout->setColumnStretch(1, 1);
     layout->addWidget(optGroup);
 
@@ -229,6 +303,24 @@ void StockChartDialog::setupLeftPanel(QWidget *panel)
     QCheckBox *checks[] = {m_volumeCheck, m_zoomCheck, m_animateCheck, m_ma5Check, m_ma10Check, m_ma20Check, m_ma50Check};
     for (QCheckBox *check : checks)
         connect(check, &QCheckBox::toggled, this, &StockChartDialog::schedulePreviewUpdate);
+    connect(m_typeCombo, &QComboBox::currentIndexChanged,
+            this, &StockChartDialog::schedulePreviewUpdate);
+    QCheckBox *indChecks[] = {m_macdCheck, m_rsiCheck, m_bollCheck, m_kdjCheck};
+    for (QCheckBox *check : indChecks)
+        connect(check, &QCheckBox::toggled, this, &StockChartDialog::schedulePreviewUpdate);
+    connect(m_engineCombo, &QComboBox::currentIndexChanged, this, [this]() {
+        const auto engine = static_cast<ChartSource::StockEngine>(
+            m_engineCombo->currentData().toInt());
+        const bool nonEcharts = engine != ChartSource::StockEngine::ECharts;
+        m_indicatorGroup->setEnabled(nonEcharts);
+        if (!nonEcharts) {
+            m_macdCheck->setChecked(false);
+            m_rsiCheck->setChecked(false);
+            m_bollCheck->setChecked(false);
+            m_kdjCheck->setChecked(false);
+        }
+        schedulePreviewUpdate();
+    });
 }
 
 void StockChartDialog::schedulePreviewUpdate()
@@ -238,16 +330,58 @@ void StockChartDialog::schedulePreviewUpdate()
 
 void StockChartDialog::updatePreview()
 {
-    QString spec = buildSpec();
-    QJsonDocument doc = QJsonDocument::fromJson(spec.toUtf8());
-    QString formatted = doc.toJson(QJsonDocument::Indented);
+    const auto engine = static_cast<ChartSource::StockEngine>(
+        m_engineCombo->currentData().toInt());
+    const QString engineKey = engineName(engine);
+    QString spec;
+    if (engine == ChartSource::StockEngine::ECharts) {
+        QJsonDocument doc = QJsonDocument::fromJson(buildSpec().toUtf8());
+        spec = QString::fromUtf8(doc.toJson(QJsonDocument::Indented));
+    } else {
+        spec = QString::fromUtf8(
+            QJsonDocument(buildPayload()).toJson(QJsonDocument::Compact));
+    }
 
     QString baseUrl = QUrl::fromLocalFile(QCoreApplication::applicationDirPath() + "/../").toString();
-    m_preview->setHtml(previewPageHtml(formatted), QUrl(baseUrl));
+    m_preview->setHtml(previewPageHtml(spec, engineKey), QUrl(baseUrl));
 }
 
-QString StockChartDialog::previewPageHtml(const QString &spec)
+QString StockChartDialog::previewPageHtml(const QString &spec, const QString &engine)
 {
+    if (engine == QLatin1String("echarts"))
+        return QString(
+            "<!DOCTYPE html>"
+            "<html><head>"
+            "<meta charset=\"utf-8\">"
+            "<style>"
+            "html,body{margin:0;height:100%;font-family:sans-serif;}"
+            "body{display:flex;align-items:flex-start;}"
+            "#vis{width:100%;height:90vh;}"
+            ".error{color:#d32f2f;padding:16px;font-size:14px;}"
+            "</style>"
+            "<script src=\"qrc:///echarts.min.js\"></script>"
+            "</head><body>"
+            "<div id=\"vis\"></div>"
+            "<script>"
+            "try{"
+            "var spec=%1;"
+            "var vis=document.getElementById('vis');"
+            "var tries=0;"
+            "(function go(){"
+            "if(vis.clientWidth>0||++tries>%2){"
+            "var chart=echarts.init(vis,null,{renderer:'svg'});"
+            "try{chart.setOption(spec);}"
+            "catch(e){vis.innerHTML='<div class=\"error\">'+e+'</div>';}"
+            "}else{setTimeout(go,%3);}"
+            "})();"
+            "}catch(e){"
+            "document.getElementById('vis').innerHTML='<div class=\"error\">'+e+'</div>';"
+            "}"
+            "</script>"
+            "</body></html>"
+        ).arg(spec, QString::number(JsTiming::ChartLayoutTries),
+              QString::number(JsTiming::ChartLayoutPoll));
+
     return QString(
         "<!DOCTYPE html>"
         "<html><head>"
@@ -258,35 +392,51 @@ QString StockChartDialog::previewPageHtml(const QString &spec)
         "#vis{width:100%;height:90vh;}"
         ".error{color:#d32f2f;padding:16px;font-size:14px;}"
         "</style>"
-        "<script src=\"qrc:///echarts.min.js\"></script>"
         "</head><body>"
         "<div id=\"vis\"></div>"
         "<script>"
+        "%1"
+        "</script>"
+        "<script>"
         "try{"
-        "var spec=%1;"
+        "var payload=%2;"
         "var vis=document.getElementById('vis');"
+        "scribaLoadStockEngine('%3').then(function(){"
         "var tries=0;"
         "(function go(){"
-        "if(vis.clientWidth>0||++tries>%2){"
-        "var chart=echarts.init(vis,null,{renderer:'svg'});"
-        "try{chart.setOption(spec);}"
-        "catch(e){vis.innerHTML='<div class=\"error\">'+e+'</div>';}"
-        "}else{setTimeout(go,%3);}"
+        "if(vis.clientWidth>0||++tries>%4){"
+        "try{"
+        "if('%3'==='lightweight'){scribaRenderLightweight(vis,payload);}"
+        "else{scribaRenderKlinecharts(vis,payload);}"
+        "}catch(e){vis.innerHTML='<div class=\"error\">'+e+'</div>';}"
+        "}else{setTimeout(go,%5);}"
         "})();"
+        "});"
         "}catch(e){"
         "document.getElementById('vis').innerHTML='<div class=\"error\">'+e+'</div>';"
         "}"
         "</script>"
         "</body></html>"
-    ).arg(spec, QString::number(JsTiming::ChartLayoutTries),
+    ).arg(stockChartsInitJs, spec, engine,
+          QString::number(JsTiming::ChartLayoutTries),
           QString::number(JsTiming::ChartLayoutPoll));
 }
 
 QString StockChartDialog::generatedSpec() const
 {
-    QJsonDocument doc = QJsonDocument::fromJson(buildSpec().toUtf8());
-    return QStringLiteral("\n```ec\n%1\n```\n")
-        .arg(QString::fromUtf8(doc.toJson(QJsonDocument::Indented)));
+    const auto engine = static_cast<ChartSource::StockEngine>(
+        m_engineCombo->currentData().toInt());
+    if (engine == ChartSource::StockEngine::ECharts) {
+        QJsonDocument doc = QJsonDocument::fromJson(buildSpec().toUtf8());
+        return QStringLiteral("\n```ec\n%1\n```\n")
+            .arg(QString::fromUtf8(doc.toJson(QJsonDocument::Indented)));
+    }
+    const char *fence = engine == ChartSource::StockEngine::Lightweight
+        ? "lc" : "kc";
+    return QStringLiteral("\n```%1\nscribaStockChart(\"%2\", %3)\n```\n")
+        .arg(QLatin1String(fence), engineName(engine),
+             QString::fromUtf8(
+                 QJsonDocument(buildPayload()).toJson(QJsonDocument::Compact)));
 }
 
 void StockChartDialog::populateFromRows(const QStringList &headers, const QList<QStringList> &rows)
@@ -403,20 +553,154 @@ void StockChartDialog::openCsv()
     populateFromRows(data.headers, data.rows);
 }
 
-QList<double> StockChartDialog::movingAverage(const QList<double> &values, int period)
+QString StockChartDialog::engineName(ChartSource::StockEngine engine)
 {
-    QList<double> result;
-    result.reserve(values.size());
-    double sum = 0;
-    for (int i = 0; i < values.size(); ++i) {
-        sum += values[i];
-        if (i >= period) sum -= values[i - period];
-        result.append(i >= period - 1 ? sum / period : std::numeric_limits<double>::quiet_NaN());
+    switch (engine) {
+    case ChartSource::StockEngine::ECharts: return QStringLiteral("echarts");
+    case ChartSource::StockEngine::Lightweight: return QStringLiteral("lightweight");
+    case ChartSource::StockEngine::KlineCharts: return QStringLiteral("klinecharts");
+    case ChartSource::StockEngine::TradeX: return QStringLiteral("tradex");
+    case ChartSource::StockEngine::Unknown: break;
     }
-    return result;
+    return QString();
+}
+
+ChartSource::StockEngine StockChartDialog::engineFromName(const QString &name)
+{
+    const QString key = name.toLower();
+    if (key == QLatin1String("echarts")) return ChartSource::StockEngine::ECharts;
+    if (key == QLatin1String("lightweight") || key == QLatin1String("lightweight charts"))
+        return ChartSource::StockEngine::Lightweight;
+    if (key == QLatin1String("klinecharts")) return ChartSource::StockEngine::KlineCharts;
+    if (key == QLatin1String("tradex")) return ChartSource::StockEngine::TradeX;
+    return ChartSource::StockEngine::Unknown;
+}
+
+QString StockChartDialog::typeName(ChartSource::StockChartType type)
+{
+    switch (type) {
+    case ChartSource::StockChartType::Candlestick: return QStringLiteral("candlestick");
+    case ChartSource::StockChartType::Bar: return QStringLiteral("bar");
+    case ChartSource::StockChartType::Line: return QStringLiteral("line");
+    case ChartSource::StockChartType::Area: return QStringLiteral("area");
+    }
+    return QStringLiteral("candlestick");
+}
+
+ChartSource::StockChartType StockChartDialog::typeFromName(const QString &name)
+{
+    const QString key = name.toLower();
+    if (key == QLatin1String("bar")) return ChartSource::StockChartType::Bar;
+    if (key == QLatin1String("line")) return ChartSource::StockChartType::Line;
+    if (key == QLatin1String("area")) return ChartSource::StockChartType::Area;
+    return ChartSource::StockChartType::Candlestick;
 }
 
 QString StockChartDialog::buildSpec() const
+{
+    const auto engine = static_cast<ChartSource::StockEngine>(
+        m_engineCombo->currentData().toInt());
+    if (engine == ChartSource::StockEngine::ECharts)
+        return buildEChartsSpec();
+    return QStringLiteral("scribaStockChart(\"%1\", %2)")
+        .arg(engineName(engine),
+             QString::fromUtf8(
+                 QJsonDocument(buildPayload()).toJson(QJsonDocument::Compact)));
+}
+
+QJsonObject StockChartDialog::buildPayload() const
+{
+    QJsonObject payload;
+    const QString title = m_titleEdit->text().trimmed();
+    if (!title.isEmpty())
+        payload["title"] = title;
+    payload["type"] = typeName(typeFromName(m_typeCombo->currentText()));
+    payload["volume"] = m_volumeCheck->isChecked() && m_volumeCheck->isEnabled();
+    payload["zoom"] = m_zoomCheck->isChecked();
+    payload["animate"] = m_animateCheck->isChecked();
+
+    QJsonArray dates;
+    QJsonArray ohlcData;
+    QJsonArray volumes;
+    QJsonArray closes;
+    for (const Ohlc &o : m_ohlc) {
+        dates.append(o.date);
+        QJsonArray item;
+        item.append(o.open);
+        item.append(o.close);
+        item.append(o.low);
+        item.append(o.high);
+        ohlcData.append(item);
+        volumes.append(o.hasVolume ? QJsonValue(o.volume) : QJsonValue(QJsonValue::Null));
+        closes.append(o.close);
+    }
+    payload["dates"] = dates;
+    payload["ohlc"] = ohlcData;
+    payload["volumes"] = volumes;
+
+    QList<double> closeValues;
+    for (const QJsonValue &v : closes)
+        closeValues.append(v.toDouble());
+
+    int maPeriods[] = {5, 10, 20, 50};
+    QCheckBox *maChecks[] = {m_ma5Check, m_ma10Check, m_ma20Check, m_ma50Check};
+    QJsonArray maArr;
+    QJsonObject indicators;
+    for (int i = 0; i < 4; ++i) {
+        if (!maChecks[i]->isChecked()) continue;
+        const int period = maPeriods[i];
+        maArr.append(period);
+        QJsonArray vals;
+        for (double v : Indicators::sma(closeValues, period))
+            vals.append(std::isnan(v) ? QJsonValue(QJsonValue::Null) : QJsonValue(v));
+        indicators[QStringLiteral("ma%1").arg(period)] = vals;
+    }
+    payload["ma"] = maArr;
+
+    auto nanToNull = [](const QList<double> &values) {
+        QJsonArray arr;
+        for (double v : values)
+            arr.append(std::isnan(v) ? QJsonValue(QJsonValue::Null) : QJsonValue(v));
+        return arr;
+    };
+    if (m_macdCheck->isChecked()) {
+        const Indicators::MacdSeries macd = Indicators::macd(closeValues, 12, 26, 9);
+        QJsonObject o;
+        o["diff"] = nanToNull(macd.diff);
+        o["dea"] = nanToNull(macd.dea);
+        o["hist"] = nanToNull(macd.hist);
+        indicators["macd"] = o;
+    }
+    if (m_rsiCheck->isChecked())
+        indicators["rsi"] = nanToNull(Indicators::rsi(closeValues, 14));
+    if (m_bollCheck->isChecked()) {
+        const Indicators::BollSeries boll = Indicators::boll(closeValues, 20, 2.0);
+        QJsonObject o;
+        o["upper"] = nanToNull(boll.upper);
+        o["mid"] = nanToNull(boll.mid);
+        o["lower"] = nanToNull(boll.lower);
+        indicators["boll"] = o;
+    }
+    if (m_kdjCheck->isChecked()) {
+        QList<double> highs, lows;
+        for (const Ohlc &o : m_ohlc) {
+            highs.append(o.high);
+            lows.append(o.low);
+        }
+        const Indicators::KdjSeries kdj = Indicators::kdj(highs, lows, closeValues, 9, 3, 3);
+        QJsonObject o;
+        o["k"] = nanToNull(kdj.k);
+        o["d"] = nanToNull(kdj.d);
+        o["j"] = nanToNull(kdj.j);
+        indicators["kdj"] = o;
+    }
+    if (!indicators.isEmpty())
+        payload["indicators"] = indicators;
+
+    return payload;
+}
+
+QString StockChartDialog::buildEChartsSpec() const
 {
     if (m_ohlc.isEmpty())
         return QStringLiteral("{}");
@@ -445,6 +729,7 @@ QString StockChartDialog::buildSpec() const
     QJsonArray dates;
     QList<double> closeValues;
     QJsonArray ohlcData;
+    QJsonArray closeArr;
     for (const Ohlc &o : m_ohlc) {
         dates.append(o.date);
         closeValues.append(o.close);
@@ -454,6 +739,7 @@ QString StockChartDialog::buildSpec() const
         item.append(o.low);
         item.append(o.high);
         ohlcData.append(item);
+        closeArr.append(o.close);
     }
 
     int maPeriods[] = {5, 10, 20, 50};
@@ -465,7 +751,7 @@ QString StockChartDialog::buildSpec() const
         if (!maChecks[i]->isChecked()) continue;
         QString name = QString("MA%1").arg(maPeriods[i]);
         QJsonArray maArr;
-        for (double v : movingAverage(closeValues, maPeriods[i]))
+        for (double v : Indicators::sma(closeValues, maPeriods[i]))
             maArr.append(std::isnan(v) ? QJsonValue(QJsonValue::Null) : QJsonValue(v));
         QJsonObject s;
         s["name"] = name;
@@ -478,12 +764,22 @@ QString StockChartDialog::buildSpec() const
         legendData.append(name);
     }
 
-    QJsonObject candlestick;
-    candlestick["name"] = "OHLC";
-    candlestick["type"] = "candlestick";
-    candlestick["data"] = ohlcData;
+    const ChartSource::StockChartType chartType = typeFromName(m_typeCombo->currentText());
+    QJsonObject mainSeries;
+    mainSeries["name"] = "OHLC";
+    mainSeries["type"] = chartType == ChartSource::StockChartType::Candlestick
+        ? QStringLiteral("candlestick")
+        : (chartType == ChartSource::StockChartType::Bar
+               ? QStringLiteral("bar") : QStringLiteral("line"));
+    mainSeries["data"] = chartType == ChartSource::StockChartType::Candlestick
+        ? ohlcData : closeArr;
+    if (chartType == ChartSource::StockChartType::Area) {
+        QJsonObject areaStyle;
+        areaStyle["opacity"] = 0.2;
+        mainSeries["areaStyle"] = areaStyle;
+    }
     QJsonArray series;
-    series.append(candlestick);
+    series.append(mainSeries);
     for (const QJsonValue &v : maSeries)
         series.append(v);
 

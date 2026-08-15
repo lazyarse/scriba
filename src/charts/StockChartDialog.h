@@ -16,10 +16,13 @@
 
 #include <QDialog>
 
+#include "charts/EChartsParser.h"
+
 class QTableWidget;
 class QWebEngineView;
 class QLineEdit;
 class QCheckBox;
+class QComboBox;
 class QGroupBox;
 class QTimer;
 
@@ -29,12 +32,13 @@ class StockChartDialog : public QDialog
 
 public:
     explicit StockChartDialog(QWidget *parent = nullptr);
-    // Opens the dialog pre-filled from an existing ` ```ec ` candlestick spec
-    // (as produced by generatedSpec()). Non-stock specs leave it empty.
+    // Opens the dialog pre-filled from an existing stock spec: an ECharts
+    // ` ```ec ` candlestick spec or a `scribaStockChart("engine", ...)`
+    // line from an ` ```lc ` / ` ```kc ` / ` ```tx ` fence. Non-stock specs
+    // leave it empty.
     explicit StockChartDialog(const QString &existingSpecJson, QWidget *parent = nullptr);
     QString generatedSpec() const;
-    static QString previewPageHtml(const QString &spec);
-    static QList<double> movingAverage(const QList<double> &values, int period);
+    static QString previewPageHtml(const QString &spec, const QString &engine);
 
 private slots:
     void schedulePreviewUpdate();
@@ -49,6 +53,12 @@ private:
     void updateVolumeEnabled();
     void prefillFromSpec(const QString &specJson);
     QString buildSpec() const;
+    QJsonObject buildPayload() const;
+    QString buildEChartsSpec() const;
+    static QString engineName(ChartSource::StockEngine engine);
+    static ChartSource::StockEngine engineFromName(const QString &name);
+    static QString typeName(ChartSource::StockChartType type);
+    static ChartSource::StockChartType typeFromName(const QString &name);
 
     struct Ohlc {
         QString date;
@@ -63,6 +73,9 @@ private:
 
     QTableWidget *m_table;
     QList<Ohlc> m_ohlc;
+    QComboBox *m_engineCombo = nullptr;
+    QComboBox *m_typeCombo = nullptr;
+    QGroupBox *m_indicatorGroup = nullptr;
     QCheckBox *m_volumeCheck;
     QCheckBox *m_zoomCheck;
     QCheckBox *m_animateCheck;
@@ -70,6 +83,10 @@ private:
     QCheckBox *m_ma10Check;
     QCheckBox *m_ma20Check;
     QCheckBox *m_ma50Check;
+    QCheckBox *m_macdCheck = nullptr;
+    QCheckBox *m_rsiCheck = nullptr;
+    QCheckBox *m_bollCheck = nullptr;
+    QCheckBox *m_kdjCheck = nullptr;
     QLineEdit *m_titleEdit;
     QWebEngineView *m_preview;
     QTimer *m_previewTimer;
