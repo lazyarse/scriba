@@ -224,6 +224,23 @@ target_link_libraries(scriba PRIVATE
     scriba_twemoji
 )
 
+if(APPLE)
+    # macOS ships the app as a .app bundle. The .icns is generated from
+    # resources/icons/scriba.svg by scripts/make-macos-icon.sh (macOS-only;
+    # CI regenerates it before configure). The block never runs on Linux/Windows.
+    set_target_properties(scriba PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_ICON_FILE "scriba.icns"
+        MACOSX_BUNDLE_BUNDLE_NAME "Scriba"
+        MACOSX_BUNDLE_IDENTIFIER "com.lazyarse.scriba"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${CPACK_PACKAGE_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${CPACK_PACKAGE_VERSION}"
+    )
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/icons/scriba.icns
+        PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+    target_sources(scriba PRIVATE ${CMAKE_SOURCE_DIR}/resources/icons/scriba.icns)
+endif()
+
 add_custom_command(TARGET scriba POST_BUILD
     COMMENT "Removing cached stylesheets from config directory"
     COMMAND ${CMAKE_COMMAND} -E rm -f
@@ -231,13 +248,19 @@ add_custom_command(TARGET scriba POST_BUILD
         "$ENV{HOME}/.config/scriba/print-base.css"
 )
 
-install(TARGETS scriba RUNTIME DESTINATION bin)
+if(APPLE)
+    install(TARGETS scriba BUNDLE DESTINATION .)
+else()
+    install(TARGETS scriba RUNTIME DESTINATION bin)
+endif()
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE
     DESTINATION share/doc/scriba)
-install(FILES ${CMAKE_SOURCE_DIR}/resources/icons/scriba.svg
-    DESTINATION share/icons/hicolor/scalable/apps)
-install(FILES ${CMAKE_SOURCE_DIR}/resources/scriba.desktop
-    DESTINATION share/applications)
+if(NOT APPLE)
+    install(FILES ${CMAKE_SOURCE_DIR}/resources/icons/scriba.svg
+        DESTINATION share/icons/hicolor/scalable/apps)
+    install(FILES ${CMAKE_SOURCE_DIR}/resources/scriba.desktop
+        DESTINATION share/applications)
+endif()
 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor with charts, latex support, code highlighting, pdf export, and configurable")
 set(CPACK_PACKAGE_CONTACT "LazyArse <lazyarse000@protonmail.com>")
