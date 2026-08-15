@@ -26,7 +26,11 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtest-dev xvfb dpkg-dev ninja-build python3-venv
+          sudo apt-get install -y libgtest-dev xvfb dpkg-dev ninja-build python3-venv \
+            libgl1-mesa-dev libegl1-mesa-dev libfontconfig1-dev libfreetype6-dev \
+            libxkbcommon-dev libglib2.0-dev \
+            libnss3 libasound2 libxcomposite1 libxdamage1 libxrandr2 libxtst6 \
+            libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon-x11-0
 
       - name: Install Qt ${{ env.QT_VERSION }}
         run: |
@@ -70,8 +74,7 @@ jobs:
       - name: Install Qt ${{ env.QT_VERSION }}
         run: |
           python -m pip install --user aqtinstall
-          python -m aqt install-qt windows desktop "${{ env.QT_VERSION }}" win64_msvc2022_64 \
-            -m qtwebengine qtwebchannel -O "$env:RUNNER_TEMP\Qt"
+          python -m aqt install-qt windows desktop "${{ env.QT_VERSION }}" win64_msvc2022_64 -m qtwebengine qtwebchannel -O "$env:RUNNER_TEMP\Qt"
           echo "$env:RUNNER_TEMP\Qt\${{ env.QT_VERSION }}\msvc2022_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Set up MSVC environment
@@ -131,7 +134,7 @@ jobs:
       - name: Configure
         run: |
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$HOME/Qt/${{ env.QT_VERSION }}/clang_64" \
+            -DCMAKE_PREFIX_PATH="$HOME/Qt/${{ env.QT_VERSION }}/macos" \
             -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
 
@@ -157,7 +160,7 @@ jobs:
           ARCH="${{ matrix.arch }}"
           if [ "$ARCH" = "x86_64" ]; then FAMILY="Intel"; else FAMILY="AppleSilicon"; fi
           cmake --install build --prefix "$RUNNER_TEMP/stage"
-          "$HOME/Qt/${{ env.QT_VERSION }}/clang_64/bin/macdeployqt" "$RUNNER_TEMP/stage/scriba.app" \
+          "$HOME/Qt/${{ env.QT_VERSION }}/macos/bin/macdeployqt" "$RUNNER_TEMP/stage/scriba.app" \
             -codesign=- -always-overwrite
           hdiutil create -volname Scriba -srcfolder "$RUNNER_TEMP/stage/scriba.app" \
             -ov -format UDZO "$RUNNER_TEMP/scriba-${VERSION}-macOS-${FAMILY}.dmg"
