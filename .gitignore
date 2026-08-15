@@ -7,6 +7,7 @@ vendor/*
 !vendor/mathml2omml/
 !vendor/miniz/
 !vendor/stoppard/
+!vendor/ta-lib/
 *.deb
 _CPack_Packages
 .demo-content.md

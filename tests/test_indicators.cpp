@@ -74,17 +74,18 @@ TEST(Indicators, MacdShapesAndKnownValues)
 {
     // Degenerate-but-exact series: fast=2, slow=4, signal=2. All emas are
     // exact halves, so diff/dea land on exact values and hist on exact zeros.
+    // TA-Lib's lookback is (slow-1)+(signal-1) = 3+1 = 4.
     const QList<double> input = {1, 2, 3, 4, 5, 6};
     const MacdSeries m = Indicators::macd(input, 2, 4, 2);
     ASSERT_EQ(input.size(), m.diff.size());
     ASSERT_EQ(input.size(), m.dea.size());
     ASSERT_EQ(input.size(), m.hist.size());
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 4; ++i) {
         EXPECT_TRUE(isNan(m.diff[i]));
         EXPECT_TRUE(isNan(m.dea[i]));
         EXPECT_TRUE(isNan(m.hist[i]));
     }
-    for (int i = 3; i < input.size(); ++i) {
+    for (int i = 4; i < input.size(); ++i) {
         EXPECT_DOUBLE_EQ(1.0, m.diff[i]);
         EXPECT_DOUBLE_EQ(1.0, m.dea[i]);
         EXPECT_DOUBLE_EQ(0.0, m.hist[i]);
@@ -93,6 +94,7 @@ TEST(Indicators, MacdShapesAndKnownValues)
 
 TEST(Indicators, MacdConstantSeriesAllZero)
 {
+    // outBegIdx = (4-1)+(2-1) = 4; constant series gives exact zeros.
     const QList<double> input = {5, 5, 5, 5, 5, 5, 5, 5};
     const MacdSeries m = Indicators::macd(input, 2, 4, 2);
     ASSERT_EQ(input.size(), m.diff.size());
@@ -128,6 +130,19 @@ TEST(Indicators, RsiKnownValues)
     EXPECT_NEAR(100.0 - 100.0 / 14.0, rsiMix[14], 1e-9);
 }
 
+TEST(Indicators, RsiFlatSeriesIsZero)
+{
+    // Perfectly flat series: gain+loss == 0, TA-Lib emits 0.0 (the hand-rolled
+    // code emitted 100.0 here because avgLoss == 0).
+    const QList<double> flat = {7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7};
+    const QVector<double> rsiFlat = Indicators::rsi(flat, 14);
+    ASSERT_EQ(flat.size(), rsiFlat.size());
+    for (int i = 0; i < 14; ++i)
+        EXPECT_TRUE(isNan(rsiFlat[i]));
+    for (int i = 14; i < flat.size(); ++i)
+        EXPECT_DOUBLE_EQ(0.0, rsiFlat[i]);
+}
+
 TEST(Indicators, BollBands)
 {
     const QList<double> input = {1, 2, 3, 4, 5, 6};
@@ -153,7 +168,8 @@ TEST(Indicators, BollBands)
 
 TEST(Indicators, KdjBoundsAndRelation)
 {
-    // n=9 warmup, then k/d must stay in [0,100] and j == 3k-2d exactly.
+    // n=9/k=3/d=3: TA-STOCH lookback = (n-1)+(k-1)+(d-1) = 12. After warmup
+    // k/d must stay in [0,100] and j == 3k-2d exactly (computed locally).
     QList<double> closes, highs, lows;
     for (int i = 0; i < 40; ++i) {
         const double base = 10.0 + std::sin(i * 0.7) * 3.0;
@@ -165,12 +181,12 @@ TEST(Indicators, KdjBoundsAndRelation)
     ASSERT_EQ(closes.size(), kd.k.size());
     ASSERT_EQ(closes.size(), kd.d.size());
     ASSERT_EQ(closes.size(), kd.j.size());
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 12; ++i) {
         EXPECT_TRUE(isNan(kd.k[i]));
         EXPECT_TRUE(isNan(kd.d[i]));
         EXPECT_TRUE(isNan(kd.j[i]));
     }
-    for (int i = 8; i < 40; ++i) {
+    for (int i = 12; i < 40; ++i) {
         EXPECT_GE(kd.k[i], 0.0);
         EXPECT_LE(kd.k[i], 100.0);
         EXPECT_GE(kd.d[i], 0.0);
@@ -184,7 +200,7 @@ TEST(Indicators, AlignmentInvariants)
     // Every function: output size == input size, NaN prefix of the documented
     // length, and no NaN after the warmup.
     QList<double> v;
-    for (int i = 0; i < 30; ++i)
+    for (int i = 0; i < 40; ++i)
         v.append(10.0 + std::sin(i * 0.4) * 5.0);
 
     const auto checkPrefix = [&](const QVector<double> &out, int prefix) {
@@ -201,18 +217,18 @@ TEST(Indicators, AlignmentInvariants)
     EXPECT_EQ(v.size(), m.diff.size());
     EXPECT_EQ(v.size(), m.dea.size());
     EXPECT_EQ(v.size(), m.hist.size());
-    // diff is valid from slow-1; dea seeds at the first valid diff.
-    for (int i = 0; i < 25; ++i)
+    // TA-Lib MACD lookback = (26-1)+(9-1) = 33; all three lines share it.
+    for (int i = 0; i < 33; ++i)
         EXPECT_TRUE(isNan(m.diff[i])) << "diff index " << i;
-    for (int i = 25; i < v.size(); ++i)
+    for (int i = 33; i < v.size(); ++i)
         EXPECT_FALSE(isNan(m.diff[i])) << "diff index " << i;
-    for (int i = 0; i < 25; ++i)
+    for (int i = 0; i < 33; ++i)
         EXPECT_TRUE(isNan(m.dea[i])) << "dea index " << i;
-    for (int i = 25; i < v.size(); ++i)
+    for (int i = 33; i < v.size(); ++i)
         EXPECT_FALSE(isNan(m.dea[i])) << "dea index " << i;
-    for (int i = 0; i < 25; ++i)
+    for (int i = 0; i < 33; ++i)
         EXPECT_TRUE(isNan(m.hist[i])) << "hist index " << i;
-    for (int i = 25; i < v.size(); ++i)
+    for (int i = 33; i < v.size(); ++i)
         EXPECT_FALSE(isNan(m.hist[i])) << "hist index " << i;
     checkPrefix(Indicators::rsi(v, 14), 14);
     checkPrefix(Indicators::boll(v, 20, 2.0).mid, 19);
@@ -224,5 +240,6 @@ TEST(Indicators, AlignmentInvariants)
         highs.append(x + 1.0);
         lows.append(x - 1.0);
     }
-    checkPrefix(Indicators::kdj(v, highs, lows, 9).k, 8);
+    // TA-STOCH lookback = (9-1)+(3-1)+(3-1) = 12.
+    checkPrefix(Indicators::kdj(v, highs, lows, 9).k, 12);
 }

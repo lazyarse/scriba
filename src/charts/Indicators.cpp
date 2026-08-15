@@ -14,168 +14,124 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "Indicators.h"
 
+#include "ta_func.h"
+
 #include <cmath>
 #include <limits>
+#include <vector>
 
 namespace Indicators {
 
-QVector<double> sma(const QList<double> &values, int period)
+namespace {
+
+// TA-Lib reports its results via outBegIdx/outNBElement (the first valid index
+// and the number of valid elements starting there), not as NaN-prefixed
+// arrays. Re-align into the NaN-prefixed QVector of inputSize that the rest of
+// the API and the chart payload expect.
+QVector<double> align(const double *out, int outBegIdx, int outNbElement, int inputSize)
 {
-    QVector<double> result(values.size());
-    double sum = 0;
-    for (int i = 0; i < values.size(); ++i) {
-        sum += values[i];
-        if (i >= period)
-            sum -= values[i - period];
-        result[i] = i >= period - 1 ? sum / period
-                                     : std::numeric_limits<double>::quiet_NaN();
+    QVector<double> result(inputSize, std::numeric_limits<double>::quiet_NaN());
+    for (int i = 0; i < outNbElement; ++i) {
+        const int idx = outBegIdx + i;
+        if (idx >= 0 && idx < inputSize)
+            result[idx] = out[i];
     }
     return result;
+}
+
+QVector<double> toInput(const QList<double> &values)
+{
+    QVector<double> input(values.size());
+    for (int i = 0; i < values.size(); ++i)
+        input[i] = values[i];
+    return input;
+}
+
+} // namespace
+
+QVector<double> sma(const QList<double> &values, int period)
+{
+    const QVector<double> in = toInput(values);
+    QVector<double> out(in.size());
+    int outBegIdx = 0;
+    int outNbElement = 0;
+    TA_SMA(0, in.size() - 1, in.constData(), period, &outBegIdx, &outNbElement,
+           out.data());
+    return align(out.constData(), outBegIdx, outNbElement, in.size());
 }
 
 QVector<double> ema(const QList<double> &values, int period)
 {
-    QVector<double> result(values.size());
-    const double k = 2.0 / (period + 1);
-    double prev = 0;
-    bool seeded = false;
-    for (int i = 0; i < values.size(); ++i) {
-        if (!seeded) {
-            if (i < period - 1) {
-                result[i] = std::numeric_limits<double>::quiet_NaN();
-                continue;
-            }
-            double sum = 0;
-            for (int j = i - period + 1; j <= i; ++j)
-                sum += values[j];
-            prev = sum / period;
-            seeded = true;
-        } else {
-            prev = (values[i] - prev) * k + prev;
-        }
-        result[i] = prev;
-    }
-    return result;
+    const QVector<double> in = toInput(values);
+    QVector<double> out(in.size());
+    int outBegIdx = 0;
+    int outNbElement = 0;
+    TA_EMA(0, in.size() - 1, in.constData(), period, &outBegIdx, &outNbElement,
+           out.data());
+    return align(out.constData(), outBegIdx, outNbElement, in.size());
 }
 
 MacdSeries macd(const QList<double> &close, int fast, int slow, int signal)
 {
-    const QVector<double> emaFast = ema(close, fast);
-    const QVector<double> emaSlow = ema(close, slow);
-
-    QVector<double> diff(close.size(), std::numeric_limits<double>::quiet_NaN());
-    for (int i = 0; i < close.size(); ++i) {
-        if (i >= slow - 1 && i >= fast - 1)
-            diff[i] = emaFast[i] - emaSlow[i];
-    }
-
-    // dea = ema(signal) of the diff series (NaN-aware seed: first valid diff).
-    QVector<double> dea(close.size(), std::numeric_limits<double>::quiet_NaN());
-    const double k = 2.0 / (signal + 1);
-    double prev = 0;
-    int seeded = -1;
-    for (int i = 0; i < close.size(); ++i) {
-        if (std::isnan(diff[i]))
-            continue;
-        if (seeded < 0) {
-            prev = diff[i];
-            seeded = i;
-        } else {
-            prev = (diff[i] - prev) * k + prev;
-        }
-        dea[i] = prev;
-    }
-
-    QVector<double> hist(close.size(), std::numeric_limits<double>::quiet_NaN());
-    for (int i = 0; i < close.size(); ++i) {
-        if (!std::isnan(dea[i]))
-            hist[i] = 2.0 * (diff[i] - dea[i]);
-    }
-    return {diff, dea, hist};
+    const QVector<double> in = toInput(close);
+    QVector<double> diff(in.size()), dea(in.size()), hist(in.size());
+    int outBegIdx = 0;
+    int outNbElement = 0;
+    TA_MACD(0, in.size() - 1, in.constData(), fast, slow, signal, &outBegIdx,
+            &outNbElement, diff.data(), dea.data(), hist.data());
+    // TA-Lib's histogram output is macd - signal already (outMACDHist[i] =
+    // outMACD[i] - outMACDSignal[i]); align it as-is.
+    return {align(diff.constData(), outBegIdx, outNbElement, in.size()),
+            align(dea.constData(), outBegIdx, outNbElement, in.size()),
+            align(hist.constData(), outBegIdx, outNbElement, in.size())};
 }
 
 QVector<double> rsi(const QList<double> &close, int period)
 {
-    QVector<double> result(close.size(), std::numeric_limits<double>::quiet_NaN());
-    if (close.size() <= period)
-        return result;
-
-    double avgGain = 0, avgLoss = 0;
-    for (int i = 1; i <= period; ++i) {
-        const double delta = close[i] - close[i - 1];
-        if (delta > 0)
-            avgGain += delta;
-        else
-            avgLoss -= delta;
-    }
-    avgGain /= period;
-    avgLoss /= period;
-    result[period] = avgLoss == 0.0
-        ? 100.0
-        : 100.0 - 100.0 / (1.0 + avgGain / avgLoss);
-
-    for (int i = period + 1; i < close.size(); ++i) {
-        const double delta = close[i] - close[i - 1];
-        avgGain = (avgGain * (period - 1) + (delta > 0 ? delta : 0.0)) / period;
-        avgLoss = (avgLoss * (period - 1) + (delta < 0 ? -delta : 0.0)) / period;
-        result[i] = avgLoss == 0.0
-            ? 100.0
-            : 100.0 - 100.0 / (1.0 + avgGain / avgLoss);
-    }
-    return result;
+    const QVector<double> in = toInput(close);
+    QVector<double> out(in.size());
+    int outBegIdx = 0;
+    int outNbElement = 0;
+    TA_RSI(0, in.size() - 1, in.constData(), period, &outBegIdx, &outNbElement,
+           out.data());
+    return align(out.constData(), outBegIdx, outNbElement, in.size());
 }
 
 BollSeries boll(const QList<double> &close, int period, double mult)
 {
-    const QVector<double> mid = sma(close, period);
-    QVector<double> upper(close.size()), lower(close.size());
-    for (int i = 0; i < close.size(); ++i) {
-        if (std::isnan(mid[i])) {
-            upper[i] = lower[i] = std::numeric_limits<double>::quiet_NaN();
-            continue;
-        }
-        double variance = 0;
-        for (int j = i - period + 1; j <= i; ++j) {
-            const double d = close[j] - mid[i];
-            variance += d * d;
-        }
-        const double stddev = std::sqrt(variance / period); // population
-        upper[i] = mid[i] + mult * stddev;
-        lower[i] = mid[i] - mult * stddev;
-    }
-    return {upper, mid, lower};
+    const QVector<double> in = toInput(close);
+    QVector<double> upper(in.size()), mid(in.size()), lower(in.size());
+    int outBegIdx = 0;
+    int outNbElement = 0;
+    TA_BBANDS(0, in.size() - 1, in.constData(), period, mult, mult,
+              TA_MAType_SMA, &outBegIdx, &outNbElement, upper.data(),
+              mid.data(), lower.data());
+    return {align(upper.constData(), outBegIdx, outNbElement, in.size()),
+            align(mid.constData(), outBegIdx, outNbElement, in.size()),
+            align(lower.constData(), outBegIdx, outNbElement, in.size())};
 }
 
 KdjSeries kdj(const QList<double> &close, const QList<double> &high,
               const QList<double> &low, int n, int k, int d)
 {
-    const int size = close.size();
-    QVector<double> ks(size, std::numeric_limits<double>::quiet_NaN());
-    QVector<double> ds(size, std::numeric_limits<double>::quiet_NaN());
-    QVector<double> js(size, std::numeric_limits<double>::quiet_NaN());
-
-    double kPrev = 50.0, dPrev = 50.0;
-    const double kWeight = (k - 1.0) / k;
-    const double dWeight = (d - 1.0) / d;
-    for (int i = n - 1; i < size; ++i) {
-        double hhv = -std::numeric_limits<double>::infinity();
-        double llv = std::numeric_limits<double>::infinity();
-        for (int j = i - n + 1; j <= i; ++j) {
-            hhv = std::max(hhv, high[j]);
-            llv = std::min(llv, low[j]);
-        }
-        const double range = hhv - llv;
-        double kCur = kPrev;
-        if (range > 0) {
-            const double rsv = (close[i] - llv) / range * 100.0;
-            kCur = kPrev * kWeight + rsv / k;
-        }
-        const double dCur = dPrev * dWeight + kCur / d;
-        kPrev = kCur;
-        dPrev = dCur;
-        ks[i] = kCur;
-        ds[i] = dCur;
-        js[i] = 3.0 * kCur - 2.0 * dCur;
+    const QVector<double> inClose = toInput(close);
+    const QVector<double> inHigh = toInput(high);
+    const QVector<double> inLow = toInput(low);
+    QVector<double> kOut(inClose.size()), dOut(inClose.size());
+    int outBegIdx = 0;
+    int outNbElement = 0;
+    TA_STOCH(0, inClose.size() - 1, inHigh.constData(), inLow.constData(),
+             inClose.constData(), n, k, TA_MAType_SMA, d, TA_MAType_SMA,
+             &outBegIdx, &outNbElement, kOut.data(), dOut.data());
+    const QVector<double> ks = align(kOut.constData(), outBegIdx, outNbElement,
+                                     inClose.size());
+    const QVector<double> ds = align(dOut.constData(), outBegIdx, outNbElement,
+                                     inClose.size());
+    // TA-Lib has no J line; KDJ's J = 3K - 2D is computed locally.
+    QVector<double> js(ks.size(), std::numeric_limits<double>::quiet_NaN());
+    for (int i = 0; i < ks.size(); ++i) {
+        if (!std::isnan(ks[i]) && !std::isnan(ds[i]))
+            js[i] = 3.0 * ks[i] - 2.0 * ds[i];
     }
     return {ks, ds, js};
 }

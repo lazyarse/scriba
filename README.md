@@ -42,6 +42,7 @@ Designed to *actually* do what you need quickly and without a plugin ecosystem. 
 - [Mermaid diagram rendering](https://mermaid.js.org/intro/) (flowcharts, sequence, state, pie, etc.)
 - [Apache ECharts](https://echarts.apache.org/) data visualisation (bar, scatter, line, pie, candlestick/stock with volume, zoom and moving averages)
 - [md4c](https://github.com/mity/md4c) — a patched version of the CommonMark-compliant Markdown parser with GitHub Flavour Markdown support
+- [TA-Lib](https://github.com/TA-Lib/ta-lib) — the C technical-analysis library behind the stock-chart indicators (SMA/EMA/MACD/RSI/Bollinger/stochastic)
 - [turndown.js](https://github.com/mixmark-io/turndown) — the counterpart to md4c: HTML-to-Markdown conversion (with the [GFM plugin](https://github.com/mixmark-io/turndown-plugin-gfm)) for importing HTML files and pasting content copied from the web
 
 ---

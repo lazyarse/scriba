@@ -17,8 +17,9 @@
 // Single C++ source of truth for stock-chart indicator math. Every function
 // returns a NaN-prefixed series with length == input length, so all consumers
 // (the shared chart payload, the JS adapters, the spec parsers) stay
-// array-aligned with the date axis by construction. Hand-rolled for now; a
-// future TA-Lib swap touches ONLY this file.
+// array-aligned with the date axis by construction. The math is delegated to
+// the vendored TA-Lib C library (see vendor/ta-lib); the outBegIdx/outNBElement
+// offsets TA-Lib reports are re-aligned into NaN-prefixed arrays here.
 
 #include <QList>
 #include <QVector>
@@ -43,19 +44,22 @@ QVector<double> sma(const QList<double> &values, int period);
 // (v - prev) * k + prev with k = 2/(period+1).
 QVector<double> ema(const QList<double> &values, int period);
 
-// diff = ema(fast) - ema(slow); dea = ema(signal) of diff;
-// hist = 2 * (diff - dea) (common display convention).
+// diff = ema(fast) - ema(slow); dea = ema(signal) of diff, seeded with the SMA
+// of the first `signal` macd values; hist = diff - dea (TA-Lib conventions).
+// NaN for i < (slow-1)+(signal-1).
 MacdSeries macd(const QList<double> &close, int fast = 12, int slow = 26, int signal = 9);
 
-// Wilder's smoothing: first value from the average gain/loss over the first
-// `period` deltas, then RMA smoothing; NaN for i < period.
+// Wilder's smoothing, per TA-Lib: RSI = 100*gain/(gain+loss), 0.0 when the
+// gain+loss window is flat; NaN for i < period.
 QVector<double> rsi(const QList<double> &close, int period = 14);
 
-// mid = sma(period); upper/lower = mid ± mult * population stddev.
+// TA-Lib BBANDS with SMA middle band and population stddev: mid = sma(period);
+// upper/lower = mid ± mult * stddev.
 BollSeries boll(const QList<double> &close, int period = 20, double mult = 2.0);
 
-// RSV over an n-period window; K/D smoothed as prev*(s-1)/s + x/s with the
-// given factors; j = 3k - 2d. NaN for i < n-1.
+// TA-Lib has no KDJ; reimplemented via TA_STOCH (fastK = n, slowK = k, slowD
+// = d, both smoothed with SMA) with j = 3k - 2d computed locally. Values and
+// alignment differ from a traditional KDJ: NaN for i < (n-1)+(k-1)+(d-1).
 KdjSeries kdj(const QList<double> &close, const QList<double> &high,
               const QList<double> &low, int n = 9, int k = 3, int d = 3);
 

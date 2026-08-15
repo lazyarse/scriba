@@ -687,7 +687,7 @@ QJsonObject StockChartDialog::buildPayload() const
             highs.append(o.high);
             lows.append(o.low);
         }
-        const Indicators::KdjSeries kdj = Indicators::kdj(highs, lows, closeValues, 9, 3, 3);
+        const Indicators::KdjSeries kdj = Indicators::kdj(closeValues, highs, lows, 9, 3, 3);
         QJsonObject o;
         o["k"] = nanToNull(kdj.k);
         o["d"] = nanToNull(kdj.d);
