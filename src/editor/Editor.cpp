@@ -82,6 +82,7 @@ Editor::Editor(QWidget *parent)
 
     m_errorScrollBar = new EditorScrollBar(this);
     setVerticalScrollBar(m_errorScrollBar);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
     auto *foldTimer = new QTimer(this);
     foldTimer->setSingleShot(true);
@@ -263,6 +264,8 @@ void Editor::keyPressEvent(QKeyEvent *event)
             QString partialLang;
             if (isInsideLanguageContext(textCursor(), partialLang) && QSettings().value(Preferences::LanguageAutoComplete, true).toBool())
                 shown = showLanguageCompletion(partialLang) || shown;
+            if (isInsideHtmlCommentContext(textCursor()))
+                shown = showHtmlCommentCompletion() || shown;
         }
         if (!shown && m_completer && m_completer->popup()->isVisible())
             m_completer->popup()->hide();

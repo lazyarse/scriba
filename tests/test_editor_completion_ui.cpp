@@ -548,6 +548,41 @@ TEST_F(EditorCompletionHarness, HtmlHrefAttributeCompletes)
     EXPECT_EQ(text(), "<a href='resources/icons/");
 }
 
+TEST_F(EditorCompletionHarness, CommentDirectiveCompletes)
+{
+    typeText("<!--");
+    ASSERT_EQ(popupRowCount(), 2) << "popup with both page-break directives";
+    enter();
+    EXPECT_EQ(text(), "<!-- keep -->");
+}
+
+TEST_F(EditorCompletionHarness, CommentDirectiveNoPopupInsideFence)
+{
+    editor->clear();
+    typeText("```");
+    enter();
+    placeCursor(1, 0);
+    typeText("<!--");
+    EXPECT_EQ(popupRowCount(), -1) << "no popup inside a fenced code block";
+}
+
+TEST_F(EditorCompletionHarness, CommentDirectiveNoPopupForPartialPrefixes)
+{
+    editor->clear();
+    typeText("<!");
+    EXPECT_EQ(popupRowCount(), -1) << "no popup for a bare <!";
+    typeText("--x");
+    EXPECT_EQ(popupRowCount(), -1) << "no popup once the directive is continued";
+}
+
+TEST_F(EditorCompletionHarness, CommentDirectiveRespectsPreference)
+{
+    QSettings().setValue(Preferences::CommentAutoComplete, false);
+    editor->clear();
+    typeText("<!--");
+    EXPECT_EQ(popupRowCount(), -1) << "no popup when comment autocomplete is disabled";
+}
+
 TEST_F(EditorCompletionHarness, EmojiCompletionLimitsResults)
 {
     QSettings().setValue(Preferences::EmojiCompletionLimit, 10);

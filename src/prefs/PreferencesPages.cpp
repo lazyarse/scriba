@@ -75,6 +75,10 @@ void PreferencesDialog::setupGeneralPage()
         m_languageAutoCompleteCheck->setChecked(settings.value(Preferences::LanguageAutoComplete, true).toBool());
         autoCompleteLayout->addWidget(m_languageAutoCompleteCheck);
 
+        m_commentAutoCompleteCheck = new QCheckBox("Enable page-break comment auto-complete");
+        m_commentAutoCompleteCheck->setChecked(settings.value(Preferences::CommentAutoComplete, true).toBool());
+        autoCompleteLayout->addWidget(m_commentAutoCompleteCheck);
+
         layout->addWidget(autoCompleteGroup);
 
         QGroupBox *autoSaveGroup = new QGroupBox("Auto-Save");

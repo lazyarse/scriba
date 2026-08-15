@@ -157,6 +157,7 @@ private:
     QCheckBox *m_emojiAutoCompleteCheck;
     QSpinBox *m_emojiCompletionSpin;
     QCheckBox *m_languageAutoCompleteCheck;
+    QCheckBox *m_commentAutoCompleteCheck;
     QCheckBox *m_autoCorrectCheck;
     QTableWidget *m_replacementsTable;
 
@@ -245,6 +246,7 @@ private:
     // Markdown lint page
     QVector<QPair<QString, QCheckBox *>> m_lintRuleChecks;  // (rule id, checkbox)
     QJsonObject m_lintParams;                               // rule id -> params object
+    QVector<QPair<QString, QComboBox *>> m_lintSeverityCombos; // (rule id, severity combo)
 
     // Corpus
     Corpus *m_corpus = nullptr;

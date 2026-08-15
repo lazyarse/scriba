@@ -627,6 +627,8 @@ bool Editor::handleBackspaceDelete(QKeyEvent *event)
                             m_completer->popup()->hide();
                         else
                             showLanguageCompletion(partialLang);
+                    } else if (isInsideHtmlCommentContext(textCursor())) {
+                        showHtmlCommentCompletion();
                     } else {
                         m_completer->popup()->hide();
                     }

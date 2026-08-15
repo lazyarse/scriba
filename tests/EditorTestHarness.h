@@ -26,8 +26,9 @@ struct CompletionPrefs
     bool file = false;
     bool emoji = false;
     bool language = false;
+    bool comment = false;
 
-    static CompletionPrefs all() { return {true, true, true}; }
+    static CompletionPrefs all() { return {true, true, true, true}; }
 };
 
 class EditorTestHarness : public testing::Test

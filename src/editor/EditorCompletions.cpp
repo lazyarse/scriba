@@ -143,6 +143,16 @@ void Editor::acceptCompletion(const QString &completion)
     int pos = cursor.positionInBlock();
     int blockStart = cursor.block().position();
 
+    // HTML comment context: replace the typed `<!--` prefix
+    if (isInsideHtmlCommentContext(cursor)) {
+        cursor.setPosition(blockStart + pos - 4, QTextCursor::MoveAnchor);
+        cursor.setPosition(blockStart + pos, QTextCursor::KeepAnchor);
+        cursor.removeSelectedText();
+        cursor.insertText(completion);
+        setTextCursor(cursor);
+        return;
+    }
+
     // Code fence language context: replace text right after ```
     QString partialLang;
     if (isInsideLanguageContext(cursor, partialLang)) {
@@ -440,6 +450,51 @@ bool Editor::showLanguageCompletion(const QString &partialLang)
     QFontMetrics fm(font());
     int maxWidth = 0;
     for (const QString &entry : matches)
+        maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
+    cr.setWidth(maxWidth + 30);
+
+    m_completer->complete(cr);
+    m_completer->popup()->setCurrentIndex(model->index(0, 0));
+    positionCompletionPopup(cr);
+    return true;
+}
+
+bool Editor::isInsideHtmlCommentContext(const QTextCursor &cursor) const
+{
+    if (isCursorInFencedCodeBlock() || isInsideInlineCode())
+        return false;
+    static const QRegularExpression commentRe(R"(^\s*<!--$)");
+    return commentRe.match(cursor.block().text().left(cursor.positionInBlock())).hasMatch();
+}
+
+bool Editor::showHtmlCommentCompletion()
+{
+    if (!QSettings().value(Preferences::CommentAutoComplete, true).toBool())
+        return false;
+
+    const QStringList entries = {
+        QStringLiteral("<!-- keep -->"),
+        QStringLiteral("<!-- new-page -->"),
+    };
+
+    if (!m_completer) {
+        m_completer = new QCompleter(this);
+        m_completer->setWidget(this);
+        m_completer->setCompletionMode(QCompleter::UnfilteredPopupCompletion);
+        m_completer->setCaseSensitivity(Qt::CaseInsensitive);
+        m_completer->setFilterMode(Qt::MatchStartsWith);
+        connect(m_completer, QOverload<const QString &>::of(&QCompleter::activated),
+                this, &Editor::acceptCompletion);
+    }
+
+    QStringListModel *model = new QStringListModel(entries, m_completer);
+    m_completer->setModel(model);
+    m_completer->setCompletionPrefix(QStringLiteral("<!--"));
+
+    QRect cr = cursorRect();
+    QFontMetrics fm(font());
+    int maxWidth = 0;
+    for (const QString &entry : entries)
         maxWidth = qMax(maxWidth, fm.horizontalAdvance(entry));
     cr.setWidth(maxWidth + 30);
 

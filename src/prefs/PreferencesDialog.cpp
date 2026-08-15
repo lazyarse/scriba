@@ -195,6 +195,7 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::EmojiAutoComplete, m_emojiAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::EmojiCompletionLimit, m_emojiCompletionSpin->value());
         settings.setValue(Preferences::LanguageAutoComplete, m_languageAutoCompleteCheck->isChecked());
+        settings.setValue(Preferences::CommentAutoComplete, m_commentAutoCompleteCheck->isChecked());
         settings.setValue(Preferences::AutoCorrectEnabled, m_autoCorrectCheck->isChecked());
         settings.setValue(Preferences::TypographyQuotes, m_typographyQuotesCheck->isChecked());
         settings.setValue(Preferences::TypographyDashes, m_typographyDashesCheck->isChecked());

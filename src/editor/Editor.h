@@ -186,6 +186,8 @@ private:
 
     bool isInsideLanguageContext(const QTextCursor &cursor, QString &partialLang) const;
     bool showLanguageCompletion(const QString &partialLang);
+    bool isInsideHtmlCommentContext(const QTextCursor &cursor) const;
+    bool showHtmlCommentCompletion();
 
     void applySpellSettings();
     void updateIssueSummary();

@@ -33,6 +33,7 @@ void EditorTestHarness::SetUp()
     QSettings().setValue(Preferences::FileAutoComplete, m_prefs.file);
     QSettings().setValue(Preferences::EmojiAutoComplete, m_prefs.emoji);
     QSettings().setValue(Preferences::LanguageAutoComplete, m_prefs.language);
+    QSettings().setValue(Preferences::CommentAutoComplete, m_prefs.comment);
 
     editor = new Editor();
     editor->resize(800, 600);
