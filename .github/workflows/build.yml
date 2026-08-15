@@ -36,9 +36,10 @@ jobs:
             -m qtwebengine qtwebchannel qtsvg -O "$HOME/Qt"
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_PREFIX_PATH="$HOME/Qt/${{ env.QT_VERSION }}/gcc_64" \
-          -DBUILD_TESTS=ON
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$HOME/Qt/${{ env.QT_VERSION }}/gcc_64" \
+            -DBUILD_TESTS=ON
 
       - name: Build
         run: cmake --build build -j4
@@ -83,8 +84,9 @@ jobs:
           }
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
-          -DCMAKE_PREFIX_PATH="$env:RUNNER_TEMP\Qt\${{ env.QT_VERSION }}\msvc2022_64"
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="$env:RUNNER_TEMP\Qt\${{ env.QT_VERSION }}\msvc2022_64"
 
       - name: Build
         run: cmake --build build -j4
@@ -127,10 +129,11 @@ jobs:
         run: bash scripts/make-macos-icon.sh
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_PREFIX_PATH="$HOME/Qt/${{ env.QT_VERSION }}/clang_64" \
-          -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$HOME/Qt/${{ env.QT_VERSION }}/clang_64" \
+            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
 
       - name: Build
         run: cmake --build build -j4
