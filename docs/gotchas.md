@@ -1083,3 +1083,57 @@ TradeX notes if it is ever revisited: the UMD global is an exports object
 (`Chart`, `IndicatorClasses`, ...), not a constructor; the web component
 (`<tradex-chart>`) is the intended entry; talib.wasm is bundled from
 `talib-web@0.1.3` and resolved relative to the script URL.
+
+## Stock chart engines: canvas charts bake to PNG on export
+
+LWC and KlineCharts render into HTML `<canvas>` elements, and Chromium's print
+pipeline (Qt printToPdf and headless chromium alike) does not capture canvas
+content — an exported PDF/DOCX/HTML would carry blank chart boxes. The export
+paths therefore rasterize every `.scriba-chart-wrap canvas` to a PNG data URI
+at 3.125× (`convertStockChartsToImages()` in `stockChartsInitJs`) and swap the
+canvas for an `<img>` before the page HTML is extracted (JsRenderEngine for
+html/docx, ExportPdfDialog for pdf). SVG sources stay vector: ECharts
+(`{renderer:'svg'}`) and mermaid survive export as crisp SVG.
+
+`runJavaScript` on this Qt build does **not** await promises: a script
+returning a promise delivers an empty result to the callback immediately.
+That makes `Promise.all(...).then(...)` waits useless; the export paths poll a
+plain boolean flag the page sets on completion (`window._scribaStockDone` for
+render, `window._scribaStockBaked` for the docx bake) instead — see
+`ExportPdfDialog::pollForStockFlag` and the poll in `JsRenderEngine::renderSync`.
+
+## Stock chart engines: fences, wrappers and per-engine type mapping
+
+The non-ECharts stock fences are ```` ```lc ```` and ```` ```kc ````; their body is a
+single-line `scribaStockChart("lightweight"|"klinecharts", {...})` wrapper call
+(one line: the round-trip parser regex `/^scribaStockChart\("(\w+)"\s*,\s*(\{.*\})\)$/`
+uses `.*` which does not cross newlines — `docs/kitchensink.md` blocks must
+stay single-line). The wrapper encodes the engine key; the payload is the
+shared spec (`{title, type, volume, zoom, animate, ma, indicators, dates, ohlc,
+volumes}`). `StockChartDialog::buildSpec()` emits the fence, and the ✎ edit
+anchor routes via `MainWindow::editChartBlock` (fence languages `lc`/`kc`)
+back into the dialog, which detects the engine with
+`ChartSource::detectStockEngine` and prefills engine, chart type and indicator
+checkboxes.
+
+The `type` key selects the main series, and **each engine maps it through its
+own API** — keep the four adapter switches in sync when adding types: LWC
+named series constructors (`LightweightCharts.CandlestickSeries` etc.),
+KlineCharts main-pane type via `styles.candle.type` (the CandleType enum;
+`line` is emulated with transparent candles + a close-line overlay indicator),
+ECharts series `type` (`candlestick`/`bar`/`line` + `areaStyle`).
+
+## Stock chart engines: all indicator math lives in C++
+
+The engines never compute indicators: `Indicators.cpp` (sma/ema/macd/rsi/boll/
+kdj) computes every series up front, and all four engines render identical
+curves from the payload arrays. Every series is NaN-prefixed with length ==
+date count (serialized as JSON `null`). `StockChartDialog::movingAverage` is
+gone — `Indicators::sma` is its exact replacement (parity pinned by
+test_indicators.cpp `SmaParityWithOldMovingAverage`).
+
+Future upgrade: TA-Lib (BSD-3-Clause) can replace the six functions with a
+one-file swap in `Indicators.cpp`. TA-Lib reports output via
+`outBegIdx`/`outNbElement` offsets rather than aligned NaN-prefixed arrays, so
+a small re-alignment adapter is needed; the public API and payload format stay
+unchanged.

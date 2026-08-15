@@ -258,6 +258,42 @@ TEST_F(StockRenderHarness, ConvertStockChartsToImagesRasterizesCanvases)
         << after.value("firstSrc").toString().toStdString();
 }
 
+static const char *const kEcBlock =
+    "```ec\n"
+    "{\"animation\":false,\"title\":{\"text\":\"EC probe\"},\"tooltip\":{\"trigger\":\"axis\",\"axisPointer\":{\"type\":\"cross\"}},\"grid\":[{\"left\":\"5%\",\"right\":\"5%\",\"top\":\"8%\",\"bottom\":\"12%\"}],\"xAxis\":[{\"type\":\"category\",\"data\":[\"2026-01-02\",\"2026-01-05\",\"2026-01-06\"],\"boundaryGap\":false}],\"yAxis\":[{\"type\":\"value\",\"scale\":true}],\"series\":[{\"name\":\"OHLC\",\"type\":\"candlestick\",\"data\":[[100,102,101,103],[102,101,104,99],[101,105,103,108]]}],\"legend\":{\"data\":[\"OHLC\"]}}\n"
+    "```\n";
+
+TEST_F(StockRenderHarness, AllEnginesRenderInOneDocument)
+{
+    renderFence(QString::fromUtf8(kEcBlock) + kLcBlock + kKcBlock);
+
+    QJsonObject state = runJs(
+        "(function(){"
+        "var wraps=document.querySelectorAll('.scriba-chart-wrap');"
+        "var lcKc=document.querySelectorAll('.scriba-chart-wrap .stock-chart canvas').length;"
+        "var ec=document.querySelectorAll('.scriba-chart-wrap .echarts-chart svg').length;"
+        "return JSON.stringify({"
+        "wraps:wraps.length,"
+        "canvases:lcKc,"
+        "echartsSvg:ec,"
+        "anchors:document.querySelectorAll('.scriba-chart-wrap .scriba-edit-btn').length"
+        "});"
+        "})()");
+
+    EXPECT_EQ(3, state.value("wraps").toInt())
+        << "expected one wrap per engine (ec + lc + kc), got "
+        << state.value("wraps").toInt();
+    EXPECT_GE(state.value("canvases").toInt(), 2)
+        << "LWC and KlineCharts wraps must carry canvases, got "
+        << state.value("canvases").toInt();
+    EXPECT_GE(state.value("echartsSvg").toInt(), 1)
+        << "ECharts wraps must carry an SVG (svg renderer), got "
+        << state.value("echartsSvg").toInt();
+    EXPECT_EQ(2, state.value("anchors").toInt())
+        << "only lc/kc wraps get an edit anchor (ec has none), got "
+        << state.value("anchors").toInt();
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);

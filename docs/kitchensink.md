@@ -447,6 +447,42 @@ Charts are written as ECharts option objects in ` ```ec ` code blocks (see the [
 }
 ```
 
+## Stock Chart Engines
+
+Stock charts can be rendered by any of three engines: ECharts (` ```ec ``, the classic JSON spec), Lightweight Charts (` ```lc ``, compact `scribaStockChart("lightweight", {...})` wrapper) and KlineCharts (` ```kc ``, `scribaStockChart("klinecharts", {...})`). All three render the same dataset below — the LWC and KlineCharts fences carry precomputed indicators (MACD/RSI/BOLL/KDJ) as JSON `null`-prefixed arrays; indicator math always happens in C++ (`Indicators.cpp`), never in the engines.
+
+### Candlestick, all engines
+
+```ec
+{
+  "animation": false,
+  "title": {"text": "Same data, three engines"},
+  "tooltip": {"trigger": "axis", "axisPointer": {"type": "cross"}},
+  "grid": [{"left": "5%", "right": "5%", "top": "8%", "bottom": "12%"}],
+  "xAxis": [{"type": "category", "data": ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-08", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12"], "boundaryGap": false}],
+  "yAxis": [{"type": "value", "scale": true}],
+  "series": [
+    {"name": "OHLC", "type": "candlestick", "data": [[152.4, 153.9, 151.2, 154.8], [153.9, 154.6, 152.0, 155.1], [154.6, 156.2, 153.8, 156.7], [156.2, 154.7, 154.1, 156.9], [154.7, 153.4, 152.9, 155.3], [153.4, 152.1, 151.5, 154.2], [152.1, 151.8, 150.9, 153.9], [151.8, 153.2, 151.3, 154.6], [153.2, 155.0, 152.7, 156.5], [155.0, 156.4, 153.0, 157.1]]},
+    {"name": "MA5", "type": "line", "data": [null, null, null, null, 154.56, 154.20, 153.64, 153.04, 153.10, 153.70], "smooth": true, "showSymbol": false, "lineWidth": 1.5}
+  ],
+  "legend": {"data": ["OHLC", "MA5"]}
+}
+```
+
+```lc
+scribaStockChart("lightweight", {"title":"Lightweight Charts","type":"candlestick","volume":true,"zoom":true,"animate":false,"ma":[5,20],"indicators":{"ma5":[null,null,null,null,154.56,154.20,153.64,153.04,153.10,153.70],"ma20":[null,null,null,null,null,null,null,null,null,null],"macd":{"diff":[null,null,null,null,null,null,null,null,null,null],"dea":[null,null,null,null,null,null,null,null,null,null],"hist":[null,null,null,null,null,null,null,null,null,null]},"rsi":[null,null,null,null,null,null,null,null,null,null],"boll":{"upper":[null,null,null,null,null,null,null,null,null,null],"mid":[null,null,null,null,null,null,null,null,null,null],"lower":[null,null,null,null,null,null,null,null,null,null]},"kdj":{"k":[null,null,null,null,null,null,null,null,56.11,66.98],"d":[null,null,null,null,null,null,null,null,52.04,57.02],"j":[null,null,null,null,null,null,null,null,64.26,86.90]}},"dates":["2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12"],"ohlc":[[152.4,153.9,151.2,154.8],[153.9,154.6,152.0,155.1],[154.6,156.2,153.8,156.7],[156.2,154.7,154.1,156.9],[154.7,153.4,152.9,155.3],[153.4,152.1,151.5,154.2],[152.1,151.8,150.9,153.9],[151.8,153.2,151.3,154.6],[153.2,155.0,152.7,156.5],[155.0,156.4,153.0,157.1]],"volumes":[48231,39872,42105,36540,45218,50773,43816,39260,41544,46982]})
+```
+
+```kc
+scribaStockChart("klinecharts", {"title":"KlineCharts","type":"candlestick","volume":true,"zoom":true,"animate":false,"ma":[5,20],"indicators":{"ma5":[null,null,null,null,154.56,154.20,153.64,153.04,153.10,153.70],"ma20":[null,null,null,null,null,null,null,null,null,null],"macd":{"diff":[null,null,null,null,null,null,null,null,null,null],"dea":[null,null,null,null,null,null,null,null,null,null],"hist":[null,null,null,null,null,null,null,null,null,null]},"rsi":[null,null,null,null,null,null,null,null,null,null],"boll":{"upper":[null,null,null,null,null,null,null,null,null,null],"mid":[null,null,null,null,null,null,null,null,null,null],"lower":[null,null,null,null,null,null,null,null,null,null]},"kdj":{"k":[null,null,null,null,null,null,null,null,56.11,66.98],"d":[null,null,null,null,null,null,null,null,52.04,57.02],"j":[null,null,null,null,null,null,null,null,64.26,86.90]}},"dates":["2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12"],"ohlc":[[152.4,153.9,151.2,154.8],[153.9,154.6,152.0,155.1],[154.6,156.2,153.8,156.7],[156.2,154.7,154.1,156.9],[154.7,153.4,152.9,155.3],[153.4,152.1,151.5,154.2],[152.1,151.8,150.9,153.9],[151.8,153.2,151.3,154.6],[153.2,155.0,152.7,156.5],[155.0,156.4,153.0,157.1]],"volumes":[48231,39872,42105,36540,45218,50773,43816,39260,41544,46982]})
+```
+
+### Line type (Lightweight Charts)
+
+```lc
+scribaStockChart("lightweight", {"title":"Line of closes","type":"line","volume":false,"zoom":true,"animate":false,"ma":[],"indicators":{},"dates":["2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12"],"ohlc":[[152.4,153.9,151.2,154.8],[153.9,154.6,152.0,155.1],[154.6,156.2,153.8,156.7],[156.2,154.7,154.1,156.9],[154.7,153.4,152.9,155.3],[153.4,152.1,151.5,154.2],[152.1,151.8,150.9,153.9],[151.8,153.2,151.3,154.6],[153.2,155.0,152.7,156.5],[155.0,156.4,153.0,157.1]],"volumes":[48231,39872,42105,36540,45218,50773,43816,39260,41544,46982]})
+```
+
 ## Find & Replace
 
 Use <kbd>Ctrl+F</kbd> to search. Enable **Regex** to use patterns and capture groups in replace.
