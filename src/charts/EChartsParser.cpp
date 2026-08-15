@@ -284,6 +284,14 @@ bool parseStockSpec(const QByteArray &specJson, StockSpecData &out)
     const QJsonObject spec = doc.object();
     const QJsonArray series = spec.value("series").toArray();
 
+    const QString firstType = series.at(0).toObject().value("type").toString();
+    if (firstType == QLatin1String("bar"))
+        out.chartType = StockChartType::Bar;
+    else if (firstType == QLatin1String("line")) {
+        out.chartType = series.at(0).toObject().contains("areaStyle")
+            ? StockChartType::Area : StockChartType::Line;
+    }
+
     if (!spec.value("animation").toBool(true))
         out.animate = false;
 
@@ -311,7 +319,10 @@ bool parseStockSpec(const QByteArray &specJson, StockSpecData &out)
         const QJsonObject s = sv.toObject();
         const QString type = s.value("type").toString();
         const QString name = s.value("name").toString();
-        if (type == QLatin1String("candlestick")) {
+        const bool isMainPrice = type == QLatin1String("candlestick")
+            || ((type == QLatin1String("line") || type == QLatin1String("bar"))
+                && name.isEmpty()); // bare line/bar = main price series (non-candlestick type)
+        if (isMainPrice) {
             for (const QJsonValue &v : s.value("data").toArray()) {
                 const QJsonArray ohlc = v.toArray();
                 QList<double> row;
@@ -337,6 +348,124 @@ bool parseStockSpec(const QByteArray &specJson, StockSpecData &out)
     if (out.hasVolume && out.volumes.size() != out.dates.size())
         return false;
     return !out.ohlc.isEmpty();
+}
+
+// ---------------------------------------------------------------------------
+// Stock chart engines (lightweight / klinecharts / tradex)
+// ---------------------------------------------------------------------------
+
+StockEngine detectStockEngine(const QByteArray &fenceBody)
+{
+    const QByteArray body = fenceBody.trimmed();
+    const QJsonDocument doc = QJsonDocument::fromJson(body);
+    if (doc.isObject() && doc.object().contains("series"))
+        return StockEngine::ECharts;
+
+    static const QRegularExpression re(
+        R"re(^scribaStockChart\(\s*"(lightweight|klinecharts|tradex)"\s*,)re");
+    const QRegularExpressionMatch m = re.match(QString::fromUtf8(body));
+    if (!m.hasMatch())
+        return StockEngine::Unknown;
+    const QString engine = m.captured(1);
+    if (engine == QLatin1String("lightweight"))
+        return StockEngine::Lightweight;
+    if (engine == QLatin1String("klinecharts"))
+        return StockEngine::KlineCharts;
+    return StockEngine::TradeX;
+}
+
+namespace {
+// Shared payload extraction for the non-ECharts engines. `indicators` carries
+// only the enabled flags here — the arrays inside it are derived data that
+// recomputes on dialog load, so they are not round-tripped.
+bool parseStockPayload(const QJsonObject &payload, StockSpecData &out)
+{
+    out.title = payload.value("title").toString();
+    out.volume = payload.value("volume").toBool();
+    out.zoom = payload.value("zoom").toBool();
+    out.animate = payload.value("animate").toBool(true);
+
+    const QString type = payload.value("type").toString();
+    if (type == QLatin1String("bar"))
+        out.chartType = StockChartType::Bar;
+    else if (type == QLatin1String("line"))
+        out.chartType = StockChartType::Line;
+    else if (type == QLatin1String("area"))
+        out.chartType = StockChartType::Area;
+    else
+        out.chartType = StockChartType::Candlestick;
+
+    for (const QJsonValue &v : payload.value("ma").toArray()) {
+        const int p = v.toInt();
+        if (p == 5) out.ma5 = true;
+        else if (p == 10) out.ma10 = true;
+        else if (p == 20) out.ma20 = true;
+        else if (p == 50) out.ma50 = true;
+    }
+
+    const QJsonObject ind = payload.value("indicators").toObject();
+    out.macd = ind.contains("macd");
+    out.rsi = ind.contains("rsi");
+    out.boll = ind.contains("boll");
+    out.kdj = ind.contains("kdj");
+
+    for (const QJsonValue &v : payload.value("dates").toArray())
+        out.dates.append(v.toString());
+    if (out.dates.isEmpty())
+        return false;
+
+    for (const QJsonValue &v : payload.value("ohlc").toArray()) {
+        const QJsonArray ohlc = v.toArray();
+        QList<double> row;
+        for (int i = 0; i < 4 && i < ohlc.size(); ++i)
+            row.append(ohlc.at(i).toDouble());
+        if (row.size() == 4)
+            out.ohlc.append(row);
+    }
+    if (out.ohlc.size() != out.dates.size())
+        return false;
+
+    out.hasVolume = out.volume;
+    if (out.hasVolume) {
+        for (const QJsonValue &v : payload.value("volumes").toArray())
+            out.volumes.append(v.isNull() ? 0.0 : v.toDouble());
+        if (out.volumes.size() != out.dates.size())
+            return false;
+    }
+    return true;
+}
+
+// Strips the `scribaStockChart("engine", ...)` call wrapper and hands the
+// payload object to the shared extractor.
+bool parseEngineSpec(const QByteArray &payloadJson, const QLatin1String &engine,
+                     StockSpecData &out)
+{
+    static const QRegularExpression re(
+        R"re(^scribaStockChart\(\s*"(lightweight|klinecharts|tradex)"\s*,\s*(.+)\)\s*$)re");
+    const QString body = QString::fromUtf8(payloadJson.trimmed());
+    const QRegularExpressionMatch m = re.match(body);
+    if (!m.hasMatch() || m.captured(1) != engine)
+        return false;
+    const QJsonDocument doc = QJsonDocument::fromJson(m.captured(2).toUtf8());
+    if (!doc.isObject())
+        return false;
+    return parseStockPayload(doc.object(), out);
+}
+} // namespace
+
+bool parseLightweightSpec(const QByteArray &payloadJson, StockSpecData &out)
+{
+    return parseEngineSpec(payloadJson, QLatin1String("lightweight"), out);
+}
+
+bool parseKlinechartsSpec(const QByteArray &payloadJson, StockSpecData &out)
+{
+    return parseEngineSpec(payloadJson, QLatin1String("klinecharts"), out);
+}
+
+bool parseTradexSpec(const QByteArray &payloadJson, StockSpecData &out)
+{
+    return parseEngineSpec(payloadJson, QLatin1String("tradex"), out);
 }
 
 // ---------------------------------------------------------------------------

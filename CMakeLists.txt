@@ -667,6 +667,10 @@ if(BUILD_TESTS)
         scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources scriba_twemoji)
     add_test(NAME test_svg_upscaling COMMAND ${_TEST_PREFIX} ./test_svg_upscaling)
 
+    add_executable(test_stock_parser tests/test_stock_parser.cpp src/charts/EChartsParser.cpp)
+    target_link_libraries(test_stock_parser PRIVATE scriba_test_main)
+    add_test(NAME test_stock_parser COMMAND ${_TEST_PREFIX} ./test_stock_parser)
+
     add_executable(test_stock_render tests/test_stock_render.cpp)
     target_link_libraries(test_stock_render PRIVATE
         scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources)

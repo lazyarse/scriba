@@ -33,6 +33,20 @@
 namespace ChartSource {
 
 // ---------------------------------------------------------------------------
+// Stock chart engines (` ```lc ` / ` ```kc ` / ` ```tx ` fences, plus the
+// original ` ```ec ` ECharts path). The dialog emits a one-line call
+// `scribaStockChart("engine", {payload})`; each engine variant strips that
+// wrapper and fills the SAME StockSpecData.
+// ---------------------------------------------------------------------------
+
+enum class StockEngine { Unknown, ECharts, Lightweight, KlineCharts, TradeX };
+enum class StockChartType { Candlestick, Bar, Line, Area }; // payload "type"; default Candlestick
+
+// Detect the engine from a fence body: pure ECharts JSON (has "series") ->
+// ECharts; a `scribaStockChart("engine", ...)` call -> the named engine.
+StockEngine detectStockEngine(const QByteArray &fenceBody);
+
+// ---------------------------------------------------------------------------
 // ECharts (` ```ec ` blocks)
 // ---------------------------------------------------------------------------
 
@@ -74,9 +88,17 @@ struct StockSpecData {
     QList<QList<double>> ohlc; // per bar: [open, close, low, high]
     QList<double> volumes;     // parallel to dates; empty entries are null
     bool hasVolume = false;
+    StockChartType chartType = StockChartType::Candlestick;
+    bool macd = false, rsi = false, boll = false, kdj = false;
 };
 
 bool parseStockSpec(const QByteArray &specJson, StockSpecData &out);
+
+// The non-ECharts engines strip the `scribaStockChart("engine", ...)` wrapper
+// and parse the shared payload into the SAME StockSpecData as parseStockSpec.
+bool parseLightweightSpec(const QByteArray &payloadJson, StockSpecData &out);
+bool parseKlinechartsSpec(const QByteArray &payloadJson, StockSpecData &out);
+bool parseTradexSpec(const QByteArray &payloadJson, StockSpecData &out);
 
 // ---------------------------------------------------------------------------
 // Advanced Charts Dialog types (sankey / boxplot / parallel / themeRiver /
