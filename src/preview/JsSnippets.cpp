@@ -440,7 +440,7 @@ const QString stockChartsInitJs = QString(
     "}"
     "var ind=opts.indicators||{};"
     "(opts.ma||[]).forEach(function(p,i){"
-    "scribaAddLine(chart,times,ind['ma'+p],['#e0a53a','#3a9be0','#7b5cd6','#35c26b'][i%4],0);"
+    "scribaAddLine(chart,times,ind['ma'+p],['#e0a53a','#3a9be0','#7b5cd6','#35c26b'][i&3],0);"
     "});"
     "if(ind.boll){"
     "scribaAddLine(chart,times,ind.boll.upper,'#c26b7b',0);"
@@ -555,5 +555,4 @@ const QString stockChartsInitJs = QString(
     "}));"
     "}"
     ).arg(QString::number(JsTiming::ChartLayoutTries),
-          QString::number(JsTiming::ChartLayoutPoll),
           QString::number(JsTiming::ChartLayoutPoll));

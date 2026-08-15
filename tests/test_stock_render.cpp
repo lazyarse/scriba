@@ -181,12 +181,17 @@ TEST_F(StockRenderHarness, LightweightChartsRendersCanvasesAndTitle)
         "canvases:cvs.length,"
         "title:wraps.length?wraps[0].querySelector('.scriba-chart-title').textContent:'',"
         "engineLoaded:!!engine.lightweight,"
+        "diagError:window._scribaStockDiagError||'',"
         "errors:err"
         "});"
         "})()");
 
     EXPECT_EQ(0, state.value("errors").toArray().size())
         << "JS errors on the page: " << state.value("errors").toArray().size() << " total";
+    // Per-chart diagnostic: renderer try/catch swallows the throw before the
+    // window error handler sees it, so only _scribaStockDiagError catches it.
+    EXPECT_TRUE(state.value("diagError").toString().isEmpty())
+        << "chart diagnostic error: " << state.value("diagError").toString().toStdString();
     EXPECT_TRUE(state.value("engineLoaded").toBool()) << "lightweight-charts not loaded";
     EXPECT_EQ(1, state.value("wraps").toInt()) << "expected one chart wrap";
     EXPECT_EQ("LWC probe", state.value("title").toString());
@@ -210,12 +215,17 @@ TEST_F(StockRenderHarness, KlineChartsRendersCanvasesAndTitle)
         "canvases:cvs.length,"
         "title:wraps.length?wraps[0].querySelector('.scriba-chart-title').textContent:'',"
         "engineLoaded:!!engine.klinecharts,"
+        "diagError:window._scribaStockDiagError||'',"
         "errors:err"
         "});"
         "})()");
 
     EXPECT_EQ(0, state.value("errors").toArray().size())
         << "JS errors on the page: " << state.value("errors").toArray().size() << " total";
+    // Per-chart diagnostic: renderer try/catch swallows the throw before the
+    // window error handler sees it, so only _scribaStockDiagError catches it.
+    EXPECT_TRUE(state.value("diagError").toString().isEmpty())
+        << "chart diagnostic error: " << state.value("diagError").toString().toStdString();
     EXPECT_TRUE(state.value("engineLoaded").toBool()) << "klinecharts not loaded";
     EXPECT_EQ(1, state.value("wraps").toInt()) << "expected one chart wrap";
     EXPECT_EQ("KC probe", state.value("title").toString());
