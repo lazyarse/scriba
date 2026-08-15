@@ -219,6 +219,28 @@ TEST_F(IssueSummaryPaneTest, RowsRenderLabelAndCount)
     EXPECT_TRUE(allText.contains(QStringLiteral("Broken links")));
 }
 
+TEST_F(IssueSummaryPaneTest, IndentedRowsGetLeftMargin)
+{
+    QVector<IssueSummaryPane::Row> rows = {
+        {IssueSummaryPane::Kind::Lint, QStringLiteral("Markdown"), 0,
+         QColor(QStringLiteral("#f09000"))},
+        {IssueSummaryPane::Kind::Lint, QStringLiteral("errors"), 0,
+         QColor(QStringLiteral("#f09000")), 1},
+        {IssueSummaryPane::Kind::Lint, QStringLiteral("warnings"), 0,
+         QColor(QStringLiteral("#f09000")), 1},
+    };
+    m_pane->setRows(rows);
+
+    for (QLabel *lbl : m_pane->findChildren<QLabel *>()) {
+        const int margin = lbl->contentsMargins().left();
+        if (lbl->text().contains(QStringLiteral("Markdown")))
+            EXPECT_EQ(margin, 0);
+        else if (lbl->text().contains(QStringLiteral("errors"))
+                 || lbl->text().contains(QStringLiteral("warnings")))
+            EXPECT_EQ(margin, 14) << lbl->text().toStdString();
+    }
+}
+
 TEST_F(IssueSummaryPaneTest, CloseButtonHidesAndEmits)
 {
     bool emitted = false;
@@ -402,6 +424,10 @@ TEST_F(IssueSummaryEditorTest, PaneShowsForMdFileAndTracksCounts)
         allText += lbl->text();
     EXPECT_TRUE(allText.contains(QStringLiteral("Typos")));
     EXPECT_TRUE(allText.contains(QStringLiteral("Broken links")));
+    // The Markdown errors/warnings breakdown is visible even at zero counts.
+    EXPECT_TRUE(allText.contains(QStringLiteral("Markdown")));
+    EXPECT_TRUE(allText.contains(QStringLiteral("errors")));
+    EXPECT_TRUE(allText.contains(QStringLiteral("warnings")));
 }
 
 TEST_F(IssueSummaryEditorTest, PaneShowsForUntitledFile)

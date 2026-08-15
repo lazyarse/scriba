@@ -350,7 +350,7 @@ namespace Preferences {
 
         // v3 → v4: pre-severity lint configs stored every enabled rule as a bare
         // `true` (loads as Error). Re-seed the Warning-by-default rules so the
-        // issue summary's "Markdown warnings" row appears out of the box.
+        // issue summary's Markdown warnings line has real counts out of the box.
         if (version < 4)
             MdLintConfig::upgradeLegacySeverities(settings);
 

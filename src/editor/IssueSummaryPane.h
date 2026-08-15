@@ -45,6 +45,8 @@ public:
         QString label;
         int count = 0;
         QColor color;
+        // Indent level (0 = top-level row); each level adds a left margin.
+        int indentLevel = 0;
     };
 
     explicit IssueSummaryPane(QWidget *parent = nullptr);

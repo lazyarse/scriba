@@ -97,14 +97,16 @@ void IssueSummaryPane::paintEvent(QPaintEvent *)
 
 void IssueSummaryPane::setRows(const QVector<Row> &rows)
 {
-    // Structural identity: same row count with the same kinds and labels in
-    // order. Counts don't affect structure, so a count-only update reuses the
-    // existing QLabels in place instead of deleting and recreating every row.
+    // Structural identity: same row count with the same kinds, labels and
+    // indent levels in order. Counts don't affect structure, so a count-only
+    // update reuses the existing QLabels in place instead of deleting and
+    // recreating every row.
     bool sameStructure = rows.size() == m_rows.size();
     if (sameStructure) {
         for (int i = 0; i < rows.size(); ++i) {
             if (rows.at(i).kind != m_rows.at(i).kind
-                || rows.at(i).label != m_rows.at(i).label) {
+                || rows.at(i).label != m_rows.at(i).label
+                || rows.at(i).indentLevel != m_rows.at(i).indentLevel) {
                 sameStructure = false;
                 break;
             }
@@ -148,6 +150,7 @@ void IssueSummaryPane::rebuild()
         auto *lbl = new QLabel;
         lbl->setText(rowText(row));
         lbl->setTextInteractionFlags(Qt::NoTextInteraction);
+        lbl->setContentsMargins(row.indentLevel * 14, 0, 0, 0);
         m_rowsLayout->addWidget(lbl);
         m_rowLabels.append(lbl);
     }

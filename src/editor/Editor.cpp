@@ -495,9 +495,10 @@ void Editor::updateIssueSummary()
     const auto counts = m_spellHighlighter->counts();
     const QSet<IssueSummaryPane::Kind> &sel = m_issueSummaryOptions.categories;
     QVector<IssueSummaryPane::Row> rows;
-    auto addRow = [&](IssueSummaryPane::Kind kind, const QString &label, int count, const QColor &color, bool engineOn) {
+    auto addRow = [&](IssueSummaryPane::Kind kind, const QString &label, int count,
+                  const QColor &color, bool engineOn, int indentLevel = 0) {
         if (sel.contains(kind) && engineOn)
-            rows.append({kind, label, count, color});
+            rows.append({kind, label, count, color, indentLevel});
     };
     addRow(IssueSummaryPane::Kind::Typos,
            QStringLiteral("Typos"), counts.spelling,
@@ -505,13 +506,18 @@ void Editor::updateIssueSummary()
     addRow(IssueSummaryPane::Kind::Grammar,
            QStringLiteral("Grammar"), counts.grammar,
            SpellHighlighter::grammarUnderlineColor(), m_spellHighlighter->grammarCheckingEnabled());
+    // Markdown errors and warnings break out as indented lines under the
+    // header (total). Both lines stay visible at zero counts so a clean doc
+    // still shows the lint pass ran.
     addRow(IssueSummaryPane::Kind::Lint,
-           QStringLiteral("Markdown"), counts.markdown,
+           QStringLiteral("Markdown"), counts.markdown + counts.markdownWarnings,
            SpellHighlighter::markdownUnderlineColor(), m_spellHighlighter->markdownCheckingEnabled());
-    if (counts.markdownWarnings > 0)
-        addRow(IssueSummaryPane::Kind::Lint,
-               QStringLiteral("Markdown warnings"), counts.markdownWarnings,
-               SpellHighlighter::markdownUnderlineColor(), m_spellHighlighter->markdownCheckingEnabled());
+    addRow(IssueSummaryPane::Kind::Lint,
+           QStringLiteral("errors"), counts.markdown,
+           SpellHighlighter::markdownUnderlineColor(), m_spellHighlighter->markdownCheckingEnabled(), 1);
+    addRow(IssueSummaryPane::Kind::Lint,
+           QStringLiteral("warnings"), counts.markdownWarnings,
+           SpellHighlighter::markdownUnderlineColor(), m_spellHighlighter->markdownCheckingEnabled(), 1);
     addRow(IssueSummaryPane::Kind::Links,
            QStringLiteral("Broken links"), counts.links,
            SpellHighlighter::linkUnderlineColor(), m_spellHighlighter->linkCheckingEnabled());
