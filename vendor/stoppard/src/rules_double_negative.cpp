@@ -59,7 +59,7 @@ public:
                 if (t.pos == PosTag::Conjunction || t.pos == PosTag::Punctuation)
                     break;
                 const u16string_view w = wordText(a, t);
-                const auto *neg = std::find_if(
+                auto neg = std::find_if(
                     kNegatives.begin(), kNegatives.end(),
                     [w](const NegativeWord &e) { return e.word == w; });
                 if (neg == kNegatives.end()) continue;

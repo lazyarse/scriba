@@ -94,6 +94,12 @@ Spelling variants (color/colour, -ise/-ize) are explicitly out — Hunspell owns
   `target_compile_options(stoppard PRIVATE -Wall -Wextra -Wpedantic)` with
   `if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")` — MSVC rejects `/Wextra` (D8021).
 
+- [ ] **Remove once upstream fixes it:** `src/rules_double_negative.cpp` declares the
+  `std::find_if` result as `auto neg` (iterator) instead of `const auto *neg` — MSVC's
+  `std::array` iterators are `_Array_const_iterator` class types, not raw pointers, so
+  `auto *` deduction fails with C3535 on Windows (GCC/Clang return raw pointers and accept
+  it). Re-apply the one-line change after every sync.
+
 ## Gotchas
 
 - `tests/` compile with `TESTS_DATA_DIR` pointing at the source `tests/data/` — never run tests

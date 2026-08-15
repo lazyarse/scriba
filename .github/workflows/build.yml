@@ -30,7 +30,9 @@ jobs:
             libgl1-mesa-dev libegl1-mesa-dev libfontconfig1-dev libfreetype6-dev \
             libxkbcommon-dev libglib2.0-dev libxcb-cursor0 \
             libnss3 libasound2t64 libxcomposite1 libxdamage1 libxrandr2 libxtst6 \
-            libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon-x11-0
+            libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon-x11-0 \
+            libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 \
+            libxcb-xfixes0 libgl1 libegl1
 
       - name: Install Qt ${{ env.QT_VERSION }}
         run: |
