@@ -14,7 +14,7 @@ Designed to *actually* do what you need quickly and without a plugin ecosystem. 
 ## Features
 
 - **Load / Save multiple documents** in a `corpus` with a tabbed interface. A corpus is a saved group of documents (`.scriba` file) with a **Recent Corpus** menu, **live directory monitoring** for external changes (auto-reload / prompt policies), **automatic link rewriting** when a document is renamed or moved, and a **corpus-specific spell-check dictionary** (override or merge with your global one).
-- Pick up exactly where you left-off with per-tab **cursor and view-port restore** on restart
+- Pick up exactly where you left-off with per-tab **cursor and view-port restore** when a corpus is reopened (optional)
 - **Offline, in-editor spell and grammar checks** with various dialects. **Import custom `corpus`-specific word sets** with ease: legal, medical, technical, etc.
 - Print and PDF export use **print-specific CSS stylesheets** and adhere to common typesetting principles including **orphan, split quote / codeblock, and hanging-line prevention**
 - **Readability metrics in real-time** to keep your writing audience-focused including sentence / word / character / paragraph / syllable counts, estimated reading and speaking times, and more --- as you type. Choose what metrics are important to you
@@ -25,12 +25,11 @@ Designed to *actually* do what you need quickly and without a plugin ecosystem. 
 - **Export single files or the whole corpus**
 - **Painless tables** --- after you create a header-row, Scriba will: create a separator-row, blank rows for data, and insert cell-padding to keep your source looking like an aligned table instead of mangled text and pipes
 - **Searchable settings** to help you modify Scriba quickly.
-- **Directory Monitoring** - any external changes to documents like filename changes can be automatically updated in your source to prevent broken links
 - **Fuzzy auto-complete suggestions** for links to local filenames, and even emojis; 
 - **Fold headers, fenced-code blocks, tables, and lists** to reduce vertical space
 - **Source auto-correct for commonly mis-spelt words** like "_hte_" -> "_the_", "_nad_" -> "_and_" and add your own
-- **Auto-save**, - **[Themes](docs/themes.md)** (Fair warning: Qt can't style application or dialog title bars differently to the system theme), and crash recovery of the last corpus.
-- **Keyboard shortcuts to make you more productive**: [keyboard shortcuts](docs/shortcuts.md) for amost everything; a [kitchensink.md](docs/kitchensink.md) with full feature examples that isn't a Markdown 101; an internal cache of page renders to prevent preview regeneration when switching tabs; and, jump up and down the document from header to header with a simple keyboard shortcut
+- **Auto-save**, **[Themes](docs/themes.md)** (Fair warning: Qt can't style application or dialog title bars differently to the system theme), and session restore of the last corpus (its tabs, unsaved content, and positions) on startup.
+- **Keyboard shortcuts to make you more productive**: [keyboard shortcuts](docs/shortcuts.md) for almost everything; a [kitchensink.md](docs/kitchensink.md) with full feature examples that isn't a Markdown 101; an internal cache of page renders to prevent preview regeneration when switching tabs; and, jump up and down the document from header to header with a simple keyboard shortcut
 - **Accessibility support** to help you use Scriba the way you need with [CSS-based GUI themes](docs/themes.md): preview, editor, and chrome all styled from one file whilst the editor's colours stay in sync. **Override font family, size, line-height, and change the caret width to improve visibility, and more**
 - [Application security](docs/security.md) is not an afterthought and both the rendered preview and exports are secured against XSS attacks and other injection vectors to protect you and your audience.
 
@@ -49,7 +48,7 @@ Designed to *actually* do what you need quickly and without a plugin ecosystem. 
 
 ## Security
 
-Due to Chromium sandbox issues, it's inherently unsafe to run this as `root` in case you inadvertently run crafted HTML code.
+Scriba refuses to run as `root` — a Chromium sandbox hardening measure against crafted HTML. Run as your normal user (use `sudo -e file.md` to edit protected files).
 
 ---
 
@@ -66,6 +65,8 @@ _See the [Gallery](docs/gallery.md) for more screenshots..._
 ./scriba file.md            # open file
 ./scriba file1.md file2.md  # open files
 ```
+
+JS console messages are captured via the Debug Log window (Tools → Debug Log).
 
 ---
 
@@ -88,17 +89,6 @@ build\Release\scriba.exe file.md
 ```
 
 For a permanent fix, add `C:\Qt\6.10.3\msvc2022_64\bin` to your system PATH.
-
-```
-On Windows, add it via:
-1. Open System Properties → Advanced → Environment Variables
-2. Under System variables, find Path → Edit → New → paste C:\Qt\6.10.3\msvc2022_64\bin
-3. OK out, restart terminal/cmd
-Or via PowerShell (admin):
-[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "Machine") + ";C:\Qt\6.10.3\msvc2022_64\bin", "Machine")
-```
-
-JS console messages are captured via the Debug Log window (Tools → Debug Log).
 
 ## Technical Docs
 
