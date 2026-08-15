@@ -85,6 +85,7 @@ function scribaUpdate(html, themeCss, mermaidTheme, emojiMode, delay, baseUrl, t
             var mp = initMermaid();
             initKaTeX();
             var vp = initECharts();
+            var sp = initStockCharts();
             hljs.highlightAll();
             generateHeadingIds();
             setImgTitles();
@@ -99,6 +100,7 @@ function scribaUpdate(html, themeCss, mermaidTheme, emojiMode, delay, baseUrl, t
             var p = [];
             if (typeof mp !== 'undefined') p.push(mp);
             if (typeof vp !== 'undefined') p.push(vp);
+            if (typeof sp !== 'undefined') p.push(sp);
             var imgs = document.querySelectorAll('img:not(.emoji)');
             if (imgs.length > 0) {
                 p.push(new Promise(function (r) {
@@ -166,6 +168,8 @@ document.addEventListener('DOMContentLoaded', function () {
     window._scribaBasePath = location.pathname;
     mermaid.initialize({startOnLoad: false, theme: '{{MERMAID_THEME}}'});
     hljs.registerAliases('ec', {languageName: 'json'});
+    hljs.registerAliases('lc', {languageName: 'json'});
+    hljs.registerAliases('kc', {languageName: 'json'});
     hljs.highlightAll();
     generateHeadingIds();
     initKaTeX();
@@ -176,8 +180,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var p = [];
     var mp = window.mermaidReady = initMermaid();
     var vp = window.echartsReady = initECharts();
+    var sp = window.stockChartsReady = initStockCharts();
     if (typeof mp !== 'undefined') p.push(mp);
     if (typeof vp !== 'undefined') p.push(vp);
+    if (typeof sp !== 'undefined') p.push(sp);
     var imgs = document.querySelectorAll('img:not(.emoji)');
     if (imgs.length > 0) {
         p.push(new Promise(function (r) {

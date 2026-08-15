@@ -26,3 +26,4 @@ extern const QString setFootnoteTitlesJs;
 extern const QString katexToImageJs;
 extern const QString imageOverlayJs;
 extern const QString chartEditJs;
+extern const QString stockChartsInitJs;

@@ -403,7 +403,8 @@ QString MainWindow::buildPreviewShellHtml(int heavyRenderDelay, const QString &m
 
     QString headScript = QStringLiteral("window._scribaHeavyDelay=%1;").arg(heavyRenderDelay)
         + mermaidInitJs + headingIdJs + anchorNavJs + katexInitJs + echartsInitJs
-        + setImgTitlesJs + setFootnoteTitlesJs + imageOverlayJs + chartEditJs + script;
+        + setImgTitlesJs + setFootnoteTitlesJs + imageOverlayJs + chartEditJs + stockChartsInitJs
+        + script;
 
     QString shell = readResourceFile(":/preview-shell.html");
     shell.replace("/* SCRIBA_SCRIPT */", headScript);
