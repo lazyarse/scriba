@@ -1163,6 +1163,29 @@ from index 12 for the 9/3/3 params (RSV SMA lookback), MACD from index
 This C TA-Lib is unrelated to the old `talib.wasm` (a JS engine, see the
 TradeX section above).
 
+## `QString::arg` placeholder collisions in JS snippets
+
+Qt's multi-arg overload fills `%N` placeholders in **ascending-number order**;
+leftover arguments bleed into later `%N` matches, and there is no `%%`
+escape — so JS strings passed through `.arg()` must not contain `%N`-shaped
+sequences (JS modulo `%` included). Symptom: stock chart moving averages
+silently failed to render with `ReferenceError: i50 is not defined` —
+`stockChartsInitJs`'s palette index `[i%4]` became `[i50]` after the phantom
+third `.arg()` argument landed on `%4`. Idiom: `[i&3]` (bitwise-AND ≡ modulo 4
+for non-negative `i`) instead of `[i%4]`. The throw is swallowed by the
+renderer's try/catch before the window error handler sees it, so
+`_scribaStockDiagError` (asserted empty in `test_stock_render`) is the only
+place it surfaces.
+
+## CSP meta applies only on a full preview-shell load
+
+The Content-Security-Policy `<meta>` is injected only in the full-shell
+branch of `MainWindow::commitPreviewHtml`; incremental `scribaUpdate` JS
+updates never re-inject it. A CSP pref change therefore only takes effect
+after Ctrl+R or a file open — which is why `MainWindow::showPreferences`
+snapshots the four CSP knobs and forces `m_previewInitialized = false` when
+any changed.
+
 ## DOCX export styling (templates)
 
 - Without a user template, DOCX export's `styles.xml` comes from a fixed
