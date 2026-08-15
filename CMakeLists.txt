@@ -136,6 +136,7 @@ set(SCRIBA_APP_WEBENGINE_SOURCES
     src/preview/JsRenderEngine.cpp src/io/DocxExporter.cpp src/io/HtmlToOoxml.cpp
     src/css/UnitConverter.cpp src/css/CssValueParser.cpp src/charts/ChartDialog.cpp
     src/charts/StockChartDialog.cpp src/charts/AdvancedChartDialog.cpp
+    src/charts/Indicators.cpp
     src/dialogs/EmojiDialog.cpp src/dialogs/AboutDialog.cpp src/dialogs/FindDialog.cpp src/dialogs/LogWindow.cpp
     ${SCRIBA_MERMAID_SOURCES} src/dialogs/KatexHelperDialog.cpp src/dialogs/MchemHelperDialog.cpp
     src/io/CsvColumnMapDialog.cpp src/dialogs/TableDialog.cpp)
@@ -666,6 +667,10 @@ if(BUILD_TESTS)
     target_link_libraries(test_svg_upscaling PRIVATE
         scriba_core GTest::gtest test_editor_helpers Qt6::Test scriba_spell scriba_app scriba_editor scriba_prefs scriba_resources scriba_twemoji)
     add_test(NAME test_svg_upscaling COMMAND ${_TEST_PREFIX} ./test_svg_upscaling)
+
+    add_executable(test_indicators tests/test_indicators.cpp src/charts/Indicators.cpp)
+    target_link_libraries(test_indicators PRIVATE scriba_test_main)
+    add_test(NAME test_indicators COMMAND ${_TEST_PREFIX} ./test_indicators)
 
     add_executable(test_stock_parser tests/test_stock_parser.cpp src/charts/EChartsParser.cpp)
     target_link_libraries(test_stock_parser PRIVATE scriba_test_main)
