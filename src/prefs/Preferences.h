@@ -193,8 +193,10 @@ namespace Preferences {
     constexpr const char *StripExportScripts = "stripExportScripts";
     constexpr const char *BlockRawHtmlPreview = "blockRawHtmlPreview";
     constexpr const char *BlockRawHtmlExport = "blockRawHtmlExport";
-    constexpr const char *EnableCspPreview = "enableCspPreview";
-    constexpr const char *EnableCspExport = "enableCspExport";
+    constexpr const char *BlockInlineHandlersPreview = "blockInlineHandlersPreview";
+    constexpr const char *BlockInlineHandlersExport = "blockInlineHandlersExport";
+    constexpr const char *AllowExternalImagesPreview = "allowExternalImagesPreview";
+    constexpr const char *AllowExternalImagesExport = "allowExternalImagesExport";
     constexpr const char *ReadabilityFormula = "readabilityFormula";
     constexpr const char *StatusBarMetrics = "statusBarMetrics";
     constexpr const char *WordsPerSecond = "wordsPerSecond";
@@ -359,12 +361,20 @@ namespace Preferences {
 }
 
 namespace Security {
-    constexpr const char *CspHeader =
-        "default-src 'self' qrc:;"
-        "script-src 'self' qrc: 'unsafe-inline' 'unsafe-eval';"
-        "style-src 'self' qrc: 'unsafe-inline';"
-        "img-src 'self' qrc: data: file:;"
-        "font-src 'self' qrc: data:;"
-        "connect-src 'self' qrc: data: blob:;";
+    // allowExternalImages=true adds http:/https: to img-src so external
+    // images load while inline event handlers and javascript: URLs stay
+    // blocked by the rest of the policy.
+    inline QString cspHeader(bool allowExternalImages = false)
+    {
+        return QStringLiteral(
+            "default-src 'self' qrc:;"
+            "script-src 'self' qrc: 'unsafe-inline' 'unsafe-eval';"
+            "style-src 'self' qrc: 'unsafe-inline';"
+            "img-src 'self' qrc: data: file:") +
+            (allowExternalImages ? QStringLiteral(" http: https:") : QString())
+            + QStringLiteral(";"
+            "font-src 'self' qrc: data:;"
+            "connect-src 'self' qrc: data: blob:;");
+    }
 }
 

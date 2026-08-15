@@ -158,10 +158,11 @@ void MainWindow::exportCorpus()
             exportCss += QStringLiteral("\n") + QLatin1String(Preferences::HideCodeLangCss);
         const QString katexCss = JsRenderEngine::katexCss();
         QString cspMeta;
-        if (prefs.value(Preferences::EnableCspExport, true).toBool())
+        if (prefs.value(Preferences::BlockInlineHandlersExport, true).toBool())
             cspMeta = QStringLiteral(
                 "<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">\n")
-                .arg(Security::CspHeader);
+                .arg(Security::cspHeader(
+                    prefs.value(Preferences::AllowExternalImagesExport, false).toBool()));
         return QStringLiteral(
             "<!DOCTYPE html>\n"
             "<html>\n"

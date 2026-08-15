@@ -229,7 +229,8 @@ void MainWindow::commitPreviewHtml(const QString &html, bool tabSwitch, const Ta
     QSettings prefs;
     QString emojiMode = prefs.value(Preferences::EmojiMode,
         Preferences::emojiRenderingToString(Preferences::EmojiRendering::Bw)).toString();
-    bool cspEnabled = prefs.value(Preferences::EnableCspPreview, true).toBool();
+    bool cspEnabled = prefs.value(Preferences::BlockInlineHandlersPreview, true).toBool();
+    bool allowExternalImages = prefs.value(Preferences::AllowExternalImagesPreview, false).toBool();
     if (!m_previewInitialized) {
         m_cachedPreviewBaseCss = env.baseCss;
         int heavyRenderDelay = prefs.value(Preferences::HeavyRenderDelay,
@@ -274,7 +275,7 @@ void MainWindow::commitPreviewHtml(const QString &html, bool tabSwitch, const Ta
         if (cspEnabled) {
             int headEnd = fullHtml.indexOf("</head>");
             if (headEnd >= 0)
-                fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader));
+                fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::cspHeader(allowExternalImages)));
         }
         m_preview->setHtmlWithOverlay(fullHtml, baseUrl);
     } else {

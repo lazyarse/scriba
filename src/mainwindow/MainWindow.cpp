@@ -605,7 +605,20 @@ void MainWindow::showPreferences()
             applyIssueSummarySettings();
         });
     QSettings s;
+    // Snapshot the CSP knobs: the meta tag is only injected on a full shell
+    // load, so a change must force one (see MainWindow_Preview.cpp).
+    const bool cspPreview = s.value(Preferences::BlockInlineHandlersPreview, true).toBool();
+    const bool cspExport = s.value(Preferences::BlockInlineHandlersExport, true).toBool();
+    const bool extImagesPreview = s.value(Preferences::AllowExternalImagesPreview, false).toBool();
+    const bool extImagesExport = s.value(Preferences::AllowExternalImagesExport, false).toBool();
     if (dlg.exec() == QDialog::Accepted) {
+        // Force a full shell reload when any CSP knob changed, so the new
+        // policy applies immediately instead of on the next Ctrl+R/file open.
+        if (s.value(Preferences::BlockInlineHandlersPreview, true).toBool() != cspPreview
+            || s.value(Preferences::BlockInlineHandlersExport, true).toBool() != cspExport
+            || s.value(Preferences::AllowExternalImagesPreview, false).toBool() != extImagesPreview
+            || s.value(Preferences::AllowExternalImagesExport, false).toBool() != extImagesExport)
+            m_previewInitialized = false;
         applyStyleSheetToAllEditors();
         applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
         applyEditorCaretWidth(s.value(Preferences::EditorCaretWidth, Preferences::DefaultEditorCaretWidth).toInt());

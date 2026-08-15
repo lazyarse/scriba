@@ -138,6 +138,8 @@ private:
     QCheckBox *m_blockRawHtmlExportCheck;
     QCheckBox *m_enableCspPreviewCheck;
     QCheckBox *m_enableCspExportCheck;
+    QCheckBox *m_allowExternalImagesPreviewCheck;
+    QCheckBox *m_allowExternalImagesExportCheck;
     QCheckBox *m_stripeCheck;
     QCheckBox *m_showCodeLangPreviewCheck;
     QCheckBox *m_showCodeLangExportCheck;

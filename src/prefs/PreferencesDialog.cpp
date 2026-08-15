@@ -266,8 +266,10 @@ void PreferencesDialog::setupUi(const QString &themeBgColor, const QString &them
         settings.setValue(Preferences::StripExportScripts, m_stripExportScriptsCheck->isChecked());
         settings.setValue(Preferences::BlockRawHtmlPreview, m_blockRawHtmlPreviewCheck->isChecked());
         settings.setValue(Preferences::BlockRawHtmlExport, m_blockRawHtmlExportCheck->isChecked());
-        settings.setValue(Preferences::EnableCspPreview, m_enableCspPreviewCheck->isChecked());
-        settings.setValue(Preferences::EnableCspExport, m_enableCspExportCheck->isChecked());
+        settings.setValue(Preferences::BlockInlineHandlersPreview, m_enableCspPreviewCheck->isChecked());
+        settings.setValue(Preferences::BlockInlineHandlersExport, m_enableCspExportCheck->isChecked());
+        settings.setValue(Preferences::AllowExternalImagesPreview, m_allowExternalImagesPreviewCheck->isChecked());
+        settings.setValue(Preferences::AllowExternalImagesExport, m_allowExternalImagesExportCheck->isChecked());
         settings.setValue(Preferences::ShowLineNumbers, m_showLineNumbersCheck->isChecked());
         settings.setValue(Preferences::AutoAlignTables, m_autoAlignTablesCheck->isChecked());
         settings.setValue(Preferences::TablePadding, m_tablePaddingSpin->value());

@@ -500,10 +500,11 @@ void MainWindow::exportDocx()
     } else {
         fullHtml = JsRenderEngine::buildFullHtmlForDocxOmml(html, css, emojiMode, mermaidTheme);
     }
-    if (prefs.value(Preferences::EnableCspExport, true).toBool()) {
+    if (prefs.value(Preferences::BlockInlineHandlersExport, true).toBool()) {
         int headEnd = fullHtml.indexOf("</head>");
         if (headEnd >= 0)
-            fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader));
+            fullHtml.insert(headEnd, QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::cspHeader(
+                prefs.value(Preferences::AllowExternalImagesExport, false).toBool())));
     }
     QString renderedHtml = JsRenderEngine::renderSync(fullHtml, baseUrl.toString());
 
@@ -599,8 +600,9 @@ void MainWindow::exportHtml()
     QString katexCss = JsRenderEngine::katexCss();
 
     QString cspMeta;
-    if (prefs.value(Preferences::EnableCspExport, true).toBool())
-        cspMeta = QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">\n").arg(Security::CspHeader);
+    if (prefs.value(Preferences::BlockInlineHandlersExport, true).toBool())
+        cspMeta = QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">\n").arg(Security::cspHeader(
+            prefs.value(Preferences::AllowExternalImagesExport, false).toBool()));
 
     QString output = QString(
         "<!DOCTYPE html>\n"
@@ -655,12 +657,13 @@ void MainWindow::renderDocumentHtml(const QString &markdown, const QString &base
         fullHtml = JsRenderEngine::buildFullHtmlForDocxOmml(html, css, emojiMode, mermaidTheme);
     else
         fullHtml = JsRenderEngine::buildFullHtml(html, css, emojiMode, mermaidTheme);
-    if (prefs.value(Preferences::EnableCspExport, true).toBool()) {
+    if (prefs.value(Preferences::BlockInlineHandlersExport, true).toBool()) {
         const int headEnd = fullHtml.indexOf("</head>");
         if (headEnd >= 0)
             fullHtml.insert(headEnd, QStringLiteral(
                 "<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">")
-                .arg(Security::CspHeader));
+                .arg(Security::cspHeader(
+                    prefs.value(Preferences::AllowExternalImagesExport, false).toBool())));
     }
 
     QString rendered = JsRenderEngine::renderSync(fullHtml, baseUrl);

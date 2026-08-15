@@ -834,7 +834,7 @@ TEST_F(HtmlExportTest, CombinedNoHtmlAndStripScriptTags)
 
 TEST_F(HtmlExportTest, CspConstantIsWellFormed)
 {
-    QString csp = Security::CspHeader;
+    QString csp = Security::cspHeader(false);
     EXPECT_TRUE(csp.contains("default-src"));
     EXPECT_TRUE(csp.contains("script-src"));
     EXPECT_TRUE(csp.contains("style-src"));
@@ -845,12 +845,39 @@ TEST_F(HtmlExportTest, CspConstantIsWellFormed)
     EXPECT_TRUE(csp.contains("'unsafe-eval'"));
     EXPECT_TRUE(csp.contains("'self'"));
     EXPECT_TRUE(csp.contains("qrc:"));
+    // External images stay blocked by default.
+    EXPECT_FALSE(csp.contains("http:"));
+    EXPECT_FALSE(csp.contains("https:"));
+}
+
+TEST_F(HtmlExportTest, CspHeaderAllowsExternalImagesOnRequest)
+{
+    QString csp = Security::cspHeader(true);
+    EXPECT_TRUE(csp.contains("img-src 'self' qrc: data: file: http: https:"));
+    // Only img-src gains http/https; every other directive is unchanged.
+    EXPECT_EQ(csp.remove(" http: https:"), Security::cspHeader(false));
+}
+
+TEST_F(HtmlExportTest, ExportPathHonorsAllowExternalImagesSetting)
+{
+    QSettings s;
+    s.setValue(Preferences::BlockInlineHandlersExport, true);
+    s.setValue(Preferences::AllowExternalImagesExport, true);
+    // Mirrors MainWindow::exportHtml's cspMeta construction.
+    QString cspMeta;
+    if (s.value(Preferences::BlockInlineHandlersExport, true).toBool())
+        cspMeta = QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">\n").arg(Security::cspHeader(
+            s.value(Preferences::AllowExternalImagesExport, false).toBool()));
+    EXPECT_TRUE(cspMeta.contains("Content-Security-Policy"));
+    EXPECT_TRUE(cspMeta.contains("img-src 'self' qrc: data: file: http: https:"));
+    // Inline-handler blocking is unaffected.
+    EXPECT_TRUE(cspMeta.contains("'unsafe-inline'"));
 }
 
 TEST_F(HtmlExportTest, CspMetaTagCanBeInjected)
 {
     QString html = "<!DOCTYPE html>\n<html><head>\n</head><body></body></html>";
-    QString cspTag = QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::CspHeader);
+    QString cspTag = QStringLiteral("<meta http-equiv=\"Content-Security-Policy\" content=\"%1\">").arg(Security::cspHeader());
     int headEnd = html.indexOf("</head>");
     ASSERT_GE(headEnd, 0);
     html.insert(headEnd, cspTag);

@@ -305,9 +305,13 @@ void PreferencesDialog::setupSecurityPage()
         m_blockRawHtmlPreviewCheck->setChecked(settings.value(Preferences::BlockRawHtmlPreview, true).toBool());
         previewLayout->addWidget(m_blockRawHtmlPreviewCheck);
 
-        m_enableCspPreviewCheck = new QCheckBox("Enable Content Security Policy\n(blocks inline event handlers, javascript: URLs, external resources)");
-        m_enableCspPreviewCheck->setChecked(settings.value(Preferences::EnableCspPreview, true).toBool());
+        m_enableCspPreviewCheck = new QCheckBox("Block inline event handlers and javascript: URLs");
+        m_enableCspPreviewCheck->setChecked(settings.value(Preferences::BlockInlineHandlersPreview, true).toBool());
         previewLayout->addWidget(m_enableCspPreviewCheck);
+
+        m_allowExternalImagesPreviewCheck = new QCheckBox("Allow external images (http/https)");
+        m_allowExternalImagesPreviewCheck->setChecked(settings.value(Preferences::AllowExternalImagesPreview, false).toBool());
+        previewLayout->addWidget(m_allowExternalImagesPreviewCheck);
 
         m_showPageBreaksCheck = new QCheckBox("Show page breaks in preview (print layout)");
         m_showPageBreaksCheck->setChecked(settings.value(Preferences::PreviewShowPageBreaks, false).toBool());
@@ -327,9 +331,13 @@ void PreferencesDialog::setupSecurityPage()
         m_blockRawHtmlExportCheck->setChecked(settings.value(Preferences::BlockRawHtmlExport, true).toBool());
         exportLayout->addWidget(m_blockRawHtmlExportCheck);
 
-        m_enableCspExportCheck = new QCheckBox("Enable Content Security Policy\n(blocks inline event handlers, javascript: URLs, external resources)");
-        m_enableCspExportCheck->setChecked(settings.value(Preferences::EnableCspExport, true).toBool());
+        m_enableCspExportCheck = new QCheckBox("Block inline event handlers and javascript: URLs");
+        m_enableCspExportCheck->setChecked(settings.value(Preferences::BlockInlineHandlersExport, true).toBool());
         exportLayout->addWidget(m_enableCspExportCheck);
+
+        m_allowExternalImagesExportCheck = new QCheckBox("Allow external images (http/https)");
+        m_allowExternalImagesExportCheck->setChecked(settings.value(Preferences::AllowExternalImagesExport, false).toBool());
+        exportLayout->addWidget(m_allowExternalImagesExportCheck);
 
         layout->addWidget(exportGroup);
 
@@ -338,8 +346,9 @@ void PreferencesDialog::setupSecurityPage()
             "The app requires 'unsafe-inline' for both script and style because bundled JS libraries "
             "(KaTeX, Mermaid, highlight.js, ECharts) and the app's own initialization code use inline "
             "scripts and styles. A stricter CSP would break rendering. "
-            "The current policy blocks inline event handlers (onclick, onerror), javascript: URLs, "
-            "and external network requests.");
+            "Blocking inline event handlers and javascript: URLs is a separate knob from allowing "
+            "external images: enabling the latter lets the preview/export make network requests "
+            "(offline/privacy caveat).");
         cspNote->setWordWrap(true);
         cspNote->setStyleSheet("color: gray; padding: 8px;");
         layout->addWidget(cspNote);
