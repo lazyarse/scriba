@@ -1288,3 +1288,14 @@ Three deliberately separate frontmatter implementations coexist:
 diagram fences; `FrontMatterParser` is the YAML-only shared parser for
 preview stripping and corpus TOC descriptions. Do not merge them casually —
 their detection conventions differ.
+
+## CI: macOS runner labels, deployment target, and aqtinstall Qt parity
+
+The `macos-13` GitHub runner image (Intel x64) was retired on 2025-12-04. Building for Intel
+macOS now means `macos-15-intel`; Apple Silicon is `macos-15` (or `macos-latest`). The app's
+macOS bundle sets `CMAKE_OSX_DEPLOYMENT_TARGET=13.0` (Qt 6.10's minimum supported macOS), so
+"macOS 13" survives as a *runtime floor*, not a runner. Qt 6.10.3 is installed on every CI OS
+via aqtinstall — Ubuntu's apt Qt (6.4.x) is NOT what CI builds against, so a feature that
+compiles locally against apt Qt may still need Qt 6.10+ to link (WebChannel/WebEngine module
+availability differs). Keep the `-m qtwebengine qtwebchannel qtsvg` aqt module list explicit:
+aqt's default install currently includes all modules, but relying on that default is fragile.

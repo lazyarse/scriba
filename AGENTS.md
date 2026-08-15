@@ -36,6 +36,12 @@ Binary: `build/scriba`
 
 Both dirs are configured via `CMakePresets.json` (`cmake --preset debug` / `cmake --preset release`), so a deleted build dir can be recreated from scratch with the correct flags (`-DCMAKE_BUILD_TYPE` + `-DBUILD_TESTS`) — the preset is the canonical path. A bare `cmake --build build-dbg` on a missing dir fails, and a bare `cmake -B build-dbg` (no preset/flags) would default to `BUILD_TESTS=OFF` and an empty build type. Once configured, later rebuilds are just `cmake --build build-dbg -j4` / `cmake --build build -j4` (the flags live in each dir's `CMakeCache.txt`).
 
+### CI
+
+`.github/workflows/build.yml` builds all three OSes on GitHub-hosted runners (free for public
+repos): Linux (`.deb` + full test suite), Windows (NSIS installer), macOS Intel + Apple Silicon
+(`.dmg`). macOS artifacts are ad-hoc signed only (no notarization yet). See `docs/build.md`.
+
 ### Verification sequence (order matters)
 
 Full check after any code/resource change:

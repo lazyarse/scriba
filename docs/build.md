@@ -42,6 +42,20 @@ Binary: `build\Release\scriba.exe`
 
 Copy from QEMU to host (host needs an ssh-server running): `scp file.txt user@10.0.2.2:~/`
 
+### Build on CI (GitHub Actions)
+
+The repository has a `.github/workflows/build.yml` pipeline (free for public repos) that builds
+all platforms with Qt 6.10.3 via `aqtinstall` and uploads the artifacts:
+
+- Linux → `scriba-<version>-Linux.deb` (also runs the full ctest suite on `ubuntu-latest`)
+- Windows → `scriba-<version>-win64.exe` (NSIS installer, VS 2022 on `windows-2022`)
+- macOS → `scriba-<version>-macOS-Intel.dmg` (x86_64 on `macos-15-intel`) and
+  `scriba-<version>-macOS-AppleSilicon.dmg` (arm64 on `macos-15`)
+
+macOS bundles are ad-hoc signed only; Developer-ID signing + notarization requires Apple
+credentials in GitHub secrets and is not set up yet. The macos-13 runner label was retired by
+GitHub in Dec 2025 — the Intel build now runs on `macos-15-intel`.
+
 ### Build Windows installer
 
 Requires [NSIS](https://nsis.sourceforge.io/) installed (`choco install nsis`). In an **x64 Native Tools Command Prompt for VS 2022**:
