@@ -264,7 +264,8 @@ endif()
 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor with charts, latex support, code highlighting, pdf export, and configurable")
 set(CPACK_PACKAGE_CONTACT "LazyArse <lazyarse000@protonmail.com>")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6widgets6, libqt6network6, libqt6printsupport6, libqt6svg6, libqt6webenginecore6, libqt6webenginewidgets6, libqt6webchannel6, libqt6positioning6")
 set(CPACK_DEBIAN_PACKAGE_DEFAULT_PERMISSIONS TRUE)
 
 if(WIN32)
