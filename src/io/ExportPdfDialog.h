@@ -128,6 +128,9 @@ private:
     QPushButton *m_resetTypesettingBtn = nullptr;
     QString m_pdfUrl;
     int m_generationId = 0;
+    // Set in the destructor: the chromium retry/fallback chain must not run
+    // after teardown begins.
+    bool m_destroying = false;
     // Chromium launch retries before falling back to the in-process Qt path.
     static constexpr int MaxChromiumAttempts = 3;
     // Cap for the captured chromium stderr tail (diagnostics only).
