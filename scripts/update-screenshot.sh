@@ -222,7 +222,7 @@ shot_tabbar() {
     sleep 1
     xdotool key Return
     sleep 5
-    open ctrl+shift+tab
+    open ctrl+shift+Tab
     sleep 2
     import -window "$WID" "$OUT_DIR/tabbar.png"
     # The three-tab shot is more readable cropped to the top: tab bar plus the
