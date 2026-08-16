@@ -207,6 +207,7 @@ void IssueSummaryPane::rebuild()
             auto *box = new RowCheckBox;
             box->setChecked(m_checked.value(row.kind, true));
             box->setCursor(Qt::PointingHandCursor);
+            box->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
             connect(box, &QCheckBox::toggled, this, [this, kind = row.kind](bool on) {
                 m_checked[kind] = on;
                 for (int i = 0; i < m_rows.size(); ++i) {
