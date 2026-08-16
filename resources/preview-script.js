@@ -49,7 +49,7 @@ function scribaCaptureAnchorLine(){
     var t=(dB-dA)<=0?0:Math.min(1,Math.max(0,(sy-dA)/(dB-dA)));
     return A.line+(B.line-A.line)*t;
 }
-function scribaUpdate(html, themeCss, mermaidTheme, emojiMode, delay, baseUrl, tabSwitch) {
+function scribaUpdate(html, themeCss, mermaidTheme, emojiMode, delay, baseUrl, tabSwitch, editorLine) {
     if (!document.body) return false;
     try {
         window._scribaGen = (window._scribaGen || 0) + 1;
@@ -73,7 +73,14 @@ function scribaUpdate(html, themeCss, mermaidTheme, emojiMode, delay, baseUrl, t
             if (b2) b2.remove();
         }
         window._scribaBasePath = baseUrl ? new URL(baseUrl).pathname : location.pathname;
-        var anchorLine = tabSwitch ? null : scribaCaptureAnchorLine();
+        var anchorLine;
+        if (tabSwitch) {
+            anchorLine = null;
+        } else if (typeof editorLine === 'number' && editorLine >= 0) {
+            anchorLine = editorLine;
+        } else {
+            anchorLine = scribaCaptureAnchorLine();
+        }
         var sc = document.getElementById('scriba-content');
         if (sc) sc.innerHTML = html;
         else return false;

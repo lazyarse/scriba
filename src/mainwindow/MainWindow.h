@@ -208,7 +208,7 @@ private:
     QString buildUpdateCallJavascript(const QString &html, bool cssChanged,
                                       const QString &previewCss, const QString &mermaidTheme,
                                       const QString &emojiMode, const QUrl &baseUrl,
-                                      bool tabSwitch) const;
+                                      bool tabSwitch, double editorLine = -1.0) const;
     void saveFile(const QString &filePath);
     void renameCurrentFile();
     void importHtmlFromFile();

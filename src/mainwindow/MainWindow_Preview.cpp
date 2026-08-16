@@ -285,8 +285,9 @@ void MainWindow::commitPreviewHtml(const QString &html, bool tabSwitch, const Ta
         }
         m_preview->setHtmlWithOverlay(fullHtml, baseUrl);
     } else {
+        double editorLine = tabSwitch ? -1.0 : currentEditorTopSourceLine();
         QString js = buildUpdateCallJavascript(html, env.cssChanged, env.previewCss,
-            env.mermaidTheme, emojiMode, baseUrl, tabSwitch);
+            env.mermaidTheme, emojiMode, baseUrl, tabSwitch, editorLine);
         // Guard against late callback delivery after the window is destroyed
         // (a pending scribaUpdate callback outliving its MainWindow).
         QPointer<MainWindow> guard = this;
@@ -430,10 +431,11 @@ QString MainWindow::buildPreviewShellHtml(int heavyRenderDelay, const QString &m
 }
 
 QString MainWindow::buildUpdateCallJavascript(const QString &html, bool cssChanged,
-                                              const QString &previewCss,
-                                              const QString &mermaidTheme,
-                                              const QString &emojiMode,
-                                              const QUrl &baseUrl, bool tabSwitch) const
+                                               const QString &previewCss,
+                                               const QString &mermaidTheme,
+                                               const QString &emojiMode,
+                                               const QUrl &baseUrl, bool tabSwitch,
+                                               double editorLine) const
 {
     QSettings prefs;
     QString escapedHtml = escapeJsString(html);
@@ -451,10 +453,12 @@ QString MainWindow::buildUpdateCallJavascript(const QString &html, bool cssChang
     QString escapedBaseUrl;
     if (!baseUrl.isEmpty())
         escapedBaseUrl = escapeJsString(baseUrl.toString());
-    QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6',%7)")
+    QString editorLineStr = (editorLine >= 0) ? QString::number(editorLine) : QStringLiteral("-1");
+    QString js = QString("scribaUpdate('%1','%2','%3','%4',%5,'%6',%7,%8)")
         .arg(escapedHtml, escapedCss, mermaidTheme, emojiMode,
              QString::number(delay), escapedBaseUrl,
-             tabSwitch ? QStringLiteral("true") : QStringLiteral("false"));
+             tabSwitch ? QStringLiteral("true") : QStringLiteral("false"),
+             editorLineStr);
     return js;
 }
 
