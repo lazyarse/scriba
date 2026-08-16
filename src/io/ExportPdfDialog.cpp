@@ -137,7 +137,17 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, const QString &defaultFile
     onCssModeChanged();
 }
 
-ExportPdfDialog::~ExportPdfDialog() = default;
+ExportPdfDialog::~ExportPdfDialog()
+{
+    // Reap a still-running chromium: QProcess's destructor does NOT kill the
+    // child, so closing the dialog mid-generation would otherwise leave an
+    // orphaned headless browser running (and, in tests, leaking processes
+    // that pile up under parallel runs).
+    if (m_pdfProcess && m_pdfProcess->state() != QProcess::NotRunning) {
+        m_pdfProcess->kill();
+        m_pdfProcess->waitForFinished();
+    }
+}
 
 void ExportPdfDialog::setupUi()
 {
@@ -813,6 +823,16 @@ void ExportPdfDialog::extractPdfBodyForChromium(int genId, const QString &printC
 
         qCDebug(lcPdf, "using chromium: %s  args: %s",
                 qPrintable(m_chromiumBinary), qPrintable(args.join(' ')));
+        // A previous generation's chromium may still be running: QProcess::start()
+        // is a silent no-op while the process is running, so without this the new
+        // generation would never produce its PDF (and the stale run's finish would
+        // only trip the old genId-guarded callback). Kill and reap it first, then
+        // bind a fresh finished-handler for this generation.
+        if (m_pdfProcess->state() != QProcess::NotRunning) {
+            m_pdfProcess->kill();
+            m_pdfProcess->waitForFinished();
+        }
+        QObject::disconnect(m_pdfProcess, &QProcess::finished, nullptr, nullptr);
         QObject::connect(m_pdfProcess, &QProcess::finished,
                          m_pdfProcess, onFinished, Qt::SingleShotConnection);
         m_pdfProcess->start(m_chromiumBinary, args);

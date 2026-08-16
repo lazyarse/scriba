@@ -479,6 +479,17 @@ void MainWindow::scrollPreviewToAnchor(const QString &anchor)
 {
     m_pendingAnchor = anchor;
     m_anchorTries = 0;
+    if (!m_previewInitialized) {
+        // A full-shell load is pending and the current document can
+        // transiently hold the target heading: the tab-switch scribaUpdate
+        // (onTabChanged during loadFile's addTab) renders the target's HTML
+        // into the still-live old page, and its heavy pass generates the
+        // heading ids. Ticking now could "succeed" against that doomed
+        // document and clear the retry before the fresh page exists, so the
+        // navigation's loadFinished re-arms the retry instead.
+        m_anchorTimer->stop();
+        return;
+    }
     m_anchorTimer->start();
 }
 
@@ -486,6 +497,13 @@ void MainWindow::tryScrollPreviewToAnchor()
 {
     if (m_pendingAnchor.isEmpty())
         return;
+    if (!m_previewInitialized) {
+        // Same guard for a timer armed before a load began (e.g. a second
+        // cross-document click while a load is still pending): never tick
+        // against a document that is about to be replaced.
+        m_anchorTimer->stop();
+        return;
+    }
     const QString js = QStringLiteral("scribaScrollToSlug('%1')")
         .arg(escapeJsString(m_pendingAnchor));
     m_preview->page()->runJavaScript(js, [this](const QVariant &result) {

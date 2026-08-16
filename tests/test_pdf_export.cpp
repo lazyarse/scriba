@@ -571,7 +571,12 @@ TEST_F(PrintExportTest, HeaderFooterCssIncludedWhenCheckboxOn)
 
 // ---------- PDF generation tests ----------
 
-static bool waitForPdf(const ExportPdfDialog *dlg, int maxWaitMs = 5000)
+// The PDF pipeline is a full WebEngine page load + JS passes + a headless
+// chromium cold start; under parallel ctest load (several WebEngine suites
+// running at once) a generation can legitimately take tens of seconds, so the
+// budget is generous — a timeout here means the pipeline is genuinely stuck
+// (e.g. a dropped generation), not merely slow.
+static bool waitForPdf(const ExportPdfDialog *dlg, int maxWaitMs = 60000)
 {
     QTest::qWait(300);
     for (int elapsed = 300; elapsed < maxWaitMs; elapsed += 100) {
@@ -616,7 +621,7 @@ static QByteArray buildPdfWithPageMargin(ExportPdfDialog *dlg, const QString &ma
     PrintExportAccess::triggerCssChange(dlg);
 
     QTest::qWait(500);
-    for (int i = 0; i < 50 && PrintExportAccess::pdfData(dlg).isEmpty(); ++i)
+    for (int i = 0; i < 600 && PrintExportAccess::pdfData(dlg).isEmpty(); ++i)
         QTest::qWait(100);
     return PrintExportAccess::pdfData(dlg);
 }
@@ -652,7 +657,7 @@ TEST_F(PrintExportTest, CssSwitchWithDifferentCssRegenerates)
     PrintExportAccess::setCustomRadio(dlg, true);
 
     QTest::qWait(500);
-    for (int i = 0; i < 50 && PrintExportAccess::pdfData(dlg).isEmpty(); ++i)
+    for (int i = 0; i < 600 && PrintExportAccess::pdfData(dlg).isEmpty(); ++i)
         QTest::qWait(100);
 
     EXPECT_GT(PrintExportAccess::generationId(dlg), oldGen);
@@ -749,7 +754,7 @@ TEST(PrintPdfImageEmbedding, ImagesResolveInHiddenEngine)
     // chromium subprocess finishes, so retry until it answers.
     QWebEngineView *engine = PrintExportAccess::hiddenEngine(&dlg);
     bool imagesResolved = false;
-    for (int attempt = 0; attempt < 20 && !imagesResolved; ++attempt) {
+    for (int attempt = 0; attempt < 40 && !imagesResolved; ++attempt) {
         engine->page()->runJavaScript(
             QStringLiteral(
                 "var imgs = Array.from(document.images);"

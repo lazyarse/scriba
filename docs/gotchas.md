@@ -797,6 +797,27 @@ only exist after the deferred heavy render pass (`generateHeadingIds()` runs in 
 retry budget once `loadFinished` fires — see the `scrollPreviewToAnchor` re-arm in
 `MainWindow::onPreviewLoadFinished`.
 
+## `QProcess` reuse: `start()` no-ops on a running process, and the destructor doesn't kill the child
+
+Two Qt behaviors that silently break a one-process-per-task design when generations can
+overlap (both verified empirically against Qt 6.10):
+
+1. **`QProcess::start()` while the process is running is a silent no-op** (it logs
+   `QProcess::start: Process is already running` and returns). A second generation that
+   reaches `start()` while the first is still running never launches its task, and the
+   first generation's `finished` signal can then trip the new generation's handler with
+   stale arguments. In `ExportPdfDialog::extractPdfBodyForChromium` the previous
+   generation's headless chromium must be killed and reaped (`kill()` + `waitForFinished()`,
+   then `disconnect()` the old `finished` connection) before starting the new one.
+2. **`QProcess`'s destructor does NOT kill the child** — destroying a dialog while its
+   chromium runs leaves an orphaned headless browser finishing on its own. Under parallel
+   test runs every failed/aborted test leaks one, and the pile-up (plus swap thrash) turns
+   a slow-but-correct test into a deadlocked one. `~ExportPdfDialog` kills and reaps.
+
+Both only manifest under overlap, which in tests means parallel load (slow chromium, tight
+wait budgets) — the PDF tests' `waitForPdf` therefore also polls generously: a timeout now
+means the pipeline is genuinely stuck, not merely slow.
+
 ## Large documents (`kLargeDocBlocks = 4000` blocks) are background-processed
 
 Opening a big markdown file (≥ 4000 blocks, e.g. ~0.5–2 MB) used to hard-freeze the UI:
