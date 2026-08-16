@@ -272,6 +272,10 @@ private:
     QColor m_issueSummaryThemeBg;
     QColor m_issueSummaryThemeFg;
     bool m_issueSummaryDismissed = false;
+    // Error-bar visibility mask pushed into m_errorScrollBar by the
+    // issue-summary pane's checkboxes (session-only; all types visible
+    // initially). Mirrors EditorScrollBar::Flag bits: 0x0F = all four.
+    quint8 m_issueSummaryVisibleFlags = 0x0F;
     QTimer *m_issueSummaryShowTimer = nullptr;
     // Deferred-hide grace for the issue-summary pane: while the pane is
     // visible, an empty-rows update restarts this single-shot timer instead of

@@ -46,6 +46,14 @@ void EditorScrollBar::invalidate()
     update();
 }
 
+void EditorScrollBar::setVisibleFlags(quint8 flags)
+{
+    if (m_visibleFlags == flags)
+        return;
+    m_visibleFlags = flags;
+    invalidate();
+}
+
 qreal EditorScrollBar::documentFraction(qreal blockTop, qreal docHeight)
 {
     if (docHeight <= 0.0)
@@ -72,6 +80,9 @@ void EditorScrollBar::rebuildIndex()
             flags |= Flag::Link;
         if (!m_highlighter->markdownHitsInBlock(n).isEmpty())
             flags |= Flag::Markdown;
+        // Drop types the user filtered out (issue-summary pane checkboxes);
+        // entries with nothing visible left don't appear at all.
+        flags &= m_visibleFlags;
         if (flags)
             m_entries.append({n, flags});
     }

@@ -203,6 +203,66 @@ TEST_F(EditorScrollbarTest, EntriesIndexAllFourErrorTypes)
     EXPECT_EQ(flagsOf(3), quint8(0)) << "the first heading must stay clean";
 }
 
+TEST_F(EditorScrollbarTest, VisibleFlagsFilterEntries)
+{
+    QSettings().setValue(Preferences::GrammarCheckEnabled, true);
+    QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
+    m_editor->recheckSpelling();
+
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    QFile exists(dir.filePath(QStringLiteral("exists.md")));
+    ASSERT_TRUE(exists.open(QIODevice::WriteOnly));
+    m_editor->setCurrentFile(dir.filePath(QStringLiteral("doc.md")));
+
+    setDoc(QStringLiteral("I has a cat.\n"            // block 0: grammar
+                          "helo world here\n"          // block 1: spelling
+                          "see [text](missing.md)\n"   // block 2: broken link
+                          "# Title\n"                  // block 3: clean heading
+                          "# Title"));                 // block 4: duplicate heading
+    pumpUntil([this] { return !m_editor->spellHighlighter()->grammarIssuesInBlock(0).isEmpty(); });
+
+    auto *sb = scrollbarOf(m_editor);
+    sb->setVisibleFlags(EditorScrollBar::Flag::Spell | EditorScrollBar::Flag::Grammar);
+    sb->grab(); // forces the lazy index rebuild via paintEvent
+    const auto entries = sb->entries();
+    auto flagsOf = [&entries](int n) -> quint8 {
+        for (const auto &e : entries)
+            if (e.blockNumber == n)
+                return e.flags;
+        return 0;
+    };
+
+    EXPECT_TRUE(flagsOf(0) & EditorScrollBar::Flag::Grammar) << "grammar bars survive the mask";
+    EXPECT_TRUE(flagsOf(1) & EditorScrollBar::Flag::Spell) << "spell bars survive the mask";
+    EXPECT_EQ(flagsOf(2), quint8(0)) << "the broken-link block must drop out entirely";
+    EXPECT_EQ(flagsOf(4), quint8(0)) << "the markdown block must drop out entirely";
+    for (const auto &e : entries)
+        EXPECT_EQ(e.flags & ~(EditorScrollBar::Flag::Spell | EditorScrollBar::Flag::Grammar), quint8(0))
+            << "no entry may carry a filtered-out flag";
+}
+
+TEST_F(EditorScrollbarTest, VisibleFlagsZeroEmptiesEntries)
+{
+    QSettings().setValue(Preferences::GrammarCheckEnabled, true);
+    QSettings().setValue(Preferences::MarkdownCheckEnabled, true);
+    m_editor->recheckSpelling();
+
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    QFile exists(dir.filePath(QStringLiteral("exists.md")));
+    ASSERT_TRUE(exists.open(QIODevice::WriteOnly));
+    m_editor->setCurrentFile(dir.filePath(QStringLiteral("doc.md")));
+
+    setDoc(QStringLiteral("I has a cat.\nhelo world here\nsee [text](missing.md)\n"));
+    pumpUntil([this] { return !m_editor->spellHighlighter()->grammarIssuesInBlock(0).isEmpty(); });
+
+    auto *sb = scrollbarOf(m_editor);
+    sb->setVisibleFlags(0);
+    sb->grab();
+    EXPECT_TRUE(sb->entries().isEmpty());
+}
+
 TEST_F(EditorScrollbarTest, MarkerPaintedOutsideThumbBand)
 {
     QStringList lines;

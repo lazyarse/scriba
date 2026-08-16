@@ -135,6 +135,24 @@ Editor::Editor(QWidget *parent)
     connect(m_issueSummaryPane, &IssueSummaryPane::closeRequested, this, [this]() {
         m_issueSummaryDismissed = true; // don't re-show on every keystroke
     });
+    // Pane checkboxes filter the scrollbar's error bars per kind. The mapping
+    // is one-to-one except Lint (errors + warnings share the Markdown flag).
+    connect(m_issueSummaryPane, &IssueSummaryPane::filterChanged, this,
+            [this](IssueSummaryPane::Kind kind, bool visible) {
+                EditorScrollBar::Flag flag;
+                switch (kind) {
+                case IssueSummaryPane::Kind::Typos:    flag = EditorScrollBar::Flag::Spell; break;
+                case IssueSummaryPane::Kind::Grammar:  flag = EditorScrollBar::Flag::Grammar; break;
+                case IssueSummaryPane::Kind::Lint:     flag = EditorScrollBar::Flag::Markdown; break;
+                case IssueSummaryPane::Kind::Links:    flag = EditorScrollBar::Flag::Link; break;
+                default:                               return;
+                }
+                if (visible)
+                    m_issueSummaryVisibleFlags |= flag;
+                else
+                    m_issueSummaryVisibleFlags &= ~flag;
+                m_errorScrollBar->setVisibleFlags(m_issueSummaryVisibleFlags);
+            });
     m_issueSummaryShowTimer = new QTimer(this);
     m_issueSummaryShowTimer->setSingleShot(true);
     m_issueSummaryShowTimer->setInterval(Debounce::IssueSummary);

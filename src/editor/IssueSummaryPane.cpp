@@ -14,10 +14,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "IssueSummaryPane.h"
+#include <QCheckBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QStyle>
 #include <QToolButton>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -30,6 +32,34 @@ QString rowText(const IssueSummaryPane::Row &row)
         .arg(row.color.name(), row.label.toHtmlEscaped())
         .arg(row.count);
 }
+
+// A textless QCheckBox is only clickable on its 14x14 indicator
+// (SE_CheckBoxClickRect collapses to the indicator when there is no text), so
+// clicks on the rest of the row strip would fall through to the editor. Make
+// the whole rect the hit target.
+class RowCheckBox : public QCheckBox
+{
+public:
+    using QCheckBox::QCheckBox;
+    bool hitButton(const QPoint &pos) const override { return rect().contains(pos); }
+};
+
+// The label beside a RowCheckBox forwards clicks to it so the whole row
+// toggles; labels without a checkbox keep passing clicks through (the pane's
+// default behavior).
+class ClickableLabel : public QLabel
+{
+    Q_OBJECT
+public:
+    using QLabel::QLabel;
+    void mousePressEvent(QMouseEvent *event) override
+    {
+        emit clicked();
+        event->accept();
+    }
+signals:
+    void clicked();
+};
 
 } // namespace
 
@@ -75,6 +105,7 @@ IssueSummaryPane::IssueSummaryPane(QWidget *parent)
 void IssueSummaryPane::setTheme(const QColor &background, const QColor &foreground)
 {
     m_bg = background;
+    m_fg = foreground;
     QColor hover = foreground;
     hover.setAlpha(40);
     setStyleSheet(QString(
@@ -82,7 +113,15 @@ void IssueSummaryPane::setTheme(const QColor &background, const QColor &foregrou
         "#issue-summary-pane QToolButton { color: %1; background: transparent;"
         "  border: none; font-size: 11pt; }"
         "#issue-summary-pane QToolButton:hover {"
-        "  background-color: rgba(%2,%3,%4,%5); border-radius: 4px; }")
+        "  background-color: rgba(%2,%3,%4,%5); border-radius: 4px; }"
+        "#issue-summary-pane QCheckBox { background: transparent; spacing: 4px; }"
+        "#issue-summary-pane QCheckBox::indicator {"
+        "  width: 12px; height: 12px;"
+        "  border: 1px solid rgba(%2,%3,%4,90); border-radius: 3px;"
+        "  background: transparent; }"
+        "#issue-summary-pane QCheckBox::indicator:hover { border-color: %1; }"
+        "#issue-summary-pane QCheckBox::indicator:checked {"
+        "  border-color: %1; background-color: rgba(%2,%3,%4,70); }")
         .arg(foreground.name())
         .arg(hover.red()).arg(hover.green()).arg(hover.blue()).arg(hover.alpha()));
 }
@@ -113,8 +152,10 @@ void IssueSummaryPane::setRows(const QVector<Row> &rows)
         }
     }
     if (sameStructure) {
-        for (int i = 0; i < m_rowLabels.size(); ++i)
+        for (int i = 0; i < m_rowLabels.size(); ++i) {
             m_rowLabels.at(i)->setText(rowText(rows.at(i)));
+            applyRowStyle(m_rowLabels.at(i), rows.at(i).kind);
+        }
         m_rows = rows;
         relayout();
         return;
@@ -141,20 +182,74 @@ void IssueSummaryPane::mousePressEvent(QMouseEvent *event)
 void IssueSummaryPane::rebuild()
 {
     while (QLayoutItem *item = m_rowsLayout->takeAt(0)) {
-        if (QWidget *w = item->widget())
+        if (QLayout *sub = item->layout()) {
+            // Deleting a layout does NOT delete its widgets (they stay
+            // parented to the pane), so drop them explicitly.
+            while (QLayoutItem *child = sub->takeAt(0)) {
+                if (QWidget *w = child->widget())
+                    delete w;
+                delete child;
+            }
+        } else if (QWidget *w = item->widget()) {
             delete w;
+        }
         delete item;
     }
     m_rowLabels.clear();
+    // Width reserved for a row checkbox so indented sub-rows without one stay
+    // aligned under their header's label.
+    const int checkboxWidth = style()->pixelMetric(QStyle::PM_IndicatorWidth) + 4;
     for (const Row &row : m_rows) {
+        auto *hbox = new QHBoxLayout;
+        hbox->setSpacing(0);
+        hbox->setContentsMargins(row.indentLevel * 14, 0, 0, 0);
+        if (row.indentLevel == 0) {
+            auto *box = new RowCheckBox;
+            box->setChecked(m_checked.value(row.kind, true));
+            box->setCursor(Qt::PointingHandCursor);
+            connect(box, &QCheckBox::toggled, this, [this, kind = row.kind](bool on) {
+                m_checked[kind] = on;
+                for (int i = 0; i < m_rows.size(); ++i) {
+                    if (m_rows.at(i).kind == kind && m_rowLabels.value(i))
+                        applyRowStyle(m_rowLabels.at(i), kind);
+                }
+                emit filterChanged(kind, on);
+            });
+            hbox->addWidget(box);
+            auto *lbl = new ClickableLabel;
+            lbl->setCursor(Qt::PointingHandCursor);
+            connect(lbl, &ClickableLabel::clicked, box, &QCheckBox::click);
+            lbl->setText(rowText(row));
+            lbl->setTextInteractionFlags(Qt::NoTextInteraction);
+            hbox->addWidget(lbl);
+            m_rowLabels.append(lbl);
+            applyRowStyle(lbl, row.kind);
+            m_rowsLayout->addLayout(hbox);
+            continue;
+        }
+        auto *spacer = new QWidget;
+        spacer->setFixedWidth(checkboxWidth);
+        hbox->addWidget(spacer);
         auto *lbl = new QLabel;
         lbl->setText(rowText(row));
         lbl->setTextInteractionFlags(Qt::NoTextInteraction);
-        lbl->setContentsMargins(row.indentLevel * 14, 0, 0, 0);
-        m_rowsLayout->addWidget(lbl);
+        hbox->addWidget(lbl);
+        m_rowsLayout->addLayout(hbox);
         m_rowLabels.append(lbl);
+        applyRowStyle(lbl, row.kind);
     }
     relayout();
+}
+
+void IssueSummaryPane::applyRowStyle(QLabel *label, Kind kind)
+{
+    if (!m_checked.value(kind, true)) {
+        QColor dimmed = m_fg;
+        dimmed.setAlpha(90);
+        label->setStyleSheet(QStringLiteral("color: %1;").arg(dimmed.name(QColor::HexArgb)));
+    } else {
+        label->setStyleSheet(QString());
+    }
 }
 
 void IssueSummaryPane::relayout()
@@ -174,3 +269,5 @@ void IssueSummaryPane::onTimeout()
     hide();
     emit closeRequested();
 }
+
+#include "IssueSummaryPane.moc"

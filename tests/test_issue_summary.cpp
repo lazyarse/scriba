@@ -15,7 +15,9 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 #include <QAbstractTextDocumentLayout>
+#include <QCheckBox>
 #include <QFileInfo>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QSettings>
 #include <QTextDocument>
@@ -29,6 +31,7 @@
 #include <memory>
 
 #include "editor/Editor.h"
+#include "editor/EditorScrollBar.h"
 #include "editor/IssueSummaryPane.h"
 #include "prefs/Preferences.h"
 #include "spell/GrammarChecker.h"
@@ -231,14 +234,138 @@ TEST_F(IssueSummaryPaneTest, IndentedRowsGetLeftMargin)
     };
     m_pane->setRows(rows);
 
+    // The indent lives on each row's HBox (labels are added to it); the
+    // sub-row labels also get a leading spacer so they align with their
+    // header's label past the checkbox.
+    auto rowBoxOf = [](IssueSummaryPane *pane, QLabel *lbl) -> QHBoxLayout * {
+        for (QHBoxLayout *hb : pane->findChildren<QHBoxLayout *>())
+            if (hb->indexOf(lbl) != -1)
+                return hb;
+        return nullptr;
+    };
     for (QLabel *lbl : m_pane->findChildren<QLabel *>()) {
-        const int margin = lbl->contentsMargins().left();
+        QHBoxLayout *hb = rowBoxOf(m_pane, lbl);
+        ASSERT_NE(hb, nullptr) << lbl->text().toStdString();
+        const int margin = hb->contentsMargins().left();
         if (lbl->text().contains(QStringLiteral("Markdown")))
             EXPECT_EQ(margin, 0);
         else if (lbl->text().contains(QStringLiteral("errors"))
                  || lbl->text().contains(QStringLiteral("warnings")))
             EXPECT_EQ(margin, 14) << lbl->text().toStdString();
     }
+}
+
+TEST_F(IssueSummaryPaneTest, TopLevelRowsGetCheckboxesOnly)
+{
+    QVector<IssueSummaryPane::Row> rows = {
+        {IssueSummaryPane::Kind::Typos, QStringLiteral("Typos"), 3,
+         QColor(QStringLiteral("#d64050"))},
+        {IssueSummaryPane::Kind::Lint, QStringLiteral("Markdown"), 0,
+         QColor(QStringLiteral("#f09000"))},
+        {IssueSummaryPane::Kind::Lint, QStringLiteral("errors"), 0,
+         QColor(QStringLiteral("#f09000")), 1},
+        {IssueSummaryPane::Kind::Links, QStringLiteral("Broken links"), 2,
+         QColor(QStringLiteral("#f09000"))},
+    };
+    m_pane->setRows(rows);
+
+    const auto boxes = m_pane->findChildren<QCheckBox *>();
+    ASSERT_EQ(boxes.size(), 3) << "only the top-level rows (Typos, Markdown, "
+                                  "Broken links) get a checkbox; the indented "
+                                  "errors sub-row shares the Markdown one";
+}
+
+TEST_F(IssueSummaryPaneTest, CheckboxToggleEmitsFilterChanged)
+{
+    QVector<IssueSummaryPane::Row> rows = {
+        {IssueSummaryPane::Kind::Typos, QStringLiteral("Typos"), 3,
+         QColor(QStringLiteral("#d64050"))},
+        {IssueSummaryPane::Kind::Links, QStringLiteral("Broken links"), 1,
+         QColor(QStringLiteral("#f09000"))},
+    };
+    m_pane->setRows(rows);
+
+    QList<QPair<IssueSummaryPane::Kind, bool>> emitted;
+    QObject::connect(m_pane, &IssueSummaryPane::filterChanged,
+                     [&emitted](IssueSummaryPane::Kind kind, bool visible) {
+                         emitted.append({kind, visible});
+                     });
+
+    m_pane->showWithTimeout(0);
+    QApplication::processEvents();
+    const auto boxes = m_pane->findChildren<QCheckBox *>();
+    ASSERT_EQ(boxes.size(), 2);
+    QTest::mouseClick(boxes.at(0), Qt::LeftButton);
+    QTest::mouseClick(boxes.at(1), Qt::LeftButton);
+
+    ASSERT_EQ(emitted.size(), 2);
+    EXPECT_EQ(emitted.at(0), qMakePair(IssueSummaryPane::Kind::Typos, false));
+    EXPECT_EQ(emitted.at(1), qMakePair(IssueSummaryPane::Kind::Links, false));
+}
+
+TEST_F(IssueSummaryPaneTest, CheckboxStateSurvivesRowRebuilds)
+{
+    QVector<IssueSummaryPane::Row> rows = {
+        {IssueSummaryPane::Kind::Typos, QStringLiteral("Typos"), 3,
+         QColor(QStringLiteral("#d64050"))},
+        {IssueSummaryPane::Kind::Links, QStringLiteral("Broken links"), 1,
+         QColor(QStringLiteral("#f09000"))},
+    };
+    m_pane->setRows(rows);
+    m_pane->showWithTimeout(0);
+    QApplication::processEvents();
+    QTest::mouseClick(m_pane->findChildren<QCheckBox *>().at(0), Qt::LeftButton);
+    EXPECT_FALSE(m_pane->findChildren<QCheckBox *>().at(0)->isChecked());
+
+    // Count-only update: same widgets, state must persist.
+    QVector<IssueSummaryPane::Row> updated = rows;
+    updated[0].count = 7;
+    m_pane->setRows(updated);
+    auto boxes = m_pane->findChildren<QCheckBox *>();
+    ASSERT_EQ(boxes.size(), 2);
+    EXPECT_FALSE(boxes.at(0)->isChecked());
+    EXPECT_TRUE(boxes.at(1)->isChecked());
+
+    // Structural change (new row): widgets rebuilt, state must persist.
+    QVector<IssueSummaryPane::Row> more = rows;
+    more.append({IssueSummaryPane::Kind::Lint, QStringLiteral("Markdown"), 0,
+                 QColor(QStringLiteral("#f09000"))});
+    m_pane->setRows(more);
+    boxes = m_pane->findChildren<QCheckBox *>();
+    ASSERT_EQ(boxes.size(), 3);
+    EXPECT_FALSE(boxes.at(0)->isChecked()) << "the unchecked Typos state must "
+                                              "survive a row rebuild";
+    EXPECT_TRUE(boxes.at(1)->isChecked());
+    EXPECT_TRUE(boxes.at(2)->isChecked());
+}
+
+TEST_F(IssueSummaryPaneTest, UncheckedRowIsDimmed)
+{
+    QVector<IssueSummaryPane::Row> rows = {
+        {IssueSummaryPane::Kind::Typos, QStringLiteral("Typos"), 3,
+         QColor(QStringLiteral("#d64050"))},
+        {IssueSummaryPane::Kind::Links, QStringLiteral("Broken links"), 1,
+         QColor(QStringLiteral("#f09000"))},
+    };
+    m_pane->setRows(rows);
+    m_pane->showWithTimeout(0);
+    QApplication::processEvents();
+    QTest::mouseClick(m_pane->findChildren<QCheckBox *>().at(0), Qt::LeftButton);
+
+    QLabel *typos = nullptr;
+    QLabel *links = nullptr;
+    for (QLabel *lbl : m_pane->findChildren<QLabel *>()) {
+        if (lbl->text().contains(QStringLiteral("Typos")))
+            typos = lbl;
+        else if (lbl->text().contains(QStringLiteral("Broken links")))
+            links = lbl;
+    }
+    ASSERT_NE(typos, nullptr);
+    ASSERT_NE(links, nullptr);
+    EXPECT_TRUE(typos->styleSheet().contains(QStringLiteral("color: #")))
+        << "an unchecked row must be dimmed via an alpha-reduced label style";
+    EXPECT_TRUE(links->styleSheet().isEmpty())
+        << "a checked row keeps the theme label styling";
 }
 
 TEST_F(IssueSummaryPaneTest, CloseButtonHidesAndEmits)
@@ -558,6 +685,45 @@ TEST_F(IssueSummaryEditorTest, PaneStaysVisibleThroughTransientZeroCounts)
     m_editor->recheckSpelling();
     QTest::qWait(700);
     EXPECT_TRUE(pane->isVisible()) << "new issues must re-show the pane after a grace hide";
+}
+
+TEST_F(IssueSummaryEditorTest, CheckboxFiltersScrollbarBars)
+{
+    m_editor->setCurrentFile(m_tmp->filePath(QStringLiteral("notes.md")));
+    m_editor->setIssueSummaryOptions(options(), QColor(QStringLiteral("#ffffff")),
+                                     QColor(QStringLiteral("#333333")));
+    m_editor->setPlainText(QStringLiteral("helo world\n[missing](no-such-file.md)\n"));
+    m_editor->showIssueSummary();
+    QTest::qWait(700); // show debounce (400 ms) + spell/link pass
+
+    IssueSummaryPane *pane = m_editor->issueSummaryPane();
+    ASSERT_NE(pane, nullptr);
+    ASSERT_TRUE(pane->isVisible());
+
+    auto *sb = static_cast<EditorScrollBar *>(m_editor->verticalScrollBar());
+    ASSERT_NE(sb, nullptr);
+    sb->grab(); // flush the lazy index rebuild
+    auto hasFlag = [sb](EditorScrollBar::Flag flag) {
+        for (const auto &e : sb->entries())
+            if (e.flags & flag)
+                return true;
+        return false;
+    };
+    ASSERT_TRUE(hasFlag(EditorScrollBar::Flag::Spell)) << "the typo must show a bar";
+    ASSERT_TRUE(hasFlag(EditorScrollBar::Flag::Link)) << "the broken link must show a bar";
+
+    // Unchecking Typos hides only the spell bars; the link bar stays.
+    const auto boxes = pane->findChildren<QCheckBox *>();
+    ASSERT_GE(boxes.size(), 2);
+    QTest::mouseClick(boxes.at(0), Qt::LeftButton); // Typos row
+    QApplication::processEvents();
+    sb->grab();
+
+    EXPECT_FALSE(hasFlag(EditorScrollBar::Flag::Spell))
+        << "the unchecked Typos checkbox must filter spell bars out of the "
+           "scrollbar";
+    EXPECT_TRUE(hasFlag(EditorScrollBar::Flag::Link))
+        << "unchecked Typos must not affect the broken-link bars";
 }
 
 TEST(IssueSummaryPrefsTest, SettingsKeysRoundTrip)

@@ -64,6 +64,13 @@ public:
     // rebuilt lazily on the next paint.
     void invalidate();
 
+    // Restricts the painted bars to the given flag mask: entries whose flags
+    // don't intersect `flags` are dropped from the index (and so from
+    // entries() and the painted overview). Session-only, all flags visible by
+    // default; wired by the Editor to the issue-summary pane's checkboxes.
+    void setVisibleFlags(quint8 flags);
+    quint8 visibleFlags() const { return m_visibleFlags; }
+
     // The current index: one Entry per visible block that has at least one
     // flagged type. Exposed for tests (a grab()/paint flushes a rebuild).
     QVector<Entry> entries() const { return m_entries; }
@@ -83,4 +90,5 @@ private:
     QVector<Entry> m_entries;
     bool m_dirty = true;
     bool m_enabled = true;
+    quint8 m_visibleFlags = Flag::Spell | Flag::Grammar | Flag::Link | Flag::Markdown;
 };
