@@ -156,7 +156,7 @@ int MdRenderer::enterBlock(MD_BLOCKTYPE type, void *detail, void *userdata)
         self->writeHtml("<tbody>");
         break;
     case MD_BLOCK_TR:
-        self->writeHtml("<tr>");
+        self->writeHtml(QString("<tr data-line=\"%1\">").arg(self->m_blockLine));
         break;
     case MD_BLOCK_TH:
         self->m_typoState.lastChar = QChar(' ');
