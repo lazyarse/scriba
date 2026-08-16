@@ -64,7 +64,7 @@ jobs:
 
       - name: Run tests
         working-directory: build
-        run: ctest --output-on-failure -j4
+        run: ctest --output-on-failure -j1
 
       - name: Package .deb
         run: cpack --config build/CPackConfig.cmake -G DEB
