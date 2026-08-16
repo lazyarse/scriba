@@ -103,10 +103,6 @@ void PreferencesDialog::setupEditorPage()
         layout->setContentsMargins(0, 16, 0, 0);
         layout->setSpacing(8);
 
-        m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
-        m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
-        layout->addWidget(m_syncCheck);
-
         QGroupBox *wrapGroup = new QGroupBox("Editor Line Wrap");
         QVBoxLayout *wrapLayout = new QVBoxLayout(wrapGroup);
         wrapLayout->addSpacing(8);

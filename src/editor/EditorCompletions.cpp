@@ -474,7 +474,7 @@ bool Editor::showHtmlCommentCompletion()
 
     const QStringList entries = {
         QStringLiteral("<!-- keep -->"),
-        QStringLiteral("<!-- new-page -->"),
+        QStringLiteral("<!-- break -->"),
     };
 
     if (!m_completer) {

@@ -139,6 +139,11 @@ public:
 namespace Debounce {
     constexpr int LightRender      = 80;   // live-preview push debounce
     constexpr int AnchorScroll     = 300;  // scroll-sync anchor timer
+    // How long an anchor jump suppresses editor->preview scroll sync: a file
+    // load defers syncs at +300/+1500ms (see MainWindow::syncPreviewScroll),
+    // and one landing after the jump would stomp the scrolled position back
+    // to the editor's top line.
+    constexpr int AnchorSyncSuppressMs = 3000;
     constexpr int FoldScan         = 300;  // Editor fold rescan after editing
     constexpr int SpellCheck       = 400;  // SpellHighlighter spell/grammar timers
     constexpr int DialogPreview    = 300;  // Mermaid/KaTeX/Mchem/ECharts dialog previews

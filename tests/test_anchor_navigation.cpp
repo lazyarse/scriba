@@ -36,6 +36,7 @@
 #include "TestConfig.h"
 
 #include <QAction>
+#include <memory>
 
 static int s_argc = 1;
 static char s_arg0[] = "test_anchor_navigation";
@@ -43,7 +44,31 @@ static char *s_argv[] = { s_arg0, nullptr };
 
 namespace {
 
-bool waitForLoaded(MainWindow *window, QSignalSpy *spy, int timeout = 15000)
+// WebEngine can deliver a runJavaScript callback long after the call (the
+// renderer stalls under load, or a navigation replaces the page). Capturing
+// into a stack local and waiting a fixed qWait is therefore UB: a late
+// callback writes into a dead frame. JsAnswer lives on the heap, so a late
+// write is harmless, and runJsWait pumps the event loop until the callback
+// for THIS invocation arrives (or the budget elapses).
+struct JsAnswer
+{
+    bool answered = false;
+    QVariant value;
+};
+
+static QVariant runJsWait(MainWindow *window, const QString &js, int timeoutMs = 3000)
+{
+    auto answer = std::make_shared<JsAnswer>();
+    window->preview()->page()->runJavaScript(js, [answer](const QVariant &v) {
+        answer->value = v;
+        answer->answered = true;
+    });
+    for (int elapsed = 0; elapsed < timeoutMs && !answer->answered; elapsed += 50)
+        QTest::qWait(50);
+    return answer->value;
+}
+
+bool waitForLoaded(MainWindow *window, QSignalSpy *spy, int timeout = 60000)
 {
     for (int i = 0; i < spy->count(); ++i)
         if (spy->at(i).at(0).toBool())
@@ -103,16 +128,25 @@ protected:
         QTest::qWait(2500);
     }
 
-    // The ids generateHeadingIds() assigned, in document order.
+    // The ids generateHeadingIds() assigned, in document order. Re-polls until
+    // the heavy pass has generated them (the page can answer "[]" while the
+    // pass is still pending under load) or the budget runs out.
     QJsonArray headingIds()
     {
-        QString result;
-        window->preview()->page()->runJavaScript(
+        const QString js = QStringLiteral(
             "JSON.stringify(Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6'))"
-            ".map(function(h){return h.id}))",
-            [&](const QVariant &r) { result = r.toString(); });
-        QTest::qWait(500);
-        return QJsonDocument::fromJson(result.toUtf8()).array();
+            ".map(function(h){return h.id}))");
+        QJsonArray ids;
+        for (int attempt = 0; attempt < 40; ++attempt) {
+            const QVariant v = runJsWait(window, js, 700);
+            if (v.isValid() && !v.toString().isEmpty()) {
+                ids = QJsonDocument::fromJson(v.toString().toUtf8()).array();
+                if (!ids.isEmpty())
+                    break;
+            }
+            QTest::qWait(250);
+        }
+        return ids;
     }
 
     // Polls window.scrollY until `min` is reached or `attempts` ticks elapse.
@@ -120,11 +154,12 @@ protected:
     {
         double y = 0.0;
         for (int i = 0; i < attempts && y < min; ++i) {
-            QTest::qWait(300);
-            window->preview()->page()->runJavaScript(
-                "document.body ? Math.round(window.scrollY) : 0",
-                [&](const QVariant &r) { y = r.toDouble(); });
-            QTest::qWait(100);
+            const QVariant v = runJsWait(window,
+                QStringLiteral("document.body ? Math.round(window.scrollY) : 0"), 300);
+            if (v.isValid())
+                y = v.toDouble();
+            if (y < min)
+                QTest::qWait(200);
         }
         return y;
     }
@@ -133,13 +168,11 @@ protected:
     void waitForBridge()
     {
         for (int i = 0; i < 60; ++i) {
-            bool ready = false;
-            window->preview()->page()->runJavaScript(
-                "!!window.scribaBridge",
-                [&](const QVariant &r) { ready = r.toBool(); });
-            QTest::qWait(100);
-            if (ready)
+            const QVariant v = runJsWait(window,
+                QStringLiteral("!!window.scribaBridge"), 100);
+            if (v.toBool())
                 return;
+            QTest::qWait(100);
         }
     }
 
@@ -225,8 +258,8 @@ TEST_F(AnchorNavigationTest, CrossDocumentJumpScrollsAndSwitchesDoc)
     ASSERT_TRUE(waitForLoaded(window, &loadSpy));
 
     // Allow the retry timer to run until it hits the target (300ms ticks; the
-    // C++ budget is ~18s, so poll that long to survive slow page loads).
-    EXPECT_GT(pollScrollY(500.0, 60), 500);
+    // C++ budget is ~30s, so poll that long to survive slow page loads).
+    EXPECT_GT(pollScrollY(500.0, 100), 500);
 }
 
 TEST_F(AnchorNavigationTest, MissingHeadingStaysPutWithoutCrashing)
@@ -249,16 +282,13 @@ TEST_F(AnchorNavigationTest, MissingHeadingStaysPutWithoutCrashing)
 // Returns the overlay's JSON state ({display, src}) or "no-overlay".
 QString overlayState(MainWindow *window)
 {
-    QString result;
-    window->preview()->page()->runJavaScript(
+    return runJsWait(window,
         "(function(){var ov=document.getElementById('scriba-image-overlay');"
         "if(!ov)return JSON.stringify({display:'',src:''});"
         "var img=ov.querySelector('img');"
         "return JSON.stringify({display:ov.style.display,"
         "src:img?img.src:''});})()",
-        [&](const QVariant &r) { result = r.toString(); });
-    QTest::qWait(150);
-    return result;
+        2000).toString();
 }
 
 TEST_F(AnchorNavigationTest, ImageLinkShowsOverlayInPreview)
@@ -324,10 +354,8 @@ TEST_F(AnchorNavigationTest, ImageLinkDoesNotResetPreviewScroll)
         "window.scrollTo(0, document.body.scrollHeight)");
     QTest::qWait(200);
     double before = 0.0;
-    window->preview()->page()->runJavaScript(
-        "document.body ? Math.round(window.scrollY) : 0",
-        [&](const QVariant &r) { before = r.toDouble(); });
-    QTest::qWait(100);
+    before = runJsWait(window,
+        "document.body ? Math.round(window.scrollY) : 0", 1000).toDouble();
     ASSERT_GT(before, 500.0);
 
     window->preview()->page()->runJavaScript(
@@ -347,10 +375,8 @@ TEST_F(AnchorNavigationTest, ImageLinkDoesNotResetPreviewScroll)
 
     // The fragment routing must not scroll the preview back to the top.
     double after = 0.0;
-    window->preview()->page()->runJavaScript(
-        "document.body ? Math.round(window.scrollY) : 0",
-        [&](const QVariant &r) { after = r.toDouble(); });
-    QTest::qWait(100);
+    after = runJsWait(window,
+        "document.body ? Math.round(window.scrollY) : 0", 1000).toDouble();
     EXPECT_GT(after, 500.0);
 }
 
@@ -376,11 +402,10 @@ TEST_F(AnchorNavigationTest, FootnoteLinkHoverTitleShowsNoteText)
         "Water is H2O.[^1]\n\n[^1]: Two hydrogen atoms and one oxygen.\n");
 
     QString title;
-    window->preview()->page()->runJavaScript(
+    title = runJsWait(window,
         "(function(){var a=document.querySelector('a[href=\"#fn-1\"]');"
         "return a?(a.title||'no-title'):'no-link';})()",
-        [&](const QVariant &r) { title = r.toString(); });
-    QTest::qWait(500);
+        2000).toString();
     EXPECT_EQ(QStringLiteral("Two hydrogen atoms and one oxygen."), title);
 }
 
@@ -390,11 +415,10 @@ TEST_F(AnchorNavigationTest, FootnoteBackrefGetsNoTitle)
         "Note here.[^a]\n\n[^a]: Body text.\n");
 
     QString title;
-    window->preview()->page()->runJavaScript(
+    title = runJsWait(window,
         "(function(){var a=document.querySelector('.footnote-backref');"
         "return a?(a.title||'no-title'):'no-backref';})()",
-        [&](const QVariant &r) { title = r.toString(); });
-    QTest::qWait(500);
+        2000).toString();
     EXPECT_EQ(QStringLiteral("no-title"), title);
 }
 
@@ -423,14 +447,13 @@ TEST_F(AnchorNavigationTest, LinkReopensAfterClosingTabWorks)
     // click actually lands (the app under load takes a while to repaint).
     auto clickLink = [&]() {
         for (int i = 0; i < 80; ++i) {
-            bool clicked = false;
-            window->preview()->page()->runJavaScript(
+            const QVariant v = runJsWait(window,
                 "(function(){var a=document.querySelector('a');"
                 "if(!a)return 'no-link';a.click();return 'clicked';})()",
-                [&](const QVariant &r) { clicked = r.toString() == "clicked"; });
-            QTest::qWait(100);
-            if (clicked)
+                500);
+            if (v.toString() == "clicked")
                 return;
+            QTest::qWait(100);
         }
     };
 

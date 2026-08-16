@@ -213,7 +213,7 @@ With the setting enabled every newline
 in the source produces a visible line break
 in the preview.
 
-<!-- page-break -->
+<!-- break -->
 
 ## LaTeX Math
 

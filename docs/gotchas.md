@@ -376,7 +376,7 @@ fake-worker path by pre-registering `globalThis.pdfjsWorker = await import(...)`
 (PDFWorker initializes interestingly after that). See the `getDocument` setup in
 `src/src/io/PdfImporter.cpp` for the exact incantation.
 
-## In-source print directives (`<!-- keep -->` / `<!-- page-break -->`)
+## In-source print directives (`<!-- keep -->` / `<!-- break -->`)
 
 The two directives that pin a block to one page or force a page break are parsed
 by `MarkdownParser::toHtml` (scanner in `src/src/preview/MarkdownParser.cpp`, class
@@ -391,12 +391,12 @@ attachment in `src/src/preview/MdRenderer.cpp`) and must satisfy a strict contra
   the directive when it follows paragraph text. When the target is a paragraph,
   separate it from the directive with a blank line; targets that interrupt a
   paragraph themselves (ATX headings, fenced code blocks) need no blank line
-  after the directive (verified: `<!-- page-break -->\n## Heading` and
+  after the directive (verified: `<!-- break -->\n## Heading` and
   `<!-- keep -->\n```cpp …` both work). A blank line after the directive is
   always safe, so the example doc (`docs/typesetting-example.md`) uses it
   everywhere.
-- **They must stay comments.** The scanner matches `^<!--\s*(keep|...)\s*-->$`
-  exactly. A directive written as plain text (without `<!-- -->`) is just prose
+- **They must stay comments.** The scanner matches `^<!--\s*(keep|keep-together|no-break|break)\s*-->$`
+  exactly (aliases accepted: `keep-together`, `no-break` → keep; `break` → break). A directive written as plain text (without `<!-- -->`) is just prose
   and has no effect. Because it *is* a comment, it disappears from both the
   preview and the exported PDF — that invisibility is the acceptance test.
 - **Context-menu insertion.** The editor's "Insert Page Break" / "Keep
@@ -817,6 +817,37 @@ overlap (both verified empirically against Qt 6.10):
 Both only manifest under overlap, which in tests means parallel load (slow chromium, tight
 wait budgets) — the PDF tests' `waitForPdf` therefore also polls generously: a timeout now
 means the pipeline is genuinely stuck, not merely slow.
+
+### A dead or missing chromium must retry, then fall back to Qt's printToPdf
+
+The generation pipeline used to **silently strand forever** whenever the headless chromium
+run failed: `onFinished` dropped any non-zero exit code, so `m_pdfData` stayed empty and
+every PDF test timed out. On a memory-starved machine (a loaded dev box running several
+WebEngine suites in parallel), chromium is a prime OOM-kill target, so this happened
+intermittently across *all* PDF-generation tests at once.
+
+`ExportPdfDialog::launchChromiumPdf` now treats a failed run (non-zero exit, crash, or
+`FailedToStart`) as retryable: up to `MaxChromiumAttempts` (3) launches total, then
+`generatePdfViaQtPage` — the in-process `printToPdf` path, which needs no external browser —
+guarantees a PDF still comes out. The retry reuses the same temp dir/html; `done` dedupes
+`finished`/`errorOccurred` double delivery per attempt. Chromium's stderr is captured
+(`m_pdfStderr`, capped) and logged on failure instead of being discarded, so a failed run
+is diagnosable. Each launch also carries `--disable-gpu` (one less subprocess to fork and
+to OOM).
+
+### Test-side `runJavaScript` callbacks must never capture stack locals
+
+A `runJavaScript(js, [&](…){ result = …; })` that writes a stack local and then waits a
+fixed `qWait` is UB when the renderer delays callback delivery (it is stalled under load,
+or a navigation replaces the page): the callback then writes into a dead frame and can
+corrupt whatever now occupies it — observed as an intermittent **SIGSEGV** in
+`test_anchor_navigation` under parallel load. Callbacks must capture heap state (e.g. a
+`std::shared_ptr` answer struct) and the wait must poll until that answer arrives, with a
+bounded budget; see the `runJsWait`/`JsAnswer` helpers in `tests/test_anchor_navigation.cpp`.
+The same rule applies to the anchor retry's own callback in `MainWindow_Preview.cpp`:
+`tryScrollPreviewToAnchor` and the `commitPreviewHtml` scribaUpdate callback guard `this`
+with a `QPointer` so a callback delivered after the window is destroyed can't dereference
+freed memory.
 
 ## Large documents (`kLargeDocBlocks = 4000` blocks) are background-processed
 
@@ -1326,3 +1357,19 @@ via aqtinstall — Ubuntu's apt Qt (6.4.x) is NOT what CI builds against, so a f
 compiles locally against apt Qt may still need Qt 6.10+ to link (WebChannel/WebEngine module
 availability differs). Keep the `-m qtwebengine qtwebchannel qtsvg` aqt module list explicit:
 aqt's default install currently includes all modules, but relying on that default is fragile.
+
+## Anchor jumps vs. editor-preview scroll sync (the "scrollY stuck at ~30" flake)
+
+A cross-document anchor jump (`other.md#section`) retries in C++ (`MainWindow::tryScrollPreviewToAnchor`),
+because a page reload discards in-flight JS. The retry scrolls once the target heading's id exists,
+then clears `m_pendingAnchor` and stops. Meanwhile `loadFile` schedules deferred
+`syncPreviewScroll` calls (`QTimer::singleShot(300/1500, …)` after the preview load finishes), and
+`syncPreviewScroll` unconditionally scrolls the preview to the editor's top line. If the anchor
+retry resolves *before* a deferred sync fires, the sync stomps the jump back to line 1 (~30px of
+top padding) and nothing re-arms the anchor — under parallel WebEngine test load this raced about
+once per ~8 runs (diagnostic signature: page fully rendered, target id present, `window.scrollY`
+stuck at ~30). Fix: `m_anchorSuppressUntil` (`Debounce::AnchorSyncSuppressMs = 3000`) — set when a
+jump is armed and re-set when it resolves, cleared when the retry budget dies; `syncPreviewScroll`
+skips while the timestamp is in the future. The window outlives both deferred syncs. Any future
+code that schedules scroll-sync re-assertions after a file load must respect this suppression
+window.

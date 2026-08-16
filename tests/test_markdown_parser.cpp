@@ -569,7 +569,7 @@ TEST(MarkdownParserTest, HardSoftBreaksPrefOn) {
     settings.setValue(Preferences::HardSoftBreaks, false);
 }
 
-// ---- In-source directives: <!-- keep --> / <!-- page-break --> ----
+// ---- In-source directives: <!-- keep --> / <!-- break --> ----
 // Task 0 contract (DR-1): tokens are replaced by the scanner, stripped by the
 // renderer, and the class lands on the next top-level block. Directive lines
 // keep their line count, so the block after a directive carries its real
@@ -592,7 +592,7 @@ TEST(MarkdownParserTest, DirectiveKeepAboveCodeBlockNoHtmlMode) {
 }
 
 TEST(MarkdownParserTest, DirectivePageBreakAboveHeading) {
-    QString html = MarkdownParser::toHtml("<!-- page-break -->\n## Heading");
+    QString html = MarkdownParser::toHtml("<!-- break -->\n## Heading");
     EXPECT_TRUE(html.contains("<h2 data-line=\"2\" class=\"scriba-page-break\">"));
     EXPECT_FALSE(html.contains("<!--"));
     EXPECT_FALSE(html.contains("SCRIBADIR"));
@@ -615,17 +615,19 @@ TEST(MarkdownParserTest, DirectiveAboveTable) {
 TEST(MarkdownParserTest, DirectiveStackedAdjacentCombine) {
     // Adjacent lines merge into one token paragraph via softbreak (which also
     // advances the line counter, so do not assert data-line here — DR-1).
-    QString html = MarkdownParser::toHtml("<!-- keep -->\n<!-- page-break -->\n# Title");
+    QString html = MarkdownParser::toHtml("<!-- keep -->\n<!-- break -->\n# Title");
     EXPECT_TRUE(html.contains("<h1 ") && html.contains("class=\"scriba-keep scriba-page-break\">"));
     EXPECT_FALSE(html.contains("<!--"));
+    EXPECT_FALSE(html.contains("SCRIBADIR"));
 }
 
 TEST(MarkdownParserTest, DirectiveStackedBlankSeparatedCombine) {
     // Blank-line-separated directives form two token paragraphs that must
     // accumulate their classes (never apply one to the other).
-    QString html = MarkdownParser::toHtml("<!-- keep -->\n\n<!-- page-break -->\n# Title");
+    QString html = MarkdownParser::toHtml("<!-- keep -->\n\n<!-- break -->\n# Title");
     EXPECT_TRUE(html.contains("<h1 data-line=\"4\" class=\"scriba-keep scriba-page-break\">"));
     EXPECT_FALSE(html.contains("<!--"));
+    EXPECT_FALSE(html.contains("SCRIBADIR"));
 }
 
 TEST(MarkdownParserTest, DirectiveAliasesMapToClasses) {
@@ -654,7 +656,7 @@ TEST(MarkdownParserTest, DirectiveIndentedInListItemNotRecognized) {
 }
 
 TEST(MarkdownParserTest, DirectiveAtEndDropped) {
-    QString html = MarkdownParser::toHtml("Some text.\n\n<!-- page-break -->");
+    QString html = MarkdownParser::toHtml("Some text.\n\n<!-- break -->");
     EXPECT_FALSE(html.contains("page-break"));
     EXPECT_FALSE(html.contains("<!--"));
     EXPECT_TRUE(html.contains("Some text."));

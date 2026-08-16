@@ -293,7 +293,7 @@ void Editor::contextMenuEvent(QContextMenuEvent *event)
     menu.addSeparator();
     QAction *pageBreak = menu.addAction("Insert Page Break");
     connect(pageBreak, &QAction::triggered, this,
-            [this]() { insertTypesettingDirective(QStringLiteral("new-page")); });
+            [this]() { insertTypesettingDirective(QStringLiteral("break")); });
     QAction *keep = menu.addAction("Keep Together");
     connect(keep, &QAction::triggered, this,
             [this]() { insertTypesettingDirective(QStringLiteral("keep")); });

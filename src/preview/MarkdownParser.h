@@ -22,7 +22,7 @@ public:
     static QString toHtml(const QString &markdown, bool noHtml = false);
 
 private:
-    // Replaces recognized `<!-- keep -->` / `<!-- page-break -->` comment lines
+    // Replaces recognized `<!-- keep -->` / `<!-- break -->` comment lines
     // with SCRIBADIRK<n> / SCRIBADIRB<n> marker tokens (flush-left, own-line,
     // never inside fenced code). The MdRenderer strips the tokens and turns the
     // markers into scriba-* classes on the next top-level block.

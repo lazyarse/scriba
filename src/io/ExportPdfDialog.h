@@ -18,6 +18,7 @@
 #include <QByteArray>
 #include <QScopedPointer>
 #include <QProcess>
+#include <QSharedPointer>
 #include <functional>
 
 #include "preview/PrintOptions.h"
@@ -32,6 +33,7 @@ class QComboBox;
 class QLineEdit;
 class QLabel;
 class QTemporaryFile;
+class QTemporaryDir;
 class QPrinter;
 class CssLoader;
 
@@ -69,6 +71,17 @@ private:
     QString loadCustomCss() const;
     void generatePdfViaChromium(const QString &printCss);
     void extractPdfBodyForChromium(int genId, const QString &printCss);
+    // In-process Qt printToPdf: no external browser. Used when no chromium
+    // binary exists and as the fallback when chromium keeps failing.
+    void generatePdfViaQtPage(int genId, const QString &css);
+    // Launches the headless chromium for one attempt; on failure retries up to
+    // MaxChromiumAttempts total launches, then falls back to generatePdfViaQtPage.
+    void launchChromiumPdf(int genId, const QString &htmlPath,
+                           const QString &pdfPath,
+                           QSharedPointer<QTemporaryDir> dir, int attempt);
+    // Fresh QProcess wired with the stderr capture connection; a process that
+    // failed to start can never be restarted, so every retry needs a new one.
+    QProcess *createPdfProcess();
     // Polls a JS boolean flag on the hidden page (promises can't be awaited
     // through runJavaScript) and runs `continuation` when it reads true or
     // the poll budget is exhausted.
@@ -115,6 +128,11 @@ private:
     QPushButton *m_resetTypesettingBtn = nullptr;
     QString m_pdfUrl;
     int m_generationId = 0;
+    // Chromium launch retries before falling back to the in-process Qt path.
+    static constexpr int MaxChromiumAttempts = 3;
+    // Cap for the captured chromium stderr tail (diagnostics only).
+    static constexpr int MaxChromiumStderr = 64 * 1024;
+    QByteArray m_pdfStderr;
     PrintOptions::Options m_printOptions;
     QTimer *m_stockPollTimer = nullptr;
     int m_stockPollAttempt = 0;

@@ -94,6 +94,17 @@ void PreferencesDialog::setupAppearancePage()
 
         layout->addWidget(splitViewGroup);
 
+        /* --- Scroll Behaviour --- */
+        QGroupBox *scrollGroup = new QGroupBox("Scroll Behaviour");
+        QVBoxLayout *scrollLayout = new QVBoxLayout(scrollGroup);
+        scrollLayout->addSpacing(8);
+
+        m_syncCheck = new QCheckBox("Sync editor and preview scrolling");
+        m_syncCheck->setChecked(settings.value(Preferences::SyncScroll, true).toBool());
+        scrollLayout->addWidget(m_syncCheck);
+
+        layout->addWidget(scrollGroup);
+
         QGroupBox *uiFontGroup = new QGroupBox("UI Font Size");
         QFormLayout *uiFontLayout = new QFormLayout(uiFontGroup);
         uiFontLayout->setContentsMargins(12, 12, 12, 12);

@@ -545,8 +545,8 @@ TEST_F(EditorTestHarness, EnterMidCellInTableDataRowCreatesEmptyRow)
 
 TEST_F(EditorTestHarness, InsertPageBreakIntoEmptyDocument)
 {
-    editor->insertTypesettingDirective(QStringLiteral("new-page"));
-    EXPECT_EQ(text(), "<!-- new-page -->\n");
+    editor->insertTypesettingDirective(QStringLiteral("break"));
+    EXPECT_EQ(text(), "<!-- break -->\n");
     assertCursor(1, 0);
 }
 

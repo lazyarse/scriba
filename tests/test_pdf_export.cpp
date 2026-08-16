@@ -51,6 +51,7 @@ public:
     static bool hasTempFile(const ExportPdfDialog *d) { return !d->m_tempFile.isNull(); }
     static bool tempFileExists(const ExportPdfDialog *d) { return d->m_tempFile && d->m_tempFile->exists(); }
     static void setCustomCssPath(ExportPdfDialog *d, const QString &p) { d->m_customCssPath = p; }
+    static void setChromiumBinary(ExportPdfDialog *d, const QString &p) { d->m_chromiumBinary = p; }
     static void setCustomRadio(ExportPdfDialog *d, bool checked) { d->m_customRadio->setChecked(checked); }
     static void setHeaderText(ExportPdfDialog *d, const QString &t) { d->m_headerCenter->setPlainText(t); }
     static void setFooterText(ExportPdfDialog *d, const QString &t) { d->m_footerCenter->setPlainText(t); }
@@ -573,10 +574,11 @@ TEST_F(PrintExportTest, HeaderFooterCssIncludedWhenCheckboxOn)
 
 // The PDF pipeline is a full WebEngine page load + JS passes + a headless
 // chromium cold start; under parallel ctest load (several WebEngine suites
-// running at once) a generation can legitimately take tens of seconds, so the
-// budget is generous — a timeout here means the pipeline is genuinely stuck
-// (e.g. a dropped generation), not merely slow.
-static bool waitForPdf(const ExportPdfDialog *dlg, int maxWaitMs = 60000)
+// running at once) a generation can legitimately take tens of seconds, and a
+// failed chromium run retries (up to 3 launches) before falling back to Qt's
+// in-process printToPdf — so a timeout here means the pipeline is genuinely
+// stuck (e.g. the hidden engine's renderer died), not merely slow.
+static bool waitForPdf(const ExportPdfDialog *dlg, int maxWaitMs = 90000)
 {
     QTest::qWait(300);
     for (int elapsed = 300; elapsed < maxWaitMs; elapsed += 100) {
@@ -621,7 +623,7 @@ static QByteArray buildPdfWithPageMargin(ExportPdfDialog *dlg, const QString &ma
     PrintExportAccess::triggerCssChange(dlg);
 
     QTest::qWait(500);
-    for (int i = 0; i < 600 && PrintExportAccess::pdfData(dlg).isEmpty(); ++i)
+    for (int i = 0; i < 900 && PrintExportAccess::pdfData(dlg).isEmpty(); ++i)
         QTest::qWait(100);
     return PrintExportAccess::pdfData(dlg);
 }
@@ -657,7 +659,7 @@ TEST_F(PrintExportTest, CssSwitchWithDifferentCssRegenerates)
     PrintExportAccess::setCustomRadio(dlg, true);
 
     QTest::qWait(500);
-    for (int i = 0; i < 600 && PrintExportAccess::pdfData(dlg).isEmpty(); ++i)
+    for (int i = 0; i < 900 && PrintExportAccess::pdfData(dlg).isEmpty(); ++i)
         QTest::qWait(100);
 
     EXPECT_GT(PrintExportAccess::generationId(dlg), oldGen);
@@ -702,6 +704,23 @@ TEST_F(PrintExportTest, NoDefaultHeadersInPdf)
     ASSERT_FALSE(pdf.isEmpty());
     EXPECT_FALSE(pdf.contains("1/1")) << "page number should not appear in PDF";
     EXPECT_FALSE(pdf.contains("file://")) << "file URL should not appear in PDF";
+}
+
+// Regression: a chromium run that fails to start (or dies) must not strand
+// the generation forever — it retries, then falls back to Qt's in-process
+// printToPdf so a PDF still comes out.
+TEST_F(PrintExportTest, ChromiumFailureFallsBackToQt)
+{
+    auto *fresh = makeTypesetDialog(loader);
+
+    PrintExportAccess::setChromiumBinary(fresh,
+        QDir::tempPath() + "/scriba-no-such-chromium-binary");
+    PrintExportAccess::triggerCssChange(fresh);
+
+    ASSERT_TRUE(waitForPdf(fresh));
+    EXPECT_TRUE(PrintExportAccess::pdfData(fresh).startsWith("%PDF-"));
+
+    delete fresh;
 }
 
 // ---------- base URL / image resolution ----------
@@ -751,8 +770,13 @@ TEST(PrintPdfImageEmbedding, ImagesResolveInHiddenEngine)
     // The hidden render engine must have loaded the image (naturalWidth > 0);
     // no data URIs involved — resolution happens via the document base URL.
     // The hidden engine can briefly ignore runJavaScript right after the
-    // chromium subprocess finishes, so retry until it answers.
+    // chromium subprocess finishes, so retry until it answers. The callback
+    // fires on the next event-loop iteration (never synchronously), so the
+    // answer is picked up after the wait below; a 'no' keeps polling, a 'yes'
+    // is sticky; heap capture keeps a late delivery off dead stack frames.
     QWebEngineView *engine = PrintExportAccess::hiddenEngine(&dlg);
+    struct Check { bool answered = false; bool resolved = false; };
+    auto check = std::make_shared<Check>();
     bool imagesResolved = false;
     for (int attempt = 0; attempt < 40 && !imagesResolved; ++attempt) {
         engine->page()->runJavaScript(
@@ -762,12 +786,13 @@ TEST(PrintPdfImageEmbedding, ImagesResolveInHiddenEngine)
                 "else if (imgs.every(function(i){ return i.complete && i.naturalWidth > 0; }))"
                 "  { 'yes'; }"
                 "else { 'no'; }"),
-            [&imagesResolved](const QVariant &result) {
-                if (result.toString() == QLatin1String("yes"))
-                    imagesResolved = true;
+            [check](const QVariant &result) {
+                check->resolved = result.toString() == QLatin1String("yes");
+                check->answered = true;
             });
-        if (!imagesResolved)
-            QTest::qWait(500);
+        QTest::qWait(500);
+        if (check->answered)
+            imagesResolved = check->resolved;
     }
     EXPECT_TRUE(imagesResolved) << "image in print preview should load via the document base URL";
 }

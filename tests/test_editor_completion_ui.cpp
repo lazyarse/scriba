@@ -551,7 +551,7 @@ TEST_F(EditorCompletionHarness, HtmlHrefAttributeCompletes)
 TEST_F(EditorCompletionHarness, CommentDirectiveCompletes)
 {
     typeText("<!--");
-    ASSERT_EQ(popupRowCount(), 2) << "popup with both page-break directives";
+    ASSERT_EQ(popupRowCount(), 2) << "popup with keep and break directives";
     enter();
     EXPECT_EQ(text(), "<!-- keep -->");
 }

@@ -361,6 +361,11 @@ private:
     QTimer *m_anchorTimer = nullptr;
     QString m_pendingAnchor;
     int m_anchorTries = 0;
+    // Editor->preview scroll sync is suppressed until this timestamp: an
+    // anchor jump is armed/resolved, and the deferred syncs a file load
+    // schedules (see syncPreviewScroll) would otherwise stomp the freshly
+    // scrolled position back to the editor's top line.
+    qint64 m_anchorSuppressUntil = 0;
     Corpus m_corpus;
     QMenu *m_recentCorpusMenu = nullptr;
 

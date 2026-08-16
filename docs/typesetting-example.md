@@ -5,7 +5,7 @@ and **export it to PDF** — the page breaks and keep-together behavior in the
 output come from two places:
 
 - **Defaults** saved in **Preferences → Printing**, and
-- the two in-source directives `<!-- keep -->` and `<!-- page-break -->`
+- the two in-source directives `<!-- keep -->` and `<!-- break -->`
   baked into this document.
 
 Everything shown here is also available per export in the **Typesetting** group
@@ -31,12 +31,12 @@ never appear in the preview or in the PDF:
 ```text
 <!-- keep -->
 
-<!-- page-break -->
+<!-- break -->
 ```
 
 - `<!-- keep -->` pins the **next block** — table, code block, figure, heading,
   quote, paragraph — to one page.
-- `<!-- page-break -->` starts a **new page** at the next block.
+- `<!-- break -->` starts a **new page** at the next block.
 
 A directive must sit **flush-left on its own line** and form its own block:
 keep a blank line before it when it follows paragraph text, and a blank line
@@ -80,7 +80,7 @@ splitting applies only to blocks taller than the page's content area.
 
 ## Splitting code blocks
 
-This section starts with a `<!-- page-break -->`, so the tall block below
+This section starts with a `<!-- break -->`, so the tall block below
 begins on a fresh page. Export this file with each **Split code blocks** mode
 to see the difference:
 
@@ -90,7 +90,7 @@ to see the difference:
   content area are allowed to split across pages; everything else stays
   together.
 
-<!-- page-break -->
+<!-- break -->
 
 ```cpp
 #include <fstream>
@@ -164,7 +164,7 @@ lines above the cut stay on the first page, the rest flow onto the next.
 ## Headings keep with following text
 
 A heading is kept with the paragraph which follows it, so it is never the last
-thing on a page — no stranded title above a page of white space unless there is an explicit `<!-- page-break -->` declaration.
+thing on a page — no stranded title above a page of white space unless there is an explicit `<!-- break -->` declaration.
 
 ### This heading travels with the text below it
 
@@ -175,7 +175,7 @@ paragraph.
 
 ## Orphans and widows
 
-<!-- page-break -->
+<!-- break -->
 
 The paragraph below is long enough to wrap across a page boundary, which is
 exactly where orphan and widow control shows up. An **orphan** is the first
@@ -204,4 +204,4 @@ blocks** on) gives code blocks more room before they split.
 | Directive | Effect | Applies to |
 |---|---|---|
 | `<!-- keep -->` | keep the next block on one page | table, code block, figure, heading, paragraph |
-| `<!-- page-break -->` | start a new page at the next block | any top-level block |
+| `<!-- break -->` | start a new page at the next block | any top-level block |

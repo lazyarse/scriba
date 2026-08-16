@@ -85,13 +85,13 @@ def hello():
 ```
 
 ```markdown
-<!-- page-break -->
+<!-- break -->
 
 ## Next Section
 ```
 
 `<!-- keep -->` pins the next top-level block (code, table, figure, paragraph,
-…) to one page. `<!-- page-break -->` forces a page break before it.
+…) to one page. `<!-- break -->` forces a page break before it.
 
 For a printable demonstration of every option and both directives, export
 [`docs/typesetting-example.md`](typesetting-example.md) to PDF — the file is a

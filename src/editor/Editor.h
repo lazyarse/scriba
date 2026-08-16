@@ -141,7 +141,7 @@ public:
     // effects) so it is unit-testable.
     QString explanationAt(int blockNumber, int positionInBlock);
 
-    // Inserts a print-directive comment (`<!-- keep -->` / `<!-- new-page -->`)
+    // Inserts a print-directive comment (`<!-- keep -->` / `<!-- break -->`)
     // at the start of the current line. A blank line is prepended when the
     // line above is non-blank, so the directive always forms its own block and
     // pins the block under the caret (see docs/gotchas.md "In-source print
