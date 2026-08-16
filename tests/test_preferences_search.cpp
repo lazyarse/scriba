@@ -184,23 +184,23 @@ TEST_F(PreferencesSearchTest, ReorganizedPageNamesAreSearchable)
 
 TEST_F(PreferencesSearchTest, DimsNonMatchingWidgetsOnShownPage)
 {
-    searchEdit()->setText(QStringLiteral("wrap"));
-    ASSERT_EQ(currentPage(), QStringLiteral("Editor"));
+    searchEdit()->setText(QStringLiteral("sync"));
+    ASSERT_EQ(currentPage(), QStringLiteral("Appearance"));
 
-    QLabel *wrapLabel = nullptr;
     QCheckBox *syncCheck = nullptr;
-    for (QLabel *l : m_dialog->findChildren<QLabel *>())
-        if (l->text().contains(QStringLiteral("Wrap text"), Qt::CaseInsensitive))
-            wrapLabel = l;
+    QLabel *widthLabel = nullptr;
     for (QCheckBox *cb : m_dialog->findChildren<QCheckBox *>())
         if (cb->text().contains(QStringLiteral("Sync editor and preview scrolling"), Qt::CaseInsensitive))
             syncCheck = cb;
-    ASSERT_TRUE(wrapLabel);
+    for (QLabel *l : m_dialog->findChildren<QLabel *>())
+        if (l->text().contains(QStringLiteral("Content width"), Qt::CaseInsensitive))
+            widthLabel = l;
     ASSERT_TRUE(syncCheck);
-    EXPECT_FALSE(wrapLabel->property("scribaPrefDim").toBool());
-    EXPECT_TRUE(syncCheck->property("scribaPrefDim").toBool());
-    EXPECT_TRUE(wrapLabel->property("scribaPrefMatch").toBool());
-    EXPECT_FALSE(syncCheck->property("scribaPrefMatch").toBool());
+    ASSERT_TRUE(widthLabel);
+    EXPECT_FALSE(syncCheck->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(widthLabel->property("scribaPrefDim").toBool());
+    EXPECT_TRUE(syncCheck->property("scribaPrefMatch").toBool());
+    EXPECT_FALSE(widthLabel->property("scribaPrefMatch").toBool());
 }
 
 TEST_F(PreferencesSearchTest, GroupBoxContainingMatchStaysVisible)
