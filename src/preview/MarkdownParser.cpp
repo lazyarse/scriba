@@ -24,7 +24,9 @@
 QString MarkdownParser::substituteDirectives(const QString &markdown)
 {
     static const QRegularExpression directiveRe(
-        QStringLiteral(R"(^<!--\s*(keep|keep-together|no-break|page-break|break|new-page)\s*-->\s*$)"));
+        QStringLiteral(R"(^<!--\s*(keep|keep-together|no-break|break)\s*-->\s*$)"));
+    static const QRegularExpression tocRe(
+        QStringLiteral(R"(^<!--\s*(toc:start|toc:end)\s*-->\s*$)"));
 
     // Length of a leading code-fence run (` ``` ` / ` ~~~ `, up to 3 leading
     // spaces) of the given char, or 0 if the line is not such a fence.
@@ -93,16 +95,21 @@ QString MarkdownParser::substituteDirectives(const QString &markdown)
         const QRegularExpressionMatch m = directiveRe.match(line);
         if (m.hasMatch()) {
             const QString word = m.captured(1);
-            if (word == QLatin1String("page-break")
-                || word == QLatin1String("break")
-                || word == QLatin1String("new-page")) {
+            if (word == QLatin1String("break")) {
                 out.append(QStringLiteral("SCRIBADIRB%1").arg(++breakCounter));
             } else {
                 out.append(QStringLiteral("SCRIBADIRK%1").arg(++keepCounter));
             }
-        } else {
-            out.append(line);
+            continue;
         }
+
+        // Strip TOC markers completely (they stay in source file but don't render)
+        const QRegularExpressionMatch tocMatch = tocRe.match(line);
+        if (tocMatch.hasMatch()) {
+            continue; // skip - don't add to output
+        }
+
+        out.append(line);
     }
 
     // Preserve the trailing newline (no trimmed()): data-line behavior must
