@@ -97,10 +97,11 @@ jobs:
         run: cmake --build build -j4
 
       - name: Package NSIS installer
+        shell: bash
         run: |
           makensis -VERSION
           cpack --config build/CPackConfig.cmake -G NSIS \
-            || { echo "=== NSISOutput.log ==="; cat build/_CPack_Packages/win64/NSIS/NSISOutput.log 2>/dev/null; echo "=== project.nsi (head) ==="; head -60 build/_CPack_Packages/win64/NSIS/project.nsi 2>/dev/null; exit 1; }
+            || { echo "=== NSISOutput.log ==="; cat _CPack_Packages/win64/NSIS/NSISOutput.log 2>/dev/null; echo "=== project.nsi (head) ==="; head -60 _CPack_Packages/win64/NSIS/project.nsi 2>/dev/null; exit 1; }
 
       - name: Upload installer
         uses: actions/upload-artifact@v5
