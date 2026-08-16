@@ -264,7 +264,8 @@ endif()
 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Qt6-based Markdown editor with charts, latex support, code highlighting, pdf export, and configurable")
 set(CPACK_PACKAGE_CONTACT "LazyArse <lazyarse000@protonmail.com>")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6widgets6, libqt6network6, libqt6printsupport6, libqt6svg6, libqt6webenginecore6, libqt6webenginewidgets6, libqt6webchannel6, libqt6positioning6")
 set(CPACK_DEBIAN_PACKAGE_DEFAULT_PERMISSIONS TRUE)
 
 if(WIN32)
@@ -284,8 +285,11 @@ if(WIN32)
         "DeleteRegKey HKCR 'Scriba.Markdown'
          Delete '$SMPROGRAMS\\\\Scriba.lnk'")
     set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/resources/icons/scriba.ico")
-    set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/resources/icons/scriba.ico")
-    set(CPACK_NSIS_MUI_UNICON "${CMAKE_SOURCE_DIR}/resources/icons/scriba.ico")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND CPACK_GENERATOR STREQUAL "NSIS")
+        file(TO_NATIVE_PATH "${CPACK_PACKAGE_ICON}" CPACK_PACKAGE_ICON)
+    endif()
+    set(CPACK_NSIS_MUI_ICON "${CPACK_PACKAGE_ICON}")
+    set(CPACK_NSIS_MUI_UNICON "${CPACK_PACKAGE_ICON}")
     install(FILES ${CMAKE_SOURCE_DIR}/resources/icons/scriba.ico
         DESTINATION icons)
     install(CODE "

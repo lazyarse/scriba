@@ -91,10 +91,10 @@ QMarginsF ExportPdfDialog::parsePageMargins(const QString &css)
 QString ExportPdfDialog::findChromiumBinary()
 {
     QStringList candidates = {
+        QStringLiteral("/usr/bin/google-chrome-stable"),
+        QStringLiteral("/usr/bin/google-chrome"),
         QStringLiteral("/usr/bin/chromium"),
         QStringLiteral("/usr/bin/chromium-browser"),
-        QStringLiteral("/usr/bin/google-chrome"),
-        QStringLiteral("/usr/bin/google-chrome-stable"),
     };
     for (const auto &path : candidates) {
         if (QFile::exists(path))
