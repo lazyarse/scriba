@@ -290,8 +290,8 @@ if(WIN32)
         DESTINATION icons)
     install(CODE "
         execute_process(COMMAND windeployqt --release --no-compiler-runtime
-            \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/scriba.exe\"
-            WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX})
+            \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bin/scriba.exe\"
+            WORKING_DIRECTORY \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}\")
     ")
 endif()
 
