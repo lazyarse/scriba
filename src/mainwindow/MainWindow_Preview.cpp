@@ -29,9 +29,11 @@
 #include "preview/PrintOptions.h"
 #include "StaticHelpers.h"
 #include <QApplication>
+#include <QDateTime>
 #include <QFileSystemWatcher>
 #include <QGuiApplication>
 #include <QMetaObject>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
@@ -44,27 +46,48 @@ void MainWindow::refreshPreviewCss()
 {
     QSettings settings;
     QString rawThemeCss = m_cssLoader->themeCss();
+
+    // Always compute chromeCss and apply editor theme updates, even in print layout mode
+    int uiFontSize = settings.value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt();
+    QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss, uiFontSize);
+
+    bool needChromeUpdate = (chromeCss != m_cachedFullCss);
+
+    m_preview->setThemeBackgroundColor(CssUtils::themeColors(rawThemeCss).background);
+
+    if (needChromeUpdate) {
+        m_cachedFullCss = chromeCss;
+        applyStyleSheetToAllEditors();
+        QSettings s;
+        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
+        if (!m_chromeUpdateScheduled) {
+            m_chromeUpdateScheduled = true;
+            QTimer::singleShot(0, this, [this, chromeCss]() {
+                m_chromeUpdateScheduled = false;
+                qApp->setStyleSheet(chromeCss);
+            });
+        }
+        QColor iconColor = CssUtils::chromeTextColor(rawThemeCss);
+        m_fullscreenBtn->setIcon(themedIcon(":/icons/fullscreen.svg", iconColor));
+        m_previewBtn->setIcon(themedIcon(":/icons/preview.svg", iconColor));
+    }
+
     if (m_printLayoutMode) {
         // Print layout strips the theme and swaps in the print base CSS; the
         // page is rebuilt from scratch when it is toggled off, so the classic
         // CSS never needs live-patching here.
-        m_preview->setThemeBackgroundColor(CssUtils::themeColors(rawThemeCss).background);
         return;
     }
-    int uiFontSize = settings.value(Preferences::UiFontSize, Preferences::DefaultUiFontSize).toInt();
-    QString chromeCss = CssUtils::deriveChromeCss(rawThemeCss, uiFontSize);
+
     QString previewCss = chromeCss + rawThemeCss;
     QString previewBaseCss = m_cssLoader->previewBaseCss();
 
     bool needPreviewUpdate = (previewCss != m_cachedPreviewCss);
-    bool needChromeUpdate = (chromeCss != m_cachedFullCss);
     bool needBaseUpdate = (previewBaseCss != m_cachedPreviewBaseCss);
     QString overlayCss = CssUtils::renderOverlayCss(rawThemeCss);
     bool needOverlayUpdate = (overlayCss != m_cachedOverlayCss);
 
-    m_preview->setThemeBackgroundColor(CssUtils::themeColors(rawThemeCss).background);
-
-    if (!needPreviewUpdate && !needChromeUpdate && !needBaseUpdate && !needOverlayUpdate)
+    if (!needPreviewUpdate && !needBaseUpdate && !needOverlayUpdate)
         return;
 
     if (needPreviewUpdate) {
@@ -92,23 +115,6 @@ void MainWindow::refreshPreviewCss()
                 .arg(escapeJsString(previewBaseCss));
             m_preview->page()->runJavaScript(js);
         }
-    }
-
-    if (needChromeUpdate) {
-        m_cachedFullCss = chromeCss;
-        applyStyleSheetToAllEditors();
-        QSettings s;
-        applyEditorLineHeight(s.value(Preferences::EditorLineHeight, Preferences::DefaultEditorLineHeight).toInt());
-        if (!m_chromeUpdateScheduled) {
-            m_chromeUpdateScheduled = true;
-            QTimer::singleShot(0, this, [this, chromeCss]() {
-                m_chromeUpdateScheduled = false;
-                qApp->setStyleSheet(chromeCss);
-            });
-        }
-        QColor iconColor = CssUtils::chromeTextColor(rawThemeCss);
-        m_fullscreenBtn->setIcon(themedIcon(":/icons/fullscreen.svg", iconColor));
-        m_previewBtn->setIcon(themedIcon(":/icons/preview.svg", iconColor));
     }
 }
 
@@ -281,8 +287,11 @@ void MainWindow::commitPreviewHtml(const QString &html, bool tabSwitch, const Ta
     } else {
         QString js = buildUpdateCallJavascript(html, env.cssChanged, env.previewCss,
             env.mermaidTheme, emojiMode, baseUrl, tabSwitch);
-        m_preview->page()->runJavaScript(js, [this, tabSwitch](const QVariant &result) {
-            if (!result.toBool())
+        // Guard against late callback delivery after the window is destroyed
+        // (a pending scribaUpdate callback outliving its MainWindow).
+        QPointer<MainWindow> guard = this;
+        m_preview->page()->runJavaScript(js, [guard, this, tabSwitch](const QVariant &result) {
+            if (!guard || !result.toBool())
                 return;
             // No immediate re-sync here: the page's own anchored restoreScroll
             // re-docks the preview when the user hasn't scrolled it manually,
@@ -453,6 +462,12 @@ void MainWindow::syncPreviewScroll()
 {
     if (!m_previewInitialized)
         return;
+    // An anchor jump (or its immediate aftermath) owns the preview scroll:
+    // the deferred syncs a file load schedules would yank the view back to
+    // the editor's top line, undoing the jump. The window outlives the
+    // 300/1500ms deferred syncs.
+    if (QDateTime::currentMSecsSinceEpoch() < m_anchorSuppressUntil)
+        return;
     QSettings settings;
     if (!settings.value(Preferences::SyncScroll, true).toBool())
         return;
@@ -479,6 +494,10 @@ void MainWindow::scrollPreviewToAnchor(const QString &anchor)
 {
     m_pendingAnchor = anchor;
     m_anchorTries = 0;
+    // A fresh jump also suppresses the deferred scroll-syncs the load just
+    // scheduled; the success path below extends the window (a sync can land
+    // right after the anchor resolved and stomp the scroll back to line 1).
+    m_anchorSuppressUntil = QDateTime::currentMSecsSinceEpoch() + Debounce::AnchorSyncSuppressMs;
     if (!m_previewInitialized) {
         // A full-shell load is pending and the current document can
         // transiently hold the target heading: the tab-switch scribaUpdate
@@ -506,8 +525,18 @@ void MainWindow::tryScrollPreviewToAnchor()
     }
     const QString js = QStringLiteral("scribaScrollToSlug('%1')")
         .arg(escapeJsString(m_pendingAnchor));
-    m_preview->page()->runJavaScript(js, [this](const QVariant &result) {
+    // Guard against late callback delivery: the window can be destroyed while
+    // the renderer still holds this callback (a test TearDown, a close during
+    // load) — never dereference a freed `this`.
+    QPointer<MainWindow> guard = this;
+    m_preview->page()->runJavaScript(js, [guard, this](const QVariant &result) {
+        if (!guard) return;
         if (result.toBool()) {
+            // Re-assert the scroll for a while: the deferred syncs a file
+            // load schedules (see syncPreviewScroll) can land right after
+            // this success and stomp the jump back to the editor's top.
+            m_anchorSuppressUntil =
+                QDateTime::currentMSecsSinceEpoch() + Debounce::AnchorSyncSuppressMs;
             m_anchorTimer->stop();
             m_pendingAnchor.clear();
         }
@@ -515,11 +544,12 @@ void MainWindow::tryScrollPreviewToAnchor()
     // Keep ticking even if the runJavaScript callback never fires: a
     // navigation that replaces the page mid-flight can drop the pending
     // callback, and a chain that only re-arms from the callback would die
-    // on the first lost tick. Cap the budget at ~18s (60 x 300ms ticks) so
+    // on the first lost tick. Cap the budget at ~30s (100 x 300ms ticks) so
     // a genuinely-missing anchor still gives up.
-    if (++m_anchorTries > 60) {
+    if (++m_anchorTries > 100) {
         m_pendingAnchor.clear();
         m_anchorTimer->stop();
+        m_anchorSuppressUntil = 0;
         return;
     }
     m_anchorTimer->start();
