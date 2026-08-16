@@ -42,6 +42,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y google-chrome-stable
 
+      - name: Verify Chrome version (≥140 required for headless PDF)
+        run: |
+          google-chrome-stable --version
+
       - name: Install Qt ${{ env.QT_VERSION }}
         run: |
           python3 -m venv "$HOME/aqt"
