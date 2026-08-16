@@ -127,9 +127,7 @@ ExportPdfDialog::ExportPdfDialog(const QString &html, const QString &defaultFile
     m_hiddenEngine->settings()->setAttribute(QWebEngineSettings::PreferCSSMarginsForPrinting, true);
     connect(m_hiddenEngine, &QWebEngineView::loadFinished, this, &ExportPdfDialog::onPageLoaded);
 
-    m_pdfProcess = new QProcess(this);
-    m_pdfProcess->setStandardOutputFile(QProcess::nullDevice());
-    m_pdfProcess->setStandardErrorFile(QProcess::nullDevice());
+    m_pdfProcess = createPdfProcess();
 
     m_defaultRadio->setChecked(true);
     m_customCssPath.clear();
@@ -143,9 +141,17 @@ ExportPdfDialog::~ExportPdfDialog()
     // child, so closing the dialog mid-generation would otherwise leave an
     // orphaned headless browser running (and, in tests, leaking processes
     // that pile up under parallel runs).
-    if (m_pdfProcess && m_pdfProcess->state() != QProcess::NotRunning) {
-        m_pdfProcess->kill();
-        m_pdfProcess->waitForFinished();
+    // Disconnect FIRST: kill()+waitForFinished() would otherwise deliver the
+    // finished() signal and drive the retry/fallback chain on a
+    // half-destroyed dialog (spawning a fresh chromium and crashing on the
+    // dangling preview pointer).
+    m_destroying = true;
+    if (m_pdfProcess) {
+        m_pdfProcess->disconnect();
+        if (m_pdfProcess->state() != QProcess::NotRunning) {
+            m_pdfProcess->kill();
+            m_pdfProcess->waitForFinished();
+        }
     }
 }
 
@@ -715,6 +721,143 @@ void ExportPdfDialog::generatePdfViaChromium(const QString &printCss)
         });
 }
 
+void ExportPdfDialog::generatePdfViaQtPage(int genId, const QString &css)
+{
+    if (m_destroying || genId != m_generationId) return;
+
+    QSizeF sizePt = parsePageSize(css);
+    QMarginsF m = parsePageMargins(css);
+    bool landscape = sizePt.width() > sizePt.height();
+    QSizeF normalPt = landscape
+        ? QSizeF(sizePt.height(), sizePt.width()) : sizePt;
+    QPageLayout layout(QPageSize(normalPt, QPageSize::Point),
+                       landscape ? QPageLayout::Landscape : QPageLayout::Portrait,
+                       m, QPageLayout::Point);
+
+    m_hiddenEngine->page()->printToPdf([this, genId](const QByteArray &data) {
+        if (genId != m_generationId) return;
+        m_pdfData = data;
+        qCDebug(lcPdf, "Qt printToPdf generated: %zu bytes", m_pdfData.size());
+
+        m_tempFile.reset(new QTemporaryFile());
+        if (m_tempFile->open()) {
+            m_tempFile->write(data);
+            m_tempFile->flush();
+            m_pdfUrl = m_tempFile->fileName();
+            m_showPdfToolbar->setEnabled(true);
+            reloadPdfPreview();
+        }
+    }, layout);
+}
+
+void ExportPdfDialog::launchChromiumPdf(int genId, const QString &htmlPath,
+                                        const QString &pdfPath,
+                                        QSharedPointer<QTemporaryDir> dir, int attempt)
+{
+    if (m_destroying || genId != m_generationId) return;
+
+    QStringList args;
+    args << QStringLiteral("--headless=new")
+         << QStringLiteral("--no-margins")
+         << QStringLiteral("--no-pdf-header-footer")
+         << QStringLiteral("--print-to-pdf=%1").arg(pdfPath)
+         << QUrl::fromLocalFile(htmlPath).toString();
+
+    // One attempt ended without a usable PDF. Retry with a fresh process, or
+    // fall back to the in-process Qt path once the budget is exhausted.
+    auto attemptFailed = [this, genId, dir, htmlPath, pdfPath, attempt](int exitCode) {
+        if (genId != m_generationId) return;
+        qCDebug(lcPdf, "chromium attempt %d/%d failed (exit %d), stderr tail: %s",
+                attempt + 1, MaxChromiumAttempts, exitCode,
+                qPrintable(m_pdfStderr.right(512).trimmed()));
+        if (attempt + 1 < MaxChromiumAttempts)
+            launchChromiumPdf(genId, htmlPath, pdfPath, dir, attempt + 1);
+        else {
+            qCDebug(lcPdf, "chromium retries exhausted, falling back to Qt printToPdf");
+            generatePdfViaQtPage(genId, buildMergedPrintCss(m_currentPrintCss));
+        }
+    };
+
+    auto onFinished = [this, genId, pdfPath, attemptFailed](int exitCode, QProcess::ExitStatus) {
+        if (genId != m_generationId) return;
+
+        QByteArray pdf;
+        if (exitCode == 0) {
+            QFile f(pdfPath);
+            if (f.open(QIODevice::ReadOnly))
+                pdf = f.readAll();
+        }
+        if (pdf.isEmpty()) {
+            attemptFailed(exitCode);
+            return;
+        }
+
+        m_pdfData = pdf;
+        qCDebug(lcPdf, "chromium generated: %zu bytes", m_pdfData.size());
+
+        m_tempFile.reset(new QTemporaryFile());
+        if (m_tempFile->open()) {
+            m_tempFile->write(m_pdfData);
+            m_tempFile->flush();
+            m_pdfUrl = m_tempFile->fileName();
+            m_showPdfToolbar->setEnabled(true);
+            reloadPdfPreview();
+        }
+    };
+
+    auto onError = [this, genId, attemptFailed](QProcess::ProcessError error) {
+        if (genId != m_generationId) return;
+        if (error == QProcess::FailedToStart) {
+            // A failed-to-start QProcess never emits finished(), so drive the
+            // retry from errorOccurred. Disconnect the finished handler first:
+            // on Qt versions that do emit finished() after FailedToStart, the
+            // two paths would otherwise double-retry.
+            if (auto *proc = qobject_cast<QProcess *>(sender()))
+                QObject::disconnect(proc, &QProcess::finished, nullptr, nullptr);
+            attemptFailed(-1);
+        }
+    };
+
+    qCDebug(lcPdf, "using chromium (attempt %d): %s  args: %s",
+            attempt, qPrintable(m_chromiumBinary), qPrintable(args.join(' ')));
+
+    // A previous attempt's chromium may still be running (or this is a fresh
+    // generation racing an older one): QProcess::start() is a silent no-op
+    // while a process is running, so kill and reap it first.
+    if (m_pdfProcess && m_pdfProcess->state() != QProcess::NotRunning) {
+        m_pdfProcess->kill();
+        m_pdfProcess->waitForFinished();
+    }
+    // A QProcess that failed to start can never be restarted — every retry
+    // must run on a brand-new QProcess object.
+    if (m_pdfProcess)
+        m_pdfProcess->deleteLater();
+    m_pdfProcess = createPdfProcess();
+
+    QObject::connect(m_pdfProcess, &QProcess::finished,
+                     m_pdfProcess, onFinished, Qt::SingleShotConnection);
+    QObject::connect(m_pdfProcess, &QProcess::errorOccurred,
+                     m_pdfProcess, onError, Qt::SingleShotConnection);
+    m_pdfProcess->start(m_chromiumBinary, args);
+}
+
+QProcess *ExportPdfDialog::createPdfProcess()
+{
+    auto *proc = new QProcess(this);
+    proc->setStandardOutputFile(QProcess::nullDevice());
+    // Capture the chromium stderr tail (capped) so a failed run's diagnostics
+    // can be logged when the retries are exhausted.
+    connect(proc, &QProcess::readyReadStandardError, this, [this, proc]() {
+        QByteArray chunk = proc->readAllStandardError();
+        if (chunk.size() > MaxChromiumStderr)
+            chunk = chunk.right(MaxChromiumStderr);
+        if (m_pdfStderr.size() + chunk.size() > MaxChromiumStderr)
+            m_pdfStderr.remove(0, m_pdfStderr.size() + chunk.size() - MaxChromiumStderr);
+        m_pdfStderr += chunk;
+    });
+    return proc;
+}
+
 void ExportPdfDialog::extractPdfBodyForChromium(int genId, const QString &printCss)
 {
     if (genId != m_generationId) return;
@@ -795,47 +938,8 @@ void ExportPdfDialog::extractPdfBodyForChromium(int genId, const QString &printC
         htmlFile.write(fullDoc.toUtf8());
         htmlFile.close();
 
-        QStringList args;
-        args << QStringLiteral("--headless=new")
-             << QStringLiteral("--no-margins")
-             << QStringLiteral("--no-pdf-header-footer")
-             << QStringLiteral("--print-to-pdf=%1").arg(pdfPath)
-             << QUrl::fromLocalFile(htmlPath).toString();
-
-        auto onFinished = [this, genId, dir, pdfPath](int exitCode, QProcess::ExitStatus) {
-            if (genId != m_generationId) return;
-            if (exitCode != 0) return;
-
-            QFile f(pdfPath);
-            if (!f.open(QIODevice::ReadOnly)) return;
-            m_pdfData = f.readAll();
-            qCDebug(lcPdf, "chromium generated: %zu bytes", m_pdfData.size());
-
-            m_tempFile.reset(new QTemporaryFile());
-            if (m_tempFile->open()) {
-                m_tempFile->write(m_pdfData);
-                m_tempFile->flush();
-                m_pdfUrl = m_tempFile->fileName();
-                m_showPdfToolbar->setEnabled(true);
-                reloadPdfPreview();
-            }
-        };
-
-        qCDebug(lcPdf, "using chromium: %s  args: %s",
-                qPrintable(m_chromiumBinary), qPrintable(args.join(' ')));
-        // A previous generation's chromium may still be running: QProcess::start()
-        // is a silent no-op while the process is running, so without this the new
-        // generation would never produce its PDF (and the stale run's finish would
-        // only trip the old genId-guarded callback). Kill and reap it first, then
-        // bind a fresh finished-handler for this generation.
-        if (m_pdfProcess->state() != QProcess::NotRunning) {
-            m_pdfProcess->kill();
-            m_pdfProcess->waitForFinished();
-        }
-        QObject::disconnect(m_pdfProcess, &QProcess::finished, nullptr, nullptr);
-        QObject::connect(m_pdfProcess, &QProcess::finished,
-                         m_pdfProcess, onFinished, Qt::SingleShotConnection);
-        m_pdfProcess->start(m_chromiumBinary, args);
+        m_pdfStderr.clear();
+        launchChromiumPdf(genId, htmlPath, pdfPath, dir, 0);
     });
 }
 
