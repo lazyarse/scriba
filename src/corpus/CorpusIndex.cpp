@@ -158,6 +158,32 @@ QString CorpusIndex::tocEndMarker()
     return QStringLiteral("<!--toc:end-->");
 }
 
+QPair<int, int> CorpusIndex::tocMarkerRegion(const QString &text)
+{
+    static const QRegularExpression startRe(
+        QStringLiteral(R"(^\s*<!--\s*toc:start\s*-->\s*$)"));
+    static const QRegularExpression endRe(
+        QStringLiteral(R"(^\s*<!--\s*toc:end\s*-->\s*$)"));
+
+    int start = -1;
+    int end = -1;
+    bool inFence = false;
+    int offset = 0;
+    for (const QString &line : text.split(QLatin1Char('\n'))) {
+        if (line.startsWith(QLatin1String("```"))
+            || line.startsWith(QLatin1String("~~~"))) {
+            inFence = !inFence;
+        } else if (!inFence) {
+            if (start < 0 && startRe.match(line).hasMatch())
+                start = offset;
+            if (endRe.match(line).hasMatch())
+                end = offset;   // last end marker wins
+        }
+        offset += line.size() + 1;
+    }
+    return {start, end};
+}
+
 QString CorpusIndex::defaultTocTemplate()
 {
     return QStringLiteral("# Table of Contents\n\n<!--toc:start-->\n<!--toc:end-->\n");
@@ -167,12 +193,13 @@ QString CorpusIndex::replaceTocBlock(const QString &fullText, const QString &lin
 {
     const QString start = tocStartMarker();
     const QString end = tocEndMarker();
-    const int startLine = fullText.indexOf(start);
+    const auto region = tocMarkerRegion(fullText);
+    const int startLine = region.first;
     // Scan to the LAST end marker so doubled/corrupt files (start…end
     // start…end, or a lone trailing end) collapse to a single Scriba-owned
     // block on the next refresh; user text after the last end marker is
     // preserved.
-    const int endLine = fullText.lastIndexOf(end);
+    const int endLine = region.second;
 
     QString block = start + QLatin1Char('\n') + linksMd;
     if (!linksMd.endsWith(QLatin1Char('\n')))

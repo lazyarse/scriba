@@ -45,6 +45,7 @@
 #include <QSet>
 #include <QSettings>
 #include <QStatusBar>
+#include <QTextBlock>
 #include <QTextDocument>
 #include <QTimer>
 
@@ -1058,7 +1059,7 @@ void MainWindow::refreshCorpusToc()
         return;
     const QString before = QString::fromUtf8(in.readAll());
     in.close();
-    if (before.isEmpty() || !before.contains(CorpusIndex::tocStartMarker()))
+    if (before.isEmpty() || CorpusIndex::tocMarkerRegion(before).first < 0)
         return; // user removed the markers: leave the file alone
 
     const QString links = CorpusIndex::renderTocLinks(m_corpus, tocLinks());
@@ -1082,25 +1083,27 @@ void MainWindow::refreshCorpusToc()
         return;
     QTextCursor c(m_tabs[idx].editor->document());
     c.beginEditBlock();
-    QTextCursor startCursor = c.document()->find(CorpusIndex::tocStartMarker(), c);
-    if (!startCursor.isNull()) {
-        QTextCursor endCursor = startCursor;
-        QTextCursor next;
-        while (!(next = c.document()->find(CorpusIndex::tocEndMarker(), endCursor)).isNull())
-            endCursor = next;
-        // find() returns a cursor with the match selected (anchor = match
-        // start); collapse it to a plain position cursor or the KeepAnchor
-        // below anchors the region at the marker start and leaves the old end
-        // marker in place.
-        endCursor.clearSelection();
-        endCursor.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
-        QTextCursor region = endCursor;
-        region.setPosition(startCursor.selectionStart(), QTextCursor::KeepAnchor);
+    const auto region = CorpusIndex::tocMarkerRegion(c.document()->toPlainText());
+    if (region.first >= 0) {
+        // The tab may still hold the user's spaced/uncanonical marker form, so
+        // the region is located fence-aware on the live text and anchored via
+        // the marker lines' blocks.
+        QTextBlock startBlock = c.document()->findBlock(region.first);
+        QTextBlock endBlock = c.document()->findBlock(
+            region.second >= 0 ? region.second : region.first);
+        // Selection runs from the start-marker line start through the END of
+        // the last end-marker line (text length excludes the block separator,
+        // so the trailing newline stays outside the region — matching the
+        // old EndOfLine semantics). The first move is MoveAnchor so the
+        // anchor ends up at end-of-line for the KeepAnchor move below.
+        QTextCursor regionCursor(endBlock);
+        regionCursor.setPosition(endBlock.position() + endBlock.text().length());
+        regionCursor.setPosition(startBlock.position(), QTextCursor::KeepAnchor);
         const QString newBlock = CorpusIndex::tocStartMarker() + QLatin1Char('\n')
             + links
             + (links.endsWith(QLatin1Char('\n')) ? QString() : QStringLiteral("\n"))
             + CorpusIndex::tocEndMarker();
-        region.insertText(newBlock);
+        regionCursor.insertText(newBlock);
     }
     c.endEditBlock();
     if (!m_tabs[idx].dirty)

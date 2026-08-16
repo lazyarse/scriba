@@ -923,6 +923,12 @@ dialog from stale flags.
   outside is preserved. The block is rewritten on "Open Table of Contents" and on
   corpus document rename/delete. If the user removes the start marker, the file is
   left alone (the markers are the contract — no markers, no managed block).
+- Markers are matched line-anchored (`^\s*<!--\s*toc:start\s*-->\s*$`) so any
+  spacing variant (`<!--toc:start-->`, `<!-- toc:start -->`, mixed) is accepted,
+  and only outside ``` / ~~~ fenced blocks (`CorpusIndex::tocMarkerRegion`).
+  A marker line inside a fence is user text, never part of the managed region —
+  the region anchors on the first real start marker and the last real end marker,
+  and writes the canonical no-space form.
 - The toc file is a sidecar: excluded from `m_corpus.documents`, so it is never
   serialized into the `.scriba`, never watched by the corpus watcher, and never
   listed in its own TOC. The exclusion is by absolute path (`isCorpusTocPath`),

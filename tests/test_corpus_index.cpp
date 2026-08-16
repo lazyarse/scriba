@@ -380,6 +380,93 @@ TEST(CorpusIndexTest, ReplaceTocBlockMultipleEndsPreservesTextAfterLastEnd)
     EXPECT_TRUE(after.indexOf(QStringLiteral("Notes")) > after.lastIndexOf(end));
 }
 
+TEST(CorpusIndexTest, ReplaceTocBlockSpacedMarkersAreRecognizedAndCanonicalized)
+{
+    const QString before = QStringLiteral(
+        "# T\n\nIntro\n\n<!-- toc:start -->\nold links\n<!-- toc:end -->\n\nNotes\n");
+    const QString after = CorpusIndex::replaceTocBlock(
+        before, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_TRUE(after.contains(QStringLiteral("Intro")));
+    EXPECT_TRUE(after.contains(QStringLiteral("Notes")));
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+    EXPECT_FALSE(after.contains(QStringLiteral("old links")));
+    EXPECT_FALSE(after.contains(QStringLiteral("<!-- toc:start -->")));
+    EXPECT_FALSE(after.contains(QStringLiteral("<!-- toc:end -->")));
+    EXPECT_EQ(after.count(CorpusIndex::tocStartMarker()), 1);
+    EXPECT_EQ(after.count(CorpusIndex::tocEndMarker()), 1);
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockMixedSpacingMarkers)
+{
+    const QString before = QStringLiteral(
+        "# T\n\n<!--toc:start -->\nold\n<!-- toc:end-->\n");
+    const QString after = CorpusIndex::replaceTocBlock(
+        before, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_EQ(after.count(CorpusIndex::tocStartMarker()), 1);
+    EXPECT_EQ(after.count(CorpusIndex::tocEndMarker()), 1);
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockIgnoresMarkersInsideFences)
+{
+    const QString before = QStringLiteral(
+        "# T\n\n"
+        "```\n<!-- toc:start -->\nignored\n<!-- toc:end -->\n```\n\n"
+        "intro\n");
+    const QString after = CorpusIndex::replaceTocBlock(
+        before, QStringLiteral("- [x](x.md)\n"));
+
+    // No markers outside fences: a fresh block is appended at EOF and the
+    // fenced lines must remain byte-identical.
+    EXPECT_TRUE(after.startsWith(before));
+    EXPECT_EQ(after.count(QStringLiteral("<!-- toc:start -->")), 1);
+    EXPECT_EQ(after.count(QStringLiteral("<!-- toc:end -->")), 1);
+    EXPECT_EQ(after.count(CorpusIndex::tocStartMarker()), 1);
+    EXPECT_EQ(after.count(CorpusIndex::tocEndMarker()), 1);
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockFencedDecoyDoesNotAnchorRegion)
+{
+    // A fenced marker before the real pair: the region must anchor on the
+    // real markers, leaving the fence untouched.
+    const QString before = QStringLiteral(
+        "# T\n\n"
+        "```\n<!-- toc:start -->\n```\n\n"
+        "<!--toc:start-->\nold links\n<!--toc:end-->\n\nNotes\n");
+    const QString after = CorpusIndex::replaceTocBlock(
+        before, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_TRUE(after.contains(QStringLiteral("```\n<!-- toc:start -->\n```")));
+    EXPECT_EQ(after.count(CorpusIndex::tocStartMarker()), 1);
+    EXPECT_EQ(after.count(CorpusIndex::tocEndMarker()), 1);
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+    EXPECT_FALSE(after.contains(QStringLiteral("old links")));
+    EXPECT_TRUE(after.contains(QStringLiteral("Notes")));
+}
+
+TEST(CorpusIndexTest, ReplaceTocBlockFencedEndMarkerIgnored)
+{
+    // An end marker inside a fence must not count as the last end: the region
+    // runs to the real end marker and the fenced text survives.
+    const QString before = QStringLiteral(
+        "# T\n\n"
+        "<!--toc:start-->\nold links\n<!--toc:end-->\n\n"
+        "```\n<!-- toc:end -->\n```\n\nNotes\n");
+    const QString after = CorpusIndex::replaceTocBlock(
+        before, QStringLiteral("- [x](x.md)\n"));
+
+    EXPECT_EQ(after.count(CorpusIndex::tocStartMarker()), 1);
+    EXPECT_EQ(after.count(CorpusIndex::tocEndMarker()), 1);
+    EXPECT_TRUE(after.contains(QStringLiteral("```\n<!-- toc:end -->\n```")));
+    EXPECT_TRUE(after.contains(QStringLiteral("- [x](x.md)")));
+    EXPECT_TRUE(after.contains(QStringLiteral("Notes")));
+    EXPECT_TRUE(after.indexOf(QStringLiteral("Notes"))
+                > after.lastIndexOf(CorpusIndex::tocEndMarker()));
+}
+
 TEST(CorpusIndexTest, DefaultTocTemplateHasBothMarkers)
 {
     const QString t = CorpusIndex::defaultTocTemplate();

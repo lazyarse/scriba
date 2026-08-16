@@ -16,6 +16,7 @@
 
 #include <QHash>
 #include <QList>
+#include <QPair>
 #include <QString>
 
 class Corpus;
@@ -35,8 +36,15 @@ public:
                              const QHash<QString, QString> &pageLinkByAbs);
     // The two Scriba-managed markers. Everything between the start and end
     // marker lines is Scriba-owned and regenerated; text outside is the user's.
+    // Markers are recognized in any spacing variant (`<!--toc:start-->`,
+    // `<!-- toc:start -->`, ...) and only on their own line, never inside a
+    // ``` / ~~~ fenced block.
     static QString tocStartMarker();
     static QString tocEndMarker();
+    // Byte offsets of the first start-marker line and the LAST end-marker
+    // line (each -1 when absent), fence-aware and line-anchored like the
+    // markers themselves.
+    static QPair<int, int> tocMarkerRegion(const QString &text);
     // The marker region filled with the rendered links (no "# Table of
     // Contents" heading / "Corpus:" line — the user owns those). `fullText`
     // is the current toc.md content; if both markers are present the region
