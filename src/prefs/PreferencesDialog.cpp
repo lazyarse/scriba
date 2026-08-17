@@ -624,6 +624,7 @@ void PreferencesDialog::addStylesheet()
     }
     m_config->setStylesheets(existing);
     populateStylesheetList();
+    m_loader->invalidateCache();
     emit stylesheetChanged();
 }
 
@@ -641,6 +642,7 @@ void PreferencesDialog::removeStylesheet()
 
     m_config->setStylesheets(existing);
     populateStylesheetList();
+    m_loader->invalidateCache();
     emit stylesheetChanged();
 }
 
@@ -679,6 +681,7 @@ void PreferencesDialog::duplicateStylesheet()
             break;
         }
     }
+    m_loader->invalidateCache();
     emit stylesheetChanged();
 }
 
@@ -727,5 +730,6 @@ void PreferencesDialog::onCurrentItemChanged(QListWidgetItem *current, QListWidg
         ? "Bundled themes can't be edited. Use Duplicate first."
         : QString());
     m_config->setActiveStylesheet(path);
+    m_loader->invalidateCache();
     emit stylesheetChanged();
 }

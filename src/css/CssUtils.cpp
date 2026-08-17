@@ -119,7 +119,7 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
     QColor matchBg;
     QColor btnBorder;
     QColor chkBg, chkCheckedBg;
-    QString chkImg, upArrowImg, downArrowImg, radioImg;
+    QString chkImg, upArrowImg, downArrowImg, rightArrowImg, radioImg;
     txt = chromeTextColor(themeCss);
     if (dark) {
         track = bg.lighter(160);
@@ -134,6 +134,7 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         chkImg = QStringLiteral("url(:/checkbox-checked.svg)");
         upArrowImg = QStringLiteral("url(:/arrow-up.svg)");
         downArrowImg = QStringLiteral("url(:/arrow-down.svg)");
+        rightArrowImg = QStringLiteral("url(:/arrow-right.svg)");
         radioImg = QStringLiteral("url(:/radio-dot.svg)");
         btnBorder = thumb.lighter(150);
     } else {
@@ -149,6 +150,7 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         chkImg = QStringLiteral("url(:/checkbox-checked-dark.svg)");
         upArrowImg = QStringLiteral("url(:/arrow-up-dark.svg)");
         downArrowImg = QStringLiteral("url(:/arrow-down-dark.svg)");
+        rightArrowImg = QStringLiteral("url(:/arrow-right-dark.svg)");
         radioImg = QStringLiteral("url(:/radio-dot-dark.svg)");
         btnBorder = thumb.darker(150);
     }
@@ -190,6 +192,14 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
         "QListWidget { background-color: %2; color: %3; border: none; }\n"
         "QListWidget::item:selected { background-color: %5; color: %6; }\n"
         "QListWidget::item:hover:!selected { background-color: %1; }\n"
+        "QTreeView { background-color: %10; color: %3; border: none; outline: none; }\n"
+        "QTreeView::item { padding: 2px 4px; }\n"
+        "QTreeView::item:selected { background-color: %5; color: %6; }\n"
+        "QTreeView::item:hover:!selected { background-color: %1; }\n"
+        "QTreeView::branch:has-children:closed { image: %16; }\n"
+        "QTreeView::branch:has-children:open { image: %15; }\n"
+        "QDockWidget { background-color: %10; color: %3; }\n"
+        "QDockWidget::title { background-color: %2; color: %3; padding: 4px 6px; border-bottom: 1px solid %4; }\n"
         "QTextEdit { background-color: %2; color: %3; font-size: @FONT_SIZE@pt; border: none; }\n"
         "QPlainTextEdit { background-color: %2; color: %3; font-size: @FONT_SIZE@pt; border: none; }\n"
         "QPushButton { background-color: %4; color: %3; font-size: @FONT_SIZE@pt; border: 1px solid %19; padding: 4px 12px; }\n"
@@ -286,7 +296,9 @@ QString deriveChromeCss(const QString &themeCss, int uiFontSizePt)
     ).arg(
         upArrowImg   // %14 — spinbox up arrow
     ).arg(
-        downArrowImg // %15 — spinbox down arrow
+        downArrowImg // %15 — spinbox down arrow / open tree branch
+    ).arg(
+        rightArrowImg // %16 — closed tree branch
     ).arg(
         gutterBg.name()   // %17 — line-number gutter background
     ).arg(

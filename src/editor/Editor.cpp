@@ -496,6 +496,14 @@ void Editor::showIssueSummary()
     updateIssueSummary();
 }
 
+void Editor::applyIssueSummaryTheme(const QColor &bg, const QColor &fg)
+{
+    m_issueSummaryThemeBg = bg;
+    m_issueSummaryThemeFg = fg;
+    if (m_issueSummaryPane)
+        m_issueSummaryPane->setTheme(bg, fg);
+}
+
 void Editor::updateIssueSummary()
 {
     if (!m_issueSummaryPane || !m_issueSummaryOptions.enabled || !isMarkdownFile()) {

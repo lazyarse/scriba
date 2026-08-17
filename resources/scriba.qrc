@@ -14,6 +14,8 @@
         <file>arrow-down.svg</file>
         <file>arrow-up-dark.svg</file>
         <file>arrow-down-dark.svg</file>
+        <file>arrow-right.svg</file>
+        <file>arrow-right-dark.svg</file>
         <file>mermaid.min.js</file>
         <file>pdf.min.mjs</file>
         <file>pdf.worker.min.mjs</file>

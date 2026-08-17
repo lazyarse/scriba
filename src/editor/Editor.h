@@ -94,6 +94,7 @@ public:
     // Explicit trigger (tab switch, file open): clears the dismissed flag and
     // refreshes counts. The pane never auto-appears otherwise.
     void showIssueSummary();
+    void applyIssueSummaryTheme(const QColor &bg, const QColor &fg);
     IssueSummaryPane *issueSummaryPane() const { return m_issueSummaryPane; }
 
     SpellChecker *spellChecker() const { return m_spellChecker.get(); }

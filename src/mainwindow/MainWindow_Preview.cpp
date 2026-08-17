@@ -53,7 +53,12 @@ void MainWindow::refreshPreviewCss()
 
     bool needChromeUpdate = (chromeCss != m_cachedFullCss);
 
-    m_preview->setThemeBackgroundColor(CssUtils::themeColors(rawThemeCss).background);
+    CssUtils::ThemeColors tc = CssUtils::themeColors(rawThemeCss);
+    m_preview->setThemeBackgroundColor(tc.background);
+
+    for (const auto &tab : m_tabs)
+        if (tab.editor)
+            tab.editor->applyIssueSummaryTheme(tc.background, tc.text);
 
     if (needChromeUpdate) {
         m_cachedFullCss = chromeCss;

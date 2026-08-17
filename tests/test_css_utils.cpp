@@ -325,6 +325,40 @@ TEST(CssUtilsTest, TabBarInactiveMatchesBarBackground) {
     EXPECT_TRUE(lightSelected.contains("border: none"));
 }
 
+TEST(CssUtilsTest, TreeAndDockChromeStyled) {
+    auto ruleFor = [&](const QString &themeCss, const QString &selector) {
+        QString css = CssUtils::deriveChromeCss(themeCss);
+        QRegularExpression re(QStringLiteral("%1\\s*\\{[^}]*\\}").arg(selector));
+        auto m = re.match(css);
+        return m.hasMatch() ? m.captured(0) : QString();
+    };
+
+    // dark theme: tree sits on the lighter sidebar surface with light text and
+    // light branch arrows (same convention as the spinbox arrows)
+    QColor darkSide = QColor("#282a36").lighter(130);
+    QColor darkTrack = QColor("#282a36").lighter(160);
+    QColor darkThumb = QColor("#282a36").lighter(220);
+    QString darkTree = ruleFor("body { background: #282a36; }", "QTreeView");
+    EXPECT_TRUE(darkTree.contains("background-color: " + darkSide.name()));
+    EXPECT_TRUE(darkTree.contains("color: #f0f0f0"));
+    EXPECT_TRUE(darkTree.contains("border: none"));
+    QString darkBranchClosed = ruleFor("body { background: #282a36; }", "QTreeView::branch:has-children:closed");
+    EXPECT_TRUE(darkBranchClosed.contains("image: url(:/arrow-right.svg)"));
+    QString darkBranchOpen = ruleFor("body { background: #282a36; }", "QTreeView::branch:has-children:open");
+    EXPECT_TRUE(darkBranchOpen.contains("image: url(:/arrow-down.svg)"));
+    QString darkTitle = ruleFor("body { background: #282a36; }", "QDockWidget::title");
+    EXPECT_TRUE(darkTitle.contains("background-color: " + darkTrack.name()));
+    EXPECT_TRUE(darkTitle.contains("border-bottom: 1px solid " + darkThumb.name()));
+
+    // light theme: tree stays on the plain background with dark arrows
+    QString lightTree = ruleFor("body { background: #ffffff; }", "QTreeView");
+    EXPECT_TRUE(lightTree.contains("background-color: #ffffff"));
+    QString lightBranchClosed = ruleFor("body { background: #ffffff; }", "QTreeView::branch:has-children:closed");
+    EXPECT_TRUE(lightBranchClosed.contains("image: url(:/arrow-right-dark.svg)"));
+    QString lightBranchOpen = ruleFor("body { background: #ffffff; }", "QTreeView::branch:has-children:open");
+    EXPECT_TRUE(lightBranchOpen.contains("image: url(:/arrow-down-dark.svg)"));
+}
+
 TEST(CssUtilsTest, RadioCheckedHasRing) {
     auto ruleFor = [&](const QString &themeCss, const QString &selector) {
         QString css = CssUtils::deriveChromeCss(themeCss);
